@@ -29,26 +29,39 @@ class AclAsyncDao {
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
-        val result = ctx.withSession{ session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", user.username)
-                    setParameter("project", project)
-                    setParameter("groups", memberGroups)
-                    setParameter("appname", applicationName)
-                },
-                """
-                    SELECT *
-                    FROM permissions
-                    WHERE (username = ?user) OR
-                        (
-                            (project = ?project) AND
-                            (project_group IN (select unnest (?groups::text[])))
-                        ) AND
-                        (application_name = ?appname)
-                """.trimIndent()
-            ).rows.singleOrNull()
-        }
+         val result = ctx.withSession { session ->
+             println("user: $user, project: $project, membersGroup: $memberGroups, appname: $applicationName")
+             if (project == null) {
+                 session
+                     .sendPreparedStatement(
+                         {
+                             setParameter("user", user.username)
+                             setParameter("appname", applicationName)
+                         },
+                         """
+                            SELECT *
+                            FROM permissions
+                            WHERE (username = :user) AND (application_name = :appname)
+                         """
+                     ).rows.singleOrNull()
+             } else {
+                 session
+                     .sendPreparedStatement(
+                         {
+                             setParameter("project", project)
+                             setParameter("groups", memberGroups)
+                             setParameter("appname", applicationName)
+                         },
+                         """
+                            SELECT *
+                            FROM permissions
+                            WHERE project = :project 
+                                AND project_group IN (select unnest (:groups::text[]))
+                                AND application_name = :appname
+                         """
+                     ).rows.singleOrNull()
+             }
+         }
 
         if (!result.isNullOrEmpty()) {
             return permissions.contains(ApplicationAccessRight.valueOf(result.getField(PermissionTable.permission)))
@@ -73,9 +86,9 @@ class AclAsyncDao {
                 """
                     SELECT * 
                     FROM permissions
-                    WHERE (application_name = ?appname) AND
-                     (username = ?user) AND (project = ?project)
-                     AND (project_group = ?group)
+                    WHERE (application_name = :appname) AND
+                     (username = :user) AND (project = :project)
+                     AND (project_group = :group)
                 """.trimIndent()
             ).rows.singleOrNull()
 
@@ -90,10 +103,10 @@ class AclAsyncDao {
                     },
                     """
                         UPDATE permissions
-                        SET permission = ?permission
-                        WHERE (application_name = ?appname) AND
-                            (username = ?user) AND (project = ?project)
-                            AND (project_group = ?group)                    
+                        SET permission = :permission
+                        WHERE (application_name = :appname) AND
+                            (username = :user) AND (project = :project)
+                            AND (project_group = :group)                    
                     """.trimIndent()
                 )
             } else {
@@ -123,9 +136,9 @@ class AclAsyncDao {
                 },
                 """
                     DELETE FROM permissions
-                    WHERE (application_name = ?appname) AND
-                            (username = ?user) AND (project = ?project)
-                            AND (project_group = ?group)     
+                    WHERE (application_name = :appname) AND
+                            (username = :user) AND (project = :project)
+                            AND (project_group = :group)     
                 """.trimIndent()
             )
         }
@@ -143,7 +156,7 @@ class AclAsyncDao {
                 """
                     SELECT *
                     FROM permissions
-                    WHERE application_name = ?appname
+                    WHERE application_name = :appname
                 """.trimIndent()
             ).rows.map {
                 EntityWithPermission(
