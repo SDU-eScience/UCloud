@@ -78,7 +78,9 @@ kotlin {
                         )
 
                         linkerOpts.addAll(
-                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(" ")
+                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(
+                                " "
+                            )
                         )
                     }
 
@@ -99,6 +101,10 @@ kotlin {
                 includeDirs.allHeaders(File("/usr/include"))
                 includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
             }
+
+            val libsqlite3 by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
+            }
         }
     }
 
@@ -115,5 +121,11 @@ kotlin {
             languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
             languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
         }
+    }
+}
+
+kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+    binaries.all {
+        freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
     }
 }
