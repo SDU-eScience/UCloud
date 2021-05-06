@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.kubernetes
 
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.AppK8IntegrationTesting
 import dk.sdu.cloud.app.kubernetes.rpc.*
 import dk.sdu.cloud.app.kubernetes.services.*
@@ -12,15 +11,8 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.IngressSettings
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.provider.api.ProviderSpecification
-import dk.sdu.cloud.provider.api.Providers
-import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient
@@ -165,9 +157,9 @@ class Server(
             register(NetworkLimitPlugin)
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
-            register(ConnectToJobPlugin)
             register(ingressService)
             register(networkIpService)
+            register(FirewallPlugin(db, configuration.networkGatewayCidr))
             register(ProxyPlugin(broadcastingStream, ingressService))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
