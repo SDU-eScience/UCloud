@@ -1,14 +1,12 @@
-package dk.sdu.cloud
+package dk.sdu.cloud.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Log
-import dk.sdu.cloud.service.LogLevel
-import dk.sdu.cloud.service.printlnWithLogColor
 import h2o.*
-import h2o.uv_timer_t
 import io.ktor.http.*
 import io.ktor.utils.io.charsets.*
-import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.atomicArrayOfNulls
 import kotlinx.cinterop.*
 import kotlinx.coroutines.channels.Channel
@@ -530,16 +528,20 @@ class H2OServer {
         )
         check(uvListenResult == 0) { "Could not initialize socket listener" }
 
-        printlnWithLogColor(LogLevel.INFO, """
-             __  __  ____    ___                      __     
-            /\ \/\ \/\  _`\ /\_ \                    /\ \    
-            \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version 2021.1.0
-             \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:8889
-              \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
-               \ \_____\ \____//\____\ \____/\ \____\ \___,_\
-                \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
-                                                 
-        """.trimIndent())
+        println(buildString {
+            append("\u001B[34m")
+            append("""
+                 __  __  ____    ___                      __     
+                /\ \/\ \/\  _`\ /\_ \                    /\ \    
+                \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version 2021.1.0
+                 \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:8889
+                  \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
+                   \ \_____\ \____//\____\ \____/\ \____\ \___,_\
+                    \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
+                                                     
+            """.trimIndent())
+            append("\u001B[0m")
+        })
         uv_run(ctx.loop?.reinterpret(), UV_RUN_DEFAULT)
     }
 }

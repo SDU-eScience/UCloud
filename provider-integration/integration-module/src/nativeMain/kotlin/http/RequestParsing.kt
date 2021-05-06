@@ -1,11 +1,8 @@
-package dk.sdu.cloud
+package dk.sdu.cloud.http
 
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpQueryParameter
 import dk.sdu.cloud.calls.http
-import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -54,20 +51,20 @@ private fun decodeUrlComponent(str: String): String {
         } else {
             var j = 0
             do {
-                var h: Int = str[i + 1].toInt()
-                var l: Int = str[i + 2].toInt()
+                var h: Int = str[i + 1].code
+                var l: Int = str[i + 2].code
                 i += 3
-                h = (h - '0'.toInt())
+                h = (h - '0'.code)
                 if (h >= 10) {
-                    h = (h or ' '.toInt())
-                    h -= ('a'.toInt() - '0'.toInt())
+                    h = (h or ' '.code)
+                    h -= ('a'.code - '0'.code)
                     require(h < 6)
                     h += 10
                 }
-                l -= '0'.toInt()
+                l -= '0'.code
                 if (l >= 10) {
-                    l = l or ' '.toInt()
-                    l -= ('a'.toInt() - '0'.toInt())
+                    l = l or ' '.code
+                    l -= ('a'.code - '0'.code)
                     require(l < 6)
                     l += 10
                 }

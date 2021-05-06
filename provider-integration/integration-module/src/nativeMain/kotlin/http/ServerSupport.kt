@@ -1,6 +1,9 @@
-package dk.sdu.cloud
+package dk.sdu.cloud.http
 
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeContainer
+import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import io.ktor.http.*
 import kotlinx.cinterop.CPointer
@@ -77,3 +80,26 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
         override val statusCode: HttpStatusCode = HttpStatusCode.OK
     }
 }
+
+@Suppress("UNCHECKED_CAST")
+val <S : Any> CallHandler<*, S, *>.wsContext: WebSocketContext<*, S, *>
+    get() = ctx.serverContext as WebSocketContext<*, S, *>
+
+@SharedImmutable
+val bearerKey = AttributeKey<String>("bearer").also { it.freeze() }
+var IngoingCall<*>.bearerOrNull: String?
+    get() = attributes.getOrNull(bearerKey)
+    set(value) {
+        attributes.setOrDelete(bearerKey, value)
+    }
+
+@SharedImmutable
+val securityPrincipalTokenKey = AttributeKey<SecurityPrincipalToken>("principalToken").also { it.freeze() }
+var IngoingCall<*>.securityPrincipalTokenOrNull: SecurityPrincipalToken?
+    get() = attributes.getOrNull(securityPrincipalTokenKey)
+    set(value) {
+        attributes.setOrDelete(securityPrincipalTokenKey, value)
+    }
+
+val IngoingCall<*>.securityPrincipal: SecurityPrincipal
+    get() = securityPrincipalTokenOrNull?.principal ?: error("User is not authenticated")
