@@ -7,6 +7,13 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 06-05-21
+App ACL fix
+```
+✅  Deployment(app-store, 0.16.8) (UP-TO-DATE)
+```
+
+
 ## 04-05-21
 
 ```
