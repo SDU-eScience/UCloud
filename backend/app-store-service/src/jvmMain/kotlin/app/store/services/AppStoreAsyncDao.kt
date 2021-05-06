@@ -288,7 +288,6 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
-        println("testing permission")
         if (!ctx.withSession { session ->
                 internalHasPermission(
                     session,
@@ -303,11 +302,9 @@ class AppStoreAsyncDao(
                 )
             }
         ) throw ApplicationException.NotFound()
-        println("approved")
         val entity = ctx.withSession { session ->
             internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
         } ?: throw ApplicationException.NotFound()
-        println("What I found: $entity")
         return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
     }
 

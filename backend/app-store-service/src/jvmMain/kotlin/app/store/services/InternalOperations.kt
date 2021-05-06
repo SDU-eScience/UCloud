@@ -34,9 +34,7 @@ internal suspend fun internalHasPermission(
     aclDao: AclAsyncDao
 ): Boolean {
     if (user.role in Roles.PRIVILEGED) return true
-    println("not Privileged")
     if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
-    println("not public")
     return ctx.withSession { session ->
         aclDao.hasPermission(
             session,

@@ -44,7 +44,6 @@ class AppStoreService(
         } else {
             retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
-        println("prject groups: $projectGroups")
         return db.withSession { session ->
             val result = applicationDao.findByNameAndVersionForUser(
                 session,
@@ -54,7 +53,6 @@ class AppStoreService(
                 appName,
                 appVersion
             )
-            println("result: $result")
             val toolRef = result.invocation.tool
             val tool = toolDao.findByNameAndVersion(session, securityPrincipal, toolRef.name, toolRef.version)
 

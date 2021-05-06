@@ -159,8 +159,6 @@ class ElasticQueryService(
     }
 
     private fun <P : Any> AnyOf<P>.toQuery(fieldName: String): QueryBuilder {
-        println(anyOf)
-        println(fieldName)
         val termsQuery = TermsQueryBuilder(fieldName, anyOf.map { it.toString() })
 
         return if (negate) {

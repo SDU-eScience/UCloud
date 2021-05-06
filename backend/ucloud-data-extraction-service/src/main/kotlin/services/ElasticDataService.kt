@@ -50,8 +50,6 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
         val users = mostConcurrent["sterms#users"]["buckets"].filter {
             !it["key"].textValue().startsWith("_")
         }.map { it["key"] }
-        println(users)
-        println(users.size)
     }
 
     fun avarageUserActivity() {
@@ -63,7 +61,6 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
 
         var timeBetweenStartAndNewest = 0L
         users.forEach { user ->
-            println(user)
             val searchRequest = SearchRequest("http_logs*")
             searchRequest.source(
                 SearchSourceBuilder()

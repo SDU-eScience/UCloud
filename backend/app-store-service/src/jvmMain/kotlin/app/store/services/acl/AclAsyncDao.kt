@@ -30,7 +30,6 @@ class AclAsyncDao {
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
          val result = ctx.withSession { session ->
-             println("user: $user, project: $project, membersGroup: $memberGroups, appname: $applicationName")
              if (project == null) {
                  session
                      .sendPreparedStatement(
