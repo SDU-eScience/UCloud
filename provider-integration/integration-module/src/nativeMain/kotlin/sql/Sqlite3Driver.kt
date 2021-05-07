@@ -1,7 +1,6 @@
 package dk.sdu.cloud.sql
 
 import kotlinx.cinterop.*
-import platform.posix.alloca
 import platform.posix.memcpy
 import sqlite3.*
 
@@ -90,15 +89,15 @@ class Sqlite3PreparedStatement(
     }
 
     override fun bindNull(param: String) {
-        sqlite3_bind_null(statementPtr.value, readParamIndex(param))
+        sqlite3_bind_null(statementPtr.value, readParamIndex(param)).unwrapSqlite3Error(connPtr)
     }
 
     override fun bindInt(param: String, value: Int) {
-        sqlite3_bind_int(statementPtr.value, readParamIndex(param), value)
+        sqlite3_bind_int(statementPtr.value, readParamIndex(param), value).unwrapSqlite3Error(connPtr)
     }
 
     override fun bindLong(param: String, value: Long) {
-        sqlite3_bind_int64(statementPtr.value, readParamIndex(param), value)
+        sqlite3_bind_int64(statementPtr.value, readParamIndex(param), value).unwrapSqlite3Error(connPtr)
     }
 
     override fun bindString(param: String, value: String) {
@@ -117,7 +116,7 @@ class Sqlite3PreparedStatement(
             staticCFunction { ptr ->
                 platform.posix.free(ptr)
             }
-        )
+        ).unwrapSqlite3Error(connPtr)
     }
 
     override fun bindBoolean(param: String, value: Boolean) {
@@ -125,7 +124,7 @@ class Sqlite3PreparedStatement(
     }
 
     override fun bindDouble(param: String, value: Double) {
-        sqlite3_bind_double(statementPtr.value, readParamIndex(param), value)
+        sqlite3_bind_double(statementPtr.value, readParamIndex(param), value).unwrapSqlite3Error(connPtr)
     }
 
     override fun reset() {

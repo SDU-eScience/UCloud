@@ -2,6 +2,7 @@ package dk.sdu.cloud.http
 
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpQueryParameter
+import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.calls.http
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -34,6 +35,16 @@ data class ParsedQueryString(val attributes: Map<String, List<String>>) {
             return ParsedQueryString(map)
         }
     }
+}
+
+fun encodeQueryParamsToString(queryPathMap: Map<String, List<String>>): String {
+    return queryPathMap
+        .flatMap { param ->
+            param.value.map { v -> urlEncode(param.key) + "=" + urlEncode(v) }
+        }
+        .joinToString("&")
+        .takeIf { it.isNotEmpty() }
+        ?.let { "?$it" } ?: ""
 }
 
 // https://stackoverflow.com/a/52378025

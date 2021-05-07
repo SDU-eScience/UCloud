@@ -30,6 +30,31 @@ interface PreparedStatement {
     fun close()
 }
 
+inline fun PreparedStatement.use(block: (statement: PreparedStatement) -> Unit) {
+    try {
+        block(this)
+    } finally {
+        close()
+    }
+}
+
+inline fun PreparedStatement.useAndInvokeAndDiscard(
+    prepare: PreparedStatement.() -> Unit = {},
+) {
+    use {
+        invokeAndDiscard(prepare)
+    }
+}
+
+inline fun PreparedStatement.useAndInvoke(
+    prepare: PreparedStatement.() -> Unit = {},
+    readRow: (ResultCursor) -> Unit
+) {
+    use {
+        invoke(prepare, readRow)
+    }
+}
+
 inline fun PreparedStatement.invokeAndDiscard(
     prepare: PreparedStatement.() -> Unit = {},
 ) {

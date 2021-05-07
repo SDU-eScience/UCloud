@@ -7,7 +7,9 @@ import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.provider.rpc.Docs
+import dk.sdu.cloud.provider.rpc.IntegrationController
 import dk.sdu.cloud.provider.rpc.ProviderController
+import dk.sdu.cloud.provider.services.IntegrationService
 import dk.sdu.cloud.provider.services.ProjectCache
 import dk.sdu.cloud.provider.services.ProviderDao
 import dk.sdu.cloud.provider.services.ProviderService
@@ -29,6 +31,7 @@ class Server(override val micro: Micro) : CommonServer {
         val projectCache = ProjectCache(serviceClient)
         val providerDao = ProviderDao(projectCache)
         val providerService = ProviderService(db, providerDao, serviceClient)
+        val integrationService = IntegrationService(db, providerService, serviceClient)
 
         micro.backgroundScope.launch {
             while (isActive) {
@@ -46,6 +49,7 @@ class Server(override val micro: Micro) : CommonServer {
             configureControllers(
                 Docs(),
                 ProviderController(providerService),
+                IntegrationController(integrationService)
             )
         }
 

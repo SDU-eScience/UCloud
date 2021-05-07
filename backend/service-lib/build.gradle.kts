@@ -98,7 +98,7 @@ kotlin {
     }
 }
 
-version = "2021.1.0"
+version = "2021.1.4"
 extensions.configure<PublishingExtension>("publishing") {
     repositories {
         maven {

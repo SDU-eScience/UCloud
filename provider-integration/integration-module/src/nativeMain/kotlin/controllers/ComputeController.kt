@@ -6,7 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
-import dk.sdu.cloud.plugins.FollowLogsContext
+import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import io.ktor.http.*
@@ -98,7 +98,7 @@ class ComputeController(
 
                     wsContext.sendMessage(JobsProviderFollowResponse(streamId.toString(), -1))
 
-                    val ctx = FollowLogsContext(
+                    val ctx = ComputePlugin.FollowLogsContext(
                         controllerContext.pluginContext,
                         isActive = { streams[streamId].compareAndSet(Unit, Unit) && wsContext.isOpen() },
                         emitStdout = { rank, message ->

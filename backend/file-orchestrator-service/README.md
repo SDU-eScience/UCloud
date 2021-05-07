@@ -214,6 +214,7 @@ A `FileCollection` is an entrypoint to a user's files
 | `billing` | `Billing` | Contains information related to billing information for this `Resource` |
 | `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Array<ResourceAclEntry_enum_READ_WRITE_ADMINISTRATOR)_ >` | An ACL for this `Resource` |
+| `permissions` | `ResourcePermissions?` | Permissions assigned to this resource |
 
 
 This entrypoint allows the user to access all the files they have access to within a single project. It is important to
@@ -240,7 +241,7 @@ if every user has exactly one home directory, then it would make sense to give t
 ---
 `id`: A unique identifier referencing the `Resource`
 
-This ID is assigned by UCloud and is globally unique across all providers.
+The ID is unique across a provider for a single resource type.
 
 ---
 `specification`: No documentation
@@ -265,6 +266,11 @@ resource.
 
 ---
 `acl`: An ACL for this `Resource`
+
+---
+`permissions`: Permissions assigned to this resource
+
+A null value indicates that permissions are not supported by this resource type.
 
 
 
@@ -448,6 +454,7 @@ A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UF
 | `acl` | `Array<ResourceAclEntry_enum_READ_WRITE)_ >` | An ACL for this `Resource` |
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `public` | `Boolean` | No documentation |
+| `permissions` | `ResourcePermissions?` | Permissions assigned to this resource |
 | `billing` | `Free` | No documentation |
 
 
@@ -545,6 +552,7 @@ A metadata document which conforms to a `FileMetadataTemplate`
 | `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Any` | No documentation |
 | `billing` | `Free` | No documentation |
+| `permissions` | `ResourcePermissions` | No documentation |
 | `type` | `("metadata")` | No documentation |
 
 

@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
+import dk.sdu.cloud.provider.api.withProxyInfo
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -188,7 +189,10 @@ class JobOrchestrator(
             verifiedJobs.groupBy { it.job.specification.product.provider }.forEach { (provider, jobs) ->
                 val (api, client) = providers.prepareCommunication(provider)
 
-                api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
+                api.create.call(
+                    bulkRequestOf(jobs.map { it.job }),
+                    client.withProxyInfo(principal.safeUsername())
+                ).orThrow()
                 jobsToInvalidateInCaseOfFailure.addAll(jobs.map { JobWithProvider(it.job.id, provider) })
             }
 
@@ -213,7 +217,7 @@ class JobOrchestrator(
                             )
                             .map { it.value.job }
                     ),
-                    client
+                    client.withProxyInfo(principal.safeUsername())
                 )
             }
 
@@ -467,7 +471,7 @@ class JobOrchestrator(
                         if (job.specification.product.provider != comm.provider.id) null
                         else JobsProviderExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
-                    comm.client
+                    comm.client.withProxyInfo(userActor.username)
                 ).orThrow()
             }
 
@@ -491,7 +495,7 @@ class JobOrchestrator(
                 val comm = providers.prepareCommunication(provider)
                 comm.api.delete.call(
                     bulkRequestOf(providerJobs.map { it.job }),
-                    comm.client
+                    comm.client.withProxyInfo(userActor.username)
                 ).orThrow()
             }
         }
@@ -703,7 +707,7 @@ class JobOrchestrator(
                                     JobsProviderOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
                                 }
                             }),
-                            client
+                            client.withProxyInfo(actor.safeUsername())
                         )
                         .orThrow()
                         .sessions

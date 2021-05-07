@@ -265,4 +265,4 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     }
 }
 
-internal expect fun urlEncode(value: String): String
+expect fun urlEncode(value: String): String

@@ -62,7 +62,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.1.0")
+            implementation("dk.sdu.cloud:integration-module-support:2021.1.4")
         }
 
         compilations["main"].cinterops {

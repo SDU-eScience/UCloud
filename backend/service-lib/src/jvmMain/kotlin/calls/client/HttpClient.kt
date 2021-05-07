@@ -36,6 +36,6 @@ actual fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     expectSuccess = false
 }
 
-internal actual fun urlEncode(value: String): String {
+actual fun urlEncode(value: String): String {
     return URLEncoder.encode(value, "UTF-8")
 }

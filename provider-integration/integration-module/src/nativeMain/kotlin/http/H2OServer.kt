@@ -45,6 +45,8 @@ fun h2o_req_t.addHeader(headerToken: CPointer<h2o_token_t>?, value: ThisWillNeve
 object HeaderValues {
     val contentTypeApplicationJson =
         ThisWillNeverBeFreed(ContentType.Application.Json.withCharset(Charsets.UTF_8).toString())
+    val contentTypeTextHtml =
+        ThisWillNeverBeFreed(ContentType.Text.Html.withCharset(Charsets.UTF_8).toString())
 }
 
 @Suppress("Unused")
@@ -296,13 +298,7 @@ private fun handleHttpRequest(
 
     val req = reqPtr.pointed
     val path = req.path_normalized.base!!.readBytes(req.path_normalized.len.toInt()).decodeToString()
-    val query = if (req.query_at != SIZE_MAX) {
-        val queryAt = req.query_at.toInt()
-        (req.path.base!! + queryAt)!!.readBytes(req.path.len.toInt() - queryAt).decodeToString()
-            .removePrefix("?")
-    } else {
-        null
-    }
+    val query = req.readQuery()
 
     val method = HttpMethod.parse(req.method.base!!.readBytes(req.method.len.toInt()).decodeToString())
 
@@ -311,8 +307,10 @@ private fun handleHttpRequest(
     var foundCall: CallWithHandler<Any, Any, Any>? = null
     for (callWithHandler in allCalls) {
         val (call) = callWithHandler
+        log.debug("Call: ${callWithHandler.call.name}")
         if (call.httpOrNull == null) continue
         if (call.http.method != method) {
+            log.debug("Different method")
             continue
         }
 
@@ -323,6 +321,7 @@ private fun handleHttpRequest(
                         is HttpPathSegment.Simple -> it.text
                     }
                 }).removePrefix("/").removeSuffix("/").let { "/$it" }
+        log.debug("Expected: $expectedPath but got $path")
         if (path != expectedPath) continue
         @Suppress("UNCHECKED_CAST")
         foundCall = callWithHandler as CallWithHandler<Any, Any, Any>
@@ -367,7 +366,7 @@ private fun handleHttpRequest(
             return 0
         }
 
-        //log.info("Incoming call: ${call.fullName} [$requestMessage]")
+        log.debug("Incoming call: ${call.fullName} [$requestMessage]")
         val context = CallHandler(IngoingCall(AttributeContainer(), HttpContext(reqPtr)), requestMessage, call)
 
         middlewares.value.forEach { it.beforeRequest(context) }
@@ -408,6 +407,17 @@ private fun handleHttpRequest(
     return 0
 }
 
+fun h2o_req_t.readQuery(): String? {
+    val req = this
+    return if (req.query_at != SIZE_MAX) {
+        val queryAt = req.query_at.toInt()
+        (req.path.base!! + queryAt)!!.readBytes(req.path.len.toInt() - queryAt).decodeToString()
+            .removePrefix("?")
+    } else {
+        null
+    }
+}
+
 private val MAX_MESSAGE_SIZE = 1024UL * 1024UL * 64UL
 
 @Suppress("RedundantUnitExpression")
@@ -442,15 +452,13 @@ class H2OServer {
             65535
         )
 
-        // Register routes
         val pathConfig = h2o_config_register_path(hostConfig, "/", 0)
-        // TODO What the fuck is the size argument here?
+        // TODO Not sure what the size argument is
         val handler = h2o_create_handler(pathConfig, sizeOf<h2o_handler_t>().toULong())
             ?: error("h2o_create_handler returned null")
         handler.pointed.on_req = staticCFunction { self: CPointer<h2o_handler_t>?, reqPtr: CPointer<h2o_req_t>? ->
             handleHttpRequest(self, reqPtr)
         }
-        // End of routes
 
         val loop = scope.alloc<uv_loop_t>()
         uv_loop_init(loop.ptr)

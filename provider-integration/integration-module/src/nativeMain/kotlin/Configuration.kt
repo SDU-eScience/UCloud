@@ -11,12 +11,15 @@ import kotlinx.serialization.json.JsonObject
 import platform.posix.getenv
 
 class IMConfiguration(
+    val serverMode: ServerMode,
     val core: Core,
     val plugins: Plugins,
+    val server: Server?,
 ) {
     companion object {
-        fun load(): IMConfiguration {
-            val configLocation = getenv("UCLOUD_IM_CONFIG")?.toKString() ?: "${homeDirectory()}/ucloud-im"
+        fun load(serverMode: ServerMode): IMConfiguration {
+            val configLocation =
+                (getenv("UCLOUD_IM_CONFIG")?.toKString() ?: "${homeDirectory()}/ucloud-im").removeSuffix("/")
 
             val core = Json.decodeFromString<Core>(
                 NativeFile.open("$configLocation/core.json", readOnly = true).readText()
@@ -26,16 +29,25 @@ class IMConfiguration(
                 NativeFile.open("$configLocation/plugins.json", readOnly = true).readText()
             )
 
-            return IMConfiguration(core, plugins)
+            val server = runCatching {
+                Json.decodeFromString<Server>(
+                    NativeFile.open("$configLocation/server.json", readOnly = true).readText()
+                ).normalize(configLocation)
+            }.getOrNull()
+
+            if (server == null && serverMode == ServerMode.SERVER) {
+                throw IllegalStateException("Could not read server section")
+            }
+
+            return IMConfiguration(serverMode, core, plugins, server)
         }
     }
 
     @Serializable
     data class Core(
         val providerId: String,
-        val refreshToken: String,
-        val certificateFile: String?,
-        val certificate: String?,
+        val certificateFile: String? = null,
+        val certificate: String? = null,
     ) {
         fun normalize(): Core {
             val certificate = if (certificateFile != null) {
@@ -60,6 +72,23 @@ class IMConfiguration(
 
     @Serializable
     data class Plugins(
-        val compute: JsonObject,
+        val compute: JsonObject? = null,
+        val connection: JsonObject? = null,
     )
+
+    @Serializable
+    data class Server(
+        val refreshToken: String,
+        val dbFile: String = ""
+    ) {
+        fun normalize(configLocation: String): Server {
+            val newDbFile = if (dbFile == "") {
+                "$configLocation/db.sqlite3"
+            } else {
+                dbFile
+            }
+
+            return copy(dbFile = newDbFile)
+        }
+    }
 }

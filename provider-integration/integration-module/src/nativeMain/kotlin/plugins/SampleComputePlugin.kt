@@ -58,7 +58,7 @@ class SampleComputePlugin : ComputePlugin {
         println("Suspending job!")
     }
 
-    override fun FollowLogsContext.followLogs(job: Job) {
+    override fun ComputePlugin.FollowLogsContext.followLogs(job: Job) {
         var count = 0
         while (isActive()) {
             emitStdout(0, "Hello, World ${count++}!")

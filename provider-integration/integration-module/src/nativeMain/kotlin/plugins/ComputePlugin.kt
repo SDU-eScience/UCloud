@@ -33,11 +33,11 @@ interface ComputePlugin : Plugin {
     fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem)
 
     fun FollowLogsContext.followLogs(job: Job)
-}
 
-class FollowLogsContext(
-    delegate: PluginContext,
-    val isActive: () -> Boolean,
-    val emitStdout: (rank: Int, message: String) -> Unit,
-    val emitStderr: (rank: Int, message: String) -> Unit,
-) : PluginContext by delegate
+    class FollowLogsContext(
+        delegate: PluginContext,
+        val isActive: () -> Boolean,
+        val emitStdout: (rank: Int, message: String) -> Unit,
+        val emitStderr: (rank: Int, message: String) -> Unit,
+    ) : PluginContext by delegate
+}

@@ -23,6 +23,7 @@ starts with the core abstraction used in UCloud's compute, the `Job`.
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `output` | `JobOutput?` | Information regarding the output of this job. |
 | `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
+| `permissions` | `ResourcePermissions?` | Permissions assigned to this resource |
 
 
 <!--</editor-fold>-->

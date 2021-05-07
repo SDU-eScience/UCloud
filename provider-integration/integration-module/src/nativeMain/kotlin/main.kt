@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.controllers.ComputeController
+import dk.sdu.cloud.controllers.ConnectionController
 import dk.sdu.cloud.controllers.Controller
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.http.H2OServer
@@ -13,59 +14,37 @@ import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.sql.migrations.loadMigrations
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
-import sqlite3.sqlite3_open
-import kotlin.system.exitProcess
+
+enum class ServerMode {
+    USER,
+    SERVER
+}
+
+private val databaseConfig = atomic("")
+@ThreadLocal val dbConnection: DBContext.Connection? by lazy {
+    val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
+    if (dbConfig == null) {
+        null
+    } else {
+        Sqlite3Driver(dbConfig).openSession()
+    }
+}
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
-fun main() {
+fun main(args: Array<String>) {
+    val serverMode = when {
+        args.contains("user") -> ServerMode.USER
+        args.contains("server") -> ServerMode.SERVER
+        else -> throw IllegalArgumentException("Missing server mode")
+    }
+
     runBlocking {
-        /*
-            TODO Binary
-            ================================================================================================================
-
-            All dependencies should be statically linked to make sure that this is easy to deploy.
-
-         */
-
-        if (true) {
-            val conn = Sqlite3Driver("/tmp/db.sqlite3").openSession()
-            conn.withTransaction { session ->
-                session.prepareStatement("create table test(greeting text)").invokeAndDiscard()
-                val testInsert = session.prepareStatement("insert into test values(:greeting)")
-                testInsert.invokeAndDiscard {
-                    bindString("greeting", "fie.dog")
-                }
-
-                val statement = session.prepareStatement("""
-                    select :bool, :int, :long, :null, :double, :string, 42
-                """)
-                statement.invoke(
-                    prepare = {
-                        bindBoolean("bool", true)
-                        bindInt("int", 42)
-                        bindLong("long", 1337)
-                        bindNull("null")
-                        bindDouble("double", 13.37)
-                        bindString("string", "fie.dog")
-                    },
-                    readRow = {
-                        println(it.getBoolean(0))
-                        println(it.getInt(1))
-                        println(it.getLong(2))
-                        println(it.getString(3))
-                        println(it.getDouble(4))
-                        println(it.getString(5))
-                        println(it.getInt(6))
-                    }
-                )
-            }
-            exitProcess(0)
-        }
-
         val log = Logger("Main")
         val server = H2OServer()
-        val config = IMConfiguration.load()
+        val config = IMConfiguration.load(serverMode)
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)
 
@@ -77,24 +56,45 @@ fun main() {
                 )
         }
 
-        val authenticator = RefreshingJWTAuthenticator(
-            client,
-            JwtRefresher.Provider(config.core.refreshToken),
-            becomesInvalidSoon = { accessToken ->
-                val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
-                (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                    (1000 * 120) >= Time.now()
-            }
-        )
+        val providerClient = run {
+            when (serverMode) {
+                ServerMode.SERVER -> {
+                    val authenticator = RefreshingJWTAuthenticator(
+                        client,
+                        JwtRefresher.Provider(config.server!!.refreshToken),
+                        becomesInvalidSoon = { accessToken ->
+                            val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
+                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
+                                (1000 * 120) >= Time.now()
+                        }
+                    )
 
-        val providerClient = authenticator.authenticateClient(OutgoingHttpCall)
+                    authenticator.authenticateClient(OutgoingHttpCall)
+                }
+
+                ServerMode.USER -> {
+                    AuthenticatedClient(client, OutgoingHttpCall, null, {})
+                }
+            }
+        }
+
+        if (config.server != null) {
+            databaseConfig.getAndSet(config.server.dbFile)
+
+            // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
+            val handler = MigrationHandler(dbConnection!!)
+            loadMigrations(handler)
+            handler.migrate()
+        }
+
         val plugins = PluginLoader(config).load().freeze()
-        val pluginContext = SimplePluginContext(providerClient).freeze()
-        val controllerContext = ControllerContext(pluginContext, plugins)
+        val pluginContext = SimplePluginContext(providerClient, config).freeze()
+        val controllerContext = ControllerContext(config, pluginContext, plugins)
 
         with(server) {
             configureControllers(
                 ComputeController(controllerContext),
+                ConnectionController(controllerContext)
             )
         }
 

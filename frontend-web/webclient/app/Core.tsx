@@ -56,6 +56,7 @@ const LagTest = React.lazy(() => import("Playground/LagTest"));
 const Providers = React.lazy(() => import("Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
 const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
+const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -197,6 +198,8 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
                     <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
+
+                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)}/>
 
                     <Route
                         exact

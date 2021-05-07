@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Apr 23 10:49:46 CEST 2021 */
+/* Generated at: Thu May 06 14:44:39 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -182,7 +182,7 @@ export interface FileMetadataDocument {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: FileMetadataDocumentNS.Spec,
@@ -201,6 +201,7 @@ export interface FileMetadataDocument {
     owner: provider.SimpleResourceOwner,
     acl?: any /* unknown */,
     billing: provider.ResourceBillingNS.Free,
+    permissions?: provider.ResourcePermissions,
     type: ("metadata"),
 }
 export interface FileMetadataRetrieveAllRequest {
@@ -369,7 +370,7 @@ export interface FileMetadataTemplate {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: FileMetadataTemplateNS.Spec,
@@ -390,6 +391,7 @@ export interface FileMetadataTemplate {
     owner: provider.SimpleResourceOwner,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl: provider.ResourceAclEntry<("READ" | "WRITE")>[],
     /**
@@ -397,6 +399,12 @@ export interface FileMetadataTemplate {
      */
     createdAt: number /* int64 */,
     public: boolean,
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
     billing: provider.ResourceBillingNS.Free,
 }
 export type FileMetadataOrDeleted = FileMetadataDocument | FileMetadataOrDeletedNS.Deleted
@@ -544,7 +552,7 @@ export interface FileCollection {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: FileCollectionNS.Spec,
@@ -573,8 +581,15 @@ export interface FileCollection {
     owner: provider.SimpleResourceOwner,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
 }
 export interface FSSupport {
     product: accounting.ProductReference,
@@ -2215,8 +2230,15 @@ export interface Job {
     output?: JobOutput,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
 }
 /**
  * The owner of a `Resource`
@@ -2550,8 +2572,15 @@ export interface Ingress {
     resolvedProduct?: accounting.ProductNS.Ingress,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
 }
 export interface IngressSpecification {
     /**
@@ -2760,7 +2789,7 @@ export interface License {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: LicenseSpecification,
@@ -2787,8 +2816,15 @@ export interface License {
     resolvedProduct?: accounting.ProductNS.License,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry<("USE")>[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
 }
 export interface LicenseSpecification {
     /**
@@ -2994,7 +3030,7 @@ export interface NetworkIP {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: NetworkIPSpecification,
@@ -3021,8 +3057,15 @@ export interface NetworkIP {
     resolvedProduct?: accounting.ProductNS.NetworkIP,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry<("USE")>[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
 }
 export interface NetworkIPSpecification {
     /**
@@ -5579,6 +5622,37 @@ export interface ResourceAclEntry<Permission = unknown> {
     permissions: Permission[],
 }
 export type AclEntity = AclEntityNS.ProjectGroup | AclEntityNS.User
+export interface ResourcePermissions {
+    /**
+     * The permissions that the requesting user has access to
+     */
+    myself: Permission[],
+    /**
+     * The permissions that other users might have access to
+     * 
+     * This value typically needs to be included through the `includeFullPermissions` flag
+     */
+    others?: ResourceAclEntry<Permission>[],
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+    
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ * 
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ * 
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ * 
+ */
+export type Permission = PermissionNS.Read | PermissionNS.Edit | PermissionNS.Admin | PermissionNS.Custom
 /**
  * Describes an update to the `Resource`
  * 
@@ -5633,7 +5707,7 @@ export interface ResourceDoc {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     /**
@@ -5662,8 +5736,15 @@ export interface ResourceDoc {
     owner: ResourceOwner,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: ResourceAclEntry[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: ResourcePermissions,
 }
 /**
  * Describes the current state of the `Resource`
@@ -5749,7 +5830,7 @@ export interface Provider {
     /**
      * A unique identifier referencing the `Resource`
      * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: ProviderSpecification,
@@ -5780,8 +5861,15 @@ export interface Provider {
     owner: ProviderOwner,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl: ResourceAclEntry<("EDIT")>[],
+    /**
+     * Permissions assigned to this resource
+     * 
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: ResourcePermissions,
 }
 /**
  * Describes the current state of the `Resource`
@@ -5897,6 +5985,75 @@ export interface ProvidersBrowseRequest {
      */
     itemsToSkip?: number /* int64 */,
 }
+export interface IntegrationControlApproveConnectionRequest {
+    username: string,
+}
+export interface IntegrationBrowseResponseItem {
+    provider: string,
+    connected: boolean,
+}
+/**
+ * The base type for requesting paginated content.
+ * 
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ * 
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ * 
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ * 
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ * 
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ * 
+ * ---
+ * 
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ * 
+ * ---
+ * 
+ */
+export interface IntegrationBrowseRequest {
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export interface IntegrationClearConnectionRequest {
+    username: string,
+    provider: string,
+}
+export interface IntegrationConnectResponse {
+    redirectTo: string,
+}
+export interface IntegrationConnectRequest {
+    provider: string,
+}
 export namespace resources {
 export function create(
     request: BulkRequest<ResourceDoc>
@@ -5919,6 +6076,20 @@ export function browse(
         path: buildQueryString("/doc/resources" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
         parameters: request,
         reloadId: Math.random(),
+    };
+}
+}
+export namespace control {
+export function approveConnection(
+    request: IntegrationControlApproveConnectionRequest
+): APICallParameters<IntegrationControlApproveConnectionRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration/control" + "/approveConnection",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
     };
 }
 }
@@ -6015,6 +6186,133 @@ export namespace ResourceBillingNS {
 export interface Free {
     creditsCharged: number /* int64 */,
     pricePerUnit: number /* int64 */,
+}
+}
+export namespace integration {
+export function browse(
+    request: IntegrationBrowseRequest
+): APICallParameters<IntegrationBrowseRequest, PageV2<IntegrationBrowseResponseItem>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers/integration" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function clearConnection(
+    request: IntegrationClearConnectionRequest
+): APICallParameters<IntegrationClearConnectionRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration" + "/clearConnection",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function connect(
+    request: IntegrationConnectRequest
+): APICallParameters<IntegrationConnectRequest, IntegrationConnectResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration" + "/connect",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace PermissionNS {
+/**
+ * Base type for all permissions of the UCloud authorization model
+    
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ * 
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ * 
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ * 
+ */
+export interface Read {
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Read"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+    
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ * 
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ * 
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ * 
+ */
+export interface Edit {
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Edit"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+    
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ * 
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ * 
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ * 
+ */
+export interface Admin {
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Admin"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+    
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ * 
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ * 
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ * 
+ */
+export interface Custom {
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Custom"),
 }
 }
 }
