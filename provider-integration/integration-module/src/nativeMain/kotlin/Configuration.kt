@@ -35,7 +35,7 @@ class IMConfiguration(
                 ).normalize(configLocation)
             }.getOrNull()
 
-            if (server == null && serverMode == ServerMode.SERVER) {
+            if (server == null && serverMode == ServerMode.Server) {
                 throw IllegalStateException("Could not read server section")
             }
 

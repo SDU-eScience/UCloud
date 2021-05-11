@@ -1,15 +1,76 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
-import kotlinx.serialization.json.JsonElement
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+
+@Serializable
+data class TicketApprovalRequest(val ticket: String)
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override fun initialize(configuration: JsonElement) {
+    override fun PluginContext.initialize() {
+        ipcServer?.addHandler(
+            IpcHandler("connect.approve") { user, jsonRequest ->
+                if (user.uid != 0 || user.gid != 0) {
+                    throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
+                }
 
+                val req = runCatching {
+                    defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
+                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+
+                println("Req $req")
+
+                val connection = dbConnection ?: error("No DB connection available")
+                connection.prepareStatement(
+                    //language=SQLite
+                    """
+                        select 1
+                    """
+                ).useAndInvokeAndDiscard()
+
+                println("Connection complete!")
+
+                JsonObject(emptyMap())
+            }
+        )
+
+        commandLineInterface?.addHandler(
+            CliHandler("connect") { args ->
+                val usageMessage = "Usage: ucloud connect approve <ticket>"
+                val ipcClient = ipcClient ?: error("No ipc client")
+
+                when (args.getOrNull(0)) {
+                    "approve" -> {
+                        val ticket = args.getOrNull(1)
+                            ?: throw RPCException(usageMessage, HttpStatusCode.BadRequest)
+
+                        ipcClient.sendRequestBlocking(
+                            JsonRpcRequest(
+                                "connect.approve",
+                                defaultMapper.encodeToJsonElement(TicketApprovalRequest(ticket)) as JsonObject
+                            )
+                        ).orThrow<Unit>()
+
+                        println("Success!")
+                    }
+
+                    else -> {
+                        throw RPCException("Unknown command!\n$usageMessage", HttpStatusCode.BadRequest)
+                    }
+                }
+            }
+        )
     }
 
     override fun PluginContext.initiateConnection(username: String): ConnectionResponse {

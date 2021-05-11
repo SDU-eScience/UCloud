@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 data class IntegrationControlApproveConnectionRequest(val username: String)
 typealias IntegrationControlApproveConnectionResponse = Unit
 
-object IntegrationControl : CallDescriptionContainer("providers.integration.control") {
+object IntegrationControl : CallDescriptionContainer("providers.im.control") {
     const val baseContext = "/api/providers/integration/control"
 
     val approveConnection = call<IntegrationControlApproveConnectionRequest,

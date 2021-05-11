@@ -27,7 +27,7 @@ data class IntegrationBrowseResponseItem(val provider: String, val connected: Bo
 data class IntegrationClearConnectionRequest(val username: String, val provider: String)
 typealias IntegrationClearConnectionResponse = Unit
 
-object Integration : CallDescriptionContainer("providers.integration") {
+object Integration : CallDescriptionContainer("providers.im") {
     const val baseContext = "/api/providers/integration"
 
     val connect = call<IntegrationConnectRequest, IntegrationConnectResponse, CommonErrorMessage>("connect") {

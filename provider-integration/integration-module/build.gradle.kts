@@ -105,6 +105,10 @@ kotlin {
             val libsqlite3 by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
             }
+
+            val libucloud by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
+            }
         }
     }
 

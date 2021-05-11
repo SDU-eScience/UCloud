@@ -3,28 +3,38 @@ package dk.sdu.cloud
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.ComputeController
 import dk.sdu.cloud.controllers.ConnectionController
 import dk.sdu.cloud.controllers.Controller
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
+import dk.sdu.cloud.ipc.IpcClient
+import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
+import dk.sdu.cloud.utils.homeDirectory
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
+import kotlin.native.concurrent.TransferMode
+import kotlin.native.concurrent.Worker
 
-enum class ServerMode {
-    USER,
-    SERVER
+sealed class ServerMode {
+    object User : ServerMode()
+    object Server : ServerMode()
+    data class Plugin(val name: String) : ServerMode()
 }
 
-private val databaseConfig = atomic("")
-@ThreadLocal val dbConnection: DBContext.Connection? by lazy {
+@SharedImmutable
+private val databaseConfig = atomic("").freeze()
+
+@ThreadLocal
+val dbConnection: DBContext.Connection? by lazy {
     val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
     if (dbConfig == null) {
         null
@@ -36,14 +46,14 @@ private val databaseConfig = atomic("")
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     val serverMode = when {
-        args.contains("user") -> ServerMode.USER
-        args.contains("server") -> ServerMode.SERVER
+        args.contains("user") -> ServerMode.User
+        args.contains("server") -> ServerMode.Server
+        args.size >= 1 -> ServerMode.Plugin(args[0])
         else -> throw IllegalArgumentException("Missing server mode")
     }
 
     runBlocking {
         val log = Logger("Main")
-        val server = H2OServer()
         val config = IMConfiguration.load(serverMode)
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)
@@ -58,7 +68,7 @@ fun main(args: Array<String>) {
 
         val providerClient = run {
             when (serverMode) {
-                ServerMode.SERVER -> {
+                ServerMode.Server -> {
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server!!.refreshToken),
@@ -72,9 +82,11 @@ fun main(args: Array<String>) {
                     authenticator.authenticateClient(OutgoingHttpCall)
                 }
 
-                ServerMode.USER -> {
+                ServerMode.User -> {
                     AuthenticatedClient(client, OutgoingHttpCall, null, {})
                 }
+
+                is ServerMode.Plugin -> null
             }
         }
 
@@ -87,18 +99,49 @@ fun main(args: Array<String>) {
             handler.migrate()
         }
 
-        val plugins = PluginLoader(config).load().freeze()
-        val pluginContext = SimplePluginContext(providerClient, config).freeze()
+        val ipcSocketDirectory = "${homeDirectory()}/ucloud-im"
+        val ipcServer = if (serverMode != ServerMode.Server) null else IpcServer(ipcSocketDirectory)
+        val ipcClient = if (serverMode == ServerMode.Server) null else IpcClient(ipcSocketDirectory)
+        val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+
+        val pluginContext = SimplePluginContext(
+            providerClient,
+            config,
+            ipcClient,
+            ipcServer,
+            cli
+        )
+        val plugins = PluginLoader(pluginContext).load()
+
+        plugins.freeze()
+        pluginContext.freeze()
+
         val controllerContext = ControllerContext(config, pluginContext, plugins)
 
-        with(server) {
-            configureControllers(
-                ComputeController(controllerContext),
-                ConnectionController(controllerContext)
-            )
+        // Start services
+        if (ipcServer != null) {
+            Worker.start(name = "IPC Accept Worker").execute(TransferMode.SAFE, { ipcServer }) { it.runServer() }
         }
 
-        server.start()
+        ipcClient?.connect()
+
+        when (serverMode) {
+            ServerMode.Server, ServerMode.User -> {
+                val server = H2OServer()
+                with(server) {
+                    configureControllers(
+                        ComputeController(controllerContext),
+                        ConnectionController(controllerContext)
+                    )
+                }
+
+                server.start()
+            }
+
+            is ServerMode.Plugin -> {
+                cli!!.execute(serverMode.name)
+            }
+        }
     }
 }
 

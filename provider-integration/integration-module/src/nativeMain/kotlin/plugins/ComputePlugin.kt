@@ -1,11 +1,9 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.app.orchestrator.api.*
-import kotlinx.serialization.json.JsonElement
 
 interface ComputePlugin : Plugin {
-    override fun initialize(configuration: JsonElement) {
-        println(configuration)
+    override fun PluginContext.initialize() {
     }
 
     fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {

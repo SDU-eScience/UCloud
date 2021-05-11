@@ -1,0 +1,4 @@
+package = dk.sdu.cloud
+headers = ucloud.h
+staticLibraries = libucloud.a
+libraryPaths = vendor/libucloud/linux

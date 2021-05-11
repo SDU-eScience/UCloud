@@ -10,6 +10,7 @@ import platform.posix.sleep
 
 class SampleComputePlugin : ComputePlugin {
     override fun PluginContext.create(job: Job) {
+        val client = client ?: error("No client")
         sleep(2)
         runBlocking {
             JobsControl.update.call(
@@ -26,6 +27,7 @@ class SampleComputePlugin : ComputePlugin {
     }
 
     override fun PluginContext.delete(job: Job) {
+        val client = client ?: error("No client")
         runBlocking {
             JobsControl.update.call(
                 bulkRequestOf(
@@ -41,6 +43,7 @@ class SampleComputePlugin : ComputePlugin {
     }
 
     override fun PluginContext.extend(request: JobsProviderExtendRequestItem) {
+        val client = client ?: error("No client")
         runBlocking {
             JobsControl.update.call(
                 bulkRequestOf(
@@ -55,6 +58,7 @@ class SampleComputePlugin : ComputePlugin {
     }
 
     override fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem) {
+        val client = client ?: error("No client")
         println("Suspending job!")
     }
 

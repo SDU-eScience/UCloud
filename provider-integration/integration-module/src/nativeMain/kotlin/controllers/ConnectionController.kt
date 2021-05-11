@@ -7,17 +7,15 @@ import dk.sdu.cloud.plugins.ConnectionResponse
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
-import dk.sdu.cloud.sql.DBContext
 import h2o.H2O_TOKEN_CONTENT_TYPE
 import io.ktor.http.*
 import kotlinx.cinterop.pointed
-import kotlinx.serialization.encodeToString
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
 ) : Controller {
     override fun H2OServer.configure() {
-        if (controllerContext.configuration.serverMode != ServerMode.SERVER) return
+        if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
         val providerId = controllerContext.configuration.core.providerId
         val plugin = controllerContext.plugins.connection ?: return

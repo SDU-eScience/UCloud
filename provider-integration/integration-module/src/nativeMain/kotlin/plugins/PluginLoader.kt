@@ -1,12 +1,9 @@
 package dk.sdu.cloud.plugins
 
-import dk.sdu.cloud.IMConfiguration
 import dk.sdu.cloud.ServerMode
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
-class PluginLoader(private val config: IMConfiguration) {
+class PluginLoader(private val pluginContext: PluginContext) {
     private val computePlugins = mapOf<String, () -> ComputePlugin>(
         "sample" to { SampleComputePlugin() }
     )
@@ -21,7 +18,11 @@ class PluginLoader(private val config: IMConfiguration) {
             val config = it.value
             if (pluginFactory != null) {
                 val plugin = pluginFactory()
-                plugin.initialize(config)
+                with(pluginContext) {
+                    with(plugin) {
+                        initialize()
+                    }
+                }
                 return plugin
             } else {
                 null
@@ -30,14 +31,11 @@ class PluginLoader(private val config: IMConfiguration) {
     }
 
     fun load(): LoadedPlugins {
+        val config = pluginContext.config
         val serverMode = config.serverMode
 
         val compute = config.plugins.compute?.let { loadPlugin(computePlugins, it) }
-        val connection = if (serverMode == ServerMode.SERVER) {
-            config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
-        } else {
-            null
-        }
+        val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
 
         return LoadedPlugins(compute, connection)
     }

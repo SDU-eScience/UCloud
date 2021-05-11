@@ -1,0 +1,82 @@
+title Ticket-based Connection
+
+actor "End-User" as user
+
+participantgroup #lightgreen ** UCloud\nNetwork**
+participant "UCloud" as ucloud
+database "UCloud DB" as uclouddb
+end
+
+participantgroup #lightblue **Provider Network**
+
+
+participantgroup #lightyellow **New components**
+participant "L7 Gateway (Envoy)" as gateway
+
+database "IM: Database" as imdb
+participant "IM: Server Mode" as imsrv
+participant "IM: Admin CLI" as imcli
+end 
+
+participantgroup #pink **Existing components**
+actor "System administrator(s)" as sysadmin
+database "Identity database" as idp
+end
+
+end
+
+
+region Initiating a connection
+user->ucloud: providers.im.connect(p)
+
+linear
+ucloud->gateway: $p.im.connect(u)
+gateway->imsrv: PROXY
+linear off
+
+imsrv-->imdb: tickets.insert($ticket, u)
+
+linear
+imsrv-->gateway: redirect to: $p.im.instructions.retrieve($ticket)
+gateway-->ucloud: PROXY
+ucloud-->user: PROXY
+linear off
+
+linear
+user->gateway: $p.im.instructions.retrieve($ticket)
+gateway->imsrv: PROXY
+linear off
+
+linear
+imsrv-->gateway: HTML: Send email to sys@admin
+gateway-->user: PROXY
+linear off
+
+end
+
+region Creating a connection
+user->sysadmin: EMAIL: Create a user for me: $ticket
+
+sysadmin-->idp: Register user $localIdentity
+
+sysadmin->imcli: sudo ucloud connect\n$ticket $localIdentity
+
+note over imcli,imsrv: Communicate using IPC socket\n(/run/ucloud.sock)
+imcli->imsrv: connections.tickets.approve(\n    $ticket,\n    $localIdentity\n)
+
+imsrv->imdb: tickets.approve($ticket)
+
+imdb-->imsrv: user u
+
+imsrv-->ucloud: providers.im.control.approve(u)
+
+ucloud-->uclouddb: mapping.insert(u, p)
+
+linear
+imsrv-->imcli: OK
+
+imcli-->sysadmin: PROXY
+linear off
+
+sysadmin-->user: OK
+end
