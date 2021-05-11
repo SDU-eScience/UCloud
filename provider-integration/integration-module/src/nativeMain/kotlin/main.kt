@@ -2,6 +2,8 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.ComputeController
@@ -28,6 +30,15 @@ sealed class ServerMode {
     object User : ServerMode()
     object Server : ServerMode()
     data class Plugin(val name: String) : ServerMode()
+}
+
+fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
+    request: R,
+    client: AuthenticatedClient
+): IngoingCallResponse<S, E> {
+    return runBlocking {
+        call(request, client)
+    }
 }
 
 @SharedImmutable

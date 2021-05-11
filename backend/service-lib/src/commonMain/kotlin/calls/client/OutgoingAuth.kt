@@ -3,10 +3,13 @@ package dk.sdu.cloud.calls.client
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.freeze
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import kotlin.native.concurrent.SharedImmutable
 
-private val outgoingAuthTokenKey = AttributeKey<String>("outgoing-auth")
+@SharedImmutable
+private val outgoingAuthTokenKey = AttributeKey<String>("outgoing-auth").freeze()
 
 var AttributeContainer.outgoingAuthToken: String?
     get() = getOrNull(outgoingAuthTokenKey)

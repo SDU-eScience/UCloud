@@ -1,14 +1,19 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.*
+import dk.sdu.cloud.provider.api.IntegrationControl
+import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
+import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -19,9 +24,12 @@ data class TicketApprovalRequest(val ticket: String)
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
     override fun PluginContext.initialize() {
+        val log = Log("TicketBasedConnectionPlugin")
         ipcServer?.addHandler(
             IpcHandler("connect.approve") { user, jsonRequest ->
-                if (user.uid != 0 || user.gid != 0) {
+                log.debug("Asked to approve connection!")
+                val rpcClient = rpcClient ?: error("No RPC client")
+                if (user.uid != 0u || user.gid != 0u) {
                     throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
                 }
 
@@ -29,17 +37,27 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                     defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
                 }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
-                println("Req $req")
-
+                var ucloudId: String? = null
                 val connection = dbConnection ?: error("No DB connection available")
                 connection.prepareStatement(
                     //language=SQLite
                     """
-                        select 1
+                        update ticket_connections
+                        set completed_at = datetime()
+                        where ticket = :ticket
+                        returning ucloud_id
                     """
-                ).useAndInvokeAndDiscard()
+                ).useAndInvoke({ bindString("ticket", req.ticket) }) {
+                    ucloudId = it.getString(0)
+                }
 
-                println("Connection complete!")
+                val capturedId = ucloudId ?:
+                    throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
+
+                IntegrationControl.approveConnection.callBlocking(
+                    IntegrationControlApproveConnectionRequest(capturedId),
+                    rpcClient
+                ).orThrow()
 
                 JsonObject(emptyMap())
             }
@@ -172,7 +190,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                     </p>
                     
                     <div class='box'>
-                        ucloud connect ${HTML.escape(ticket)}
+                        ucloud connect approve ${HTML.escape(ticket)}
                     </div>
                 </body>
                 </html>

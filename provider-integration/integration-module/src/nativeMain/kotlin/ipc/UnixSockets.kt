@@ -28,9 +28,19 @@ class UnixSocketPipe(
     val ioVector: iovec,
     val messageHeader: msghdr,
     val buffer: Pinned<ByteArray>,
-    val controlBuffer: Pinned<ByteArray>,
+    val controlBuffer: CPointer<out CPointed>?,
 ) {
-    data class ReadResult(val validBytes: Int, val remainingValidBytes: Int)
+    data class ReadResult(
+        /**
+         * Index of the delimiter
+         */
+        val validBytes: Int,
+
+        /**
+         * Number of bytes following the delimiter
+         */
+        val remainingValidBytes: Int,
+    )
 
     fun readUntil(socket: Int, destination: ByteArray, delimiter: Byte, alreadyRead: Int): ReadResult {
         var offset = alreadyRead
@@ -47,18 +57,19 @@ class UnixSocketPipe(
             val readBuffer = buffer.get()
             readBuffer.copyInto(destination, offset, 0, receivedInIteration.toInt())
 
-            var lastValidIndex = -1
+            var delimFoundAt = -1
             for (i in 0 until receivedInIteration.toInt()) {
                 if (readBuffer[i] == delimiter) {
-                    lastValidIndex = i
+                    delimFoundAt = i
                     break
                 }
             }
 
-            if (lastValidIndex != -1) {
+            if (delimFoundAt != -1) {
                 return ReadResult(
-                    offset + lastValidIndex,
-                    receivedInIteration.toInt() - lastValidIndex
+                    // Take into account the delimiter
+                    offset + delimFoundAt,
+                    receivedInIteration.toInt() - delimFoundAt - 1
                 )
             } else {
                 offset += receivedInIteration.toInt()
@@ -104,7 +115,13 @@ class UnixSocketPipe(
                 iov_len = size.toULong()
             }
 
-            val controlBuffer = ByteArray(controlBufferSize).pin()
+            val controlBuffer =
+                if (controlBufferSize > 0) malloc(controlBufferSize.toULong())
+                else null
+
+            scope.defer {
+                if (controlBuffer != null) free(controlBuffer)
+            }
 
             val messageHeader = scope.alloc<msghdr>().apply {
                 msg_name = null
@@ -113,7 +130,7 @@ class UnixSocketPipe(
                 msg_iovlen = 1u
 
                 if (controlBufferSize > 0) {
-                    msg_control = controlBuffer.addressOf(0)
+                    msg_control = controlBuffer
                     msg_controllen = controlBufferSize.toULong()
                 } else {
                     msg_control = null

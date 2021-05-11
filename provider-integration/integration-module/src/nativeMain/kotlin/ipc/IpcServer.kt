@@ -18,7 +18,7 @@ import kotlin.native.concurrent.freeze
 @SharedImmutable
 private val ipcWorkers = (0 until 10).map { Worker.start(name = "IPC Worker $it") }.freeze()
 
-data class IpcUser(val uid: Int, val gid: Int, val pid: Int)
+data class IpcUser(val uid: UInt, val gid: UInt, val pid: Int)
 
 data class IpcHandler(
     val method: String,
@@ -38,65 +38,25 @@ private val server = AtomicReference<IpcServer?>(null)
 
 private fun processIpcClient(clientSocket: Int) = memScoped {
     val log = Log("IpcServer")
-    val passCredentialsOption = byteArrayOf(0, 0, 0, 1).pin()
-    println("Got client!")
-    if (setsockopt(clientSocket, SOL_SOCKET, SO_PASSCRED, passCredentialsOption.addressOf(0), 4) == -1) {
-        throw IpcException("Cannot set SO_PASSCRED for IPC client socket")
-    }
 
-    val readPipe = UnixSocketPipe.create(this, 1024 * 32, cmsg_space(sizeOf<ucloud_ucred>().toULong()).toInt())
+    val readPipe = UnixSocketPipe.create(this, 1024 * 32, 0)
     val writePipe = UnixSocketPipe.create(this, 1024 * 32, 0)
 
-    var messageOffset = 0
-    val messageBuilder = ByteArray(1024 * 1024)
+    val messageBuilder = MessageBuilder(1024 * 1024)
     fun parseRequest(): JsonRpcRequest {
-        val (validBytes, remaining) = readPipe.readUntil(clientSocket, messageBuilder, '\n'.code.toByte(), messageOffset)
-        val decodedText = messageBuilder.decodeToString(0, validBytes, throwOnInvalidSequence = true)
-
-        messageBuilder.copyInto(
-            messageBuilder,
-            destinationOffset = 0,
-            startIndex = validBytes,
-            validBytes + remaining
-        )
-        messageOffset = remaining
-
+        val decodedText = messageBuilder.readNextMessage(clientSocket, readPipe)
         return defaultMapper.decodeFromString<JsonRpcRequest>(decodedText)
     }
 
     val user = run {
-        val read = recvmsg(clientSocket, readPipe.messageHeader.ptr, 0)
-        if (read <= 0L) {
-            close(clientSocket)
-            return@run null
+        val initialRequest = parseRequest()
+        if (initialRequest.id != null) return@run null
+
+        val credentials = getSocketCredentials(clientSocket, readPipe.messageHeader.ptr)
+        credentials.useContents {
+            if (!valid) null
+            else IpcUser(uid, gid, pid)
         }
-
-        val header = cmsg_firsthdr(readPipe.messageHeader.ptr)
-        val fixedHeader = header?.reinterpret<ucloud_cmsghdr>()
-        if (header == null || fixedHeader == null ||
-            fixedHeader.pointed.cmsg_len != cmsg_len(sizeOf<ucloud_ucred>().toULong())
-        ) {
-            IpcServer.log.debug("Malformed cmsghdr (length)")
-            close(clientSocket)
-            return@run null
-        }
-
-        if (fixedHeader.pointed.cmsg_level != SOL_SOCKET) {
-            IpcServer.log.debug("Unexpected cmsg_level")
-            close(clientSocket)
-            return@run null
-        }
-
-        if (fixedHeader.pointed.cmsg_type != IpcServer.SCM_CREDENTIALS) {
-            IpcServer.log.debug("unexpected cmsg_type")
-            close(clientSocket)
-            return@run null
-        }
-
-        val ucred = alloc<ucloud_ucred>()
-        memcpy(ucred.ptr, cmsg_data(header), sizeOf<ucloud_ucred>().toULong())
-
-        IpcUser(ucred.uid.toInt(), ucred.gid.toInt(), ucred.pid)
     } ?: return
 
     while (true) {

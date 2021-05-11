@@ -2,10 +2,8 @@ package dk.sdu.cloud.ipc
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.freeze
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
-import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import kotlinx.coroutines.channels.Channel
@@ -21,15 +19,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.serializer
 import platform.linux.sockaddr_un
 import platform.posix.*
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
-import kotlin.math.min
-import kotlin.native.concurrent.DetachedObjectGraph
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
-import kotlin.native.concurrent.attach
 import kotlin.random.Random
 import kotlin.random.nextULong
 
@@ -130,10 +121,6 @@ class IpcClient(
                         throw IpcException("Could not connect to IPC socket")
                     }
 
-                    // NOTE(Dan): We are not sending any explicit credentials since we do not need to act as a
-                    //   different user.
-                    // NOTE(Dan): This information is verified by the kernel, just in case you are wondering. It is used for
-                    //   when root wants to impersonate a different user without changing uid.
                     val writePipe = UnixSocketPipe.create(this, 1024 * 64, 0)
 
                     // NOTE(Dan): The IPC system uses line delimited (\n) JSON-RPC 2.0
@@ -144,28 +131,12 @@ class IpcClient(
                         writePipe.sendFully(clientSocket, encoded)
                     }
 
-                    var messageOffset = 0
-                    val messageBuilder = ByteArray(1024 * 1024)
                     val readPipe = UnixSocketPipe.create(this, 1024 * 64, 0)
+                    val messageBuilder = MessageBuilder(1024 * 1024)
 
                     fun parseResponse(): JsonRpcResponse {
-                        val (validBytes, remaining) = readPipe.readUntil(
-                            clientSocket,
-                            messageBuilder,
-                            '\n'.code.toByte(),
-                            messageOffset
-                        )
-
-                        val decodedText = messageBuilder.decodeToString(0, validBytes, throwOnInvalidSequence = true)
+                        val decodedText = messageBuilder.readNextMessage(clientSocket, readPipe)
                         val decodedJson = defaultMapper.decodeFromString<JsonObject>(decodedText)
-
-                        messageBuilder.copyInto(
-                            messageBuilder,
-                            destinationOffset = 0,
-                            startIndex = validBytes,
-                            validBytes + remaining
-                        )
-                        messageOffset = remaining
 
                         return when {
                             decodedJson.containsKey("result") -> {
