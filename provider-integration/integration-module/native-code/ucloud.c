@@ -2,9 +2,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
+#include <stdio.h>
+#include <linux/fs.h>
+#include <sys/syscall.h>
 
 struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) {
-    struct cmsghdr *header = cmsg_firsthdr(msgh);
+    struct cmsghdr *header = CMSG_FIRSTHDR(msgh);
     struct socket_credentials result = {};
     result.valid = false;
     result.uid = 0xFFFF;
@@ -23,3 +26,6 @@ struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) 
     return result;
 }
 
+int renameat2_kt(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags) {
+    return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}

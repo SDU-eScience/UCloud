@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.service
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -9,6 +10,8 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
+import dk.sdu.cloud.provider.api.IntegrationProvider
+import dk.sdu.cloud.provider.api.IntegrationProviderInitRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
@@ -213,6 +216,7 @@ class FilesService(
 
     suspend fun delete(actorAndProject: ActorAndProject, request: FilesDeleteRequest): FilesDeleteResponse {
         return proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ ->
                 if (support.files.isReadOnly) {
@@ -240,6 +244,7 @@ class FilesService(
         request: FilesCreateUploadRequest,
     ): FilesCreateUploadResponse {
         return proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ ->
                 if (support.files.isReadOnly) {
@@ -267,6 +272,7 @@ class FilesService(
         request: FilesCreateDownloadRequest,
     ): FilesCreateDownloadResponse {
         return proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ -> },
             proxyRequest = { comms, requestItems ->
@@ -287,6 +293,7 @@ class FilesService(
         request: FilesCreateFolderRequest,
     ): FilesCreateFolderResponse {
         return proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ ->
                 if (support.files.isReadOnly) {
@@ -311,6 +318,7 @@ class FilesService(
 
     suspend fun trash(actorAndProject: ActorAndProject, request: FilesTrashRequest): FilesTrashResponse {
         return proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ ->
                 if (!support.files.trashSupported) {
@@ -335,6 +343,7 @@ class FilesService(
 
     suspend fun updateAcl(actorAndProject: ActorAndProject, request: FilesUpdateAclRequest): FilesUpdateAclResponse {
         proxyRequest(
+            actorAndProject.actor,
             request,
             verifyRequest = { support, _ ->
                 if (!support.files.aclSupported || !support.files.aclModifiable) {
@@ -356,6 +365,7 @@ class FilesService(
     }
 
     private suspend inline fun <T : WithPath, R> proxyRequest(
+        actor: Actor,
         request: BulkRequest<T>,
         verifyRequest: (FSSupport, T) -> Unit,
         proxyRequest: (comms: ProviderCommunication, requestItems: List<T>) -> BulkResponse<R>,
@@ -373,7 +383,9 @@ class FilesService(
 
         val responses = ArrayList<R>()
         for ((provider, requestItems) in requestsByProvider) {
+            val integration = IntegrationProvider(provider)
             val comms = providers.prepareCommunication(provider)
+            integration.init.call(IntegrationProviderInitRequest(actor.safeUsername()), comms.client)
             responses.addAll(proxyRequest(comms, requestItems).responses)
         }
         return BulkResponse(responses)

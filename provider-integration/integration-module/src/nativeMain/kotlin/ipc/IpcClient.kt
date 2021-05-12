@@ -118,7 +118,7 @@ class IpcClient(
 
                     if (connect(clientSocket, address.ptr.reinterpret(), sizeOf<sockaddr_un>().toUInt()) == -1) {
                         close(clientSocket)
-                        throw IpcException("Could not connect to IPC socket")
+                        throw IpcException("Could not connect to IPC socket at: ${it.ipcDirectory}")
                     }
 
                     val writePipe = UnixSocketPipe.create(this, 1024 * 64, 0)

@@ -25,7 +25,7 @@ class Sqlite3Driver(
 
 private fun Int.unwrapSqlite3Error(sqlite: CPointerVar<sqlite3>) {
     if (this != SQLITE_OK) {
-        throw Sqlite3Exception(sqlite3_errmsg(sqlite.value)?.toKString() ?: "Unknown sqlite3 error")
+        throw Sqlite3Exception(sqlite3_errmsg(sqlite.value)?.toKString() + "($this)" ?: "Unknown sqlite3 error")
     }
 }
 
@@ -66,8 +66,10 @@ class Sqlite3Connection(
     }
 
     override fun rollback() {
-        rollbackStatement.reset()
-        rollbackStatement.execute().discardResult()
+        runCatching {
+            rollbackStatement.reset()
+            rollbackStatement.execute().discardResult()
+        }
     }
 }
 

@@ -307,10 +307,8 @@ private fun handleHttpRequest(
     var foundCall: CallWithHandler<Any, Any, Any>? = null
     for (callWithHandler in allCalls) {
         val (call) = callWithHandler
-        log.debug("Call: ${callWithHandler.call.name}")
         if (call.httpOrNull == null) continue
         if (call.http.method != method) {
-            log.debug("Different method")
             continue
         }
 
@@ -321,7 +319,6 @@ private fun handleHttpRequest(
                         is HttpPathSegment.Simple -> it.text
                     }
                 }).removePrefix("/").removeSuffix("/").let { "/$it" }
-        log.debug("Expected: $expectedPath but got $path")
         if (path != expectedPath) continue
         @Suppress("UNCHECKED_CAST")
         foundCall = callWithHandler as CallWithHandler<Any, Any, Any>
@@ -421,7 +418,7 @@ fun h2o_req_t.readQuery(): String? {
 private val MAX_MESSAGE_SIZE = 1024UL * 1024UL * 64UL
 
 @Suppress("RedundantUnitExpression")
-class H2OServer {
+class H2OServer(private val port: Int) {
     private val handlerBuilder = ArrayList<CallWithHandler<*, *, *>>()
     val handlers: List<CallWithHandler<*, *, *>>
         get() = handlerBuilder
@@ -506,7 +503,7 @@ class H2OServer {
         val listener = scope.alloc<uv_tcp_t>()
         val addr = scope.alloc<uv.sockaddr_in>()
         uv_tcp_init(ctx.loop?.reinterpret(), listener.ptr)
-        uv_ip4_addr("127.0.0.1", 8889, addr.ptr)
+        uv_ip4_addr("127.0.0.1", port, addr.ptr)
         check(uv_tcp_bind(listener.ptr, addr.ptr.reinterpret(), 0) == 0) { "Could not bind to address" }
         val uvListenResult = uv_listen(
             listener.ptr.reinterpret(),

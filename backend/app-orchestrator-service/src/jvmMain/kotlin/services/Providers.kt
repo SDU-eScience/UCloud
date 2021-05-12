@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
 import dk.sdu.cloud.safeUsername
@@ -50,7 +51,6 @@ class Providers(
             val licenseApi = LicenseProvider(provider)
             val networkApi = NetworkIPProvider(provider)
             val computeApi = JobsProvider(provider)
-
 
             ProviderCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
         }

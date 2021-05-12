@@ -61,8 +61,9 @@ class MigrationHandler(private val connection: DBContext.Connection) {
             } catch (ex: Throwable) {
                 throw MigrationException("Failed to register migrations", ex)
             }
+        }
 
-
+        connection.withTransaction { connection ->
             try {
                 //language=SQLite
                 connection.prepareStatement(

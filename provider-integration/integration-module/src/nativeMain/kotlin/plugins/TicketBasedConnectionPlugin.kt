@@ -2,7 +2,6 @@ package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
@@ -20,7 +19,10 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
-data class TicketApprovalRequest(val ticket: String)
+data class TicketApprovalRequest(
+    val ticket: String,
+    val localIdentity: String,
+)
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
     override fun PluginContext.initialize() {
@@ -39,25 +41,39 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
 
                 var ucloudId: String? = null
                 val connection = dbConnection ?: error("No DB connection available")
-                connection.prepareStatement(
-                    //language=SQLite
-                    """
-                        update ticket_connections
-                        set completed_at = datetime()
-                        where ticket = :ticket
-                        returning ucloud_id
-                    """
-                ).useAndInvoke({ bindString("ticket", req.ticket) }) {
-                    ucloudId = it.getString(0)
+
+                connection.withTransaction { connection ->
+                    connection.prepareStatement(
+                        //language=SQLite
+                        """
+                            update ticket_connections
+                            set completed_at = datetime()
+                            where ticket = :ticket and completed_at is null
+                            returning ucloud_id
+                        """
+                    ).useAndInvoke({ bindString("ticket", req.ticket) }) {
+                        ucloudId = it.getString(0)
+                    }
+
+                    val capturedId =
+                        ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
+
+                    connection.prepareStatement(
+                        //language=SQLite
+                        """
+                            insert or replace into user_mapping (ucloud_id, local_identity)
+                            values (:ucloud_id, :local_identity)
+                        """
+                    ).useAndInvokeAndDiscard {
+                        bindString("ucloud_id", capturedId)
+                        bindString("local_identity", req.localIdentity)
+                    }
+
+                    IntegrationControl.approveConnection.callBlocking(
+                        IntegrationControlApproveConnectionRequest(capturedId),
+                        rpcClient
+                    ).orThrow()
                 }
-
-                val capturedId = ucloudId ?:
-                    throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
-
-                IntegrationControl.approveConnection.callBlocking(
-                    IntegrationControlApproveConnectionRequest(capturedId),
-                    rpcClient
-                ).orThrow()
 
                 JsonObject(emptyMap())
             }
@@ -65,18 +81,20 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
 
         commandLineInterface?.addHandler(
             CliHandler("connect") { args ->
-                val usageMessage = "Usage: ucloud connect approve <ticket>"
+                val usageMessage = "Usage: ucloud connect approve <ticket> <localIdentity>"
                 val ipcClient = ipcClient ?: error("No ipc client")
 
                 when (args.getOrNull(0)) {
                     "approve" -> {
                         val ticket = args.getOrNull(1)
                             ?: throw RPCException(usageMessage, HttpStatusCode.BadRequest)
+                        val localId = args.getOrNull(2)
+                            ?: throw RPCException(usageMessage, HttpStatusCode.BadRequest)
 
                         ipcClient.sendRequestBlocking(
                             JsonRpcRequest(
                                 "connect.approve",
-                                defaultMapper.encodeToJsonElement(TicketApprovalRequest(ticket)) as JsonObject
+                                defaultMapper.encodeToJsonElement(TicketApprovalRequest(ticket, localId)) as JsonObject
                             )
                         ).orThrow<Unit>()
 

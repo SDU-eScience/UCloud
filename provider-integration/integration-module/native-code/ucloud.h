@@ -1,5 +1,5 @@
-#ifndef cmsg_h
-#define cmsg_h
+#ifndef ucloud_h
+#define ucloud_h
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -13,5 +13,7 @@ struct socket_credentials {
 };
 
 struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh);
+
+int renameat2_kt(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
 
 #endif

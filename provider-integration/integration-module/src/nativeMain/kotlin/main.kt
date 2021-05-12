@@ -6,10 +6,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
-import dk.sdu.cloud.controllers.ComputeController
-import dk.sdu.cloud.controllers.ConnectionController
-import dk.sdu.cloud.controllers.Controller
-import dk.sdu.cloud.controllers.ControllerContext
+import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.IpcClient
@@ -22,7 +19,13 @@ import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import dk.sdu.cloud.utils.homeDirectory
 import kotlinx.atomicfu.atomic
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.runBlocking
+import platform.posix.SIGCHLD
+import platform.posix.SIG_IGN
+import platform.posix.readlink
+import platform.posix.signal
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 
@@ -54,14 +57,35 @@ val dbConnection: DBContext.Connection? by lazy {
     }
 }
 
+private fun readSelfExecutablePath(): String {
+    val resultBuffer = ByteArray(2048)
+    resultBuffer.usePinned { pinned ->
+        val read = readlink("/proc/self/exe", pinned.addressOf(0), resultBuffer.size.toULong())
+        return when {
+            read == resultBuffer.size.toLong() -> {
+                throw IllegalStateException("Path to own executable is too long")
+            }
+            read != -1L -> {
+                resultBuffer.decodeToString(0, read.toInt())
+            }
+            else -> {
+                throw IllegalStateException("Could not read self executable path")
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     val serverMode = when {
-        args.contains("user") -> ServerMode.User
-        args.contains("server") -> ServerMode.Server
-        args.size >= 1 -> ServerMode.Plugin(args[0])
+        args.getOrNull(0) == "user" -> ServerMode.User
+        args.getOrNull(0) == "server" -> ServerMode.Server
+        args.isNotEmpty() -> ServerMode.Plugin(args[0])
         else -> throw IllegalArgumentException("Missing server mode")
     }
+
+    val ownExecutable = readSelfExecutablePath()
+    signal(SIGCHLD, SIG_IGN) // Automatically reap children
 
     runBlocking {
         val log = Logger("Main")
@@ -101,7 +125,7 @@ fun main(args: Array<String>) {
             }
         }
 
-        if (config.server != null) {
+        if (config.server != null && serverMode == ServerMode.Server) {
             databaseConfig.getAndSet(config.server.dbFile)
 
             // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
@@ -110,10 +134,16 @@ fun main(args: Array<String>) {
             handler.migrate()
         }
 
-        val ipcSocketDirectory = "${homeDirectory()}/ucloud-im"
+        val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
         val ipcServer = if (serverMode != ServerMode.Server) null else IpcServer(ipcSocketDirectory)
         val ipcClient = if (serverMode == ServerMode.Server) null else IpcClient(ipcSocketDirectory)
         val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+
+        val rpcServerPort = when (serverMode) {
+            is ServerMode.Plugin -> null
+            ServerMode.Server -> config.server!!.port ?: 8889
+            ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
+        }
 
         val pluginContext = SimplePluginContext(
             providerClient,
@@ -127,7 +157,7 @@ fun main(args: Array<String>) {
         plugins.freeze()
         pluginContext.freeze()
 
-        val controllerContext = ControllerContext(config, pluginContext, plugins)
+        val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)
 
         // Start services
         if (ipcServer != null) {
@@ -136,13 +166,21 @@ fun main(args: Array<String>) {
 
         ipcClient?.connect()
 
+        val envoyConfig = if (serverMode == ServerMode.Server) {
+            EnvoyConfigurationService("/var/run/ucloud/envoy")
+        } else {
+            null
+        }
+
+        envoyConfig?.start()
+
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {
-                val server = H2OServer()
+                val server = H2OServer(rpcServerPort!!)
                 with(server) {
                     configureControllers(
                         ComputeController(controllerContext),
-                        ConnectionController(controllerContext)
+                        ConnectionController(controllerContext, envoyConfig)
                     )
                 }
 

@@ -15,6 +15,8 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
+import dk.sdu.cloud.provider.api.IntegrationProvider
+import dk.sdu.cloud.provider.api.IntegrationProviderInitRequest
 import dk.sdu.cloud.provider.api.withProxyInfo
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
@@ -157,22 +159,25 @@ class JobOrchestrator(
 
             // Prepare job folders (needs to happen before database insertion)
             for ((index, jobWithToken) in verifiedJobs.withIndex()) {
-                try {
-                    val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
-                    val newJobWithToken = jobWithToken.copy(
-                        job = jobWithToken.job.copy(
-                            output = JobOutput(jobFolder.path)
+                // TODO Temporary
+                if (jobWithToken.job.specification.product.provider == "ucloud") {
+                    try {
+                        val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
+                        val newJobWithToken = jobWithToken.copy(
+                            job = jobWithToken.job.copy(
+                                output = JobOutput(jobFolder.path)
+                            )
                         )
-                    )
-                    verifiedJobs[index] = newJobWithToken
-                    jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
-                } catch (ex: RPCException) {
-                    if (ex.httpStatusCode == HttpStatusCode.PaymentRequired &&
-                        jobWithToken.job.specification.product.provider == "aau"
-                    ) {
-                        log.warn("Silently ignoring lack of credits in storage due to temporary aau integration")
-                    } else {
-                        throw ex
+                        verifiedJobs[index] = newJobWithToken
+                        jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
+                    } catch (ex: RPCException) {
+                        if (ex.httpStatusCode == HttpStatusCode.PaymentRequired &&
+                            jobWithToken.job.specification.product.provider == "aau"
+                        ) {
+                            log.warn("Silently ignoring lack of credits in storage due to temporary aau integration")
+                        } else {
+                            throw ex
+                        }
                     }
                 }
             }
@@ -188,6 +193,12 @@ class JobOrchestrator(
             // Notify compute providers
             verifiedJobs.groupBy { it.job.specification.product.provider }.forEach { (provider, jobs) ->
                 val (api, client) = providers.prepareCommunication(provider)
+
+                log.debug("Trying to send a message!")
+
+                // TODO Very temporary
+                val im = IntegrationProvider(provider)
+                im.init.call(IntegrationProviderInitRequest(principal.safeUsername()), client)
 
                 api.create.call(
                     bulkRequestOf(jobs.map { it.job }),
@@ -560,9 +571,13 @@ class JobOrchestrator(
                                                     sendWSMessage(
                                                         JobsFollowResponse(
                                                             emptyList(),
-                                                            listOf(JobsLog(message.rank,
-                                                                message.stdout,
-                                                                message.stderr)),
+                                                            listOf(
+                                                                JobsLog(
+                                                                    message.rank,
+                                                                    message.stdout,
+                                                                    message.stderr
+                                                                )
+                                                            ),
                                                             null
                                                         )
                                                     )

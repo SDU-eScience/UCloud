@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.utils.NativeFile
+import dk.sdu.cloud.utils.fileIsDirectory
 import dk.sdu.cloud.utils.homeDirectory
 import dk.sdu.cloud.utils.readText
 import kotlinx.cinterop.toKString
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.JsonObject
 import platform.posix.getenv
 
 class IMConfiguration(
+    val configLocation: String,
     val serverMode: ServerMode,
     val core: Core,
     val plugins: Plugins,
@@ -19,7 +21,9 @@ class IMConfiguration(
     companion object {
         fun load(serverMode: ServerMode): IMConfiguration {
             val configLocation =
-                (getenv("UCLOUD_IM_CONFIG")?.toKString() ?: "${homeDirectory()}/ucloud-im").removeSuffix("/")
+                (getenv("UCLOUD_IM_CONFIG")?.toKString() ?:
+                if (fileIsDirectory("/etc/ucloud")) "/etc/ucloud"
+                else "${homeDirectory()}/ucloud-im").removeSuffix("/")
 
             val core = Json.decodeFromString<Core>(
                 NativeFile.open("$configLocation/core.json", readOnly = true).readText()
@@ -39,7 +43,7 @@ class IMConfiguration(
                 throw IllegalStateException("Could not read server section")
             }
 
-            return IMConfiguration(serverMode, core, plugins, server)
+            return IMConfiguration(configLocation, serverMode, core, plugins, server)
         }
     }
 
@@ -48,6 +52,7 @@ class IMConfiguration(
         val providerId: String,
         val certificateFile: String? = null,
         val certificate: String? = null,
+        val ipcDirectory: String? = null,
     ) {
         fun normalize(): Core {
             val certificate = if (certificateFile != null) {
@@ -74,12 +79,14 @@ class IMConfiguration(
     data class Plugins(
         val compute: JsonObject? = null,
         val connection: JsonObject? = null,
+        val identityMapper: JsonObject? = null,
     )
 
     @Serializable
     data class Server(
         val refreshToken: String,
-        val dbFile: String = ""
+        val dbFile: String = "",
+        val port: Int? = null,
     ) {
         fun normalize(configLocation: String): Server {
             val newDbFile = if (dbFile == "") {

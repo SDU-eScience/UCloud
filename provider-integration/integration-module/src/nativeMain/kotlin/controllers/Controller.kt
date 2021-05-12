@@ -10,6 +10,7 @@ interface Controller {
 }
 
 class ControllerContext(
+    val ownExecutable: String,
     val configuration: IMConfiguration,
     val pluginContext: PluginContext,
     val plugins: LoadedPlugins,

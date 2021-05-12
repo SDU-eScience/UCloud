@@ -7,18 +7,28 @@ import dk.sdu.cloud.plugins.ConnectionResponse
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.withTransaction
+import dk.sdu.cloud.utils.NativeFile
+import dk.sdu.cloud.utils.ProcessStreams
+import dk.sdu.cloud.utils.startProcess
 import h2o.H2O_TOKEN_CONTENT_TYPE
 import io.ktor.http.*
-import kotlinx.cinterop.pointed
+import kotlinx.atomicfu.atomic
+import kotlinx.cinterop.*
+import platform.posix.*
+import kotlin.system.exitProcess
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
+    private val envoyConfig: EnvoyConfigurationService?,
 ) : Controller {
     override fun H2OServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
         val providerId = controllerContext.configuration.core.providerId
         val plugin = controllerContext.plugins.connection ?: return
+        val mapperPlugin = controllerContext.plugins.identityMapper ?: return
         val pluginContext = controllerContext.pluginContext
 
         val calls = IntegrationProvider(providerId)
@@ -85,5 +95,58 @@ class ConnectionController(
 
             OutgoingCallResponse.AlreadyDelivered()
         }
+
+        implement(calls.init) {
+            val envoyConfig = envoyConfig ?: error("No envoy")
+            val db = dbConnection ?: error("No db")
+            var localId: String? = null
+            db.withTransaction { conn ->
+                conn.prepareStatement(
+                    //language=SQLite
+                    "select local_identity from user_mapping where ucloud_id = :ucloud_id"
+                ).useAndInvoke({ bindString("ucloud_id", request.username) }) { row ->
+                    localId = row.getString(0)
+                }
+            }
+
+            val capturedId = localId ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+
+            val (uid, gid) = with(pluginContext) {
+                with(mapperPlugin) {
+                    mapLocalIdentityToUidAndGid(capturedId)
+                }
+            }
+
+            val allocatedPort = portAllocator.getAndIncrement()
+            envoyConfig.requestConfiguration(
+                EnvoyRoute(request.username, request.username),
+                EnvoyCluster.create(
+                    request.username,
+                    "127.0.0.1",
+                    allocatedPort
+                )
+            )
+
+            startProcess(
+                listOf(
+                    "/usr/bin/sudo",
+                    "-u",
+                    "#${uid}",
+                    controllerContext.ownExecutable,
+                    "user",
+                    allocatedPort.toString()
+                ),
+                createStreams = {
+                    val devnull = NativeFile.open("/dev/null", readOnly = false)
+                    val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                    ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
+                }
+            )
+
+            OutgoingCallResponse.Ok(Unit)
+        }
     }
 }
+
+@SharedImmutable
+private val portAllocator = atomic(42000)

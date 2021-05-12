@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins
 
-import dk.sdu.cloud.ServerMode
 import kotlinx.serialization.json.JsonObject
 
 class PluginLoader(private val pluginContext: PluginContext) {
@@ -10,6 +9,10 @@ class PluginLoader(private val pluginContext: PluginContext) {
 
     private val connectionPlugins = mapOf<String, () -> ConnectionPlugin>(
         "ticket" to { TicketBasedConnectionPlugin() }
+    )
+
+    private val identityMapperPlugins = mapOf<String, () -> IdentityMapperPlugin>(
+        "direct" to { DirectIdentityMapperPlugin() }
     )
 
     private fun <T : Plugin> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
@@ -36,12 +39,14 @@ class PluginLoader(private val pluginContext: PluginContext) {
 
         val compute = config.plugins.compute?.let { loadPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
+        val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
 
-        return LoadedPlugins(compute, connection)
+        return LoadedPlugins(compute, connection, identityMapper)
     }
 }
 
 data class LoadedPlugins(
     val compute: ComputePlugin?,
     val connection: ConnectionPlugin?,
+    val identityMapper: IdentityMapperPlugin?,
 )

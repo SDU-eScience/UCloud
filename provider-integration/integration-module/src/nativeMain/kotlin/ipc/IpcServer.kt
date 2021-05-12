@@ -124,17 +124,22 @@ class IpcServer(
         this@IpcServer.freeze()
         server.value = this@IpcServer
 
-        unlink("$ipcSocketDirectory/$ipcSocketName")
+        val socketPath = "$ipcSocketDirectory/$ipcSocketName"
+        unlink(socketPath)
         val serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
         if (serverSocket == -1) throw IpcException("socket error")
 
-        val address = UnixSockets.buildAddress(this, "$ipcSocketDirectory/$ipcSocketName")
+        val address = UnixSockets.buildAddress(this, socketPath)
 
         if (bind(serverSocket, address.ptr.reinterpret(), sizeOf<sockaddr_un>().toUInt()) == -1) {
             throw IpcException("Could not bind IPC socket")
         }
 
         if (listen(serverSocket, 32) == -1) throw IpcException("Failed to listen on IPC socket")
+
+        // NOTE(Dan): Permissions are enforced by SO_PEERCRED. As a result, we can let anybody connect to it without
+        // problems.
+        chmod(socketPath, "777".toUInt(8))
 
         while (true) {
             val clientSocket = accept(serverSocket, null, null)

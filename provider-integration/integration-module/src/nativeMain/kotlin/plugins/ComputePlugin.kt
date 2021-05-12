@@ -3,9 +3,6 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.app.orchestrator.api.*
 
 interface ComputePlugin : Plugin {
-    override fun PluginContext.initialize() {
-    }
-
     fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {
         request.items.forEach { create(it) }
     }
