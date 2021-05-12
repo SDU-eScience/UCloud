@@ -148,5 +148,6 @@ class ConnectionController(
     }
 }
 
+const val UCLOUD_IM_PORT = 42000
 @SharedImmutable
-private val portAllocator = atomic(42000)
+private val portAllocator = atomic(UCLOUD_IM_PORT + 1)

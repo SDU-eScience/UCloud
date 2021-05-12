@@ -141,7 +141,7 @@ fun main(args: Array<String>) {
 
         val rpcServerPort = when (serverMode) {
             is ServerMode.Plugin -> null
-            ServerMode.Server -> config.server!!.port ?: 8889
+            ServerMode.Server -> UCLOUD_IM_PORT
             ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
         }
 
@@ -172,7 +172,7 @@ fun main(args: Array<String>) {
             null
         }
 
-        envoyConfig?.start()
+        envoyConfig?.start(config.server?.port)
 
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {

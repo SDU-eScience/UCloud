@@ -41,8 +41,8 @@ class EnvoyConfigurationService(
         }
     }
 
-    fun start(): Worker {
-        writeConfigurationFile()
+    fun start(port: Int?): Worker {
+        writeConfigurationFile(port ?: 8889)
 
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
@@ -67,6 +67,18 @@ class EnvoyConfigurationService(
                 it.execute(TransferMode.UNSAFE, { Pair(configDir, channel).freeze() }) { (configDir, channel) ->
                     runBlocking {
                         val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster>>()
+                        run {
+                            val id = "_UCloud"
+                            entries[id] = Pair(
+                                EnvoyRoute(null, id),
+                                EnvoyCluster.create(id, "127.0.0.1", UCLOUD_IM_PORT)
+                            )
+
+                            val routes = entries.values.map { it.first }
+                            val clusters = entries.values.map { it.second }
+                            configure(configDir, routes, clusters)
+                        }
+
                         while (isActive) {
                             val nextMessage = channel.receiveOrNull() ?: break
                             when (nextMessage) {
@@ -84,7 +96,7 @@ class EnvoyConfigurationService(
             }
     }
 
-    private fun writeConfigurationFile() {
+    private fun writeConfigurationFile(port: Int) {
         NativeFile.open("$configDir/$configFile", readOnly = false).writeText(
             //language=YAML
             """
@@ -104,7 +116,7 @@ static_resources:
     - address:
         socket_address:
           address: 0.0.0.0
-          port_value: 8888
+          port_value: $port
       filter_chains:
         - filters:
             - name: envoy.filters.network.http_connection_manager
@@ -167,7 +179,7 @@ data class EnvoyResources<T>(
 )
 
 data class EnvoyRoute(
-    val ucloudIdentity: String,
+    val ucloudIdentity: String?,
     val cluster: String
 )
 
@@ -192,8 +204,15 @@ class EnvoyRouteConfiguration(
                                     "prefix" to JsonPrimitive("/"),
                                     "headers" to JsonArray(
                                         JsonObject(
-                                            "name" to JsonPrimitive("UCloud-Username"),
-                                            "exact_match" to JsonPrimitive(ucloudIdentity)
+                                            buildMap {
+                                                put("name", JsonPrimitive("UCloud-Username"))
+                                                if (ucloudIdentity == null) {
+                                                    put("invert_match", JsonPrimitive(true))
+                                                    put("present_match", JsonPrimitive(true))
+                                                } else {
+                                                    put("exact_match", JsonPrimitive(ucloudIdentity))
+                                                }
+                                            }
                                         )
                                     )
                                 ),
