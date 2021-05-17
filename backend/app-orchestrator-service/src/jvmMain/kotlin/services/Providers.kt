@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.provider.api.Providers as ProvidersApi
 import io.ktor.http.*
@@ -120,6 +121,12 @@ class Providers(
                 continue
             }
 
+            if (username != null && response.statusCode == HttpStatusCode.ServiceUnavailable) {
+                log.debug("Waiting for server to start...")
+                delay(250) // Server might still be starting
+                continue
+            }
+
             return response
         }
 
@@ -148,7 +155,12 @@ class Providers(
             val response = rpc.subscribe(request, authenticatedClient.withProxyInfo(username), handler)
             if (username != null && response.statusCode == HttpStatusCode.RetryWith) {
                 im.init.call(IntegrationProviderInitRequest(username), comms.client).orThrow()
-                delay(50)
+                delay(100)
+                continue
+            }
+            if (username != null && response.statusCode == HttpStatusCode.ServiceUnavailable) {
+                log.debug("Waiting for server to start...")
+                delay(250) // Server might still be starting
                 continue
             }
 
@@ -158,8 +170,9 @@ class Providers(
         throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
     }
 
-    companion object {
+    companion object : Loggable {
         const val PROVIDER_USERNAME_PREFIX = "#P_"
+        override val log = logger()
     }
 }
 
