@@ -43,7 +43,6 @@ expect internal fun createHttpClient(): HttpClient
 
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
-    private val httpClient: HttpClient = createHttpClient()
     fun install(
         client: RpcClient,
         targetHostResolver: OutgoingHostResolver,
@@ -112,15 +111,17 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         }
 
         log.trace("Sending request")
-        val resp = try {
-            httpClient.request<HttpResponse>(ctx.builder)
-        } catch (ex: Throwable) {
-            if (ex.stackTraceToString().contains("ConnectException")) {
-                log.debug("[$callId] ConnectException: ${ex.message}")
-                throw RPCException("Could not connect to backend server", HttpStatusCode.BadGateway)
-            }
+        val resp = createHttpClient().use { httpClient ->
+            try {
+                httpClient.request<HttpResponse>(ctx.builder)
+            } catch (ex: Throwable) {
+                if (ex.stackTraceToString().contains("ConnectException")) {
+                    log.debug("[$callId] ConnectException: ${ex.message}")
+                    throw RPCException("Could not connect to backend server", HttpStatusCode.BadGateway)
+                }
 
-            throw ex
+                throw ex
+            }
         }
         log.trace("Received response")
 
