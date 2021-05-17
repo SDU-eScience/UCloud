@@ -64,7 +64,7 @@ class SampleComputePlugin : ComputePlugin {
     override fun ComputePlugin.FollowLogsContext.followLogs(job: Job) {
         var count = 0
         while (isActive()) {
-            emitStdout(0, "Hello, World ${count++}!")
+            emitStdout(0, "Hello, World ${count++}!\n")
             sleep(1)
         }
     }
