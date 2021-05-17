@@ -50,7 +50,6 @@ different ways. Supported values:
   block to be defined.
 - `VNC`: An interactive application accessed via VNC. Requires the `vnc` block
    to be defined.
-   
 
 ### `allowAdditionalMounts`
 
