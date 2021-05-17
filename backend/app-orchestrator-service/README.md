@@ -25,13 +25,11 @@ starts with the core abstraction used in UCloud's compute, the `Job`.
 | `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
 <!--</editor-fold>-->
 <!-- /typedoc:dk.sdu.cloud.app.orchestrator.api.Job -->
-
 __Table:__ The data model for a `Job`
-
 ---
-
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job-->
 <!--<editor-fold desc="Generated documentation">-->
+
 A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
 
