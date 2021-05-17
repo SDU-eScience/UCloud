@@ -12,8 +12,8 @@ storage, from multiple different providers using the same interface. This allows
 resources from different providers, allowing researchers to focus on their work as opposed to the specifics of any given
 provider.
 
-This document covers UCloud from a developer's perspective. __The end-user guide for UCloud can be
-found [here](https://docs.cloud.sdu.dk/user/)__.
+This document covers UCloud from a developer's perspective. The end-user guide for UCloud can be
+found [here](https://docs.cloud.sdu.dk/user/).
 
 ## Storage
 
