@@ -194,44 +194,53 @@ class EnvoyRouteConfiguration(
     companion object {
         fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
             return EnvoyRouteConfiguration(
-                virtualHosts = routes.map { (ucloudIdentity, cluster) ->
+                virtualHosts = listOf(
                     JsonObject(
                         "name" to JsonPrimitive("local_route"),
                         "domains" to JsonArray(JsonPrimitive("*")),
                         "routes" to JsonArray(
-                            JsonObject(
-                                "match" to JsonObject(
-                                    "prefix" to JsonPrimitive("/"),
-                                    "headers" to JsonArray(
-                                        JsonObject(
-                                            buildMap {
-                                                put("name", JsonPrimitive("UCloud-Username"))
-                                                if (ucloudIdentity == null) {
-                                                    put("invert_match", JsonPrimitive(true))
-                                                    put("present_match", JsonPrimitive(true))
-                                                } else {
-                                                    put("exact_match", JsonPrimitive(ucloudIdentity))
+                            routes.map { (ucloudIdentity, cluster) ->
+                                JsonObject(
+                                    "match" to JsonObject(
+                                        "prefix" to JsonPrimitive("/"),
+                                        "headers" to JsonArray(
+                                            JsonObject(
+                                                buildMap {
+                                                    put("name", JsonPrimitive("UCloud-Username"))
+                                                    if (ucloudIdentity == null) {
+                                                        put("invert_match", JsonPrimitive(true))
+                                                        put("present_match", JsonPrimitive(true))
+                                                    } else {
+                                                        put("exact_match", JsonPrimitive(ucloudIdentity))
+                                                    }
                                                 }
-                                            }
+                                            )
                                         )
-                                    )
-                                ),
-                                "route" to JsonObject(
-                                    "cluster" to JsonPrimitive(cluster),
-                                    "timeout" to JsonObject(
-                                        "seconds" to JsonPrimitive(0)
                                     ),
-                                    "upgrade_configs" to JsonArray(
-                                        JsonObject(
-                                            "upgrade_type" to JsonPrimitive("websocket"),
-                                            "enabled" to JsonPrimitive(true)
+                                    "route" to JsonObject(
+                                        "cluster" to JsonPrimitive(cluster),
+                                        "timeout" to JsonObject(
+                                            "seconds" to JsonPrimitive(0)
+                                        ),
+                                        "upgrade_configs" to JsonArray(
+                                            JsonObject(
+                                                "upgrade_type" to JsonPrimitive("websocket"),
+                                                "enabled" to JsonPrimitive(true)
+                                            )
                                         )
                                     )
+                                )
+                            } + JsonObject(
+                                "match" to JsonObject(
+                                    "prefix" to JsonPrimitive(""),
+                                ),
+                                "direct_response" to JsonObject(
+                                    "status" to JsonPrimitive(449)
                                 )
                             )
                         )
                     )
-                }
+                )
             )
         }
     }

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
@@ -17,14 +18,15 @@ class ComputeController(
 ) : Controller {
     override fun H2OServer.configure() {
         val computePlugin = controllerContext.plugins.compute ?: return
+        val serverMode = controllerContext.configuration.serverMode
 
-        val PROVIDER_ID = "im-test"
-        val jobs = JobsProvider(PROVIDER_ID)
+        val jobs = JobsProvider(controllerContext.configuration.core.providerId)
         val knownProducts = listOf(
-            ProductReference("im1", "im1", PROVIDER_ID),
+            ProductReference("im1", "im1", controllerContext.configuration.core.providerId),
         )
 
         implement(jobs.create) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             with(controllerContext.pluginContext) {
                 with (computePlugin) {
                     createBulk(request)
@@ -35,6 +37,7 @@ class ComputeController(
         }
 
         implement(jobs.retrieveProducts) {
+            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             OutgoingCallResponse.Ok(
                 JobsProviderRetrieveProductsResponse(
                     knownProducts.map { productRef ->
@@ -58,6 +61,7 @@ class ComputeController(
         }
 
         implement(jobs.delete) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             with(controllerContext.pluginContext) {
                 with(computePlugin) {
                     deleteBulk(request)
@@ -68,6 +72,7 @@ class ComputeController(
         }
 
         implement(jobs.extend) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             with(controllerContext.pluginContext) {
                 with(computePlugin) {
                     extendBulk(request)
@@ -81,6 +86,7 @@ class ComputeController(
         val streams = atomicArrayOfNulls<Unit>(maxStreams)
 
         implement(jobs.follow) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             // TODO TODO TODO STREAM IDS NEEDS TO BE UNGUESSABLE THIS ALLOWS ANYONE TO CANCEL OTHER PEOPLES STREAMS
             when (request) {
                 is JobsProviderFollowRequest.Init -> {
@@ -142,17 +148,20 @@ class ComputeController(
         }
 
         implement(jobs.openInteractiveSession) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             log.info("open interactive session $request")
             TODO()
         }
 
         implement(jobs.retrieveUtilization) {
+            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             OutgoingCallResponse.Ok(
                 JobsProviderUtilizationResponse(CpuAndMemory(0.0, 0L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0))
             )
         }
 
         implement(jobs.suspend) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             with(controllerContext.pluginContext) {
                 with(computePlugin) {
                     suspendBulk(request)
@@ -162,6 +171,7 @@ class ComputeController(
         }
 
         implement(jobs.verify) {
+            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             log.info("Verifying some jobs $request")
             OutgoingCallResponse.Ok(Unit)
         }

@@ -9,8 +9,7 @@ import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
-import dk.sdu.cloud.ipc.IpcClient
-import dk.sdu.cloud.ipc.IpcServer
+import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Logger
@@ -93,38 +92,6 @@ fun main(args: Array<String>) {
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)
 
-        val client = RpcClient().also { client ->
-            OutgoingHttpRequestInterceptor()
-                .install(
-                    client,
-                    FixedOutgoingHostResolver(HostInfo("localhost", "http", 8080))
-                )
-        }
-
-        val providerClient = run {
-            when (serverMode) {
-                ServerMode.Server -> {
-                    val authenticator = RefreshingJWTAuthenticator(
-                        client,
-                        JwtRefresher.Provider(config.server!!.refreshToken),
-                        becomesInvalidSoon = { accessToken ->
-                            val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
-                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                                (1000 * 120) >= Time.now()
-                        }
-                    )
-
-                    authenticator.authenticateClient(OutgoingHttpCall)
-                }
-
-                ServerMode.User -> {
-                    AuthenticatedClient(client, OutgoingHttpCall, null, {})
-                }
-
-                is ServerMode.Plugin -> null
-            }
-        }
-
         if (config.server != null && serverMode == ServerMode.Server) {
             databaseConfig.getAndSet(config.server.dbFile)
 
@@ -145,6 +112,43 @@ fun main(args: Array<String>) {
             ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
         }
 
+        val providerClient = run {
+            val client = RpcClient().also { client ->
+                OutgoingHttpRequestInterceptor()
+                    .install(
+                        client,
+                        FixedOutgoingHostResolver(HostInfo("localhost", "http", 8080))
+                    )
+            }
+
+            when (serverMode) {
+                ServerMode.Server -> {
+                    val authenticator = RefreshingJWTAuthenticator(
+                        client,
+                        JwtRefresher.Provider(config.server!!.refreshToken),
+                        becomesInvalidSoon = { accessToken ->
+                            val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
+                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
+                                (1000 * 120) >= Time.now()
+                        }
+                    )
+
+                    authenticator.authenticateClient(OutgoingHttpCall)
+                }
+
+                ServerMode.User -> {
+                    client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
+                    AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
+                }
+
+                is ServerMode.Plugin -> null
+            }
+        }
+
+        if (ipcServer != null && providerClient != null) {
+            IpcProxyServer().init(ipcServer, providerClient)
+        }
+
         val pluginContext = SimplePluginContext(
             providerClient,
             config,
@@ -160,7 +164,7 @@ fun main(args: Array<String>) {
         val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)
 
         // Start services
-        if (ipcServer != null) {
+        if (ipcServer != null && providerClient != null) {
             Worker.start(name = "IPC Accept Worker").execute(TransferMode.SAFE, { ipcServer }) { it.runServer() }
         }
 

@@ -49,12 +49,14 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
     }
 }
 
-fun AuthenticatedClient.withProxyInfo(username: String): AuthenticatedClient {
+fun AuthenticatedClient.withProxyInfo(username: String?): AuthenticatedClient {
     return withHooks(
         beforeHook = {
-            (it as? OutgoingHttpCall)
-                ?.builder
-                ?.header(IntegrationProvider.UCLOUD_USERNAME_HEADER, username)
+            if (username != null) {
+                (it as? OutgoingHttpCall)
+                    ?.builder
+                    ?.header(IntegrationProvider.UCLOUD_USERNAME_HEADER, username)
+            }
         }
     )
 }
