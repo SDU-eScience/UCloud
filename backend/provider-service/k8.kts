@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "provider"
-    version = "0.2.2"
+    version = "0.2.4"
     
     withAmbassador() {
         addSimpleMapping("/api/providers")

@@ -1,4 +1,4 @@
-version = "0.2.3"
+version = "0.2.5"
 
 application {
     mainClassName = "dk.sdu.cloud.kubernetes.monitor.MainKt"
