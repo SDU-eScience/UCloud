@@ -326,7 +326,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                             row={it}
                         />
                     }
-                    navigate={() => {
+                    navigate={it.type === "FILE" ? undefined : () => {
                         navigateTo(it.path);
                     }}
                 />;
