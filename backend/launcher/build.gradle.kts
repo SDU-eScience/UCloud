@@ -11,7 +11,7 @@ repositories {
 }
 
 application {
-    mainClassName = "dk.sdu.cloud.MainKt"
+    mainClass.set("dk.sdu.cloud.MainKt")
 }
 
 kotlin {
@@ -72,4 +72,9 @@ publishing {
             mavenLocal()
         }
     }
+}
+
+tasks.withType<Jar> {
+    val name = "ucloud-launcher"
+    archiveName = "$name.jar"
 }

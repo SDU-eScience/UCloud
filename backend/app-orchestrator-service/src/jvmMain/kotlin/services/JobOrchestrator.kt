@@ -158,7 +158,7 @@ class JobOrchestrator(
             // Prepare job folders (needs to happen before database insertion)
             for ((index, jobWithToken) in verifiedJobs.withIndex()) {
                 // TODO Temporary
-                if (jobWithToken.job.specification.product.provider == "ucloud") {
+                if (jobWithToken.job.specification.product.provider == "ucloud" && false) {
                     try {
                         val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
                         val newJobWithToken = jobWithToken.copy(

@@ -18,8 +18,6 @@ import java.io.File
 
 class ConfigurationFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        log.info("Reading configuration...")
-
         val allConfigFiles = ArrayList<File>()
         if (ctx.commandLineArguments.contains("--dev") && !ctx.commandLineArguments.contains("--no-implicit-config")) {
             run {
@@ -38,6 +36,7 @@ class ConfigurationFeature : MicroFeature {
             }
         }
 
+        val configDirs = ArrayList<File>()
         val argIterator = cliArgs.iterator()
         while (argIterator.hasNext()) {
             val arg = argIterator.next()
@@ -54,6 +53,7 @@ class ConfigurationFeature : MicroFeature {
                 if (configDirectory == null) {
                     log.info("Dangling --config-dir. Correct syntax is --config-dir <directory>")
                 } else {
+                    configDirs.add(configDirectory)
                     if (configDirectory.exists() && configDirectory.isDirectory) {
                         allConfigFiles.addAll(addFilesFromDirectory(configDirectory))
                     }
@@ -62,7 +62,7 @@ class ConfigurationFeature : MicroFeature {
         }
 
         val tree = jsonMapper.readTree("{}")
-        val serverConfiguration = ServerConfiguration(jsonMapper, tree)
+        val serverConfiguration = ServerConfiguration(jsonMapper, tree, configDirs)
         for (configFile in allConfigFiles) {
             injectFile(serverConfiguration, configFile)
         }

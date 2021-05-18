@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.http.*
+import java.io.File
 
 // Common features which are needed only as a hack to make existing code work
 
@@ -35,7 +36,8 @@ var Micro.configuration: ServerConfiguration
 
 class ServerConfiguration(
     private val jsonMapper: ObjectMapper,
-    val tree: JsonNode
+    val tree: JsonNode,
+    val configDirs: List<File>
 ) {
     fun <T> requestChunk(valueTypeRef: TypeReference<T>, node: String): T {
         val jsonNode =

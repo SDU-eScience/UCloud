@@ -126,8 +126,10 @@ sealed class KubernetesConfigurationSource {
                     authenticationMethod,
                 )
             } catch (ex: Throwable) {
-                log.warn("Exception caught while parsing kube config at '${kubeConfigFile.absolutePath}'")
-                log.warn(ex.stackTraceToString())
+                if (ex !is FileNotFoundException) {
+                    log.warn("Exception caught while parsing kube config at '${kubeConfigFile.absolutePath}'")
+                    log.warn(ex.stackTraceToString())
+                }
             }
 
             return null
@@ -189,6 +191,15 @@ sealed class KubernetesConfigurationSource {
 
             val defaultKubeConfig = KubeConfigFile(null, null).retrieveConnection()
             if (defaultKubeConfig != null) return defaultKubeConfig
+
+            val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")
+            if (composeKubeConfigFile.exists()) {
+                val newText = composeKubeConfigFile.readText().replace("127.0.0.1", "k3s")
+                composeKubeConfigFile.writeText(newText)
+            }
+
+            val composeKubeConfig = KubeConfigFile("/mnt/k3s/kubeconfig.yaml", null).retrieveConnection()
+            if (composeKubeConfig != null) return composeKubeConfig
 
             return null
         }
@@ -343,8 +354,7 @@ data class KubernetesResourceLocator(
 class KubernetesClient(
     private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto,
 ) {
-    @PublishedApi
-    internal val conn by lazy {
+    val conn by lazy {
         configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
     }
 

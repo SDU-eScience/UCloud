@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 1 ]; then
+    echo "Usage: ./build_docker <version>"
+    exit 1
+fi
+
+name=launcher
+version=$1
+
+set -e
+set -x
+
+rm -rf build/distributions
+rm -rf build/service
+gradle distTar
+(mkdir -p build/service || true)
+cp build/distributions/*.tar build/service.tar
+cd build/service
+tar xvf ../service.tar --strip-components=1 && \
+cd ../../
+mv build/service/bin/${name} build/service/bin/service 
+
+docker build \
+    -t "ucloud:$version" \
+    -f Dockerfile \
+    .
+
+echo $should_publish
+
+if hash docker-publish; then
+    docker-publish "ucloud:${version}"
+fi

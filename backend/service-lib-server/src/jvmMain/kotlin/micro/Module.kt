@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.isRunning
 import dk.sdu.cloud.service.db.async.PaginationV2Cache
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
 object PlaceholderServiceDescription : ServiceDescription {
@@ -132,6 +133,7 @@ class ServiceRegistry(
         }
 
         // Note this code runs before logger is ready
+        ucloudIsReady.set(true)
         println("============ UCloud is ready ============")
 
         if (wait) {
@@ -150,6 +152,8 @@ class ServiceRegistry(
         rootServer.stop()
     }
 }
+
+val ucloudIsReady = AtomicBoolean(false)
 
 interface Service {
     val description: ServiceDescription

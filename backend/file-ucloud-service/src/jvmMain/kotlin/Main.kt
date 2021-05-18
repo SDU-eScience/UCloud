@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.file.ucloud.api.FileUcloudServiceDescription
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.EmptyServer
 
 data class Configuration(
     val providerRefreshToken: String? = null,
@@ -26,6 +27,11 @@ object FileUcloudService : Service {
 
         val configuration = micro.configuration.requestChunkAtOrNull("files", "ucloud") ?: Configuration()
         val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
+
+        if (micro.configuration.requestChunkAtOrNull<Boolean>("postInstalling") == true) {
+            return EmptyServer
+        }
+
         return Server(micro, configuration, cephConfig)
     }
 }

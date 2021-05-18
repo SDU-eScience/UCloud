@@ -81,25 +81,6 @@ create or replace function provider.accessible_resources(
            );
 end $$ language plpgsql;
 
-select p.id, g.id from project.projects p join project.groups g on p.id = g.project;
-
-insert into provider.resource (id, type, provider) values ('matlab', 'software_license', 'ucloud');
-
-select * from provider.resource_acl_entry;
-
-insert into provider.resource_acl_entry
-(entity_type, project_id, group_id, username, resource_id, resource_type, resource_provider, permission)
-values (
-    unnest('{"project_group", "user"}'::provider.acl_entity_type[]),
-    unnest('{"88bccd3e-acf3-4213-b3d9-490fd8a11248", null}'::text[]),
-    unnest('{"483b9e42-6345-44b1-86f9-c917579b325a", null}'::text[]),
-    unnest('{null, "dan"}'::text[]),
-    'matlab',
-    'software_license',
-    'ucloud',
-    'READ'
-);
-
 create or replace function provider.update_acl(
     actor_username_in text,
     resource_id_in text,

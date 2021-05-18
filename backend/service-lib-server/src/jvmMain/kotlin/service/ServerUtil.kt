@@ -35,6 +35,12 @@ interface CommonServer : BaseServer, Loggable {
     }
 }
 
+object EmptyServer : CommonServer {
+    override val micro: Micro = Micro()
+    override fun start() {}
+    override val log: Logger = logger()
+}
+
 val CommonServer.isRunning: Boolean
     get() {
         val serverFeature = micro.featureOrNull(ServerFeature)
