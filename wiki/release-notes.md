@@ -8,8 +8,9 @@ Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
 ## 18-05-21
-Update of frontend plus minor issue fixes
-commit - b6d6af254105ab86e4d08313992aabcffbc024b7
+Update of frontend plus minor issue fixes.
+
+Commit - b6d6af254105ab86e4d08313992aabcffbc024b7
 ```
 ✅  Deployment(accounting, 1.7.4) (UP-TO-DATE)
 ✅  Deployment(activity, 1.7.5) (UP-TO-DATE)
