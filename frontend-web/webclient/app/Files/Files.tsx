@@ -9,7 +9,7 @@ import {getParentPath, pathComponents, resolvePath, sizeToString} from "Utilitie
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {extensionFromPath, joinToString} from "UtilityFunctions";
-import {Box, Divider, Flex, FtIcon, List} from "ui-components";
+import {Box, Flex, FtIcon, List} from "ui-components";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {NamingField} from "UtilityComponents";
 import {dateToString} from "Utilities/DateUtilities";
@@ -156,7 +156,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     }, [props.path]);
 
     useEffect(() => {
-        let result: Record<string, true> = {};
+        const result: Record<string, true> = {};
         for (const path in props.metadata) {
             if (!props.metadata.hasOwnProperty(path)) continue;
 
@@ -189,17 +189,21 @@ export const Files: React.FunctionComponent<CommonFileProps & {
 
         return <>
             <BreadCrumbsBase embedded={props.embedded}>
-                {breadcrumbs.length === 0 ? <HexSpin size={42}/> : null}
+                {breadcrumbs.length === 0 ? <HexSpin size={42} /> : null}
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it}
-                          onClick={() =>
-                              navigateTo("/" + joinToString(components.slice(0, idx + breadcrumbOffset + 1), "/"))}>
-                    {it}
-                </span>
+                        onClick={() =>
+                            navigateTo("/" + joinToString(components.slice(0, idx + breadcrumbOffset + 1), "/"))}>
+                        {it}
+                    </span>
                 ))}
             </BreadCrumbsBase>
         </>;
     }, [props.path, props.embedded, collection.data]);
+
+    const fileredOperations = props.embedded ? (
+        filesOperations.filter(it => !["Move to...", "Copy to..."].includes(it.text))
+    ) : filesOperations;
 
     const main = <>
         {!props.embedded ? null :
@@ -210,7 +214,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                     location={"TOPBAR"}
                     entityNameSingular={filesEntityName}
                     extra={callbacks}
-                    operations={filesOperations}
+                    operations={fileredOperations}
                     displayTitle={false}
                 />
             </Flex>
@@ -223,8 +227,8 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                 <ListRow
                     icon={
                         <>
-                            <Icon mr={10} size={24} name={"starEmpty"} color={"midGray"}/>
-                            <FtIcon fileIcon={{type: "DIRECTORY"}} size={"42px"}/>
+                            <Icon mr={10} size={24} name={"starEmpty"} color={"midGray"} />
+                            <FtIcon fileIcon={{type: "DIRECTORY"}} size={"42px"} />
                         </>
                     }
                     left={
@@ -239,95 +243,94 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                 />
             )}
             {props.files.data.items.map(it => {
-                    const isFavorite = favoriteCache[it.path] ?? false;
+                const isFavorite = favoriteCache[it.path] ?? false;
 
-                    return <ListRow
-                        key={it.path}
-                        icon={
-                            <>
-                                <Icon
-                                    mr={10}
-                                    cursor={"pointer"}
-                                    size={"24"}
-                                    name={isFavorite ? "starFilled" : "starEmpty"}
-                                    color={isFavorite ? "blue" : "midGray"}
-                                    onClick={() => {
-                                        invokeCommand(metadataApi.create(bulkRequestOf({
-                                            path: it.path,
-                                            metadata: {
-                                                templateId: "favorite",
-                                                changeLog: "",
-                                                document: {"favorite": !isFavorite},
-                                                product: undefined
-                                            }
-                                        })));
+                return <ListRow
+                    key={it.path}
+                    icon={
+                        <>
+                            <Icon
+                                mr={10}
+                                cursor={"pointer"}
+                                size={"24"}
+                                name={isFavorite ? "starFilled" : "starEmpty"}
+                                color={isFavorite ? "blue" : "midGray"}
+                                onClick={() => {
+                                    invokeCommand(metadataApi.create(bulkRequestOf({
+                                        path: it.path,
+                                        metadata: {
+                                            templateId: "favorite",
+                                            changeLog: "",
+                                            document: {"favorite": !isFavorite},
+                                            product: undefined
+                                        }
+                                    })));
 
-                                        setFavoriteCache(prev => {
-                                            const newCache = {...prev};
-                                            if (isFavorite) {
-                                                delete newCache[it.path];
-                                            } else {
-                                                newCache[it.path] = true;
-                                            }
-                                            return newCache;
-                                        });
-                                    }}
-                                    hoverColor={"blue"}
-                                />
-                                <FtIcon
-                                    iconHint={it.icon}
-                                    fileIcon={{type: it.type, ext: extensionFromPath(it.path)}}
-                                    size={"42px"}
-                                />
-                            </>
-                        }
-                        left={
-                            renaming === it.path ?
-                                <NamingField
-                                    confirmText="Rename"
-                                    defaultValue={fileName(it.path)}
-                                    onCancel={() => setRenaming(null)}
-                                    onSubmit={renameFile}
-                                    inputRef={renameRef}
-                                /> : fileName(it.path)
-                        }
-                        isSelected={toggleSet.checked.has(it)}
-                        select={() => toggleSet.toggle(it)}
-                        leftSub={
-                            <ListStatContainer>
-                                {it.stats?.sizeIncludingChildrenInBytes == null || it.type !== "DIRECTORY" ? null :
-                                    <ListRowStat icon={"info"}>
-                                        {sizeToString(it.stats.sizeIncludingChildrenInBytes)}
-                                    </ListRowStat>
-                                }
-                                {it.stats?.sizeInBytes == null || it.type !== "FILE" ? null :
-                                    <ListRowStat icon={"info"}>
-                                        {sizeToString(it.stats.sizeInBytes)}
-                                    </ListRowStat>
-                                }
-                                {!it.stats?.modifiedAt ? null :
-                                    <ListRowStat icon={"edit"}>
-                                        {dateToString(it.stats.modifiedAt)}
-                                    </ListRowStat>
-                                }
-                            </ListStatContainer>
-                        }
-                        right={
-                            <Operations
-                                selected={toggleSet.checked.items}
-                                location={"IN_ROW"}
-                                entityNameSingular={filesEntityName}
-                                extra={callbacks}
-                                operations={filesOperations}
-                                row={it}
+                                    setFavoriteCache(prev => {
+                                        const newCache = {...prev};
+                                        if (isFavorite) {
+                                            delete newCache[it.path];
+                                        } else {
+                                            newCache[it.path] = true;
+                                        }
+                                        return newCache;
+                                    });
+                                }}
+                                hoverColor={"blue"}
                             />
-                        }
-                        navigate={() => {
-                            navigateTo(it.path);
-                        }}
-                    />;
-                }
-            )}
+                            <FtIcon
+                                iconHint={it.icon}
+                                fileIcon={{type: it.type, ext: extensionFromPath(it.path)}}
+                                size={"42px"}
+                            />
+                        </>
+                    }
+                    left={
+                        renaming === it.path ?
+                            <NamingField
+                                confirmText="Rename"
+                                defaultValue={fileName(it.path)}
+                                onCancel={() => setRenaming(null)}
+                                onSubmit={renameFile}
+                                inputRef={renameRef}
+                            /> : fileName(it.path)
+                    }
+                    isSelected={toggleSet.checked.has(it)}
+                    select={() => toggleSet.toggle(it)}
+                    leftSub={
+                        <ListStatContainer>
+                            {it.stats?.sizeIncludingChildrenInBytes == null || it.type !== "DIRECTORY" ? null :
+                                <ListRowStat icon={"info"}>
+                                    {sizeToString(it.stats.sizeIncludingChildrenInBytes)}
+                                </ListRowStat>
+                            }
+                            {it.stats?.sizeInBytes == null || it.type !== "FILE" ? null :
+                                <ListRowStat icon={"info"}>
+                                    {sizeToString(it.stats.sizeInBytes)}
+                                </ListRowStat>
+                            }
+                            {!it.stats?.modifiedAt ? null :
+                                <ListRowStat icon={"edit"}>
+                                    {dateToString(it.stats.modifiedAt)}
+                                </ListRowStat>
+                            }
+                        </ListStatContainer>
+                    }
+                    right={
+                        <Operations
+                            selected={toggleSet.checked.items}
+                            location={"IN_ROW"}
+                            entityNameSingular={filesEntityName}
+                            extra={callbacks}
+                            operations={fileredOperations}
+                            row={it}
+                        />
+                    }
+                    navigate={() => {
+                        navigateTo(it.path);
+                    }}
+                />;
+            })}
         </List>
     </>;
 
@@ -365,7 +368,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                         onRequestClose={closeShare}
                         ariaHideApp={false}
                     >
-                        {!sharing ? null : <EmbeddedShareCard path={sharing.path}/>}
+                        {!sharing ? null : <EmbeddedShareCard path={sharing.path} />}
                     </ReactModal>
                 </>
             }
@@ -489,14 +492,14 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         text: "Properties",
         icon: "properties",
         primary: false,
-        onClick: (selected, cb) => cb.history.push(buildQueryString("/files/properties/", { path: selected[0].path })),
+        onClick: (selected, cb) => cb.history.push(buildQueryString("/files/properties/", {path: selected[0].path})),
         enabled: selected => selected.length === 1,
     },
 ];
 
 const filesEntityName = "File";
 
-const filesAclOptions: { icon: IconName; name: string, title?: string }[] = [
+const filesAclOptions: {icon: IconName; name: string, title?: string}[] = [
     {icon: "search", name: "READ", title: "Read"},
     {icon: "edit", name: "WRITE", title: "Write"},
 ];
