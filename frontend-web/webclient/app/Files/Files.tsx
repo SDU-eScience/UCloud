@@ -1,6 +1,6 @@
 import * as React from "react";
 import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {file, PageV2} from "UCloud";
+import {BulkResponse, file, PageV2} from "UCloud";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
@@ -98,6 +98,16 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         reload();
     }, [commandLoading, reload]);
 
+    const download = useCallback(async (batch: UFile[]) => {
+        const result = await invokeCommand<BulkResponse<file.orchestrator.FilesCreateDownloadResponseItem>>(
+            filesApi.createDownload(bulkRequestOf(
+                ...batch.map(it => ({path: it.path})),
+            ))
+        );
+
+        console.log(result?.responses);
+    }, []);
+
     const selectFile = useCallback((type: FileType) => {
         return new Promise<UFile>((resolve, reject) => {
             setSelectFileRequirement(type);
@@ -114,7 +124,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     }, [onSelectFile, setOnSelectFile]);
 
     const callbacks: FilesCallbacks = {
-        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile, startShare
+        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile, startShare, download
     };
 
     const renameFile = useCallback(async () => {
@@ -384,6 +394,7 @@ interface FilesCallbacks extends CommonFileProps {
     trash: (batch: UFile[]) => void;
     selectFile: (requiredType: FileType | null) => Promise<UFile | null>;
     startShare: (batch: UFile) => void;
+    download: (batch: UFile[]) => void;
 }
 
 const filesOperations: Operation<UFile, FilesCallbacks>[] = [
@@ -424,8 +435,8 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         text: "Download",
         icon: "download",
         primary: false,
-        onClick: () => 42,
-        enabled: selected => selected.length === 1,
+        onClick: (files, cb) => cb.download(files),
+        enabled: selected => selected.every(it => it.type === "FILE"),
     },
     {
         text: "Copy to...",
