@@ -1,0 +1,5 @@
+{
+    "providerId": "im-test",
+    "certificateFile": "/etc/ucloud/certificate.txt",
+    "ipcDirectory": "/var/run/ucloud"
+}

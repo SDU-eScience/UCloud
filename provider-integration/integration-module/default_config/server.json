@@ -1,0 +1,4 @@
+{
+    "refreshToken": "TO BE REPLACED",
+    "dbFile": "/etc/ucloud/ucloud.sqlite3"
+}

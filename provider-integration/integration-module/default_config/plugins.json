@@ -1,0 +1,12 @@
+{
+    "compute": {
+        "sample": {}
+    },
+    "connection": {
+        "ticket": {}
+    },
+    "identityMapper": {
+        "direct": {}
+    }
+}
+

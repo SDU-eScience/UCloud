@@ -16,4 +16,7 @@ struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh);
 
 int renameat2_kt(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
 
+size_t sockaddr_in_size();
+size_t sockaddr_in_align();
+
 #endif

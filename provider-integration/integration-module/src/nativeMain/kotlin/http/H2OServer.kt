@@ -501,9 +501,9 @@ class H2OServer(private val port: Int) {
         accept_ctx.hosts = config.hosts
 
         val listener = scope.alloc<uv_tcp_t>()
-        val addr = scope.alloc<uv.sockaddr_in>()
+        val addr = scope.alloc<platform.posix.sockaddr_in>()
         uv_tcp_init(ctx.loop?.reinterpret(), listener.ptr)
-        uv_ip4_addr("127.0.0.1", port, addr.ptr)
+        uv_ip4_addr("127.0.0.1", port, addr.ptr.reinterpret())
         check(uv_tcp_bind(listener.ptr, addr.ptr.reinterpret(), 0) == 0) { "Could not bind to address" }
         val uvListenResult = uv_listen(
             listener.ptr.reinterpret(),

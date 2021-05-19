@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <linux/fs.h>
 #include <sys/syscall.h>
+#include <netinet/in.h>
+#include <stdalign.h>
 
 struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) {
     struct cmsghdr *header = CMSG_FIRSTHDR(msgh);
@@ -28,4 +30,12 @@ struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) 
 
 int renameat2_kt(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags) {
     return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+
+size_t sockaddr_in_size() {
+    return sizeof(struct sockaddr_in);
+}
+
+size_t sockaddr_in_align() {
+    return alignof(struct sockaddr_in);
 }
