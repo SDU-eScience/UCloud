@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.9"
 services:
   redis:
     image: redis:5.0.9
@@ -76,7 +76,7 @@ services:
     - 9901:9901
 
   integration-module:
-    image: ucloud-im-dev
+    image: dreg.cloud.sdu.dk/ucloud/ucloud-im-dev:2021.2.0-storage0
     profiles: ["integration-module"]
     volumes:
       - imKonan:/root/.konan
