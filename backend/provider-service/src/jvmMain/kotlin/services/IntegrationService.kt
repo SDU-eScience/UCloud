@@ -24,6 +24,7 @@ class IntegrationService(
     private val db: DBContext,
     private val providers: ProviderService,
     private val serviceClient: AuthenticatedClient,
+    private val devMode: Boolean = false,
 ) {
     suspend fun connect(
         actorAndProject: ActorAndProject,
@@ -59,7 +60,11 @@ class IntegrationService(
                     append("http")
                     if (providerSpec.https) append("s")
                     append("://")
-                    append(providerSpec.domain)
+                    if (providerSpec.domain == "integration-module" && devMode) {
+                        append("localhost")
+                    } else {
+                        append(providerSpec.domain)
+                    }
                     if (providerSpec.port != null) {
                         append(":")
                         append(providerSpec.port)

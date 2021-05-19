@@ -85,6 +85,7 @@ class IMConfiguration(
     @Serializable
     data class Server(
         val refreshToken: String,
+        val ucloud: UCloud,
         val dbFile: String = "",
         val port: Int? = null,
     ) {
@@ -97,5 +98,8 @@ class IMConfiguration(
 
             return copy(dbFile = newDbFile)
         }
+
+        @Serializable
+        data class UCloud(val host: String, val scheme: String, val port: Int)
     }
 }

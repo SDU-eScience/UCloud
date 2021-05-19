@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins
+package dk.sdu.cloud.plugins.connection
 
 import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.RPCException
@@ -7,6 +7,10 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.*
+import dk.sdu.cloud.plugins.ConnectionPlugin
+import dk.sdu.cloud.plugins.ConnectionResponse
+import dk.sdu.cloud.plugins.HTML
+import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log

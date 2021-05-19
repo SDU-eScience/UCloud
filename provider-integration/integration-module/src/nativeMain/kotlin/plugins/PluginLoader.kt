@@ -1,5 +1,8 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.plugins.compute.SampleComputePlugin
+import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
+import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
 import kotlinx.serialization.json.JsonObject
 
 class PluginLoader(private val pluginContext: PluginContext) {

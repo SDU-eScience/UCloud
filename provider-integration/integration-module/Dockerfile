@@ -15,7 +15,7 @@ RUN addgroup ucloud
 RUN adduser ucloud --system
 RUN mkdir -p /var/run/ucloud/envoy
 RUN chown -R ucloud: /var/run/ucloud
-RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/integration-module/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
+RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
 # Init system
 ENV TINI_VERSION v0.19.0
@@ -26,6 +26,13 @@ ENTRYPOINT ["/tini", "--"]
 FROM base as development
 RUN adduser testuser --gecos "TestUser,,," --disabled-password
 RUN addgroup testuser ucloud
+RUN apt-get install -y vim
+WORKDIR /usr/bin
+RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe ucloud
+COPY default_config /opt/ucloud-default-config
+RUN chmod +x /opt/ucloud-default-config/config_installer.sh
+
+WORKDIR /opt/ucloud
 
 FROM base as compilation
 COPY . /opt/ucloud

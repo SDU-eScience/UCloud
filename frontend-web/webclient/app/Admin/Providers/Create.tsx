@@ -9,12 +9,16 @@ import * as UCloud from "UCloud";
 import {Box, Button, Checkbox, Flex, Input, Label} from "ui-components";
 import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
+import {useHistory} from "react-router";
+import {useProjectId} from "Project";
 
 function Create(): JSX.Element | null {
     const [loading, invokeCommand] = useCloudCommand();
 
     useTitle("Create Provider");
 
+    const projectId = useProjectId();
+    const history = useHistory();
     const idInput = useInput();
     const domainInput = useInput();
     const portInput = useInput();
@@ -48,6 +52,11 @@ function Create(): JSX.Element | null {
     />;
 
     async function submit() {
+        if (projectId == null) {
+            snackbarStore.addFailure("Please select a valid project before creating a provider", false);
+            return;
+        }
+
         const domain = domainInput.ref.current?.value ?? "";
         const id = idInput.ref.current?.value ?? "";
         const port = parseInt(portInput.ref.current?.value ?? "", 10);
@@ -67,7 +76,7 @@ function Create(): JSX.Element | null {
         if (error) return;
 
         try {
-            await invokeCommand(
+            const res = await invokeCommand(
                 UCloud.provider.providers.create(bulkRequestOf({
                     id,
                     domain,
@@ -76,6 +85,10 @@ function Create(): JSX.Element | null {
                 })),
                 {defaultErrorHandler: false}
             );
+
+            if (res) {
+                history.push(`/admin/providers/${encodeURI(id)}`);
+            }
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to create provider"), false);
         }

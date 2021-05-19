@@ -113,19 +113,26 @@ fun main(args: Array<String>) {
         }
 
         val providerClient = run {
-            val client = RpcClient().also { client ->
-                OutgoingHttpRequestInterceptor()
-                    .install(
-                        client,
-                        FixedOutgoingHostResolver(HostInfo("localhost", "http", 8080))
-                    )
-            }
-
             when (serverMode) {
                 ServerMode.Server -> {
+                    val serverConfig = config.server!!
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        serverConfig.ucloud.host,
+                                        serverConfig.ucloud.scheme,
+                                        serverConfig.ucloud.port
+                                    )
+                                )
+                            )
+                    }
+
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
-                        JwtRefresher.Provider(config.server!!.refreshToken),
+                        JwtRefresher.Provider(serverConfig.refreshToken),
                         becomesInvalidSoon = { accessToken ->
                             val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
                             (expiresAt ?: return@RefreshingJWTAuthenticator true) +
@@ -137,6 +144,7 @@ fun main(args: Array<String>) {
                 }
 
                 ServerMode.User -> {
+                    val client = RpcClient()
                     client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
                     AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
                 }
