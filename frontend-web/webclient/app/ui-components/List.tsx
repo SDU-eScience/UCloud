@@ -1,11 +1,8 @@
-import styled, {css} from "styled-components";
+import styled from "styled-components";
 import Box from "./Box";
 import * as React from "react";
-import Flex from "./Flex";
-import Truncate from "./Truncate";
-import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
-import {Icon, Text} from "ui-components/index";
+import {Icon} from "ui-components/index";
 import {ThemeColor} from "./theme";
 import {Cursor} from "ui-components/Types";
 import {useCallback} from "react";
