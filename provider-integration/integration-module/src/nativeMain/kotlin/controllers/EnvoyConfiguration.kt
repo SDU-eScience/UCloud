@@ -48,7 +48,7 @@ class EnvoyConfigurationService(
         //  people who don't what this.
         startProcess(
             listOf(
-                "/opt/ucloud/getenvoy",
+                "getenvoy",
                 "run",
                 "standard:1.18.2",
                 "--",
