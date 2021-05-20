@@ -1,9 +1,11 @@
-package dk.sdu.cloud.plugins
+package dk.sdu.cloud.plugins.compute
 
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.plugins.ComputePlugin
+import dk.sdu.cloud.plugins.PluginContext
 import kotlinx.coroutines.runBlocking
 import platform.posix.sleep
 
@@ -57,7 +59,6 @@ class SampleComputePlugin : ComputePlugin {
     }
 
     override fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem) {
-        val client = rpcClient ?: error("No client")
         println("Suspending job!")
     }
 

@@ -395,7 +395,8 @@ export function delay(ms: number): Promise<void> {
  * even if the code may be deployed on production.
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
-export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE;
+export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
+    || window.location.hostname === "127.0.0.1";
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

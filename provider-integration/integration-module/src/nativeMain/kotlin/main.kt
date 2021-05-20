@@ -21,10 +21,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.runBlocking
-import platform.posix.SIGCHLD
-import platform.posix.SIG_IGN
-import platform.posix.readlink
-import platform.posix.signal
+import platform.posix.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 
@@ -85,9 +82,9 @@ fun main(args: Array<String>) {
 
     val ownExecutable = readSelfExecutablePath()
     signal(SIGCHLD, SIG_IGN) // Automatically reap children
+    signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
     runBlocking {
-        val log = Logger("Main")
         val config = IMConfiguration.load(serverMode)
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)
@@ -113,19 +110,26 @@ fun main(args: Array<String>) {
         }
 
         val providerClient = run {
-            val client = RpcClient().also { client ->
-                OutgoingHttpRequestInterceptor()
-                    .install(
-                        client,
-                        FixedOutgoingHostResolver(HostInfo("localhost", "http", 8080))
-                    )
-            }
-
             when (serverMode) {
                 ServerMode.Server -> {
+                    val serverConfig = config.server!!
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        serverConfig.ucloud.host,
+                                        serverConfig.ucloud.scheme,
+                                        serverConfig.ucloud.port
+                                    )
+                                )
+                            )
+                    }
+
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
-                        JwtRefresher.Provider(config.server!!.refreshToken),
+                        JwtRefresher.Provider(serverConfig.refreshToken),
                         becomesInvalidSoon = { accessToken ->
                             val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
                             (expiresAt ?: return@RefreshingJWTAuthenticator true) +
@@ -137,6 +141,7 @@ fun main(args: Array<String>) {
                 }
 
                 ServerMode.User -> {
+                    val client = RpcClient()
                     client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
                     AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
                 }

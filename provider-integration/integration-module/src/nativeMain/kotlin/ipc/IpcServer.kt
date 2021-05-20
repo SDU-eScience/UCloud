@@ -98,7 +98,6 @@ private fun processIpcClient(clientSocket: Int) = memScoped {
         val serializer: KSerializer<*> = when (unwrappedResponse) {
             is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
             is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
-            else -> error("No serializer")
         }
 
         runCatching {

@@ -117,7 +117,6 @@ kotlin {
         val nativeTest by getting
 
         all {
-            languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
             languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
             languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
@@ -130,6 +129,7 @@ kotlin {
 
 kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
     binaries.all {
+        @Suppress("SuspiciousCollectionReassignment")
         freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
     }
 }

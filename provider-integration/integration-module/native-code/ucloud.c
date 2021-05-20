@@ -7,6 +7,7 @@
 #include <sys/syscall.h>
 #include <netinet/in.h>
 #include <stdalign.h>
+#include <sys/wait.h>
 
 struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) {
     struct cmsghdr *header = CMSG_FIRSTHDR(msgh);
@@ -38,4 +39,12 @@ size_t sockaddr_in_size() {
 
 size_t sockaddr_in_align() {
     return alignof(struct sockaddr_in);
+}
+
+bool wifexited(int status) {
+    return WIFEXITED(status);
+}
+
+int wexitstatus(int status) {
+    return WEXITSTATUS(status);
 }

@@ -111,7 +111,7 @@ class ConnectionController(
 
             val capturedId = localId ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
-            val (uid, gid) = with(pluginContext) {
+            val (uid) = with(pluginContext) {
                 with(mapperPlugin) {
                     mapLocalIdentityToUidAndGid(capturedId)
                 }

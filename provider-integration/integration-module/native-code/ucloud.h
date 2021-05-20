@@ -19,4 +19,7 @@ int renameat2_kt(int olddirfd, const char *oldpath, int newdirfd, const char *ne
 size_t sockaddr_in_size();
 size_t sockaddr_in_align();
 
+bool wifexited(int status);
+int wexitstatus(int status);
+
 #endif

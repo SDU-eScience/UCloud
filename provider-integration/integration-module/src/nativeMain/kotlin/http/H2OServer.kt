@@ -465,7 +465,7 @@ class H2OServer(private val port: Int) {
         // pales in comparison to the delay introduced by the network.
         val idle = scope.alloc<uv.uv_timer_t>()
         uv_timer_init(loop.ptr, idle.ptr)
-        uv_timer_start(idle.ptr, staticCFunction { handle: CPointer<uv.uv_timer_t>? ->
+        uv_timer_start(idle.ptr, staticCFunction { _: CPointer<uv.uv_timer_t>? ->
             // This runs on the same thread as the WS code
             while (true) {
                 val frame = outgoingFrames.poll() ?: break

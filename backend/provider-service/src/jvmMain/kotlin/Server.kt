@@ -2,10 +2,7 @@ package dk.sdu.cloud.provider
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.rpc.Docs
 import dk.sdu.cloud.provider.rpc.IntegrationController
 import dk.sdu.cloud.provider.rpc.ProviderController
@@ -31,7 +28,7 @@ class Server(override val micro: Micro) : CommonServer {
         val projectCache = ProjectCache(serviceClient)
         val providerDao = ProviderDao(projectCache)
         val providerService = ProviderService(db, providerDao, serviceClient)
-        val integrationService = IntegrationService(db, providerService, serviceClient)
+        val integrationService = IntegrationService(db, providerService, serviceClient, micro.developmentModeEnabled)
 
         micro.backgroundScope.launch {
             while (isActive) {
