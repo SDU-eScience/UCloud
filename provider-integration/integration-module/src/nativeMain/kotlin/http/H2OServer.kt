@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Log
+import dk.sdu.cloud.utils.DynamicWorkerPool
 import h2o.*
 import io.ktor.http.*
 import io.ktor.utils.io.charsets.*
@@ -49,9 +50,9 @@ object HeaderValues {
         ThisWillNeverBeFreed(ContentType.Text.Html.withCharset(Charsets.UTF_8).toString())
 }
 
-@Suppress("Unused")
 object WSFrames {
     const val TEXT_FRAME: UByte = 0x1u
+    @Suppress("UNUSED")
     const val BINARY_FRAME: UByte = 0x2u
 }
 
@@ -67,7 +68,7 @@ private const val MAX_WS_SOCKETS = 1024 * 64
 private val webSocketIsOpen = atomicArrayOfNulls<Unit>(MAX_WS_SOCKETS).freeze()
 
 @SharedImmutable
-private val workers = (0 until 10).map { Worker.start(name = "WS Worker $it") }.freeze()
+private val workers = DynamicWorkerPool("WS Workers")
 
 @ThreadLocal
 private val log = Log("H2OServer")
@@ -150,9 +151,7 @@ private fun onWebSocketMessage(
     }
 
     workers
-        .random()
         .execute(
-            TransferMode.SAFE,
             { InternalWsContext(wsId, connPtr, msgString).freeze() },
             { (wsId, connPtr, msgString) ->
                 runBlocking {
@@ -251,6 +250,7 @@ private fun onWebSocketMessage(
 
                     val wsContext = WebSocketContext(request, foundCall.call, sendMessage, sendResponse, isOpen)
 
+                    log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
                     val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)
                     middlewares.value.forEach { it.beforeRequest(context) }
 
@@ -497,6 +497,7 @@ class H2OServer(private val port: Int) {
                 }
             }
         }, 1UL, 1UL)
+        @Suppress("unused")
         accept_ctx.ctx = ctx.ptr
         accept_ctx.hosts = config.hosts
 
@@ -532,6 +533,8 @@ class H2OServer(private val port: Int) {
             }
         )
         check(uvListenResult == 0) { "Could not initialize socket listener" }
+
+        workers.start()
 
         println(buildString {
             append("\u001B[34m")

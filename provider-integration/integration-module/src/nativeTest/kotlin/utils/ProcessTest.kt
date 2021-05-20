@@ -1,5 +1,6 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.utils.startProcessAndCollectToMemory
 import kotlin.test.*
 
 class ProcessTest {
