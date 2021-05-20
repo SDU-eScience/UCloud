@@ -4,12 +4,14 @@ import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.freeze
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
 
@@ -83,16 +85,16 @@ class ComputeController(
         }
 
         val maxStreams = 1024 * 32
-        val streams = atomicArrayOfNulls<Unit>(maxStreams)
+        val streams = atomicArrayOfNulls<String>(maxStreams)
 
         implement(jobs.follow) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            // TODO TODO TODO STREAM IDS NEEDS TO BE UNGUESSABLE THIS ALLOWS ANYONE TO CANCEL OTHER PEOPLES STREAMS
             when (request) {
                 is JobsProviderFollowRequest.Init -> {
+                    val token = secureToken(64).freeze()
                     var streamId: Int? = null
                     for (i in 0 until maxStreams) {
-                        if (streams[i].compareAndSet(null, Unit)) {
+                        if (streams[i].compareAndSet(null, token)) {
                             streamId = i
                             break
                         }
@@ -106,7 +108,7 @@ class ComputeController(
 
                     val ctx = ComputePlugin.FollowLogsContext(
                         controllerContext.pluginContext,
-                        isActive = { streams[streamId].compareAndSet(Unit, Unit) && wsContext.isOpen() },
+                        isActive = { streams[streamId].compareAndSet(token, token) && wsContext.isOpen() },
                         emitStdout = { rank, message ->
                             wsContext.sendMessage(
                                 JobsProviderFollowResponse(
@@ -137,11 +139,16 @@ class ComputeController(
                 }
 
                 is JobsProviderFollowRequest.CancelStream -> {
-                    val id = request.streamId.toIntOrNull()
-                        ?: throw RPCException("Bad stream id", HttpStatusCode.BadRequest)
-                    if (id !in 0 until maxStreams) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    var idx = -1
+                    for (i in 0 until maxStreams) {
+                        if (streams[i].value == request.streamId) {
+                            idx = i
+                            break
+                        }
+                    }
+                    if (idx == -1) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-                    streams[id].compareAndSet(Unit, null)
+                    streams[idx].compareAndSet(request.streamId, null)
                     OutgoingCallResponse.Ok(JobsProviderFollowResponse("", -1))
                 }
             }
@@ -149,15 +156,20 @@ class ComputeController(
 
         implement(jobs.openInteractiveSession) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            log.info("open interactive session $request")
-            TODO()
+            with(controllerContext.pluginContext) {
+                with(computePlugin) {
+                    OutgoingCallResponse.Ok(openInteractiveSessionBulk(request))
+                }
+            }
         }
 
         implement(jobs.retrieveUtilization) {
             if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            OutgoingCallResponse.Ok(
-                JobsProviderUtilizationResponse(CpuAndMemory(0.0, 0L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0))
-            )
+            with(controllerContext.pluginContext) {
+                with(computePlugin) {
+                    OutgoingCallResponse.Ok(retrieveClusterUtilization())
+                }
+            }
         }
 
         implement(jobs.suspend) {
@@ -172,7 +184,11 @@ class ComputeController(
 
         implement(jobs.verify) {
             if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            log.info("Verifying some jobs $request")
+            with(controllerContext.pluginContext) {
+                with (computePlugin) {
+                    verify(request.items)
+                }
+            }
             OutgoingCallResponse.Ok(Unit)
         }
     }

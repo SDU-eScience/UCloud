@@ -1,6 +1,9 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
+import io.ktor.http.*
 
 interface ComputePlugin : Plugin {
     fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {
@@ -35,4 +38,21 @@ interface ComputePlugin : Plugin {
         val emitStdout: (rank: Int, message: String) -> Unit,
         val emitStderr: (rank: Int, message: String) -> Unit,
     ) : PluginContext by delegate
+
+    fun PluginContext.verify(jobs: List<Job>) {}
+
+    fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
+        throw RPCException("Utilization is not supported by this cluster", HttpStatusCode.BadRequest)
+    }
+
+
+    fun PluginContext.openInteractiveSessionBulk(
+        request: JobsProviderOpenInteractiveSessionRequest
+    ): JobsProviderOpenInteractiveSessionResponse {
+        return JobsProviderOpenInteractiveSessionResponse(request.items.map { openInteractiveSession(it) })
+    }
+
+    fun PluginContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
+        throw RPCException("Interactive sessions are not supported by this cluster", HttpStatusCode.BadRequest)
+    }
 }
