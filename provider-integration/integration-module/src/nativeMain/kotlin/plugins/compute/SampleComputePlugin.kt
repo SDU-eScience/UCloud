@@ -59,7 +59,6 @@ class SampleComputePlugin : ComputePlugin {
     }
 
     override fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem) {
-        val client = rpcClient ?: error("No client")
         println("Suspending job!")
     }
 

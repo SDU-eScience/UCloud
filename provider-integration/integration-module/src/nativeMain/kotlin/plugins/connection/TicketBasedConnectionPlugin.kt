@@ -44,9 +44,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                 }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
                 var ucloudId: String? = null
-                val connection = dbConnection ?: error("No DB connection available")
-
-                connection.withTransaction { connection ->
+                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
                     connection.prepareStatement(
                         //language=SQLite
                         """

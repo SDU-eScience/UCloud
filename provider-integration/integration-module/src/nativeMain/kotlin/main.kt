@@ -21,10 +21,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.runBlocking
-import platform.posix.SIGCHLD
-import platform.posix.SIG_IGN
-import platform.posix.readlink
-import platform.posix.signal
+import platform.posix.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 
@@ -85,9 +82,9 @@ fun main(args: Array<String>) {
 
     val ownExecutable = readSelfExecutablePath()
     signal(SIGCHLD, SIG_IGN) // Automatically reap children
+    signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
     runBlocking {
-        val log = Logger("Main")
         val config = IMConfiguration.load(serverMode)
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)

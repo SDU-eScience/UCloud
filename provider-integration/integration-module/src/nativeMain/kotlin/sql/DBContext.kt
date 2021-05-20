@@ -93,7 +93,7 @@ fun <R> DBContext.withSession(block: (session: DBContext.Connection) -> R): R {
         is DBContext.ConnectionFactory -> {
             val session = openSession()
             try {
-                openSession().withTransaction { session ->
+                openSession().withTransaction { _ ->
                     block(session)
                 }
             } finally {

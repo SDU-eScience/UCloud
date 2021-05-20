@@ -13,7 +13,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 
 class IpcProxyServer {
     fun init(server: IpcServer, client: AuthenticatedClient) {
-        server.addHandler(IpcHandler(IpcProxyRequestInterceptor.IPC_PROXY_METHOD) { user, req ->
+        server.addHandler(IpcHandler(IpcProxyRequestInterceptor.IPC_PROXY_METHOD) { _, req ->
             val proxyRequest = defaultMapper.decodeFromJsonElement<IpcProxyRequest>(req.params)
 
             val call: CallDescription<*, *, *>? = when (proxyRequest.call) {
