@@ -16,6 +16,7 @@ export interface Upload {
     row: FileUploadEvent;
     state: UploadState;
     fileSizeInBytes?: number;
+    initialProgress: number;
     progressInBytes: number;
     error?: string;
     targetPath: string;

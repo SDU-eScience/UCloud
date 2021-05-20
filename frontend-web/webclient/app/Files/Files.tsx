@@ -57,7 +57,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     const [sharing, setSharing] = useState<UFile | null>(null);
     const [favoriteCache, setFavoriteCache] = useState<Record<string, true>>({});
 
-    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
+    const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
 
     const reload = useCallback(() => {
         toggleSet.uncheckAll();
