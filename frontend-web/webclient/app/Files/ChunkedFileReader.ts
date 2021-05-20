@@ -1,5 +1,11 @@
+const UPLOAD_LOCALSTORAGE_PREFIX = "file-upload"
+
+export function createLocalStorageUploadKey(path: string): string {
+    return `${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
+}
+
 export class ChunkedFileReader {
-    offset: number = 0;
+    public offset = 0;
 
     constructor(private file: File) {
     }

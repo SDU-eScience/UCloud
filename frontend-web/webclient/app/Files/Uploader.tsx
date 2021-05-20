@@ -21,7 +21,7 @@ import FileApi = UCloud.file.orchestrator;
 import {callAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {BulkResponse} from "UCloud";
-import {ChunkedFileReader} from "Files/ChunkedFileReader";
+import {ChunkedFileReader, createLocalStorageUploadKey} from "Files/ChunkedFileReader";
 import {sizeToString} from "Utilities/FileUtilities";
 
 const maxConcurrentUploads = 5;
@@ -53,6 +53,17 @@ async function processUpload(upload: Upload) {
     const theFile = files[0];
 
     const reader = new ChunkedFileReader(theFile.fileObject);
+
+    const item = localStorage.getItem(createLocalStorageUploadKey(theFile.name));
+    if (item !== null) {
+        const parsedItem = JSON.parse(item) as {chunk: number, size: number, token: string};
+        if (parsedItem.size === theFile.size) {
+            reader.offset = parsedItem.chunk;
+            strategy.token = parsedItem.token;
+        }
+    }
+
+    upload.initialProgress = reader.offset;
     upload.fileSizeInBytes = reader.fileSize();
 
     function sendChunk(chunk: ArrayBuffer): Promise<void> {
@@ -86,10 +97,16 @@ async function processUpload(upload: Upload) {
 
     while (!reader.isEof() && !upload.terminationRequested) {
         await sendChunk(await reader.readChunk(maxChunkSize));
+        localStorage.setItem(
+            createLocalStorageUploadKey(theFile.fullPath),
+            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, token: strategy!.token})
+        );
     }
+
+    localStorage.removeItem(createLocalStorageUploadKey( theFile.fullPath));
 }
 
-const Uploader: React.FunctionComponent = props => {
+const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
     const [uploads, setUploads] = useGlobal("uploads", []);
@@ -179,7 +196,8 @@ const Uploader: React.FunctionComponent = props => {
             progressInBytes: 0,
             state: UploadState.PENDING,
             conflictPolicy: "RENAME",
-            targetPath: uploadPath
+            targetPath: uploadPath,
+            initialProgress: 0
         }));
 
         setUploads(uploads.concat(newUploads));
@@ -240,15 +258,15 @@ const Uploader: React.FunctionComponent = props => {
                     extra={callbacks}
                     entityNameSingular={entityName}
                 />
-                <Divider/>
+                <Divider />
 
                 <label htmlFor={"fileUploadBrowse"}>
                     <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                                 onDragOver={preventDefault} slim={uploads.length > 0}>
+                        onDragOver={preventDefault} slim={uploads.length > 0}>
                         <Flex width={320} alignItems={"center"} flexDirection={"column"}>
-                            {uploads.length > 0 ? null : <UploaderArt/>}
+                            {uploads.length > 0 ? null : <UploaderArt />}
                             <Box ml={"-1.5em"}>
-                                <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
+                                <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
                                 <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                 <i>browse</i>
                                 <input
@@ -282,14 +300,15 @@ const Uploader: React.FunctionComponent = props => {
                                     title={upload.row.rootEntry.name}
                                     width={["320px", "320px", "320px", "320px", "440px", "560px"]}
                                     fontSize={20}
-                                    children={upload.row.rootEntry.name}
-                                />
+                                >
+                                    {upload.row.rootEntry.name}
+                                </Truncate>
                             }
                             leftSub={
                                 <ListStatContainer>
                                     {!upload.fileSizeInBytes ? null :
                                         <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
-                                            {sizeToString(upload.progressInBytes)}
+                                            {sizeToString(upload.progressInBytes + upload.initialProgress)}
                                             {" / "}
                                             {sizeToString(upload.fileSizeInBytes)}
                                         </ListRowStat>
@@ -334,11 +353,11 @@ const operations: Operation<Upload, UploadCallback>[] = [
 
 const UploaderArt: React.FunctionComponent = props => {
     return <UploadArtWrapper>
-        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"} />
     </UploadArtWrapper>;
 };
 
@@ -364,7 +383,7 @@ const modalStyle = {
     }
 };
 
-const DropZoneBox = styled.div<{ slim?: boolean }>`
+const DropZoneBox = styled.div<{slim?: boolean}>`
   width: 100%;
   ${p => p.slim ? {height: "80px"} : {height: "280px"}}
   border-width: 2px;
