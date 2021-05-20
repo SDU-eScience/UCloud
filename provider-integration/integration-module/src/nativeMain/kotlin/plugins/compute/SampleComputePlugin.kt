@@ -10,6 +10,21 @@ import kotlinx.coroutines.runBlocking
 import platform.posix.sleep
 
 class SampleComputePlugin : ComputePlugin {
+    override fun PluginContext.retrieveSupport(): ComputeSupport {
+        return ComputeSupport(
+            ComputeSupport.Docker(
+                enabled = true,
+                logs = true,
+                timeExtension = true,
+            ),
+            ComputeSupport.VirtualMachine(
+                enabled = false,
+                logs = true,
+                suspension = true
+            )
+        )
+    }
+
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
         sleep(2)

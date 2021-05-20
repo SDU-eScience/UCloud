@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.fileIsDirectory
 import dk.sdu.cloud.utils.homeDirectory
@@ -10,6 +11,47 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import platform.posix.getenv
+
+@Serializable
+data class ProductReferenceWithoutProvider(
+    @UCloudApiDoc("The `Product` ID")
+    val id: String,
+    @UCloudApiDoc("The ID of the `Product`'s category")
+    val category: String,
+)
+
+@Serializable
+data class PartialProductReferenceWithoutProvider(
+    @UCloudApiDoc("The `Product` ID or null. If null this targets all products in the category.")
+    val id: String? = null,
+    @UCloudApiDoc("The ID of the `Product`'s category or null. If null this targets all categories.")
+    val category: String? = null,
+) {
+    init {
+        require(id == null || category != null) { "id cannot be specified without category" }
+    }
+
+    fun matches(ref: ProductReferenceWithoutProvider): Boolean {
+        if (category == null) return true
+        if (category == ref.category && id == null) return true
+        if (category == ref.category && id == ref.id) return true
+        return false
+    }
+}
+
+@Serializable
+data class ProductBasedConfiguration(
+    val products: List<ProductReferenceWithoutProvider>,
+    val plugins: List<PluginConfiguration>
+) {
+    @Serializable
+    class PluginConfiguration(
+        val id: String,
+        val activeFor: List<PartialProductReferenceWithoutProvider> = listOf(PartialProductReferenceWithoutProvider()),
+        val name: String? = null,
+        val configuration: JsonObject? = null,
+    )
+}
 
 class IMConfiguration(
     val configLocation: String,
@@ -77,7 +119,7 @@ class IMConfiguration(
 
     @Serializable
     data class Plugins(
-        val compute: JsonObject? = null,
+        val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
         val identityMapper: JsonObject? = null,
     )

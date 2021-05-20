@@ -1,11 +1,12 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.*
 
 interface ComputePlugin : Plugin {
+    fun PluginContext.retrieveSupport(): ComputeSupport
+
     fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {
         request.items.forEach { create(it) }
     }

@@ -1,6 +1,11 @@
 {
     "compute": {
-        "sample": {}
+        "products": [
+            { "category": "im1", "id": "im1" }
+        ],
+        "plugins": [
+            {"id": "sample"}
+        ]
     },
     "connection": {
         "ticket": {}
