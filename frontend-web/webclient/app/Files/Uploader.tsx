@@ -28,7 +28,20 @@ const maxConcurrentUploads = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
 
+interface LocalStorageFileUploadInfo {
+    chunk: number;
+    size: number;
+    response: FileApi.FilesCreateUploadResponseItem;
+}
+
+function fetchUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
+    const item = localStorage.getItem(createLocalStorageUploadKey(path));
+    return item !== null ? JSON.parse(item) as LocalStorageFileUploadInfo : null;
+}
+
 async function processUpload(upload: Upload) {
+
+
     const strategy = upload.uploadResponse;
     if (!strategy) {
         upload.error = "Internal client error";
@@ -51,17 +64,12 @@ async function processUpload(upload: Upload) {
     }
 
     const theFile = files[0];
+    const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
 
     const reader = new ChunkedFileReader(theFile.fileObject);
 
-    const item = localStorage.getItem(createLocalStorageUploadKey(theFile.name));
-    if (item !== null) {
-        const parsedItem = JSON.parse(item) as {chunk: number, size: number, token: string};
-        if (parsedItem.size === theFile.size) {
-            reader.offset = parsedItem.chunk;
-            strategy.token = parsedItem.token;
-        }
-    }
+    const uploadInfo = fetchUploadFromLocalStorage(fullFilePath);
+    if (uploadInfo !== null) reader.offset = uploadInfo.chunk;
 
     upload.initialProgress = reader.offset;
     upload.fileSizeInBytes = reader.fileSize();
@@ -98,12 +106,12 @@ async function processUpload(upload: Upload) {
     while (!reader.isEof() && !upload.terminationRequested) {
         await sendChunk(await reader.readChunk(maxChunkSize));
         localStorage.setItem(
-            createLocalStorageUploadKey(theFile.fullPath),
-            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, token: strategy!.token})
+            createLocalStorageUploadKey(fullFilePath),
+            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!} as LocalStorageFileUploadInfo)
         );
     }
 
-    localStorage.removeItem(createLocalStorageUploadKey( theFile.fullPath));
+    localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
 }
 
 const Uploader: React.FunctionComponent = () => {
@@ -127,33 +135,43 @@ const Uploader: React.FunctionComponent = () => {
         if (maxUploadsToUse > 0) {
             const creationRequests: FileApi.FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
+            const resumingUploads: Upload[] = [];
+
             for (const upload of batch) {
                 if (upload.state !== UploadState.PENDING) continue;
                 if (creationRequests.length >= maxUploadsToUse) break;
+                
+                const item = fetchUploadFromLocalStorage(upload.targetPath + "/" + upload.row.rootEntry.name);
+                if (item !== null) {
+                    upload.uploadResponse = item.response;
+                    resumingUploads.push(upload);
+                    upload.state = UploadState.UPLOADING;
+                    continue;
+                }
 
                 upload.state = UploadState.UPLOADING;
                 creationRequests.push({
                     supportedProtocols,
                     conflictPolicy: upload.conflictPolicy,
-                    path: upload.targetPath + "/" + upload.row.rootEntry.name
+                    path: upload.targetPath + "/" + upload.row.rootEntry.name,
                 });
 
                 actualUploads.push(upload);
             }
 
-            if (actualUploads.length === 0) return;
+            if (actualUploads.length + resumingUploads.length === 0) return;
 
             try {
                 const responses = (await callAPI<BulkResponse<FileApi.FilesCreateUploadResponseItem>>(
                     FileApi.files.createUpload(bulkRequestOf(...creationRequests))
                 )).responses;
 
-                let i = 0;
-                for (const response of responses) {
-                    const upload = actualUploads[i];
+                for (const [index, response] of responses.entries()) {
+                    const upload = actualUploads[index];
                     upload.uploadResponse = response;
-                    i++;
+                }
 
+                for (const upload of [...actualUploads, ...resumingUploads]) {
                     processUpload(upload)
                         .then(() => {
                             upload.state = UploadState.DONE;
@@ -167,6 +185,7 @@ const Uploader: React.FunctionComponent = () => {
                         });
                 }
             } catch (e) {
+                /* TODO(jonas): This needs to be handled for resuming uploads, I think. */
                 const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
                 for (let i = 0; i < creationRequests.length; i++) {
                     actualUploads[i].state = UploadState.DONE;
