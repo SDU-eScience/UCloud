@@ -503,7 +503,7 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         color: "red",
         primary: false,
         onClick: (selected, cb) => cb.trash(selected),
-        enabled: selected => selected.length > 0,
+        enabled: selected => selected.length > 0 && selected.every(f => f.icon !== "DIRECTORY_TRASH"),
     },
     {
         text: "Properties",
