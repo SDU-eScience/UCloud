@@ -27,16 +27,23 @@ import {sizeToString} from "Utilities/FileUtilities";
 const maxConcurrentUploads = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
+const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {
     chunk: number;
     size: number;
     response: FileApi.FilesCreateUploadResponseItem;
+    expiration: number;
 }
 
-function fetchUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
+function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
     const item = localStorage.getItem(createLocalStorageUploadKey(path));
-    return item !== null ? JSON.parse(item) as LocalStorageFileUploadInfo : null;
+    if (item === null) return null;
+
+    const parsed = JSON.parse(item) as LocalStorageFileUploadInfo;
+    if (parsed.expiration < new Date().getTime()) return null;
+
+    return parsed;
 }
 
 async function processUpload(upload: Upload) {
@@ -68,7 +75,7 @@ async function processUpload(upload: Upload) {
 
     const reader = new ChunkedFileReader(theFile.fileObject);
 
-    const uploadInfo = fetchUploadFromLocalStorage(fullFilePath);
+    const uploadInfo = fetchValidUploadFromLocalStorage(fullFilePath);
     if (uploadInfo !== null) reader.offset = uploadInfo.chunk;
 
     upload.initialProgress = reader.offset;
@@ -105,9 +112,11 @@ async function processUpload(upload: Upload) {
 
     while (!reader.isEof() && !upload.terminationRequested) {
         await sendChunk(await reader.readChunk(maxChunkSize));
+
+        const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
         localStorage.setItem(
             createLocalStorageUploadKey(fullFilePath),
-            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!} as LocalStorageFileUploadInfo)
+            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
         );
     }
 
@@ -140,8 +149,10 @@ const Uploader: React.FunctionComponent = () => {
             for (const upload of batch) {
                 if (upload.state !== UploadState.PENDING) continue;
                 if (creationRequests.length >= maxUploadsToUse) break;
-                
-                const item = fetchUploadFromLocalStorage(upload.targetPath + "/" + upload.row.rootEntry.name);
+
+                const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
+
+                const item = fetchValidUploadFromLocalStorage(fullFilePath);
                 if (item !== null) {
                     upload.uploadResponse = item.response;
                     resumingUploads.push(upload);
@@ -153,7 +164,7 @@ const Uploader: React.FunctionComponent = () => {
                 creationRequests.push({
                     supportedProtocols,
                     conflictPolicy: upload.conflictPolicy,
-                    path: upload.targetPath + "/" + upload.row.rootEntry.name,
+                    path: fullFilePath,
                 });
 
                 actualUploads.push(upload);
