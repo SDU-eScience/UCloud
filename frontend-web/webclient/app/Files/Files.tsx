@@ -29,6 +29,7 @@ import FileMetadataAttached = file.orchestrator.FileMetadataAttached;
 import {associateBy} from "Utilities/CollectionUtilities";
 import metadataApi = file.orchestrator.metadata;
 import {buildQueryString} from "Utilities/URIUtilities";
+import {removeUploadFromStorage} from "./ChunkedFileReader";
 
 function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
@@ -95,6 +96,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     const trash = useCallback(async (batch: UFile[]) => {
         if (commandLoading) return;
         await invokeCommand(filesApi.trash(bulkRequestOf(...(batch.map(it => ({path: it.path}))))));
+        batch.forEach(f => removeUploadFromStorage(f.path));
         reload();
     }, [commandLoading, reload]);
 
@@ -137,6 +139,8 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                 newPath: getParentPath(renaming) + renameRef.current?.value
             }
         )));
+
+        removeUploadFromStorage(renaming);
 
         reload();
     }, [reload, renaming, renameRef]);
@@ -477,6 +481,8 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
                     }
                 )))
             )));
+
+            selected.forEach(f => removeUploadFromStorage(f.path));
 
             cb.reload();
         },

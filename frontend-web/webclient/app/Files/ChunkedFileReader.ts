@@ -4,6 +4,10 @@ export function createLocalStorageUploadKey(path: string): string {
     return `${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
 }
 
+export function removeUploadFromStorage(path: string): void {
+    localStorage.removeItem(`${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`);
+}
+
 export class ChunkedFileReader {
     public offset = 0;
 
