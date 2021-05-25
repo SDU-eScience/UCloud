@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 25-05-21
+
+```
+✅  Deployment(app-orchestrator, 2.6.5) (UP-TO-DATE)
+```
+
 ## 18-05-21
 Update of frontend plus minor issue fixes.
 

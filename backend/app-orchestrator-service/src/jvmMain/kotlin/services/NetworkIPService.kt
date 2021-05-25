@@ -48,7 +48,7 @@ class NetworkIPService(
                         val retrievedNetwork = dao.retrieve(
                             session,
                             NetworkIPId(network.id),
-                            NetworkIPDataIncludeFlags(includeProduct = true)
+                            NetworkIPDataIncludeFlags(includeProduct = true, includeAcl = true)
                         ) ?: throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         val product = retrievedNetwork.resolvedProduct!!
 
