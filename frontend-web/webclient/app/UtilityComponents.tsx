@@ -51,7 +51,7 @@ export function addStandardDialog(
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {title ? <Divider/> : null}
+                {title ? <Divider /> : null}
                 <div>{message}</div>
             </div>
             <Flex mt="20px">
@@ -93,12 +93,12 @@ export async function addStandardInputDialog(
         type = "input",
         width = "300px",
     }: InputDialog
-): Promise<{ result: string }> {
+): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {title ? <Divider/> : null}
+                {title ? <Divider /> : null}
                 {help ? help : null}
                 <Input
                     id={"dialog-input"}
@@ -136,12 +136,12 @@ interface ConfirmCancelButtonsProps {
 }
 
 export const ConfirmCancelButtons = ({
-                                         confirmText = "Confirm",
-                                         cancelText = "Cancel",
-                                         onConfirm,
-                                         onCancel,
-                                         height
-                                     }: ConfirmCancelButtonsProps): JSX.Element => (
+    confirmText = "Confirm",
+    cancelText = "Cancel",
+    onConfirm,
+    onCancel,
+    height
+}: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
         <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
         <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
@@ -229,7 +229,7 @@ const loremText = `
     eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
 `.split(" ").map(it => it.trim());
 
-export const Lorem: React.FunctionComponent<{ maxLength?: number }> = ({maxLength = 240}) => {
+export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength = 240}) => {
     let builder = "";
     let length = 0;
     let counter = 0;
@@ -294,7 +294,7 @@ const shakeKeyframes = keyframes`
   }
 `;
 
-export const shakeAnimation = css<{ shaking?: boolean }>`
+export const shakeAnimation = css<{shaking?: boolean}>`
   &.shaking {
     transform: translate3d(0, 0, 0);
     animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
@@ -308,7 +308,7 @@ export const shakeAnimation = css<{ shaking?: boolean }>`
 
 export const shakingClassName = "shaking";
 
-export const ShakingBox = styled(Box) <{ shaking?: boolean }>`
+export const ShakingBox = styled(Box) <{shaking?: boolean}>`
   ${shakeAnimation}
 `;
 
@@ -317,19 +317,19 @@ const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
 const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
 const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 
-export function WalletWarning(props: { errorCode?: string }): JSX.Element | null {
+export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     if (!props.errorCode) return null;
     return (
         <ErrorWrapper bg="lightRed"
-                      borderColor="red"
-                      width={1}
+            borderColor="red"
+            width={1}
         >
-            <WarningToOptions errorCode={props.errorCode}/>
+            <WarningToOptions errorCode={props.errorCode} />
         </ErrorWrapper>
     );
 }
 
-function WarningToOptions(props: { errorCode: string }): JSX.Element {
+function WarningToOptions(props: {errorCode: string}): JSX.Element {
     const trashFolder = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Members' Files/${Client.username}/Trash` :
         `${Client.homeFolder}Trash`;

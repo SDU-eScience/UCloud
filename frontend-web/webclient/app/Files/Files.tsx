@@ -110,6 +110,10 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         console.log(result?.responses);
     }, []);
 
+    const emptyTrash = useCallback(async (batch: UFile[]) => {
+        // TODO
+    }, [commandLoading, reload]);
+
     const selectFile = useCallback((type: FileType) => {
         return new Promise<UFile>((resolve, reject) => {
             setSelectFileRequirement(type);
@@ -126,7 +130,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     }, [onSelectFile, setOnSelectFile]);
 
     const callbacks: FilesCallbacks = {
-        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile, startShare, download
+        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile, startShare, download, emptyTrash
     };
 
     const renameFile = useCallback(async () => {
@@ -398,7 +402,11 @@ interface FilesCallbacks extends CommonFileProps {
     trash: (batch: UFile[]) => void;
     selectFile: (requiredType: FileType | null) => Promise<UFile | null>;
     startShare: (batch: UFile) => void;
+
+    /* TODO */
     download: (batch: UFile[]) => void;
+    // is batch even needed?
+    emptyTrash: (batch: UFile[]) => void;
 }
 
 const filesOperations: Operation<UFile, FilesCallbacks>[] = [
@@ -441,6 +449,17 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         primary: false,
         onClick: (files, cb) => cb.download(files),
         enabled: selected => selected.every(it => it.type === "FILE"),
+    },
+    {
+        text: "Empty trash",
+        icon: "trash",
+        primary: false,
+        onClick: (selected, cb) => {
+            cb.emptyTrash(selected);
+        },
+        enabled: (files) => files.length === 1 && files.every(it => it.icon === "DIRECTORY_TRASH"),
+        color: "red",
+        confirm: true,
     },
     {
         text: "Copy to...",
