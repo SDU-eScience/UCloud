@@ -144,6 +144,25 @@ config("app-kubernetes") { ctx ->
             configure("networkInterface", "bond0.20")
             configure("networkGatewayCidr", "172.20.0.254/32")
             configure("useMachineSelector", true)
+            configure(
+                "additionalConfig",
+                //language=yaml
+                """
+                    app:
+                        kubernetes:
+                            nodes:
+                                systemReservedCpuMillis: 1000
+                                systemReservedMemMegabytes: 4096
+                                types:
+                                    u1-standard:
+                                        cpuMillis: 64000
+                                        memMegabytes: 385024
+                                        gpus: 0
+                                    u1-gpu:
+                                        cpuMillis: 80000
+                                        memMegabytes: 191488
+                """.trimIndent()
+            )
         }
     }
 

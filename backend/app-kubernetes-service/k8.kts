@@ -2,8 +2,9 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.21.21"
+    version = "0.21.22"
 
+    val additionalConfig = config("additionalConfig", "Additional configuration (YAML)", "")
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
     val useMachineSelector: Boolean = config(
@@ -177,6 +178,8 @@ bundle { ctx ->
 
             """.trimIndent()
         )
+
+        addConfig("additional.yaml", additionalConfig)
     }
 
     withIngress("apps") {

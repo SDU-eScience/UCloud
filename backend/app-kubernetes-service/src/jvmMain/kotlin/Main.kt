@@ -4,7 +4,6 @@ import dk.sdu.cloud.app.kubernetes.api.AppKubernetesServiceDescription
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.Loggable
 
 data class TolerationKeyAndValue(val key: String, val value: String)
 
@@ -23,6 +22,19 @@ data class Configuration(
     val providerRefreshToken: String? = null,
     val ucloudCertificate: String? = null,
     val useMachineSelector: Boolean? = null,
+    val nodes: NodeConfiguration? = null,
+)
+
+data class NodeConfiguration(
+    val systemReservedCpuMillis: Int,
+    val systemReservedMemMegabytes: Int,
+    val types: Map<String, NodeType>
+)
+
+data class NodeType(
+    val cpuMillis: Int,
+    val memMegabytes: Int,
+    val gpus: Int,
 )
 
 data class CephConfiguration(

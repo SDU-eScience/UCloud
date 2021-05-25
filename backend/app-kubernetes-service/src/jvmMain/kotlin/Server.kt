@@ -145,7 +145,8 @@ class Server(
             register(TaskPlugin(
                 configuration.toleration,
                 configuration.useSmallReservation && micro.developmentModeEnabled,
-                configuration.useMachineSelector == true
+                configuration.useMachineSelector == true,
+                configuration.nodes,
             ))
             register(ParameterPlugin(licenseService))
             register(FileMountPlugin(cephConfig))
