@@ -87,6 +87,9 @@ export const Browse: React.FunctionComponent<{
     const startCreation = useCallback(() => {
         setIsCreating(true);
     }, []);
+    const stopCreation = useCallback(() => {
+        setIsCreating(false);
+    }, []);
 
     useEffect(() => {
         let cancel = false;
@@ -118,9 +121,10 @@ export const Browse: React.FunctionComponent<{
         return {
             commandLoading, invokeCommand, reload, history, onUse: onUse ?? doNothing,
             standalone: standalone === true, projectStatus, projectId, inspect,
-            startCreation, inspecting
+            startCreation, inspecting, isCreating, stopCreation
         }
-    }, [commandLoading, invokeCommand, reload, onUse, projectStatus, projectId, inspect, inspecting]);
+    }, [commandLoading, invokeCommand, reload, onUse, projectStatus, projectId, inspect, inspecting, isCreating,
+        stopCreation]);
 
     if (standalone === true) {
         // NOTE(Dan): Technically breaking rules of hooks. Please don't switch around the standalone prop after
@@ -234,7 +238,7 @@ export const Browse: React.FunctionComponent<{
             </List>
         </>;
     } else {
-        main = <Inspect inspecting={inspecting} close={() => setInspecting(null)} reload={reload} />;
+        main = <Inspect inspecting={inspecting} close={() => setInspecting(null)} reload={reload}/>;
     }
 
     if (standalone) {
@@ -280,7 +284,9 @@ interface OpCallback {
     projectId?: string;
     inspect: (entity: NetworkIP | null) => void;
     startCreation: () => void;
+    stopCreation: () => void;
     inspecting: NetworkIP | null;
+    isCreating: boolean;
 }
 
 function canUse(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabled {
@@ -342,10 +348,10 @@ const operations: Operation<NetworkIP, OpCallback>[] = [
         primary: true,
         canAppearInLocation: (loc) => loc !== "IN_ROW",
         enabled: (selected, cb) => {
-            return cb.inspecting != null;
+            return cb.isCreating;
         },
         onClick: (selected, cb) => {
-            cb.inspect(null);
+            cb.stopCreation();
         }
     },
     {
@@ -355,7 +361,7 @@ const operations: Operation<NetworkIP, OpCallback>[] = [
         primary: true,
         canAppearInLocation: (loc) => loc !== "IN_ROW",
         enabled: (selected, cb) => {
-            return selected.length === 0 && !cb.inspecting;
+            return selected.length === 0 && !cb.inspecting && !cb.isCreating;
         },
         onClick: (selected, cb) => {
             cb.startCreation();
