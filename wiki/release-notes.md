@@ -10,6 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 25-05-21
 
 ```
+✅  Deployment(app-kubernetes, 0.21.21) (UP-TO-DATE)
 ✅  Deployment(app-orchestrator, 2.6.5) (UP-TO-DATE)
 ```
 

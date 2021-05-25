@@ -87,7 +87,8 @@ class NetworkIPService(
         NetworkIPControl.update.call(
             bulkRequestOf(
                 allocatedAddresses.map {
-                    NetworkIPControlUpdateRequestItem(it.id,
+                    NetworkIPControlUpdateRequestItem(
+                        it.id,
                         NetworkIPState.READY,
                         "IP is now ready",
                         changeIpAddress = true,
@@ -119,6 +120,8 @@ class NetworkIPService(
         val networks = job.networks
         if (networks.isEmpty()) return
 
+        data class RetrievedIpAddress(val id: String, val internal: String, val external: String)
+
         if (job.specification.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level
             throw RPCException(
@@ -145,11 +148,13 @@ class NetworkIPService(
             session.sendPreparedStatement(
                 { setParameter("networkIds", networks.map { it.id }) },
                 """
-                    select id, internal_ip_address 
+                    select id, internal_ip_address, external_ip_address
                     from app_kubernetes.network_ips 
                     where id in (select unnest(:networkIds::text[]))
                 """
-            ).rows.map { it.getString(0)!! to it.getString(1)!! }
+            ).rows.map {
+                RetrievedIpAddress(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!)
+            }
         }
 
         val volName = "ipman"
@@ -167,10 +172,12 @@ class NetworkIPService(
                 flexVolume = Volume.FlexVolumeSource().apply {
                     driver = "ucloud/ipman"
                     fsType = "ext4"
-                    options = JsonObject(mapOf(
-                        "addr" to JsonPrimitive(ip),
-                        "iface" to JsonPrimitive(networkInterface)
-                    ))
+                    options = JsonObject(
+                        mapOf(
+                            "addr" to JsonPrimitive(ip),
+                            "iface" to JsonPrimitive(networkInterface)
+                        )
+                    )
                 }
             }
 
@@ -201,6 +208,9 @@ class NetworkIPService(
                     )
                 }
             }
+
+            k8.addStatus(job.id, "Successfully attached the following IP addresses: " +
+                idsAndIps.joinToString(", ") { it.external })
         }
     }
 
