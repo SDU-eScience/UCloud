@@ -64,7 +64,12 @@ export const Browse: React.FunctionComponent<{
 
     useEffect(reload, [projectId]);
 
-    const inspect = useCallback((networkIp: NetworkIP) => {
+    const inspect = useCallback((networkIp: NetworkIP | null) => {
+        if (networkIp === null) {
+            setInspecting(null);
+            return;
+        }
+
         const product = products.find(it =>
             it.category.id === networkIp.specification.product.category &&
             it.category.provider === networkIp.specification.product.provider &&
@@ -113,9 +118,9 @@ export const Browse: React.FunctionComponent<{
         return {
             commandLoading, invokeCommand, reload, history, onUse: onUse ?? doNothing,
             standalone: standalone === true, projectStatus, projectId, inspect,
-            startCreation
+            startCreation, inspecting
         }
-    }, [commandLoading, invokeCommand, reload, onUse, projectStatus, projectId, inspect]);
+    }, [commandLoading, invokeCommand, reload, onUse, projectStatus, projectId, inspect, inspecting]);
 
     if (standalone === true) {
         // NOTE(Dan): Technically breaking rules of hooks. Please don't switch around the standalone prop after
@@ -167,6 +172,7 @@ export const Browse: React.FunctionComponent<{
             <Create computeProvider={provider} onCreateFinished={(ip) => {
                 setInspecting(ip);
                 setIsCreating(false);
+                reload();
             }}/>
         </>
     } else if (inspecting === null) {
@@ -272,8 +278,9 @@ interface OpCallback {
     standalone: boolean;
     projectStatus: ProjectStatus;
     projectId?: string;
-    inspect: (entity: NetworkIP) => void;
+    inspect: (entity: NetworkIP | null) => void;
     startCreation: () => void;
+    inspecting: NetworkIP | null;
 }
 
 function canUse(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabled {
@@ -330,13 +337,25 @@ function hasPermissionToEdit(cb: OpCallback): OperationEnabled {
 
 const operations: Operation<NetworkIP, OpCallback>[] = [
     {
+        text: "Back",
+        color: "blue",
+        primary: true,
+        canAppearInLocation: (loc) => loc !== "IN_ROW",
+        enabled: (selected, cb) => {
+            return cb.inspecting != null;
+        },
+        onClick: (selected, cb) => {
+            cb.inspect(null);
+        }
+    },
+    {
         text: "Allocate IP address",
         icon: "upload",
         color: "blue",
         primary: true,
         canAppearInLocation: (loc) => loc !== "IN_ROW",
-        enabled: (selected) => {
-            return selected.length === 0;
+        enabled: (selected, cb) => {
+            return selected.length === 0 && !cb.inspecting;
         },
         onClick: (selected, cb) => {
             cb.startCreation();
@@ -348,7 +367,7 @@ const operations: Operation<NetworkIP, OpCallback>[] = [
         enabled: (selected, cb) => {
             if (cb.standalone) return false;
             if (selected.length !== 1) return false;
-            return isEnabled(cb.projectStatus, selected[0]);
+            return isEnabled(cb.projectStatus, selected[0]) && !cb.inspecting;
         },
         onClick: (selected, cb) => {
             cb.onUse(selected[0]);
@@ -361,7 +380,7 @@ const operations: Operation<NetworkIP, OpCallback>[] = [
         confirm: true,
         enabled(selected, cb) {
             if (selected.length <= 0) return false;
-            return hasPermissionToEdit(cb);
+            return hasPermissionToEdit(cb) && !cb.inspecting;
         },
         onClick: async (selected, cb) => {
             if (cb.commandLoading) return;
@@ -379,7 +398,7 @@ const operations: Operation<NetworkIP, OpCallback>[] = [
     {
         text: "Properties",
         icon: "properties",
-        enabled: selected => selected.length === 1,
+        enabled: (selected, cb) => selected.length === 1 && !cb.inspecting,
         onClick: (selected, cb) => {
             cb.inspect(selected[0]);
         }
