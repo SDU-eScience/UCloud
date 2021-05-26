@@ -15,11 +15,11 @@ interface UseChildPaddingProps {
 
 function useChildPadding(
     props: UseChildPaddingProps
-): null | { marginBottom: StringOrNumber; marginTop: StringOrNumber } {
+): null | {marginBottom: StringOrNumber; marginTop: StringOrNumber} {
     return props.childPadding ? {marginBottom: props.childPadding, marginTop: props.childPadding} : null;
 }
 
-const List = styled(Box) <{ fontSize?: string; childPadding?: string | number; bordered?: boolean }>`
+const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
   font-size: ${props => props.fontSize};
 
   & > * {
@@ -90,8 +90,8 @@ export const ListRowStat: React.FunctionComponent<{
 }> = props => {
     const color: ThemeColor = props.color ?? "gray";
     const color2: ThemeColor = props.color2 ?? "white";
-    let body = <>
-        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon}/>}
+    const body = <>
+        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon} />}
         {props.children}
     </>;
 
@@ -106,6 +106,7 @@ const ListStyle = styled.div`
   transition: background-color 0.3s;
   padding: 5px 0;
   width: 100%;
+  height: 62px;
   align-items: center;
   display: flex;
 

@@ -185,12 +185,14 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                <ConfirmCancelButtons
-                    confirmText={props.confirmText}
-                    cancelText="Cancel"
-                    onConfirm={submit}
-                    onCancel={props.onCancel}
-                />
+                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
+                    <ConfirmCancelButtons
+                        confirmText={props.confirmText}
+                        cancelText="Cancel"
+                        onConfirm={submit}
+                        onCancel={props.onCancel}
+                    />
+                </div>
             </Flex>
         </form>
     );
