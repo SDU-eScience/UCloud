@@ -14,6 +14,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {Spacer} from "ui-components/Spacer";
 import {ErrorWrapper} from "ui-components/Error";
 import {ThemeColor} from "ui-components/theme";
+import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 
 interface StandardDialog {
     title?: string;
@@ -185,7 +186,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
+                <div onClick={stopPropagationAndPreventDefault} style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons
                         confirmText={props.confirmText}
                         cancelText="Cancel"
