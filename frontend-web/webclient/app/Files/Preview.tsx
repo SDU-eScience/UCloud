@@ -7,6 +7,8 @@ import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "U
 import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
 import {Markdown} from "ui-components";
+import {fileName} from "./Files";
+import * as Heading from "ui-components/Heading";
 
 function Preview(): JSX.Element {
     const params = useLocation();
@@ -87,7 +89,7 @@ function Preview(): JSX.Element {
     }
 
     return <MainContainer
-        header={pathFromQuery}
+        header={<Heading.h3>{fileName(pathFromQuery)}</Heading.h3>}
         main={<div style={{maxWidth: "100%"}}>{node}</div>}
     />
 }

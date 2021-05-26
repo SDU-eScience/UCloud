@@ -31,7 +31,7 @@ import metadataApi = file.orchestrator.metadata;
 import {buildQueryString} from "Utilities/URIUtilities";
 import {removeUploadFromStorage} from "./ChunkedFileReader";
 
-function fileName(path: string): string {
+export function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
     if (lastSlash !== -1 && path.length > lastSlash + 1) {
         return path.substring(lastSlash + 1);
