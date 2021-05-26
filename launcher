@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import sys, tty, subprocess, shutil
+
+tty.setcbreak(sys.stdin.fileno())
+
+print("UCloud Launcher v2021.2.0")
+print("This script will start a full UCloud system on your local machine.")
+print()
+
+if shutil.which("docker") == None:
+	print("Docker is required to run the quick launch script!")
+	print("https://www.docker.com/")
+	sys.exit(1)
+
+if shutil.which("docker-compose") == None:
+	print("Docker Compose is required to run the quick launch script!")
+	print("Installation instructions are available here: https://docs.docker.com/compose/install/")
+	sys.exit(1)
+
+print("Select the modules which you wish to change (Press 1-3 or enter to start)")
+print("NOTE: A full UCloud system will start regardless of your choices below. Only select the services you wish to change.")
+
+frontend = False
+backend = False
+integrationModule = False
+
+def code(message):
+	return "\033[32m" + message + "\033[0m"
+
+def location(message):
+	return "\033[34m" + message + "\033[0m"
+
+def header(message):
+	return "\033[1m" + message + "\033[0m"
+
+while True:
+	if frontend:
+		print("✅️  ", end = "")
+	else:
+		print("❌️  ", end = "")
+	print(" 1) Frontend")
+
+	if backend:
+		print("✅️  ", end = "")
+	else:
+		print("❌️  ", end = "")
+	print(" 2) Backend")
+
+	if integrationModule:
+		print("✅️  ", end = "")
+	else:
+		print("❌️  ", end = "")
+	print(" 3) Integration Module")
+	print()
+	print("Enter) Start selected modules")
+
+	read = sys.stdin.read(1)
+	if read == '1':
+		frontend = not frontend
+	elif read == '2':
+		backend = not backend
+	elif read == '3':
+		integrationModule = not integrationModule
+	elif read == '\n':
+		break
+	print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
+
+command = ["docker-compose", "-f", "docker-compose.yml", "-f", "compose/base.yml"]
+if frontend:
+	command.append("-f")
+	command.append("compose/frontend.yml")
+
+if backend:
+	command.append("-f")
+	command.append("compose/backend.yml")
+
+if integrationModule:
+	command.append("-f")
+	command.append("compose/integration.yml")
+
+if not frontend:
+	command.append("-f")
+	command.append("compose/gateway.yml")
+
+command.append("up")
+command.append("-d")
+
+print()
+
+if frontend:
+	print(header("# Frontend"))
+	print()
+	print("The frontend implements the web-interface of UCloud.")
+	print("Edit the source-code at: " + location("frontend-web/") + ".")
+	print()
+	print(header("Instructions:"))
+	print("  1. Changes to your local source-code is automatically compiled")
+	print("  2. View compilation output: " + code("docker-compose logs frontend"))
+	print()
+	print()
+
+if backend:
+	print(header("# Backend"))
+	print()
+	print("The backend implements the UCloud/Core functionality.") 
+	print("Edit the source-code at: " + location("backend/") + ".")
+	print()
+	print(header("Instructions:"))
+	print("  1. Start a developer shell with: " + code("docker-compose exec backend bash"))
+	print("  2. Compile and start the backend (from the developer shell): " + code("(cd /opt/ucloud ; ./run.sh)"))
+	print()
+	print()
+
+
+if integrationModule:
+	print(header("# Integration Module"))
+	print()
+	print("The integration module implements common functionality for compute/storage providers. ")
+	print("Edit the source-code at: " + location("provider-integration/integration-module/") + ".")
+	print()
+	print(header("Instructions:"))
+	print("  1. Server running on " + location("http://localhost:8889"))
+	print("  2. Start a developer shell: " + code("docker-compose exec integration-module bash"))
+	print("  3. Compile and start the module (from the developer shell): " + 
+		code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
+	print()
+	print()
+
+print(header("# UCloud is now starting..."))
+
+print("  - Access the web-interface at: " + location("http://localhost:8080/i"))
+if backend:
+	print("  - Make sure you start the backend (see notes above).")
+print("  - Stuck? View the logs: " + code("docker-compose logs"))
+print("  - Shutdown UCloud with: " + code("docker-compose down"))
+print("  - Permanently delete local state: " + code("docker-compose down -v"))
+print("  - Default credentials: user, mypassword")
+
+print()
+
+subprocess.run(command)

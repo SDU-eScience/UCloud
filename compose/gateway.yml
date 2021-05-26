@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  gateway:
+    image: envoyproxy/envoy:v1.18-latest
+    volumes:
+    - ${PWD}/backend/launcher/envoy-compose.yml:/envoy.yaml
+    command:
+      - -c
+      - /envoy.yaml
+    ports:
+    - 9000:9000
+    - 9901:9901
+    hostname: gateway
