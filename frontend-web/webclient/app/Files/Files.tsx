@@ -240,7 +240,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
 
         {props.embedded ? null : breadcrumbsComponent}
 
-        <List childPadding={"8px"} bordered={true}>
+        <List bordered={true}>
             {!isCreatingFolder ? null : (
                 <ListRow
                     icon={
