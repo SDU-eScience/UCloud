@@ -45,7 +45,7 @@ class Server(override val micro: Micro) : CommonServer {
         with(micro.server) {
             configureControllers(
                 Docs(),
-                ProviderController(providerService),
+                ProviderController(providerService, micro.developmentModeEnabled),
                 IntegrationController(integrationService)
             )
         }

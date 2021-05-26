@@ -55,6 +55,7 @@ const Demo = React.lazy(() => import("Playground/Demo"));
 const LagTest = React.lazy(() => import("Playground/LagTest"));
 const Providers = React.lazy(() => import("Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
+const RegisterProvider = React.lazy(() => import("Admin/Providers/Approve"));
 const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 
@@ -144,7 +145,8 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
                     <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
-                    <Route exact path="/admin/providers/:id" component={requireAuth(ViewProvider)} />
+                    <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
+                    <Route exact path="/admin/providers/view/:id" component={requireAuth(ViewProvider)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />

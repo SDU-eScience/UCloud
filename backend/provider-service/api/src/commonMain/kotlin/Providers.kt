@@ -3,6 +3,7 @@ package dk.sdu.cloud.provider.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -83,8 +84,41 @@ typealias ProvidersBrowseResponse = PageV2<Provider>
 typealias ProvidersRetrieveSpecificationRequest = FindByStringId
 typealias ProvidersRetrieveSpecificationResponse = ProviderSpecification
 
+@Serializable
+sealed class ProvidersRequestApprovalRequest {
+    @Serializable
+    @SerialName("information")
+    data class Information(val specification: ProviderSpecification): ProvidersRequestApprovalRequest()
+
+    @Serializable
+    @SerialName("sign")
+    data class Sign(val token: String) : ProvidersRequestApprovalRequest()
+}
+
+@Serializable
+sealed class ProvidersRequestApprovalResponse {
+    @Serializable
+    @SerialName("requires_signature")
+    data class RequiresSignature(val token: String) : ProvidersRequestApprovalResponse()
+
+    @Serializable
+    @SerialName("awaiting_admin_approval")
+    data class AwaitingAdministratorApproval(val token: String) : ProvidersRequestApprovalResponse()
+}
+
+@Serializable
+data class ProvidersApproveRequest(val token: String)
+typealias ProvidersApproveResponse = FindByStringId
+
 object Providers : CallDescriptionContainer("providers") {
     const val baseContext = "/api/providers"
+
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(ProvidersRequestApprovalRequest.serializer()),
+            serializerEntry(ProvidersRequestApprovalResponse.serializer()),
+        )
+    }
 
     val create = call<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
@@ -110,5 +144,15 @@ object Providers : CallDescriptionContainer("providers") {
     val retrieveSpecification = call<ProvidersRetrieveSpecificationRequest,
         ProvidersRetrieveSpecificationResponse, CommonErrorMessage>("retrieveSpecification") {
         httpRetrieve(baseContext, "specification", roles = Roles.PRIVILEGED)
+    }
+
+    val requestApproval = call<ProvidersRequestApprovalRequest, ProvidersRequestApprovalResponse, CommonErrorMessage>(
+        "requestApproval"
+    ) {
+        httpUpdate(baseContext, "requestApproval", roles = Roles.PUBLIC)
+    }
+
+    val approve = call<ProvidersApproveRequest, ProvidersApproveResponse, CommonErrorMessage>("approve") {
+        httpUpdate(baseContext, "approve", roles = Roles.PUBLIC)
     }
 }

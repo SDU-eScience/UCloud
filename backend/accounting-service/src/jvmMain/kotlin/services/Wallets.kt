@@ -1,15 +1,13 @@
 package dk.sdu.cloud.accounting.services
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
@@ -715,6 +713,38 @@ class BalanceService(
                 .rowsAffected > 0L
 
             if (!success) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
+    suspend fun grantProviderCredits(ctx: DBContext, actorAndProject: ActorAndProject, provider: String) {
+        val (actor, project) = actorAndProject
+        if (actor !is Actor.User || actor.principal.role != Role.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        ctx.withSession { session ->
+            val categories = session
+                .sendPreparedStatement(
+                    { setParameter("provider", provider) },
+                    """
+                        select category from accounting.product_categories where provider = :provider
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! }
+
+            for (category in categories) {
+                addToBalance(
+                    session,
+                    Actor.System,
+                    Wallet(
+                        if (project != null) project else actor.username,
+                        if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                        ProductCategoryId(category, provider)
+                    ),
+                    1_000_000_000L
+                )
+            }
         }
     }
 

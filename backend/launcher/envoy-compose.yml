@@ -28,7 +28,7 @@ static_resources:
                             upgrade_configs:
                               - upgrade_type: websocket
                                 enabled: true
-                        - match: { prefix: "/installer" }
+                        - match: { prefix: "/i" }
                           route: { cluster: backend }
                         - match: { prefix: "/ucloud" }
                           route: { cluster: backend }

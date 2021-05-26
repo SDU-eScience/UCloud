@@ -418,7 +418,10 @@ fun h2o_req_t.readQuery(): String? {
 private val MAX_MESSAGE_SIZE = 1024UL * 1024UL * 64UL
 
 @Suppress("RedundantUnitExpression")
-class H2OServer(private val port: Int) {
+class H2OServer(
+    private val port: Int,
+    private val showWelcomeMessage: Boolean = true,
+) {
     private val handlerBuilder = ArrayList<CallWithHandler<*, *, *>>()
     val handlers: List<CallWithHandler<*, *, *>>
         get() = handlerBuilder
@@ -536,20 +539,24 @@ class H2OServer(private val port: Int) {
 
         workers.start()
 
-        println(buildString {
-            append("\u001B[34m")
-            append("""
-                 __  __  ____    ___                      __     
-                /\ \/\ \/\  _`\ /\_ \                    /\ \    
-                \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version 2021.1.0
-                 \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:8889
-                  \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
-                   \ \_____\ \____//\____\ \____/\ \____\ \___,_\
-                    \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
-                                                     
-            """.trimIndent())
-            append("\u001B[0m")
-        })
+        if (showWelcomeMessage) {
+            println(buildString {
+                append("\u001B[34m")
+                append(
+                    """
+                         __  __  ____    ___                      __     
+                        /\ \/\ \/\  _`\ /\_ \                    /\ \    
+                        \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version 2021.1.0
+                         \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:8889
+                          \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
+                           \ \_____\ \____//\____\ \____/\ \____\ \___,_\
+                            \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
+                                                             
+                    """.trimIndent()
+                )
+                append("\u001B[0m")
+            })
+        }
         uv_run(ctx.loop?.reinterpret(), UV_RUN_DEFAULT)
     }
 }

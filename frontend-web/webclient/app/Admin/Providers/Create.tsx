@@ -87,7 +87,7 @@ function Create(): JSX.Element | null {
             );
 
             if (res) {
-                history.push(`/admin/providers/${encodeURI(id)}`);
+                history.push(`/admin/providers/view/${encodeURI(id)}`);
             }
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to create provider"), false);

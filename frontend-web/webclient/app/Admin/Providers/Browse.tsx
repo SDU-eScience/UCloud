@@ -63,7 +63,7 @@ function Browse(): JSX.Element | null {
                     return (
                         <ListRow
                             key={p.id}
-                            left={<Link to={`/admin/providers/${p.id}`}>{p.id}</Link>}
+                            left={<Link to={`/admin/providers/view/${p.id}`}>{p.id}</Link>}
                             leftSub={
                                 <ListStatContainer>
                                     <ListRowStat icon={isHttps ? "check" : "close"}>

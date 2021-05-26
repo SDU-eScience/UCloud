@@ -1,5 +1,6 @@
 package dk.sdu.cloud.provider.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
@@ -11,15 +12,13 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
+import java.util.*
 
 class ProviderService(
     private val db: AsyncDBSessionFactory,
@@ -31,6 +30,13 @@ class ProviderService(
         request: BulkRequest<ProviderSpecification>,
     ): BulkResponse<FindByStringId> {
         val (actor, project) = actorAndProject
+        if (project == null) {
+            throw RPCException(
+                "A provider must belong to a project, please set the project context before creating a new provider",
+                HttpStatusCode.BadRequest
+            )
+        }
+
         val claimTokens = db.withSession { session ->
             val tokens = AuthProviders.register.call(
                 bulkRequestOf(request.items.map { AuthProvidersRegisterRequestItem(it.id) }),
@@ -127,6 +133,82 @@ class ProviderService(
                     dao.updateToken(session, Actor.System, it.providerId, it.refreshToken, it.publicKey)
                 }
             }
+        }
+    }
+
+    suspend fun requestApproval(
+        actor: Actor,
+        request: ProvidersRequestApprovalRequest
+    ): ProvidersRequestApprovalResponse {
+        return db.withSession { session ->
+            when (request) {
+                is ProvidersRequestApprovalRequest.Information -> {
+                    val token = UUID.randomUUID().toString()
+                    dao.requestApprovalInformation(session, token, request.specification)
+                    ProvidersRequestApprovalResponse.RequiresSignature(token)
+                }
+
+                is ProvidersRequestApprovalRequest.Sign -> {
+                    if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                    if (!dao.requestApprovalSignature(session, request.token, actor)) {
+                        throw RPCException("Bad token provided", HttpStatusCode.BadRequest)
+                    }
+                    ProvidersRequestApprovalResponse.AwaitingAdministratorApproval(request.token)
+                }
+            }
+        }
+    }
+
+    suspend fun approveRequest(
+        actor: Actor,
+        request: ProvidersApproveRequest
+    ): FindByStringId {
+        val keypair = AuthProviders.generateKeyPair.call(
+            Unit,
+            serviceClient
+        ).orRethrowAs { throw RPCException("Unable to generate a key pair", HttpStatusCode.InternalServerError) }
+
+        try {
+            return db.withSession { session ->
+                val provider = session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("token", request.token)
+                            setParameter("public", keypair.publicKey)
+                            setParameter("private", keypair.privateKey)
+                        },
+                        """
+                        select *
+                        from provider.approve_request(:token, :public, :private)
+                    """
+                    )
+                    .rows
+                    .singleOrNull()
+                    ?.let { dao.rowToProvider(it).provider }
+                    ?: throw RPCException("Unable to approve request", HttpStatusCode.BadRequest)
+
+                val ip = IntegrationProvider(provider.id)
+                ip.welcome.call(
+                    IntegrationProviderWelcomeRequest(
+                        request.token,
+                        provider
+                    ),
+                    serviceClient.withoutAuthentication().noAuth().withFixedHost(
+                        HostInfo(
+                            provider.specification.domain,
+                            if (provider.specification.https) "https" else "http",
+                            provider.specification.port
+                        )
+                    )
+                ).orRethrowAs { throw RPCException("Could not connect to provider", HttpStatusCode.BadRequest) }
+
+                FindByStringId(provider.id)
+            }
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.RAISE_EXCEPTION) {
+                throw RPCException(ex.errorMessage.message ?: "Unknown error", HttpStatusCode.BadRequest)
+            }
+            throw ex
         }
     }
 }

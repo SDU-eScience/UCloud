@@ -32,17 +32,9 @@ RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module
 COPY default_config /opt/ucloud-default-config
 RUN chmod +x /opt/ucloud-default-config/config_installer.sh
 
-WORKDIR /opt/ucloud
 
-FROM base as compilation
-COPY . /opt/ucloud
-WORKDIR /opt/ucloud
-ARG GITHUB_USERNAME
-ARG GITHUB_TOKEN
-ENV GITHUB_USERNAME=$GITHUB_USERNAME
-ENV GITHUB_TOKEN=$GITHUB_TOKEN
-RUN echo "$GITHUB_USERNAME"
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && gradle linkDebugExecutableNative --info"
+RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
+RUN mv /tmp/kubectl /usr/bin/kubectl
+RUN chmod +x /usr/bin/kubectl
 
-FROM base
-COPY --from=compilation /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe /usr/bin/ucloud
+WORKDIR /opt/ucloud

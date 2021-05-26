@@ -1,8 +1,10 @@
 package dk.sdu.cloud.calls
 
+import dk.sdu.cloud.freeze
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
+import kotlin.native.concurrent.SharedImmutable
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
@@ -118,7 +120,8 @@ inline fun <reified Request : Any, reified Success : Any, reified Error : Any> C
 
 typealias OnCallDescriptionBuildHandler = (CallDescription<*, *, *>) -> Unit
 
-private val serializerLookupTableKey = AttributeKey<Map<KType, KSerializer<*>>>("serializer-lookup-table")
+@SharedImmutable
+private val serializerLookupTableKey = AttributeKey<Map<KType, KSerializer<*>>>("serializer-lookup-table").freeze()
 var CallDescriptionContainer.serializerLookupTable: Map<KType, KSerializer<*>>
     get() = attributes[serializerLookupTableKey]
     set(value) {

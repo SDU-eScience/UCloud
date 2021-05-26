@@ -24,12 +24,15 @@ fun generateTypeScriptCode(
     api: OpenAPI,
     typeRegistry: Map<String, ComputedType>,
 ) {
-    val outputFile = File("../frontend-web/webclient/app/UCloud/index.ts")
-    if (!outputFile.exists()) {
-        println("WARN: Could not find controllers file at ${outputFile.absolutePath}")
+    val outputFile =
+        File("../frontend-web/webclient/app/UCloud/index.ts").takeIf { it.exists() }
+            ?: File("/opt/frontend/app/UCloud/index.ts").takeIf { it.exists() }
+    if (outputFile == null) {
+        println("WARN: Could not find frontend code")
         return
     }
 
+    println("Generating typescript output at: ${outputFile.absolutePath}")
     val ctx = GenerationContext()
     with(ctx) {
         for ((path, pathItem) in api.paths) {

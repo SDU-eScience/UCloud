@@ -131,7 +131,7 @@ class ProviderService(
         return dao.retrieve(db, ActorAndProject(Actor.System, null), providerId).publicKey
     }
 
-    private fun generateKeys(): ProviderKeys {
+    fun generateKeys(): ProviderKeys {
         val keyGen = KeyPairGenerator.getInstance("RSA")
         keyGen.initialize(2048)
         val keyPair = keyGen.genKeyPair()

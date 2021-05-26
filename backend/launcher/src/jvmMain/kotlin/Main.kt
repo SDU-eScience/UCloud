@@ -85,6 +85,11 @@ val services = setOf(
 )
 
 suspend fun main(args: Array<String>) {
+    if (args.contains("--run-script") && args.contains("api-gen")) {
+        runOpenApiGenerator(args)
+        exitProcess(0)
+    }
+
     if (args.contains("--run-script") && args.contains("migrate-db")) {
         val micro = Micro().apply {
             initWithDefaultFeatures(object : ServiceDescription {
@@ -108,8 +113,7 @@ suspend fun main(args: Array<String>) {
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
         loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true) {
         println("UCloud is now ready to be installed!")
-        println("Visit http://localhost:9000/installer in your browser (docker-compose)")
-        println("Alternatively visit http://localhost:8080/installer if you are not using docker-compose")
+        println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
         exitProcess(0)
     }
@@ -376,6 +380,12 @@ suspend fun main(args: Array<String>) {
             println("Please restart UCloud if this doesn't happen automatically.")
             println("After the restart, UCloud will be available on: http://localhost:9000 (If using docker-compose)")
             exitProcess(0)
+        }
+    }
+
+    reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
+        get("/i") {
+            call.respondRedirect("http://localhost:9000/app", permanent = false)
         }
     }
 

@@ -51,7 +51,8 @@ module.exports = env => merge(commonConfig, {
         host: "0.0.0.0",
         proxy: [{
             context: ["/auth", "/api", "/ucloud"],
-            target: env.local_dev !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
+            target: env.local_dev !== undefined ? `http://localhost:8080` : env.compose !== undefined ?
+                "http://backend:8080" : `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

@@ -1,6 +1,6 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
@@ -61,8 +61,8 @@ function View(): JSX.Element | null {
     }, [products.data.next, id]);
 
     const callbacks: OpCallbacks = useMemo(() => {
-        return {invokeCommand, reload, startProductCreation, stopProductCreation, isCreatingProduct};
-    }, [invokeCommand, reload, setIsCreatingProduct, isCreatingProduct]);
+        return {invokeCommand, reload, startProductCreation, stopProductCreation, isCreatingProduct, provider: id};
+    }, [invokeCommand, reload, setIsCreatingProduct, isCreatingProduct, id]);
 
     const onProductAdded = useCallback(() => {
         reload();
@@ -393,6 +393,7 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
 };
 
 interface OpCallbacks {
+    provider: string;
     invokeCommand: InvokeCommand;
     reload: () => void;
     startProductCreation: () => void;
@@ -437,6 +438,17 @@ const operations: Operation<UCloud.provider.Provider, OpCallbacks>[] = [
         color: "red",
         icon: "trash",
         operationType: () => Button,
+    },
+    {
+        enabled: selected => selected.length === 1 && (inDevEnvironment() || onDevSite()),
+        onClick: async (selected, cb) => {
+            await cb.invokeCommand(
+                UCloud.accounting.wallets.grantProviderCredits({provider: cb.provider})
+            );
+            cb.reload();
+        },
+        text: "Grant credits",
+        operationType: () => Button
     }
 ];
 

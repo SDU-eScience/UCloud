@@ -15,6 +15,16 @@ provider.
 This document covers UCloud from a developer's perspective. __The end-user guide for UCloud can be
 found [here](https://docs.cloud.sdu.dk/user/)__.
 
+## Quick-Start
+
+UCloud can be started using the built-in launcher:
+
+```
+./launcher
+```
+
+[![asciicast](https://asciinema.org/a/416123.svg)](https://asciinema.org/a/416123)
+
 ## Storage
 
 ![](./wiki/storage.png)

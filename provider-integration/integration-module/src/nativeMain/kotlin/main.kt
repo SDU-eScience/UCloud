@@ -3,7 +3,6 @@ package dk.sdu.cloud
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
@@ -21,9 +20,11 @@ import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.KSerializer
 import platform.posix.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
+import kotlin.system.exitProcess
 
 sealed class ServerMode {
     object User : ServerMode()
@@ -33,7 +34,7 @@ sealed class ServerMode {
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
     request: R,
-    client: AuthenticatedClient
+    client: AuthenticatedClient,
 ): IngoingCallResponse<S, E> {
     return runBlocking {
         call(request, client)
@@ -75,9 +76,8 @@ private fun readSelfExecutablePath(): String {
 fun main(args: Array<String>) {
     val serverMode = when {
         args.getOrNull(0) == "user" -> ServerMode.User
-        args.getOrNull(0) == "server" -> ServerMode.Server
-        args.isNotEmpty() -> ServerMode.Plugin(args[0])
-        else -> throw IllegalArgumentException("Missing server mode")
+        args.getOrNull(0) == "server" || args.isEmpty() -> ServerMode.Server
+        else -> ServerMode.Plugin(args[0])
     }
 
     val ownExecutable = readSelfExecutablePath()
@@ -85,7 +85,16 @@ fun main(args: Array<String>) {
     signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
     runBlocking {
-        val config = IMConfiguration.load(serverMode)
+        val config = try {
+            IMConfiguration.load(serverMode)
+        } catch (ex: ConfigurationException.IsBeingInstalled) {
+            runInstaller(ex.core, ex.server, ownExecutable)
+            exitProcess(0)
+        } catch (ex: ConfigurationException.BadConfiguration) {
+            println(ex.message)
+            exitProcess(1)
+        }
+
         val validation = NativeJWTValidation(config.core.certificate!!)
         loadMiddleware(config, validation)
 
@@ -176,7 +185,7 @@ fun main(args: Array<String>) {
         ipcClient?.connect()
 
         val envoyConfig = if (serverMode == ServerMode.Server) {
-            EnvoyConfigurationService("/var/run/ucloud/envoy")
+            EnvoyConfigurationService(ENVOY_CONFIG_PATH)
         } else {
             null
         }
@@ -206,3 +215,5 @@ fun main(args: Array<String>) {
 private fun H2OServer.configureControllers(vararg controllers: Controller) {
     controllers.forEach { with(it) { configure() } }
 }
+
+const val ENVOY_CONFIG_PATH = "/var/run/ucloud/envoy"

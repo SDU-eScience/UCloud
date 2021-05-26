@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.toActor
@@ -113,10 +114,11 @@ class AccountingController(
 
         implement(Wallets.retrieveWalletsFromProjects) {
             val results = balance.retrieveWalletsForProjects(db, request.projectIds)
+            ok(results)
+        }
 
-            ok(
-                results
-            )
+        implement(Wallets.grantProviderCredits) {
+            ok(balance.grantProviderCredits(db, actorAndProject, request.provider))
         }
 
         return@with

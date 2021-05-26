@@ -1,11 +1,12 @@
 {
     "name": "ucloud",
-    "version": "0.50.0-storage4",
+    "version": "0.50.0-storage6",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
         "start": "webpack serve --config webpack.dev.js --inline --progress --port 9000 --host 0.0.0.0",
         "start_use_local_backend": "npm run start -- --env local_dev",
+        "start_use_compose_backend": "npm run start -- --env compose",
         "clean": "rm -rf dist/",
         "build": "npm run clean && node scripts/update-version-file.js && webpack --config webpack.prod.js --progress",
         "test": "jest --runInBand",

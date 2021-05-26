@@ -209,6 +209,9 @@ data class RetrieveWalletsForProjectsRequest(
 
 typealias RetrieveWalletsForProjectsResponse = List<Wallet>
 
+@Serializable
+data class WalletsGrantProviderCreditsRequest(val provider: String)
+typealias WalletsGrantProviderCreditsResponse = Unit
 
 object Wallets : CallDescriptionContainer("wallets") {
     const val baseContext = "/api/accounting/wallets"
@@ -388,4 +391,9 @@ object Wallets : CallDescriptionContainer("wallets") {
                 body { bindEntireRequestFromBody()}
             }
         }
+
+    val grantProviderCredits = call<WalletsGrantProviderCreditsRequest, WalletsGrantProviderCreditsResponse,
+        CommonErrorMessage>("grantProviderCredits") {
+        httpUpdate(baseContext, "grantProviderCredits", roles = Roles.PRIVILEGED)
+    }
 }

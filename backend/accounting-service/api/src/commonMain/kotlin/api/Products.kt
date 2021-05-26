@@ -6,6 +6,10 @@ import io.ktor.http.HttpMethod
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.builtins.ListSerializer
+import kotlin.native.concurrent.SharedImmutable
+import kotlin.native.concurrent.ThreadLocal
+import kotlin.reflect.typeOf
 
 const val UCLOUD_PROVIDER = "ucloud"
 
@@ -92,11 +96,9 @@ sealed class Product {
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
-        override val priority: Int = 0
+        override val priority: Int = 0,
+        override val area: ProductArea = ProductArea.STORAGE,
     ) : Product() {
-        @Transient
-        override val area: ProductArea = ProductArea.STORAGE
-
         init {
             require(pricePerUnit >= 0)
             require(id.isNotBlank())
@@ -116,11 +118,9 @@ sealed class Product {
         override val priority: Int = 0,
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
-        val gpu: Int? = null
+        val gpu: Int? = null,
+        override val area: ProductArea = ProductArea.COMPUTE,
     ) : Product() {
-        @Transient
-        override val area: ProductArea = ProductArea.COMPUTE
-
         init {
             require(pricePerUnit >= 0)
             require(id.isNotBlank())
@@ -143,10 +143,8 @@ sealed class Product {
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
+        override val area: ProductArea = ProductArea.INGRESS,
     ) : Product() {
-        @Transient
-        override val area = ProductArea.INGRESS
-
         init {
             require(pricePerUnit >= 0)
             require(id.isNotBlank())
@@ -166,10 +164,8 @@ sealed class Product {
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
         val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
+        override val area: ProductArea = ProductArea.LICENSE,
     ) : Product() {
-        @Transient
-        override val area = ProductArea.LICENSE
-
         init {
             require(pricePerUnit >= 0)
             require(id.isNotBlank())
@@ -188,10 +184,8 @@ sealed class Product {
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
+        override val area: ProductArea = ProductArea.NETWORK_IP,
     ) : Product() {
-        @Transient
-        override val area = ProductArea.NETWORK_IP
-
         init {
             require(pricePerUnit >= 0)
             require(id.isNotBlank())
@@ -268,8 +262,16 @@ data class ProductsBrowseRequest(
 ) : WithPaginationRequestV2, ProductFilters, ProductFlags
 typealias ProductsBrowseResponse = PageV2<Product>
 
+@OptIn(ExperimentalStdlibApi::class)
+@ThreadLocal
 object Products : CallDescriptionContainer("products") {
     const val baseContext = "/api/products"
+
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(Product.serializer())
+        )
+    }
 
     /**
      * Creates a new [Product]
@@ -334,58 +336,43 @@ object Products : CallDescriptionContainer("products") {
 
     @Deprecated("Switch to `browse`")
     val listProductsByType =
-        call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>("listProductionsByType") {
-            auth {
-                access = AccessRight.READ
-                roles = Roles.PUBLIC
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"listByArea"
+        call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>(
+            "listProductionsByType",
+            {
+                auth {
+                    access = AccessRight.READ
+                    roles = Roles.PUBLIC
                 }
 
-                params {
-                    +boundTo(ListProductsByAreaRequest::provider)
-                    +boundTo(ListProductsByAreaRequest::area)
-                    +boundTo(ListProductsByAreaRequest::itemsPerPage)
-                    +boundTo(ListProductsByAreaRequest::page)
-                    +boundTo(ListProductsByAreaRequest::showHidden)
+                http {
+                    method = HttpMethod.Get
+
+                    path {
+                        using(baseContext)
+                        +"listByArea"
+                    }
+
+                    params {
+                        +boundTo(ListProductsByAreaRequest::provider)
+                        +boundTo(ListProductsByAreaRequest::area)
+                        +boundTo(ListProductsByAreaRequest::itemsPerPage)
+                        +boundTo(ListProductsByAreaRequest::page)
+                        +boundTo(ListProductsByAreaRequest::showHidden)
+                    }
                 }
-            }
-        }
+            },
+            ListProductsByAreaRequest.serializer(),
+            Page.serializer(Product.serializer()),
+            CommonErrorMessage.serializer(),
+            typeOf<ListProductsByAreaRequest>(),
+            typeOf<ListProductsByAreaResponse>(),
+            typeOf<CommonErrorMessage>()
+        )
 
     @Deprecated("Switch to `browse`")
-    val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>("listProducts") {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"list"
-            }
-
-            params {
-                +boundTo(ListProductsRequest::provider)
-                +boundTo(ListProductsRequest::itemsPerPage)
-                +boundTo(ListProductsRequest::page)
-            }
-        }
-    }
-
-    @Deprecated("Use with caution. This call will likely be replaced with a paginated call (i.e. `browse`)")
-    val retrieveAllFromProvider =
-        call<RetrieveAllFromProviderRequest, RetrieveAllFromProviderResponse, CommonErrorMessage>(
-            "retrieveAllFromProvider"
-        ) {
+    val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>(
+        "listProducts",
+        {
             auth {
                 access = AccessRight.READ
                 roles = Roles.AUTHENTICATED
@@ -396,17 +383,66 @@ object Products : CallDescriptionContainer("products") {
 
                 path {
                     using(baseContext)
-                    +"retrieve"
+                    +"list"
                 }
 
                 params {
-                    +boundTo(RetrieveAllFromProviderRequest::provider)
-                    +boundTo(RetrieveAllFromProviderRequest::showHidden)
+                    +boundTo(ListProductsRequest::provider)
+                    +boundTo(ListProductsRequest::itemsPerPage)
+                    +boundTo(ListProductsRequest::page)
                 }
             }
-        }
+        },
+        ListProductsRequest.serializer(),
+        Page.serializer(Product.serializer()),
+        CommonErrorMessage.serializer(),
+        typeOf<ListProductsRequest>(),
+        typeOf<ListProductsResponse>(),
+        typeOf<CommonErrorMessage>()
+    )
 
-    val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-    }
+    @Deprecated("Use with caution. This call will likely be replaced with a paginated call (i.e. `browse`)")
+    val retrieveAllFromProvider =
+        call<RetrieveAllFromProviderRequest, RetrieveAllFromProviderResponse, CommonErrorMessage>(
+            "retrieveAllFromProvider",
+            {
+                auth {
+                    access = AccessRight.READ
+                    roles = Roles.AUTHENTICATED
+                }
+
+                http {
+                    method = HttpMethod.Get
+
+                    path {
+                        using(baseContext)
+                        +"retrieve"
+                    }
+
+                    params {
+                        +boundTo(RetrieveAllFromProviderRequest::provider)
+                        +boundTo(RetrieveAllFromProviderRequest::showHidden)
+                    }
+                }
+            },
+            RetrieveAllFromProviderRequest.serializer(),
+            ListSerializer(Product.serializer()),
+            CommonErrorMessage.serializer(),
+            typeOf<RetrieveAllFromProviderRequest>(),
+            typeOf<RetrieveAllFromProviderResponse>(),
+            typeOf<CommonErrorMessage>()
+        )
+
+    val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>(
+        "browse",
+        {
+            httpBrowse(baseContext)
+        },
+        ProductsBrowseRequest.serializer(),
+        PageV2.serializer(Product.serializer()),
+        CommonErrorMessage.serializer(),
+        typeOf<ProductsBrowseRequest>(),
+        typeOf<ProductsBrowseResponse>(),
+        typeOf<CommonErrorMessage>()
+    )
 }

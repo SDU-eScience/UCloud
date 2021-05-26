@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu May 06 14:44:39 CEST 2021 */
+/* Generated at: Wed May 26 09:12:51 GMT 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -3406,13 +3406,6 @@ export interface FavoriteRequest {
     appName: string,
     appVersion: string,
 }
-export interface JobsProviderRetrieveProductsResponse {
-    products: ComputeProductSupport[],
-}
-export interface ComputeProductSupport {
-    product: accounting.ProductReference,
-    support: ComputeSupport,
-}
 export interface JobsProviderExtendRequestItem {
     job: Job,
     requestedTime: SimpleDuration,
@@ -3424,6 +3417,13 @@ export interface JobsProviderOpenInteractiveSessionRequestItem {
     job: Job,
     rank: number /* int32 */,
     sessionType: ("WEB" | "VNC" | "SHELL"),
+}
+export interface JobsProviderRetrieveProductsResponse {
+    products: ComputeProductSupport[],
+}
+export interface ComputeProductSupport {
+    product: accounting.ProductReference,
+    support: ComputeSupport,
 }
 export interface JobsProviderUtilizationResponse {
     capacity: CpuAndMemory,
@@ -4053,13 +4053,13 @@ export function submitFile(): APICallParameters<{}, any /* unknown */> {
 }
 }
 export namespace ucloud {
+export interface AauComputeRetrieveRequest {
+    id: string,
+}
 export interface AauComputeSendUpdateRequest {
     id: string,
     update: string,
     newState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
-}
-export interface AauComputeRetrieveRequest {
-    id: string,
 }
 export interface DrainNodeRequest {
     node: string,
@@ -5105,157 +5105,18 @@ export interface Vnc {
 }
 export namespace aau {
 
-export namespace jobs {
-/**
- * Start a compute job (create)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * Starts one or more compute  The jobs have already been verified by UCloud and it is assumed to be
- * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
- * 5XX status code. Note that the batch must be handled as a single transaction.
- * 
- * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
- * then switch to [`control.update`](#operation/control.update) in order to provide updates about the progress.
- */
-export function create(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Request job cancellation and destruction (delete)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * Deletes one or more compute  The provider should not only stop the compute job but also delete
- * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
- * should also be deleted. None of the resources attached to the job, however, should be deleted.
- */
-export function remove(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/ucloud/aau/jobs",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Retrieve products (retrieveProducts)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * An API for retrieving the products and the support from a provider.
- */
-export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: "/ucloud/aau/jobs" + "/retrieveProducts",
-        reloadId: Math.random(),
-    };
-}
-/**
- * Extend the duration of a job (extend)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
- */
-export function extend(
-    request: BulkRequest<JobsProviderExtendRequestItem>
-): APICallParameters<BulkRequest<JobsProviderExtendRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/extend",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function openInteractiveSession(
-    request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
-): APICallParameters<BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>, JobsProviderOpenInteractiveSessionResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/interactiveSession",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieveUtilization(): APICallParameters<{}, JobsProviderUtilizationResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: "/ucloud/aau/jobs" + "/retrieveUtilization",
-        reloadId: Math.random(),
-    };
-}
-/**
- * Verify UCloud data is synchronized with provider (verify)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * This call is periodically executed by UCloud against all active providers. It is the job of the
- * provider to ensure that the jobs listed in the request are in its local database. If some of the
- * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
- * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
- * 
- * The backend should _not_ attempt to start the job.
- */
-export function verify(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/verify",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Suspend a job (suspend)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
- */
-export function suspend(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/suspend",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-}
 export namespace maintenance {
+export function retrieve(
+    request: ucloud.AauComputeRetrieveRequest
+): APICallParameters<ucloud.AauComputeRetrieveRequest, Job> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/ucloud/aau/compute/jobs/maintenance" + "/retrieve", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
 export function sendUpdate(
     request: BulkRequest<ucloud.AauComputeSendUpdateRequest>
 ): APICallParameters<BulkRequest<ucloud.AauComputeSendUpdateRequest>, any /* unknown */> {
@@ -5266,17 +5127,6 @@ export function sendUpdate(
         parameters: request,
         reloadId: Math.random(),
         payload: request,
-    };
-}
-export function retrieve(
-    request: ucloud.AauComputeRetrieveRequest
-): APICallParameters<ucloud.AauComputeRetrieveRequest, Job> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/ucloud/aau/compute/jobs/maintenance" + "/retrieve", {id: request.id}),
-        parameters: request,
-        reloadId: Math.random(),
     };
 }
 }
@@ -5985,6 +5835,11 @@ export interface ProvidersBrowseRequest {
      */
     itemsToSkip?: number /* int64 */,
 }
+export type ProvidersRequestApprovalResponse = ProvidersRequestApprovalResponseNS.RequiresSignature | ProvidersRequestApprovalResponseNS.AwaitingAdministratorApproval
+export type ProvidersRequestApprovalRequest = ProvidersRequestApprovalRequestNS.Information | ProvidersRequestApprovalRequestNS.Sign
+export interface ProvidersApproveRequest {
+    token: string,
+}
 export interface IntegrationControlApproveConnectionRequest {
     username: string,
 }
@@ -6093,6 +5948,16 @@ export function approveConnection(
     };
 }
 }
+export namespace ProvidersRequestApprovalResponseNS {
+export interface RequiresSignature {
+    token: string,
+    type: ("requires_signature"),
+}
+export interface AwaitingAdministratorApproval {
+    token: string,
+    type: ("awaiting_admin_approval"),
+}
+}
 export namespace providers {
 export function create(
     request: BulkRequest<ProviderSpecification>
@@ -6163,6 +6028,30 @@ export function browse(
         reloadId: Math.random(),
     };
 }
+export function requestApproval(
+    request: ProvidersRequestApprovalRequest
+): APICallParameters<ProvidersRequestApprovalRequest, ProvidersRequestApprovalResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/requestApproval",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function approve(
+    request: ProvidersApproveRequest
+): APICallParameters<ProvidersApproveRequest, FindByStringId> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/approve",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace AclEntityNS {
 export interface ProjectGroup {
@@ -6188,7 +6077,7 @@ export interface Free {
     pricePerUnit: number /* int64 */,
 }
 }
-export namespace integration {
+export namespace im {
 export function browse(
     request: IntegrationBrowseRequest
 ): APICallParameters<IntegrationBrowseRequest, PageV2<IntegrationBrowseResponseItem>> {
@@ -6313,6 +6202,16 @@ export interface Admin {
 export interface Custom {
     name: string,
     type: ("dk.sdu.cloud.api.Permission.Custom"),
+}
+}
+export namespace ProvidersRequestApprovalRequestNS {
+export interface Information {
+    specification: ProviderSpecification,
+    type: ("information"),
+}
+export interface Sign {
+    token: string,
+    type: ("sign"),
 }
 }
 }
@@ -6579,6 +6478,10 @@ export interface AuthProvidersRegisterRequestItem {
 export interface AuthProvidersRetrievePublicKeyResponse {
     publicKey: string,
 }
+export interface AuthProvidersGenerateKeyPairResponse {
+    publicKey: string,
+    privateKey: string,
+}
 export namespace users {
 export function createNewUser(
     request: CreateSingleUserRequest[]
@@ -6828,6 +6731,23 @@ export function retrievePublicKey(
         method: "GET",
         path: buildQueryString("/auth/providers" + "/retrieveKey", {id: request.id}),
         parameters: request,
+        reloadId: Math.random(),
+    };
+}
+/**
+ * Generates an RSA key pair useful for JWT signatures (generateKeyPair)
+ *
+ * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+ * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+ * 
+ * Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
+ * way by the authentication service.
+ */
+export function generateKeyPair(): APICallParameters<{}, AuthProvidersGenerateKeyPairResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/generateKeyPair",
         reloadId: Math.random(),
     };
 }
@@ -7861,6 +7781,9 @@ export interface SetBalanceRequest {
 export interface RetrieveWalletsForProjectsRequest {
     projectIds: string[],
 }
+export interface WalletsGrantProviderCreditsRequest {
+    provider: string,
+}
 export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 export interface FindProductRequest {
@@ -8192,6 +8115,18 @@ export function retrieveWalletsFromProjects(
         payload: request,
     };
 }
+export function grantProviderCredits(
+    request: WalletsGrantProviderCreditsRequest
+): APICallParameters<WalletsGrantProviderCreditsRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/accounting/wallets" + "/grantProviderCredits",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace ProductNS {
 export interface Storage {
@@ -8202,6 +8137,7 @@ export interface Storage {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -8219,6 +8155,7 @@ export interface Compute {
     cpu?: number /* int32 */,
     memoryInGigs?: number /* int32 */,
     gpu?: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -8234,6 +8171,7 @@ export interface Ingress {
     availability: ProductAvailability,
     priority: number /* int32 */,
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -8250,6 +8188,7 @@ export interface License {
     priority: number /* int32 */,
     tags: string[],
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
@@ -8265,6 +8204,7 @@ export interface NetworkIP {
     availability: ProductAvailability,
     priority: number /* int32 */,
     paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */

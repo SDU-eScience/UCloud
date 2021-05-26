@@ -1,105 +1,44 @@
 version: "3.9"
-services:
+services:  
   redis:
-    image: redis:5.0.9
-    volumes:
-      - redisData:/data
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.0
-    environment:
-      - discovery.type=single-node
-    volumes:
-      - elasticData:/usr/share/elasticsearch/data
-    logging:
-      driver: none
-
-  postgres:
-    image: postgres:13.3
-    environment:
-      POSTGRES_PASSWORD: postgrespassword
-    volumes:
-      - postgresData:/var/lib/postgresql/data
-    ports:
-    - 35432:5432
-
+    image: alpine:latest
   k3s:
-    image: rancher/k3s:v1.16.13-rc3-k3s1-amd64
-    privileged: true
-    logging:
-      driver: none
-    tmpfs:
-      - /run
-      - /var/run
-    environment:
-      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
-      - K3S_KUBECONFIG_MODE=666
-    volumes:
-    - ucloudFiles:/mnt/cephfs
-    - k3sConfig:/output
-    command:
-      - server
-
+    image: alpine:latest
+  elasticsearch:
+    image: alpine:latest
+  integration-module:
+    image: alpine:latest
+  postgres:
+    image: alpine:latest
   backend:
-    image: dreg.cloud.sdu.dk/ucloud/ucloud:2021.2.0-storage2
-    user: root
-    command:
-      - /opt/service/bin/service
-      - --dev
-      - --config-dir
-      - /etc/ucloud
-    volumes:
-      - ucloudData:/etc/ucloud
-      - ucloudFiles:/mnt/cephfs
-      - k3sConfig:/mnt/k3s
-    ports:
-      - 8080:8080
-    restart: always
+    image: alpine:latest
     depends_on:
       - redis
-      - postgres
-      - elasticsearch
       - k3s
-
-  frontend:
-    image: dreg.cloud.sdu.dk/ucloud/webclient:0.50.0-storage4
-
+      - elasticsearch
+      - postgres
   gateway:
-    image: envoyproxy/envoy:v1.18-latest
-    volumes:
-    - ${PWD}/backend/launcher/envoy-compose.yml:/envoy.yaml
+    image: alpine:latest
+  frontend:
+    image: alpine:latest
+  helper:
+    image: alpine:latest
     command:
+      - sh
       - -c
-      - /envoy.yaml
-    ports:
-    - 9000:9000
-    - 9901:9901
-
-  integration-module:
-    image: dreg.cloud.sdu.dk/ucloud/ucloud-im-dev:2021.2.0-storage0
-    profiles: ["integration-module"]
-    volumes:
-      - imKonan:/root/.konan
-      - imGradle:/root/.gradle
-      - imData:/etc/ucloud
-      - ~/.gradle/gradle.properties:/root/.gradle/gradle.properties
-      - ${PWD}/provider-integration/integration-module:/opt/ucloud
-    command:
-      - bash
-      - -c
-      - "bash /opt/ucloud-default-config/config_installer.sh ; tail -f /dev/null"
-    depends_on:
-      - backend
-    ports:
-      - 8889:8889
+      - "echo 'Please use the ./launcher script instead'  ; exit 0"
 
 volumes:
-  postgresData: { }
-  redisData: { }
-  elasticData: { }
-  ucloudData: { }
-  ucloudFiles: { }
+  postgresData: {}
+  redisData: {}
+  elasticData: {}
+  ucloudData: {}
+  ucloudFiles: {}
   k3sConfig: {}
+  k3sData: {}
   imData: {}
   imGradle: {}
   imKonan: {}
+  backendKonan: {}
+  backendGradle: {}
+  m2Repo: {}

@@ -27,6 +27,10 @@ data class IntegrationProviderConnectRequest(val username: String)
 @Serializable
 data class IntegrationProviderConnectResponse(val redirectTo: String)
 
+@Serializable
+data class IntegrationProviderWelcomeRequest(val token: String, val createdProvider: Provider)
+typealias IntegrationProviderWelcomeResponse = Unit
+
 @UCloudApiDoc("Provider interface for the integration module")
 open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$namespace.im") {
     private val baseContext = "/ucloud/$namespace/integration"
@@ -43,6 +47,11 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
     val connect = call<IntegrationProviderConnectRequest, IntegrationProviderConnectResponse,
         CommonErrorMessage>("connect") {
         httpUpdate(baseContext, "connect", roles = Roles.PRIVILEGED)
+    }
+
+    val welcome = call<IntegrationProviderWelcomeRequest,
+        IntegrationProviderWelcomeResponse, CommonErrorMessage>("welcome") {
+        httpUpdate(baseContext, "welcome", roles = Roles.PUBLIC)
     }
 
     companion object {
