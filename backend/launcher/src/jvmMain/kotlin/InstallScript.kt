@@ -32,7 +32,7 @@ enum class InstallStep {
 
 private var errorMessage: String? = null
 
-private var hostname = ""
+private var hostname = "postgres"
 private var port = 5432
 private var username = "postgres"
 private var password = "postgrespassword"
@@ -41,6 +41,44 @@ private var database = "postgres"
 const val installerFile = "installing.yaml"
 
 fun runInstaller(configDir: File) {
+    var step = InstallStep.INIT
+
+    suspend fun Application.checkDatabaseConfig(): Boolean {
+        val dbConfig = retrieveDatabaseConfig()
+
+        val db = AsyncDBSessionFactory(dbConfig)
+        var success = false
+        try {
+            db.withTransaction { session ->
+                session.sendPreparedStatement({}, "select 1").rows.map {
+                    success = true
+                }
+            }
+        } catch (ex: Throwable) {
+            errorMessage = "Could not connect to postgresql (${ex.javaClass.simpleName} ${ex.message})"
+            log.warn(ex.stackTraceToString())
+        } finally {
+            db.close()
+        }
+
+        if (success) {
+            step = InstallStep.MIGRATION
+            File(configDir, "db.yaml").writeText(
+                """
+                    database:
+                        credentials:
+                            username: ${username}
+                            password: ${password}
+                        database: ${database}
+                        port: ${port}
+                        hostname: ${hostname}
+                            
+                """.trimIndent()
+            )
+        }
+        return success
+    }
+
     embeddedServer(Netty, port = 8080) {
         File(configDir, installerFile).writeText("installing: true")
         File(configDir, "common.yaml").writeText(
@@ -67,7 +105,6 @@ fun runInstaller(configDir: File) {
             File(cephFs, "home/user/Jobs").mkdir() // TODO Temporary
         }
 
-        var step = InstallStep.INIT
         routing {
             get("/i") {
                 when (step) {
@@ -197,6 +234,9 @@ fun runInstaller(configDir: File) {
                                 """
                                     <h1>Database migration</h1>
                                     <p>Database has been successfully initialized! UCloud will now restart.</p>
+                                    <p>You should reload this page until the UCloud interface becomes ready. 
+                                       This usually takes around 30 seconds. Consult the backend logs for more
+                                       information.</p>
                                 """
                             }
                         }
@@ -206,7 +246,13 @@ fun runInstaller(configDir: File) {
 
             get("/i/next") {
                 step = when (step) {
-                    InstallStep.INIT -> InstallStep.DATABASE
+                    InstallStep.INIT -> {
+                        if (checkDatabaseConfig()) {
+                            InstallStep.MIGRATION
+                        } else {
+                            InstallStep.DATABASE
+                        }
+                    }
                     InstallStep.MIGRATION -> {
                         Thread {
                             val micro = Micro().apply {
@@ -343,7 +389,7 @@ fun runInstaller(configDir: File) {
                                 val k8Client = KubernetesClient()
                                 val authenticationMethod = k8Client.conn.authenticationMethod
                                 if (authenticationMethod is KubernetesAuthenticationMethod.Proxy) {
-                                    with (authenticationMethod) {
+                                    with(authenticationMethod) {
                                         val statusCode = ProcessBuilder(
                                             *buildList {
                                                 add("kubectl")
@@ -404,39 +450,7 @@ fun runInstaller(configDir: File) {
                             return@post
                         }
 
-                        val dbConfig = retrieveDatabaseConfig()
-
-                        val db = AsyncDBSessionFactory(dbConfig)
-                        var success = false
-                        try {
-                            db.withTransaction { session ->
-                                session.sendPreparedStatement({}, "select 1").rows.map {
-                                    success = true
-                                }
-                            }
-                        } catch (ex: Throwable) {
-                            errorMessage = "Could not connect to postgresql (${ex.javaClass.simpleName} ${ex.message})"
-                            log.warn(ex.stackTraceToString())
-                        } finally {
-                            db.close()
-                        }
-
-                        if (success) {
-                            step = InstallStep.MIGRATION
-                            File(configDir, "db.yaml").writeText(
-                                """
-                                    database:
-                                        credentials:
-                                            username: ${username}
-                                            password: ${password}
-                                        database: ${database}
-                                        port: ${port}
-                                        hostname: ${hostname}
-                                            
-                                """.trimIndent()
-                            )
-                        }
-
+                        checkDatabaseConfig()
                         call.respondRedirect("/i")
                     }
 
@@ -446,6 +460,8 @@ fun runInstaller(configDir: File) {
         }
     }.start(wait = true)
 }
+
+
 
 private fun retrieveDatabaseConfig(): DatabaseConfig {
     return DatabaseConfig(

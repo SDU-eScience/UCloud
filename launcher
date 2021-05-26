@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys, tty, subprocess, shutil
-
-tty.setcbreak(sys.stdin.fileno())
+import sys, tty, subprocess, shutil, termios, signal
 
 print("UCloud Launcher v2021.2.0")
-print("This script will start a full UCloud system on your local machine.")
 print()
 
 if shutil.which("docker") == None:
@@ -18,12 +15,27 @@ if shutil.which("docker-compose") == None:
 	print("Installation instructions are available here: https://docs.docker.com/compose/install/")
 	sys.exit(1)
 
-print("Select the modules which you wish to change (Press 1-3 or enter to start)")
-print("NOTE: A full UCloud system will start regardless of your choices below. Only select the services you wish to change.")
+print("Please select the appropriate configuration for UCloud:")
+print("  - Press 1, 2 or 3 on your keyboard to change configuration for a module")
+print("  - Press enter to confirm your configuration and start UCloud")
+print()
+print("\033[36mSTATIC\033[0m = Uses a pre-built container image of the module. You will not be able to change this module.")
+print("\033[35m DEVEL\033[0m = Uses a container made for development. This container will mount the local source-code and can be changed.")
+print()
+print()
+
+old_settings = termios.tcgetattr(sys.stdin)
+tty.setcbreak(sys.stdin.fileno())
 
 frontend = False
 backend = False
 integrationModule = False
+
+def printCheckbox(value):
+	if value:
+		print("\033[35m[ DEVEL] \033[0m", end = "")
+	else:
+		print("\033[36m[STATIC] \033[0m", end = "")
 
 def code(message):
 	return "\033[32m" + message + "\033[0m"
@@ -34,37 +46,36 @@ def location(message):
 def header(message):
 	return "\033[1m" + message + "\033[0m"
 
-while True:
-	if frontend:
-		print("✅️  ", end = "")
-	else:
-		print("❌️  ", end = "")
-	print(" 1) Frontend")
+try:
+	while True:
+		printCheckbox(frontend)
+		print("1) Frontend")
 
-	if backend:
-		print("✅️  ", end = "")
-	else:
-		print("❌️  ", end = "")
-	print(" 2) Backend")
+		printCheckbox(backend)
+		print("2) Backend")
 
-	if integrationModule:
-		print("✅️  ", end = "")
-	else:
-		print("❌️  ", end = "")
-	print(" 3) Integration Module")
-	print()
-	print("Enter) Start selected modules")
+		printCheckbox(integrationModule)
+		print("3) Integration Module")
+		print()
+		print("Enter) Start selected modules")
 
-	read = sys.stdin.read(1)
-	if read == '1':
-		frontend = not frontend
-	elif read == '2':
-		backend = not backend
-	elif read == '3':
-		integrationModule = not integrationModule
-	elif read == '\n':
-		break
-	print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
+		read = sys.stdin.read(1)
+		if read == '1':
+			frontend = not frontend
+		elif read == '2':
+			backend = not backend
+		elif read == '3':
+			integrationModule = not integrationModule
+		elif read == '\n':
+			break
+		
+		print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
+except KeyboardInterrupt:
+	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+	sys.exit(0)
+
+
+termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 command = ["docker-compose", "-f", "docker-compose.yml", "-f", "compose/base.yml"]
 if frontend:
