@@ -7,6 +7,44 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 18-05-21
+redis fix
+```
+✅  Deployment(accounting, 1.7.5) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.6) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.6) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.9) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.23) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.6) (UP-TO-DATE)
+✅  Deployment(app-store, 0.16.11) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.5) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.5) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.5) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.5) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.5) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.5) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.5) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.5) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.5) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.15) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.6) (UP-TO-DATE)
+✅  Deployment(news, 0.3.5) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.6) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.5) (UP-TO-DATE)
+✅  Deployment(project, 3.5.6) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.5) (UP-TO-DATE)
+✅  Deployment(share, 1.10.6) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.5) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.7) (UP-TO-DATE)
+✅  Deployment(support, 1.6.5) (UP-TO-DATE)
+✅  Deployment(task, 0.5.5) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.10) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.6) (UP-TO-DATE)
+✅  Deployment(webclient, 0.44.11) (UP-TO-DATE)
+```
+
+
 ## 25-05-21
 
 ```
