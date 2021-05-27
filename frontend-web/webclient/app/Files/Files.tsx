@@ -441,7 +441,8 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         icon: "rename",
         primary: false,
         onClick: (selected, cb) => cb.startRenaming(selected[0]),
-        enabled: selected => selected.length === 1,
+        /* NOTE(jonas): Is this good enough? */
+        enabled: selected => selected.length === 1 && selected.every(it => it.icon === null),
     },
     {
         text: "Download",
