@@ -48,7 +48,7 @@ kotlin {
 
                 api("com.github.jasync-sql:jasync-common:$jasyncVersion")
                 api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
-                api("io.lettuce:lettuce-core:6.1.0.RELEASE")
+                api("io.lettuce:lettuce-core:5.3.7.RELEASE")
                 api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.12.0")
                 api("com.google.guava:guava:30.1.1-jre")
             }
