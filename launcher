@@ -68,7 +68,7 @@ try:
 			integrationModule = not integrationModule
 		elif read == '\n':
 			break
-		
+
 		print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
 except KeyboardInterrupt:
 	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
@@ -114,7 +114,7 @@ if frontend:
 if backend:
 	print(header("# Backend"))
 	print()
-	print("The backend implements the UCloud/Core functionality.") 
+	print("The backend implements the UCloud/Core functionality.")
 	print("Edit the source-code at: " + location("backend/") + ".")
 	print()
 	print(header("Instructions:"))
@@ -133,7 +133,7 @@ if integrationModule:
 	print(header("Instructions:"))
 	print("  1. Server running on " + location("http://localhost:8889"))
 	print("  2. Start a developer shell: " + code("docker-compose exec integration-module bash"))
-	print("  3. Compile and start the module (from the developer shell): " + 
+	print("  3. Compile and start the module (from the developer shell): " +
 		code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
 	print()
 	print()

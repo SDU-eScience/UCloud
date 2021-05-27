@@ -56,10 +56,19 @@ You should now be able to compile the integration module.
 
 Make sure you are running with the latest database version.
 
+When running the backend in __DEVEL__ configuration:
+
 ```
-# Note: If you get this error you must run a dev version of the backend
 docker-compose exec backend bash
 ./run.sh --run-script migrate-db
+```
+
+When running the backend in __STATIC__ configuration:
+
+```
+docker-compose -f docker-compose.yml -f compose/base.yml run backend \
+    /opt/service/bin/service --dev --config-dir /etc/ucloud \
+    --run-script migrate-db
 ```
 
 ### No Healthy Upstream/Unable to Connect
