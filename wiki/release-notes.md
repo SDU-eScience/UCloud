@@ -7,7 +7,7 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
-## 18-05-21
+## 27-05-21
 redis fix
 ```
 ✅  Deployment(accounting, 1.7.5) (UP-TO-DATE)
