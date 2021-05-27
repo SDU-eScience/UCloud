@@ -20,18 +20,14 @@ import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
-import dk.sdu.cloud.grant.GrantService
-import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
-import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
@@ -39,7 +35,6 @@ import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
-import dk.sdu.cloud.webdav.WebdavService
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
@@ -67,19 +62,14 @@ val services = setOf(
     AvatarService,
     ContactBookService,
     ElasticManagementService,
-    GrantService,
-    IndexingService,
     MailService,
     NewsService,
     NotificationService,
     PasswordResetService,
-    ProjectService,
-    // StorageService,
     FileOrchestratorService,
     FileUcloudService,
     SupportService,
     TaskService,
-    ProviderService,
     AppAauService,
     AppKubernetesService,
 )
@@ -119,17 +109,6 @@ suspend fun main(args: Array<String>) {
     }
 
     val reg = ServiceRegistry(args, PlaceholderServiceDescription)
-    val blacklist = setOf(
-        // WebDav needs to run as a standalone server
-        WebdavService,
-
-        // The following 'services' are all essentially scripts that run in UCloud
-        // None of them are meant to be run as a normal service.
-        //AuditIngestionService,
-        RedisCleanerService,
-        ElasticManagementService,
-        KubernetesMonitorService
-    )
 
     val loader = Launcher::class.java.classLoader
 

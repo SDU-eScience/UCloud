@@ -19,10 +19,7 @@ import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.elastic.management.ElasticManagementService
-import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
-import dk.sdu.cloud.grant.GrantService
-import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
@@ -30,8 +27,6 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
-import dk.sdu.cloud.project.ProjectService
-import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
@@ -42,7 +37,6 @@ import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
-import dk.sdu.cloud.webdav.WebdavService
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -498,9 +492,6 @@ object UCloudLauncher : Loggable {
             serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(
-                // WebDav needs to run as a standalone server
-                WebdavService,
-
                 // The following 'services' are all essentially scripts that run in UCloud
                 // None of them are meant to be run as a normal service.
                 //AuditIngestionService,
@@ -521,17 +512,12 @@ object UCloudLauncher : Loggable {
                 ContactBookService,
                 ElasticManagementService,
                 FileOrchestratorService,
-                GrantService,
-                IndexingService,
                 MailService,
                 NewsService,
                 NotificationService,
                 PasswordResetService,
-                ProjectService,
-                StorageService,
                 SupportService,
                 TaskService,
-                ProviderService
             )
 
             // Reflection is _way_ too slow

@@ -10,7 +10,6 @@ import dk.sdu.cloud.app.orchestrator.api.JobsCreateRequest
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -52,6 +51,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         pagination: NormalizedPaginationRequest,
         filePath: String,
     ): Page<ActivityForFrontend> {
+        /*
         val normalizedFilePath = filePath.normalize()
         val request = SearchRequest(*CallWithActivity.allIndices.toTypedArray())
         val query = QueryBuilders.boolQuery()
@@ -112,6 +112,8 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
 
         val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
+         */
+        TODO()
     }
 
     private fun getIndexByType(type: ActivityEventType?): List<String> {
@@ -277,6 +279,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 normalizedFilePath: String,
             ): List<ActivityEvent>
 
+            /*
             object FilesCopy : CallWithActivity<BulkFileAudit<CopyRequest>>(
                 ActivityEventType.copy,
                 FileDescriptions.copy,
@@ -374,7 +377,6 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
             }
 
-            /*
             object FilesFavoriteToggle : CallWithActivity<ToggleFavoriteAudit>(
                 ActivityEventType.favorite,
                 FileFavoriteDescriptions.toggleFavorite,
@@ -401,6 +403,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             }
              */
 
+            /*
             object FilesMoved : CallWithActivity<SingleFileAudit<MoveRequest>>(
                 ActivityEventType.moved,
                 FileDescriptions.move,
@@ -684,6 +687,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     )
                 }
             }
+             */
              */
 
             companion object {

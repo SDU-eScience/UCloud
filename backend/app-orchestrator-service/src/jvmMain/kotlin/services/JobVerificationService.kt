@@ -6,7 +6,6 @@ import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Loggable
@@ -41,7 +40,6 @@ class JobVerificationService(
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
-        userClient: AuthenticatedClient,
         listeners: List<JobListener> = emptyList(),
     ): VerifiedJobWithAccessToken {
         val application = findApplication(unverifiedJob)
@@ -94,21 +92,6 @@ class JobVerificationService(
         val verifiedParameters = verifyParameters(
             application,
             unverifiedJob
-        )
-
-        // Check files
-        val files = collectFilesFromParameters(
-            unverifiedJob.username,
-            application,
-            verifiedParameters,
-            userClient
-        )
-
-        // Check mounts
-        collectFilesFromMounts(
-            unverifiedJob.username,
-            unverifiedJob,
-            userClient
         )
 
         // Check peers
@@ -362,7 +345,7 @@ class JobVerificationService(
 
     private data class FilePathAndType(
         val value: AppParameterValue.File,
-        val desiredFileType: FileType,
+        val desiredFileType: Any?,
         val name: String? = null,
     )
 
@@ -371,12 +354,15 @@ class JobVerificationService(
         job: UnverifiedJob,
         userClient: AuthenticatedClient,
     ) {
+        /*
         val transfers = job.request.resources!!
             .filterIsInstance<AppParameterValue.File>()
             .mapIndexed { i, transfer ->
                 FilePathAndType(transfer, FileType.DIRECTORY, "mount-$i")
             }
         return collectFileBatch(username, userClient, transfers)
+
+         */
     }
 
     private suspend fun collectFilesFromParameters(
@@ -385,6 +371,7 @@ class JobVerificationService(
         verifiedParameters: Map<String, AppParameterValue>,
         userClient: AuthenticatedClient,
     ) {
+        /*
         return coroutineScope {
             val transfersFromParameters = application.invocation.parameters
                 .asSequence()
@@ -402,6 +389,7 @@ class JobVerificationService(
 
             collectFileBatch(username, userClient, transfersFromParameters)
         }
+         */
     }
 
     private suspend fun collectFileBatch(
@@ -422,6 +410,7 @@ class JobVerificationService(
         userClient: AuthenticatedClient,
         fileToCollect: FilePathAndType,
     ) {
+        /*
         val (param, desiredFileType, paramName) = fileToCollect
         val sourcePath = param.path
         val stat = FileDescriptions.stat.call(StatRequest(sourcePath), userClient)
@@ -457,6 +446,7 @@ class JobVerificationService(
         val hasWritePermission = res.responses.single()
 
         param.readOnly = param.readOnly || !hasWritePermission
+         */
     }
 
     data class HasPermissionForExistingMount(val hasPermissions: Boolean, val pathToFile: String?)
@@ -464,6 +454,8 @@ class JobVerificationService(
     suspend fun hasPermissionsForExistingMounts(
         jobWithToken: VerifiedJobWithAccessToken,
     ): HasPermissionForExistingMount {
+        return HasPermissionForExistingMount(true, null)
+        /*
         val outputFolder = run {
             val path = jobWithToken.job.output?.outputFolder
             if (path != null) {
@@ -513,6 +505,7 @@ class JobVerificationService(
         }
 
         return HasPermissionForExistingMount(true, null)
+         */
     }
 
     companion object : Loggable {

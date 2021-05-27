@@ -1,8 +1,6 @@
 package dk.sdu.cloud.integration
 
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.integration.backend.CreatedUser
 import dk.sdu.cloud.integration.e2e.awaitElement
 import dk.sdu.cloud.integration.e2e.awaitElements
@@ -70,5 +68,5 @@ suspend fun WebDriver.uploadFile(fileName: String) {
 }
 
 suspend fun createDir(directoryPath: String, user: CreatedUser) {
-    FileDescriptions.createDirectory.call(CreateDirectoryRequest(directoryPath, user.username), user.client)
+    TODO()
 }

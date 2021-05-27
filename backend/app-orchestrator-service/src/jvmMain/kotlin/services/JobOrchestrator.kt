@@ -7,15 +7,12 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
-import dk.sdu.cloud.provider.api.withProxyInfo
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -67,30 +64,6 @@ class JobOrchestrator(
         listeners.remove(listener)
     }
 
-    private suspend fun extendToken(accessToken: String, allowRefreshes: Boolean): Pair<String?, AuthenticatedClient> {
-        return AuthDescriptions.tokenExtension.call(
-            TokenExtensionRequest(
-                accessToken,
-                listOf(
-                    MultiPartUploadDescriptions.simpleUpload.requiredAuthScope.toString(),
-                    FileDescriptions.download.requiredAuthScope.toString(),
-                    FileDescriptions.createDirectory.requiredAuthScope.toString(),
-                    FileDescriptions.stat.requiredAuthScope.toString(),
-                    FileDescriptions.deleteFile.requiredAuthScope.toString()
-                ),
-                1000L * 60 * 60 * 5,
-                allowRefreshes = allowRefreshes
-            ),
-            serviceClient
-        ).orThrow().let {
-            if (!allowRefreshes) {
-                null to serviceClient.withoutAuthentication().bearerAuth(it.accessToken)
-            } else {
-                it.refreshToken!! to userClientFactory(it.refreshToken!!)
-            }
-        }
-    }
-
     suspend fun startJob(
         req: BulkRequest<JobSpecification>,
         accessToken: String,
@@ -106,7 +79,6 @@ class JobOrchestrator(
         val parameters = ArrayList<ByteArray>()
 
         try {
-            val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
             // NOTE(Dan): Cannot convert due to suspension
             @Suppress("ConvertCallChainIntoSequence")
             val verifiedJobs = req.items
@@ -122,7 +94,6 @@ class JobOrchestrator(
                 .map { jobRequest ->
                     jobVerificationService.verifyOrThrow(
                         UnverifiedJob(jobRequest, principal.username, project),
-                        tmpUserClient,
                         listeners
                     )
                 }
@@ -133,12 +104,6 @@ class JobOrchestrator(
                             throw JobException.Duplicate()
                         }
                     }
-                }
-                // Extend tokens needed for jobs
-                .map { job ->
-                    val (extendedToken) = extendToken(accessToken, allowRefreshes = true)
-                    tokensToInvalidateInCaseOfFailure.add(extendedToken!!)
-                    job.copy(refreshToken = extendedToken)
                 }
                 .toMutableList()
 
@@ -301,6 +266,7 @@ class JobOrchestrator(
             ).throwIfInternal()
         }
 
+        /*
         val resp = MetadataDescriptions.verify.call(
             VerifyRequest(jobWithToken.job.files.map { it.path }),
             serviceClient
@@ -309,6 +275,7 @@ class JobOrchestrator(
         if (resp is IngoingCallResponse.Error) {
             log.warn("Failed to verify metadata for job: ${jobWithToken.job.id} (${resp.statusCode} ${resp.error})")
         }
+         */
     }
 
     suspend fun deleteJobInformation(appName: String, appVersion: String) {

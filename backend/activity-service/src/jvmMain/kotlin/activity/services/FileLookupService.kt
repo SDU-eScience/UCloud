@@ -10,11 +10,6 @@ import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.KnowledgeMode
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import io.ktor.http.HttpStatusCode
 
 private const val ONE_MINUTE = 1000L * 60 * 1
@@ -27,7 +22,9 @@ class FileLookupService(
         userAccessToken: String,
         user: String,
         causedBy: String?
-    ): StorageFile {
+    ): Nothing {
+        TODO()
+        /*
         val serviceCloud = cloud//.optionallyCausedBy(causedBy)
 
         val userCloudExtension = AuthDescriptions.tokenExtension.call(
@@ -53,5 +50,6 @@ class FileLookupService(
         else {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
+         */
     }
 }

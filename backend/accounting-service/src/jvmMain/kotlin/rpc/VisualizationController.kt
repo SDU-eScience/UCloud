@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.services.VisualizationService
+import dk.sdu.cloud.accounting.services.wallets.VisualizationService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
