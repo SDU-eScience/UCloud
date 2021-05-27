@@ -57,9 +57,13 @@ data class CallExtension(
     }
 }
 
-@OptIn(ExperimentalStdlibApi::class)
 fun main() {
-    val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
+    runOpenApiGenerator()
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+fun runOpenApiGenerator(args: Array<String>? = null) {
+    val reg = ServiceRegistry(args ?: arrayOf("--dev"), PlaceholderServiceDescription)
     val knownCalls = ArrayList<CallDescription<*, *, *>>()
     reg.rootMicro.server.attachRequestInterceptor(object : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
         override val companion = HttpCall.Companion
@@ -97,7 +101,7 @@ fun main() {
         if (!maturityWarnings.contains(call.namespace)) {
             maturityWarnings.add(call.namespace)
             log.warn("${call.namespace} has no maturity associated with it")
-            log.warn("Future warnings for this namespace will be supressed")
+            log.warn("Future warnings for this namespace will be suppressed")
         }
     }
 

@@ -27,13 +27,22 @@ typealias AuthProvidersRefreshResponse = BulkResponse<AccessToken>
 typealias AuthProvidersRefreshAudit = FindByStringId
 
 typealias AuthProvidersRetrievePublicKeyRequest = FindByStringId
+
 @Serializable
 data class AuthProvidersRetrievePublicKeyResponse(val publicKey: String)
 
 typealias AuthProvidersRefreshAsProviderRequest = BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
+
 @Serializable
 data class AuthProvidersRefreshAsProviderRequestItem(val providerId: String)
 typealias AuthProvidersRefreshAsProviderResponse = BulkResponse<AccessToken>
+
+typealias AuthProvidersGenerateKeyPairRequest = Unit
+@Serializable
+data class AuthProvidersGenerateKeyPairResponse(
+    val publicKey: String,
+    val privateKey: String,
+)
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object AuthProviders : CallDescriptionContainer("auth.providers") {
@@ -78,6 +87,20 @@ object AuthProviders : CallDescriptionContainer("auth.providers") {
             description = """
                 This RPC signs an access-token which will be used by authorized UCloud services to act as an
                 orchestrator of resources.
+            """.trimIndent()
+        }
+    }
+
+    @UCloudApiInternal(InternalLevel.BETA)
+    val generateKeyPair = call<AuthProvidersGenerateKeyPairRequest, AuthProvidersGenerateKeyPairResponse,
+        CommonErrorMessage>("generateKeyPair") {
+        httpUpdate(baseContext, "generateKeyPair", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "Generates an RSA key pair useful for JWT signatures"
+            description = """
+                Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
+                way by the authentication service.
             """.trimIndent()
         }
     }

@@ -56,7 +56,7 @@ kotlin {
     }
 }
 
-version = "2021.1.4"
+version = "2021.2.0-storage0"
 group = "dk.sdu.cloud"
 
 publishing {

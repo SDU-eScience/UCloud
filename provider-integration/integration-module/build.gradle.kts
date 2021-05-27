@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2021.1.0-SNAPSHOT"
+version = "2021.2.0-SNAPSHOT"
 
 repositories {
     mavenLocal()
@@ -62,7 +62,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.1.4")
+            implementation("dk.sdu.cloud:integration-module-support:2021.2.0-storage0")
         }
 
         compilations["main"].cinterops {

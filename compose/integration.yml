@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+  integration-module:
+    image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.2.0-storage1
+    volumes:
+      - imKonan:/root/.konan
+      - imGradle:/root/.gradle
+      - imData:/etc/ucloud
+      - ~/.gradle/gradle.properties:/root/.gradle/gradle.properties
+      - ${PWD}/provider-integration/integration-module:/opt/ucloud
+      - m2Repo:/root/.m2
+    command:
+      - bash
+      - -c
+      - "bash /opt/ucloud-default-config/config_installer.sh ; tail -f /dev/null"
+    depends_on:
+      - backend
+    ports:
+      - 8889:8889
+    hostname: integration-module

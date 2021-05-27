@@ -5,309 +5,100 @@ UCloud in production.__
 
 ## Dependencies 
 
-To run services locally, the following should be installed on your
-system:
+To run services locally, the following should be installed on your  system:
  
- - Java 11
-   1. Install sdkman: https://sdkman.io/
-   2. `sdk i java 11.0.8.hs-adpt`
- - kscript
-   - `sdk i kscript`
- - Docker
-   - macOS: https://www.docker.com/products/docker-desktop
- - Redis 
-   - Docker: `docker run --name redis -d -p 6379:6379 redis:5.0.9`
- - Elasticsearch
-   - Docker: `docker run --name elastic -d -p 9200:9200 -e discovery.type=single-node docker.elastic.co/elasticsearch/elasticsearch:7.6.0`
- - PostgreSQL 10
-   - macOS: https://postgresapp.com/
- - Kubernetes
-   - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
-     - macOS: `minikube start -p hyperkit --kubernetes-version v1.15.5`
-   
-## Configuring Minikube to Run Applications
+ - `docker`: https://docker.com
+ - `docker-compose`: https://docs.docker.com/compose/install/
 
-You will need to configure minikube to mount the file-system folder which your local instance is using. 
+## macOS/Windows Users
 
-Save the file below as `/tmp/pvcs.yml`:
+If your docker-engine is running inside a virtual machine, which it will be if you are not running Linux natively,
+then you must ensure that enough resources has been allocated to the virtual machine. We recommend that the virtual
+machine is provisioned with at least:
 
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: storage
-spec:
-  capacity:
-    storage: 1000Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
-  hostPath:
-    path: "/hosthome"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cephfs
-  namespace: app-kubernetes
-spec:
-  accessModes:
-    - ReadWriteMany
-  storageClassName: ""
-  volumeName: storage
-  resources:
-    requests:
-      storage: 1000Gi
+- 2 vCPU
+- 6GB RAM
+
+You can read about the resources allocated to the VM here: 
+
+- Windows: https://docs.docker.com/docker-for-windows/#resources
+- macOS: https://docs.docker.com/docker-for-mac/#resources
+
+## Running and Installing UCloud
+
+Clone the repository, if you haven't already and run the `./launcher` script:
 
 ```
-
-Then run:
-
-```
-kubectl --context hyperkit create ns app-kubernetes
-kubectl --context hyperkit create -f /tmp/pvcs.yml
+git clone https://github.com/SDU-eScience/UCloud.git
+cd UCloud
+./launcher
 ```
 
-From `ucloud/backend/launcher` run the following command:
+The `launcher` script will ask you which services you are actively developing on. Select the services by using the
+keys 1-3 and end by pressing the `enter` key. To install UCloud, simply follow the instructions presented on the screen.
+
+## Common Issues
+
+### Integration Module Fails to Compile
+
+In certain development builds you might be missing the latest API definitions. You can force the integration module
+to use the local API definitions.
 
 ```
-mkdir -p fs/{home,projects}
-minikube -p hyperkit mount fs/:/hosthome --uid=11042 --gid=11042
-```
-   
-## Preparing Configuration
-
-Create the file `~/ucloud/config.yml` with the following content:
-
-```yaml
----
-refreshToken: theverysecretadmintoken
-tokenValidation:
-  jwt:
-    sharedSecret: notverysecret
-
-database:
-   profile: PERSISTENT_POSTGRES
-   credentials: # Note Replace with your own postgre credentials
-      username: postgres 
-      password: postgrespassword
-
-rpc:
-   client:
-      host:
-         host: localhost
-         port: 8080
+# Note: If you get this error you must run a dev version of the backend
+docker-compose exec backend bash
+gradle publishToMavenLocal
 ```
 
-## Generating Service Descriptions
+You should now be able to compile the integration module.
 
-Every time a new service is added you will to generate service descriptions. You can do this by running:
+### Database Errors
 
-```
-gradle generateBuildConfig
-```
+Make sure you are running with the latest database version.
 
-## Running Database Migrations
-
-This step needs to be done periodically as changes are made to the database. 
-
-Note: Database migrations on development versions sometimes fail due to checksum mismatches. This happens because we
-find issues in the database migrations and correct the version directly, as opposed to creating a new one. One way
-around this is to recreate the affected schema/the entire database. That is, if you don't want to fix it by hand.
-
-From `ucloud/backend` run the following:
+When running the backend in __DEVEL__ configuration:
 
 ```
-./gradlew :launcher:run --args='--dev --run-script migrate-db'
+docker-compose exec backend bash
+./run.sh --run-script migrate-db
 ```
 
-Compiling the project from scratch takes approximately 3 minutes. If you get a compilation error similar to this:
+When running the backend in __STATIC__ configuration:
 
 ```
-e: sdu-cloud/backend/service-lib/src/main/kotlin/micro/FlywayFeature.kt: (79, 27): Unresolved reference: resources
+docker-compose -f docker-compose.yml -f compose/base.yml run backend \
+    /opt/service/bin/service --dev --config-dir /etc/ucloud \
+    --run-script migrate-db
 ```
 
-Then make sure you are currently running Java 11 (`java -version`).
+### No Healthy Upstream/Unable to Connect
 
-## Running Elasticsearch Migrations
-
-We still don't have a good solution for this. At the moment the following is required to be run from `ucloud/backend`:
+If you are running with a development version of the backend, make sure that it is actually running:
 
 ```
-./gradlew :contact-book-service:run --args='--dev --createIndex'
+docker-compose exec backend bash
+./run.sh
 ```
 
-## Creating the Initial Admin User
+## Module Guide
 
-__NOTE: DATABASE MIGRATIONS MUST HAVE BEEN RUN AT THIS POINT__
+### Frontend
 
-Run the following commands in your postgres database:
-
-```sql
-insert into auth.principals 
-    (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
-    phone_number, title, hashed_password, salt, org_id, email) 
-values 
-    ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
-    E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
-
-insert into auth.refresh_tokens
-    (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
-    expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
-values
-    ('theverysecretadmintoken', 'admin@dev', 'csrf', 'initial', null, '["all:write"]'::jsonb, 
-    31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
-```
-
-## Starting UCloud
+__Instructions:__
+1. Changes to your local source-code is automatically compiled
+2. View compilation output: docker-compose logs frontend
 
 
-From `ucloud/backend` run the following:
+### Backend
 
-```
-./gradlew :launcher:run --args='--dev'
-```
-
-From `ucloud/frontend-web/webclient/`
-
-```
-npm run start_use_local_backend
-```
-
-UCloud should now be accessible at `http://localhost:8080` for the backend and `http://localhost:9000` for the frontend.
-
-## Creating the Initial User and Test Data
-
-Run the following bash script in your terminal, feel free to change the username and password:
-
-```
-#!/usr/bin/env bash
-ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
+__Instructions:__
+1. Start a developer shell with: docker-compose exec backend bash
+2. Compile and start the backend (from the developer shell): (cd /opt/ucloud ; ./run.sh)
 
 
-USERNAME=user
-PASSWORD=mypassword
+### Integration Module
 
-
-if ! command -v jq &> /dev/null
-then
-    echo "jq could not be found in path (Download: https://stedolan.github.io/jq/)"
-    exit
-fi
-
-USERTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '[{"username": "'"${USERNAME}"'", "password": "'"${PASSWORD}"'", "role": "ADMIN", "email": "user@example.com"}]' | jq .[0].accessToken -r`
-
-FIGLET_TOOL='
----
-tool: v1
-
-title: Figlet
-
-name: figlet
-version: 1.0.0
-
-container: truek/figlets:1.1.1
-
-authors:
-- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
-
-description: Tool for rendering text.
-
-defaultTimeAllocation:
-  hours: 0
-  minutes: 1
-  seconds: 0
-
-backend: DOCKER
-'
-
-FIGLET_APP='
----
-application: v1
-
-title: Figlet
-name: figlet
-version: 1.0.0
-
-tool:
-  name: figlet
-  version: 1.0.0
-
-authors:
-- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
-
-description: >
-  Render some text with Figlet Docker!
-
-invocation:
-- figlet-cat
-- type: var
-  vars: file
-
-parameters:
-  file:
-    title: "A file to render with figlet"
-    type: input_file
-'
-
-curl 'http://localhost:8080/api/hpc/tools' -X PUT -H "Authorization: Bearer ${ADMINTOK}" \
-    -H 'Content-Type: application/x-yaml' -d "${FIGLET_TOOL}"
-
-curl 'http://localhost:8080/api/hpc/apps' -X PUT -H "Authorization: Bearer ${ADMINTOK}" \
-    -H 'Content-Type: application/x-yaml' -d "${FIGLET_APP}"
-
-curl -XPUT -H 'Content-Type: application/json' 'http://localhost:8080/api/products' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "type": "storage", "id": "u1-cephfs", "pricePerUnit": 0, "category": { "id": "u1-cephfs", "provider": "ucloud" } }'
-
-curl -XPUT -H 'Content-Type: application/json' 'http://localhost:8080/api/products' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "type": "compute", "id": "u1-standard-1", "cpu": 1, "pricePerUnit": 0, "category": { "id": "u1-standard", "provider": "ucloud" } }'
-
-projectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "title": "UCloud" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
-
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-cephfs", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
-
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-standard", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
-
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/set-enabled' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "projectId": "'"${projectId}"'", "enabledStatus": true }'
-
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/request-settings' \
-    -H "Authorization: Bearer ${USERTOK}" \
-    -H "Project: ${projectId}" \
-    -d '{ "allowRequestsFrom": [{"type": "anyone"}], "automaticApproval": { "from": [], "maxResources": [] }, "excludeRequestsFrom": [] }'
-
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/files/quota' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "path": "/projects/'"${projectId}"'/", "quotaInBytes": 1000000000000000 }'
-
-curl 'http://localhost:8080/api/hpc/apps/createTag' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
-    -H 'Content-Type: application/json; charset=utf-8' \
-    -d '{"applicationName":"figlet","tags":["Featured"]}'
-```
-
-This will create the user:
-
-- Username: user
-- Password: mypassword
-
-Which you should be able to use immediately on your local version of UCloud.
-
-## Next Steps
-
-- Install some applications into the UCloud system, you can find examples [here](../../app-store-service/examples)
-- [Create a new provider](../../provider-service/README.md)
-- [Learn more about UCloud development](./first_service.md)
+__Instructions:__
+1. Server running on http://localhost:8889
+2. Start a developer shell: `docker-compose exec integration-module bash`
+3. Compile and start the module (from the developer shell): `(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)`

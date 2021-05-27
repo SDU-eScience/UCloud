@@ -8,10 +8,10 @@ __📝 NOTE:__ Documentation for this module is still under construction.
 
 ## Quick-Start (Development)
 
-Start the development cluster using `docker-compose` (from the UCloud repository root):
+Start the development cluster using the `launcher` script (from the UCloud repository root):
 
 ```
-docker-compose --profile integration-module up
+./launcher
 ```
 
 The first time you do this, you must install the UCloud software. Simply follow the instructions provided in the log.
@@ -25,62 +25,24 @@ module.
 
 __1) Creating a provider:__
 
-1. Create a new provider: http://localhost:9000/app/admin/providers
-  - ID: Can be anything you desire, for example: `im-test`
-  - Hostname: `integration-module` (Note: This is defined in the `docker-compose.yaml` file)
-  - Port: `8889`
-  - HTTPS: No
-2. Create a new compute product
-  - __📝 NOTE:__ A temporary restriction requires this product to have the category `im1` and product id `im1`
+You should now configure the integration module. First you need to open a developer shell:
 
-You should now configure the integration module. First you need to get a shell into the cluster:
+1. Open a developer shell: `docker-compose exec integration-module bas`
+2. Compile the integration module: `gradle linkDebugExecutableNative`
+3. Start the integration module: `ucloud`
 
-```
-docker-compose exec integration-module bash
-```
+Follow the on-screen instructions to finish the connection process.
 
-__2) Configuring the server:__
+__2) Adding money to your user__
 
-```
-vim /etc/ucloud/server.json
-```
+All operations in UCloud require money in your wallet. You must add money to your own account, for your new provider,
+before you can continue.
 
-The `refreshToken` must be updated to match the value presented to you in the UCloud user-interface.
+1. Visit http://localhost:9000/app/admin/providers/view/development
+2. Click the "Grant credits" button in the sidebar
+3. You should now see an entry for your provider here: http://localhost:9000/app/project/subprojects
 
-__3) Configuring the certificate:__
-
-```
-vim /etc/ucloud/certificate.txt
-```
-
-In this file you must insert the certificate presented to you in the UCloud user-interface.
-
-__4) Configuring basic details:__
-
-```
-vim /etc/ucloud/core.json
-```
-
-You must update the `providerId` to match the ID of your newly created provider.
-
-__5) Building the integration module:__
-
-From the integration-module shell:
-
-```
-cd /opt/ucloud
-gradle linkDebugExecutableNative # This might take a few minutes the first time
-```
-
-__6) Running the integration module server__
-
-From the integration-module shell:
-
-```
-ucloud server
-```
-
-__7) Connecting your UCloud user to the provider__
+__3) Connecting your UCloud user to the provider__
 
  1. Visit http://localhost:9000/app/providers/connect in your browser. 
  2. Click 'Connect' on your newly created provider
@@ -106,10 +68,11 @@ Refresh the provider page: http://localhost:9000/app/providers/connect. You shou
 been grayed out for your provider.
 
 
-__8) Run an application using the sample compute plugin__
+__4) Run an application using the sample compute plugin__
 
   1. Select any application from UCloud (e.g. http://localhost:9000/app/applications/alpine/3/)
   2. Select the product you created for your provider (e.g. `im1`)
   3. Submit your application
 
 After a few seconds data should stream to the output of the application.
+

@@ -21,6 +21,10 @@ fun ClientAndBackend.bearerAuth(
     return AuthenticatedClient(client, backend) { it.attributes.outgoingAuthToken = bearerToken }
 }
 
+fun ClientAndBackend.noAuth(): AuthenticatedClient {
+    return AuthenticatedClient(client, backend) {}
+}
+
 class OutgoingAuthFilter : OutgoingCallFilter.BeforeCall() {
     override fun canUseContext(ctx: OutgoingCall): Boolean {
         return ctx is OutgoingHttpCall

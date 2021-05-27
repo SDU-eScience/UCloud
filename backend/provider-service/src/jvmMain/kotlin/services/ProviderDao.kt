@@ -22,17 +22,10 @@ class ProviderDao(
     suspend fun create(
         ctx: DBContext,
         actor: Actor,
-        project: String?,
+        project: String,
         spec: ProviderSpecification,
         claimToken: String,
     ) {
-        if (project == null) {
-            throw RPCException(
-                "A provider must belong to a project, please set the project context before creating a new provider",
-                HttpStatusCode.BadRequest
-            )
-        }
-
         if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
@@ -189,7 +182,7 @@ class ProviderDao(
         }
     }
 
-    private fun rowToProvider(
+    fun rowToProvider(
         result: RowData,
     ): InternalProvider = InternalProvider(
         Provider(
@@ -267,6 +260,64 @@ class ProviderDao(
                 )
                 .rows
                 .map { rowToProvider(it) }
+        }
+    }
+
+    suspend fun requestApprovalInformation(
+        ctx: DBContext,
+        sharedSecret: String,
+        specification: ProviderSpecification
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    delete from provider.approval_request
+                    where created_at < now() - '5 minutes'::interval
+                """
+            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("shared_secret", sharedSecret)
+                        setParameter("requested_id", specification.id)
+                        setParameter("domain", specification.domain)
+                        setParameter("https", specification.https)
+                        setParameter("port", specification.port)
+                    },
+                    """
+                        insert into provider.approval_request
+                            (shared_secret, requested_id, domain, https, port)
+                        values
+                            (:shared_secret, :requested_id, :domain, :https, :port::int);
+                    """
+                )
+        }
+    }
+
+    suspend fun requestApprovalSignature(
+        ctx: DBContext,
+        sharedSecret: String,
+        actor: Actor.User
+    ): Boolean {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", actor.username)
+                        setParameter("shared_secret", sharedSecret)
+                    },
+                    """
+                        update provider.approval_request
+                        set
+                            signed_by = :username
+                        where
+                            shared_secret = :shared_secret and
+                            signed_by is null and
+                            created_at >= now() - '5 minutes'::interval
+                    """.trimIndent()
+                )
+                .rowsAffected >= 1L
         }
     }
 }

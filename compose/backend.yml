@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  backend:
+    image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.2.0-storage1
+    user: root
+    command:
+      - tail
+      - -f
+      - /dev/null
+    restart: always
+    volumes:
+      - ${PWD}/backend:/opt/ucloud
+      - backendKonan:/root/.konan
+      - backendGradle:/root/.gradle
+      - m2Repo:/root/.m2
+      - ${PWD}/frontend-web/webclient:/opt/frontend
+    hostname: backend

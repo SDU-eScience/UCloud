@@ -32,7 +32,7 @@ class IpcProxyServer {
                     defaultMapper.decodeFromJsonElement(call.requestType, proxyRequest.request),
                     client.backend,
                     client.authenticator,
-                    client.afterHook
+                    afterHook = client.afterHook
                 ).orThrow()
 
                 defaultMapper.encodeToJsonElement(call.successType, response) as JsonObject

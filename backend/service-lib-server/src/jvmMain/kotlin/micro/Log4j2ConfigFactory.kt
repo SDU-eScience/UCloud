@@ -84,6 +84,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("com.github.jasync.sql.db.pool.ActorBasedObjectPool", Level.WARN)
             configureLogLevelForPackage("com.github.jasync.sql.db.pool.ConnectionPool", Level.INFO)
             configureLogLevelForPackage("com.github.jasync.sql.db.postgresql", Level.INFO)
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.PostgreSQLConnection", Level.FATAL)
             configureLogLevelForPackage("org.apache.xml.security.Init", Level.INFO)
             configureLogLevelForPackage("reactor.util.Loggers\$LoggerFactory", Level.INFO)
             configureLogLevelForPackage("reactor.core.publisher.UnsafeSupport", Level.INFO)

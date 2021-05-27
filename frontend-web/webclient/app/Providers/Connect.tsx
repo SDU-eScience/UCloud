@@ -6,7 +6,7 @@ import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {emptyPageV2} from "DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import IntegrationApi = provider.integration;
+import IntegrationApi = provider.im;
 import MainContainer from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {PageRenderer} from "Pagination/PaginationV2";

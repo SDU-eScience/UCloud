@@ -149,7 +149,6 @@ static_resources:
         private const val configFile = "config.yaml"
 
         private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
-            log.debug("Reconfiguring envoy with ${routes.size} routes and ${clusters.size} clusters")
             val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
             NativeFile.open(tempRouteFile, readOnly = false).writeText(
                 defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes))))

@@ -32,7 +32,7 @@ enum class InstallStep {
 
 private var errorMessage: String? = null
 
-private var hostname = ""
+private var hostname = "postgres"
 private var port = 5432
 private var username = "postgres"
 private var password = "postgrespassword"
@@ -41,6 +41,44 @@ private var database = "postgres"
 const val installerFile = "installing.yaml"
 
 fun runInstaller(configDir: File) {
+    var step = InstallStep.INIT
+
+    suspend fun Application.checkDatabaseConfig(): Boolean {
+        val dbConfig = retrieveDatabaseConfig()
+
+        val db = AsyncDBSessionFactory(dbConfig)
+        var success = false
+        try {
+            db.withTransaction { session ->
+                session.sendPreparedStatement({}, "select 1").rows.map {
+                    success = true
+                }
+            }
+        } catch (ex: Throwable) {
+            errorMessage = "Could not connect to postgresql (${ex.javaClass.simpleName} ${ex.message})"
+            log.warn(ex.stackTraceToString())
+        } finally {
+            db.close()
+        }
+
+        if (success) {
+            step = InstallStep.MIGRATION
+            File(configDir, "db.yaml").writeText(
+                """
+                    database:
+                        credentials:
+                            username: ${username}
+                            password: ${password}
+                        database: ${database}
+                        port: ${port}
+                        hostname: ${hostname}
+                            
+                """.trimIndent()
+            )
+        }
+        return success
+    }
+
     embeddedServer(Netty, port = 8080) {
         File(configDir, installerFile).writeText("installing: true")
         File(configDir, "common.yaml").writeText(
@@ -67,9 +105,8 @@ fun runInstaller(configDir: File) {
             File(cephFs, "home/user/Jobs").mkdir() // TODO Temporary
         }
 
-        var step = InstallStep.INIT
         routing {
-            get("/installer") {
+            get("/i") {
                 when (step) {
                     InstallStep.INIT -> {
                         call.respondText(ContentType.Text.Html) {
@@ -87,7 +124,7 @@ fun runInstaller(configDir: File) {
                                     <p>This installation wizard will take you through the process of configuring
                                        UCloud.</p>
                                        
-                                    <a href='/installer/next' style='width: 100%' class='button'>Continue</a>
+                                    <a href='/i/next' style='width: 100%' class='button'>Continue</a>
                                 """
                             }
                         }
@@ -104,7 +141,7 @@ fun runInstaller(configDir: File) {
                                     <p>UCloud depends on PostgreSQL as its database. Please fill in the correct
                                        details below (some values were auto-detected)</p>
                                        
-                                    <form action='/installer/next' method='post'>
+                                    <form action='/i/next' method='post'>
                                     <label>
                                         Hostname:
                                         <input type='text' name='hostname' value='${escapeHtml(hostname ?: "")}'>
@@ -140,7 +177,7 @@ fun runInstaller(configDir: File) {
                                     <h1>Database Migrations</h1>
                                     <p>Database successfully configured! Click the button below to initialize the
                                        UCloud database</p>
-                                    <a href='/installer/next' class='button' style='margin-top: 16px;'>
+                                    <a href='/i/next' class='button' style='margin-top: 16px;'>
                                         Initialize UCloud database
                                     </a>
                                 """
@@ -153,10 +190,11 @@ fun runInstaller(configDir: File) {
                             page {
                                 //language=html
                                 """
+                                     <meta http-equiv="refresh" content="5; URL=/i">
                                     <h1>Database Migrations</h1>
                                     <p>The UCloud database is currently being initialized. 
                                         See log for details.</p>
-                                    <a href='/installer/next' class='button' style='margin-top: 16px;'>
+                                    <a href='/i/next' class='button' style='margin-top: 16px;'>
                                         Continue
                                     </a>
                                 """
@@ -173,7 +211,7 @@ fun runInstaller(configDir: File) {
                                     <h1>External Services</h1>
                                     <p>UCloud will now verify that it can establish a connection to all required
                                         services.</p>
-                                    <a href='/installer/next' class='button' style='margin-top: 16px;'>
+                                    <a href='/i/next' class='button' style='margin-top: 16px;'>
                                         Continue
                                     </a>
                                 """
@@ -196,6 +234,9 @@ fun runInstaller(configDir: File) {
                                 """
                                     <h1>Database migration</h1>
                                     <p>Database has been successfully initialized! UCloud will now restart.</p>
+                                    <p>You should reload this page until the UCloud interface becomes ready. 
+                                       This usually takes around 30 seconds. Consult the backend logs for more
+                                       information.</p>
                                 """
                             }
                         }
@@ -203,9 +244,15 @@ fun runInstaller(configDir: File) {
                 }
             }
 
-            get("/installer/next") {
+            get("/i/next") {
                 step = when (step) {
-                    InstallStep.INIT -> InstallStep.DATABASE
+                    InstallStep.INIT -> {
+                        if (checkDatabaseConfig()) {
+                            InstallStep.MIGRATION
+                        } else {
+                            InstallStep.DATABASE
+                        }
+                    }
                     InstallStep.MIGRATION -> {
                         Thread {
                             val micro = Micro().apply {
@@ -342,7 +389,7 @@ fun runInstaller(configDir: File) {
                                 val k8Client = KubernetesClient()
                                 val authenticationMethod = k8Client.conn.authenticationMethod
                                 if (authenticationMethod is KubernetesAuthenticationMethod.Proxy) {
-                                    with (authenticationMethod) {
+                                    with(authenticationMethod) {
                                         val statusCode = ProcessBuilder(
                                             *buildList {
                                                 add("kubectl")
@@ -384,10 +431,10 @@ fun runInstaller(configDir: File) {
                     else -> step
                 }
 
-                call.respondRedirect("/installer")
+                call.respondRedirect("/i")
             }
 
-            post("/installer/next") {
+            post("/i/next") {
                 when (step) {
                     InstallStep.DATABASE -> {
                         val params = call.receiveParameters()
@@ -399,52 +446,22 @@ fun runInstaller(configDir: File) {
 
                         if (username == "" || password == "" || hostname == "" || port == 0) {
                             errorMessage = "Missing value in DB config"
-                            call.respondRedirect("/installer")
+                            call.respondRedirect("/i")
                             return@post
                         }
 
-                        val dbConfig = retrieveDatabaseConfig()
-
-                        val db = AsyncDBSessionFactory(dbConfig)
-                        var success = false
-                        try {
-                            db.withTransaction { session ->
-                                session.sendPreparedStatement({}, "select 1").rows.map {
-                                    success = true
-                                }
-                            }
-                        } catch (ex: Throwable) {
-                            errorMessage = "Could not connect to postgresql (${ex.javaClass.simpleName} ${ex.message})"
-                            log.warn(ex.stackTraceToString())
-                        } finally {
-                            db.close()
-                        }
-
-                        if (success) {
-                            step = InstallStep.MIGRATION
-                            File(configDir, "db.yaml").writeText(
-                                """
-                                    database:
-                                        credentials:
-                                            username: ${username}
-                                            password: ${password}
-                                        database: ${database}
-                                        port: ${port}
-                                        hostname: ${hostname}
-                                            
-                                """.trimIndent()
-                            )
-                        }
-
-                        call.respondRedirect("/installer")
+                        checkDatabaseConfig()
+                        call.respondRedirect("/i")
                     }
 
-                    else -> call.respondRedirect("/installer")
+                    else -> call.respondRedirect("/i")
                 }
             }
         }
     }.start(wait = true)
 }
+
+
 
 private fun retrieveDatabaseConfig(): DatabaseConfig {
     return DatabaseConfig(
