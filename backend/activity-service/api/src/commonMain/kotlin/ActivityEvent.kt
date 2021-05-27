@@ -2,9 +2,10 @@ package dk.sdu.cloud.activity.api
 
 import dk.sdu.cloud.Page
 import dk.sdu.cloud.WithPaginationRequest
-import dk.sdu.cloud.file.api.AccessRight
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+typealias AccessRight = String
 
 @Serializable
 @Suppress("EnumEntryName") // backwards-compatibility

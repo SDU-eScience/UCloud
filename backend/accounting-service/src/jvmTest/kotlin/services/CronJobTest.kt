@@ -154,7 +154,7 @@ class CronJobTest {
     fun LowFundsEmailingTest() {
         val client = ClientMock.authenticatedClient
         val config = Configuration(500000)
-        val cronjobs = CronJobs(db, client, config)
+        val cronjobs = LowFundsJob(db, client, config)
         ClientMock.mockCallSuccess(
             Projects.lookupByIdBulk,
             listOf(project2)

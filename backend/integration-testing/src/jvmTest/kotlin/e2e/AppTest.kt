@@ -4,7 +4,6 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.file.api.GiB
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.backend.*
 import dk.sdu.cloud.integration.clickAppCard
@@ -54,7 +53,7 @@ class AppTest : EndToEndTest() {
         val rootProject = initializeRootProject()
         addFundsToPersonalProject(rootProject, admin.username, sampleStorage.category)
         addFundsToPersonalProject(rootProject, admin.username, sampleCompute.category)
-        setPersonalQuota(rootProject, admin.username, 10.GiB)
+        // setPersonalQuota(rootProject, admin.username, 10.GiB)
         AppStore.createTag.call(CreateTagsRequest(listOf("Featured"), SampleApplications.figlet.name), admin.client)
         driver.get("$address/app")
         driver.login(admin.username, admin.password)

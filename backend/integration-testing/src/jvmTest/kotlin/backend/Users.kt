@@ -5,7 +5,6 @@ import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.micro.tokenValidation
@@ -40,9 +39,11 @@ suspend fun createUser(
         UCloudLauncher.micro.tokenValidation as TokenValidationJWT
     ).authenticateClient(OutgoingHttpCall)
 
+    /*
     if (waitForStorage) {
         waitForFile(homeDirectory(username), client)
     }
+     */
 
     return CreatedUser(
         client,

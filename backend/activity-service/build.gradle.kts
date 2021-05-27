@@ -8,7 +8,6 @@ kotlin.sourceSets {
     val jvmMain by getting {
         dependencies {
             implementation(project(":auth-service:api"))
-            implementation(project(":storage-service:api"))
             implementation(project(":app-orchestrator-service:api"))
             implementation(project(":app-store-service:api"))
         }

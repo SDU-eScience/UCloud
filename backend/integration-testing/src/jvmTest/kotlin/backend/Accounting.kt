@@ -14,7 +14,6 @@ import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.webdav.services.UserClient
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import org.junit.Ignore

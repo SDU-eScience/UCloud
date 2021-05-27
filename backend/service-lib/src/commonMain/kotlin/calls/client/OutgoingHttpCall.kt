@@ -117,7 +117,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             } catch (ex: Throwable) {
                 if (ex.stackTraceToString().contains("ConnectException")) {
                     log.debug("[$callId] ConnectException: ${ex.message}")
-                    throw RPCException("Could not connect to backend server", HttpStatusCode.BadGateway)
+                    throw RPCException("[$callId] ${call.fullName} Could not connect to backend server", HttpStatusCode.BadGateway)
                 }
 
                 throw ex

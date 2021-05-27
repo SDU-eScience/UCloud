@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.BalanceService
+import dk.sdu.cloud.accounting.services.wallets.BalanceService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal

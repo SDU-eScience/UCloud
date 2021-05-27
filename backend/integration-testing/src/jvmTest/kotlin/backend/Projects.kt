@@ -10,8 +10,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.file.api.GiB
-import dk.sdu.cloud.file.api.PiB
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
@@ -50,7 +48,7 @@ suspend fun initializeRootProject(
 
     if (initializeWallet) {
         initializeWallets(id, amount)
-        setProjectQuota(id, 1.PiB)
+        // setProjectQuota(id, 1.PiB)
     }
 
     return id
@@ -64,7 +62,7 @@ suspend fun initializePersonalWallets(username: String, rootProject: String, amo
 
 suspend fun initializeAllPersonalFunds(username: String, rootProject: String) {
     initializePersonalWallets(username, rootProject)
-    setPersonalQuota(rootProject, username, 10.GiB)
+    // setPersonalQuota(rootProject, username, 10.GiB)
 }
 
 suspend fun initializeWallets(projectId: String, amount: Long = 1_000_000 * 10_000_000L) {

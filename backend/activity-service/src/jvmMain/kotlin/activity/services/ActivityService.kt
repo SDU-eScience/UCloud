@@ -4,13 +4,6 @@ import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.KnowledgeMode
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
@@ -29,8 +22,11 @@ class ActivityService(
         user: String,
         causedBy: String? = null
     ): Page<ActivityForFrontend> {
+        /*
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
+         */
+        TODO()
     }
 
     suspend fun browseActivity(

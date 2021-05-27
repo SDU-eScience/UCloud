@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.calls.RPCException
@@ -340,3 +341,4 @@ class LimitCheckerTest : IntegrationTest() {
         )
     }
 }
+ */

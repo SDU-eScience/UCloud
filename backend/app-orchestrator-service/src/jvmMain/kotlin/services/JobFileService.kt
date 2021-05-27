@@ -5,8 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.files
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -30,6 +28,8 @@ class JobFileService(
     private val appStoreCache: AppStoreCache,
 ) {
     suspend fun initializeResultFolder(jobWithToken: VerifiedJobWithAccessToken): JobDirectory {
+        TODO()
+        /*
         val (job, refreshToken) = jobWithToken
         val userClient = userClientFactory(refreshToken)
 
@@ -65,6 +65,7 @@ class JobFileService(
         }
 
         return JobDirectory(path)
+         */
     }
 
     /**
@@ -80,6 +81,8 @@ class JobFileService(
         jobWithToken: VerifiedJobWithAccessToken,
         fileData: ByteArray,
     ) {
+        TODO()
+        /*
         val userClient = userClientFactory(jobWithToken.refreshToken)
 
         MultiPartUploadDescriptions.simpleUpload.call(
@@ -94,6 +97,7 @@ class JobFileService(
                 fileData.inputStream().toByteReadChannel()
             )
         ).orThrow()
+         */
     }
 
     suspend fun acceptFile(
@@ -103,6 +107,8 @@ class JobFileService(
         length: Long,
         fileData: ByteReadChannel,
     ) {
+        TODO()
+        /*
         val userClient = run {
             val (_, refreshToken) = jobWithToken
             userClientFactory(refreshToken)
@@ -152,17 +158,21 @@ class JobFileService(
                 throw ex
             }
         }
+         */
     }
 
     fun jobsFolder(
         ownerUsername: String,
         project: String?,
     ): String {
+        return "/"
+        /*
         return if (project == null) {
             joinPath(homeDirectory(ownerUsername), "Jobs")
         } else {
             joinPath("/projects", project, PERSONAL_REPOSITORY, ownerUsername, "Jobs")
         }
+         */
     }
 
     private val resultFolderCacheIdToFolder = HashMap<String, String>()
@@ -175,6 +185,8 @@ class JobFileService(
     }
 
     suspend fun jobFolder(jobWithToken: VerifiedJobWithAccessToken, new: Boolean = false): String {
+        return "/"
+        /*
         val cachedPath = resultFolderMutex.withLock {
             resultFolderCacheIdToFolder[jobWithToken.job.id]
         }
@@ -249,9 +261,11 @@ class JobFileService(
                 folderName
             ).normalize().also { cacheJobFolder(job.id, it) }
         }
+         */
     }
 
     suspend fun cleanupAfterMounts(jobWithToken: VerifiedJobWithAccessToken) {
+        /*
         try {
             // Some minor cleanup #1358 (TODO This probably needs to be more centralized)
             val job = jobWithToken.job
@@ -273,9 +287,10 @@ class JobFileService(
                 throw ex
             }
         }
+         */
     }
 
-    private fun AppParameterValue.File.toMountName(): String = path.normalize().fileName()
+    // private fun AppParameterValue.File.toMountName(): String = path.normalize().fileName()
 
     companion object : Loggable {
         override val log = logger()
