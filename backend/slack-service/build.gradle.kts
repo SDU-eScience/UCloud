@@ -1,4 +1,4 @@
-version = "0.3.4"
+version = "0.3.5"
 
 application {
     mainClassName = "dk.sdu.cloud.slack.MainKt"

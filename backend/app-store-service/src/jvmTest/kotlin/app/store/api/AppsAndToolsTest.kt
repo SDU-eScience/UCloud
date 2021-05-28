@@ -1,6 +1,10 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.defaultMapper
 import io.mockk.mockk
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -16,14 +20,16 @@ class AppsAndToolsTest {
             "title",
             "description",
             listOf(
-                mapOf(
-                    "type" to "var",
-                    "vars" to "arg1",
-                    "prefixGlobal" to "prefixG",
-                    "prefixVariable" to "prefixV",
-                    "suffixVariable" to "suffixV",
-                    "suffixGlobal" to "suffixG"
-                )
+                buildJsonObject {
+                    mapOf(
+                        "type" to "var",
+                        "vars" to "arg1",
+                        "prefixGlobal" to "prefixG",
+                        "prefixVariable" to "prefixV",
+                        "suffixVariable" to "suffixV",
+                        "suffixGlobal" to "suffixG"
+                    )
+                }
             ),
             mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
             listOf("globs")
@@ -64,14 +70,16 @@ class AppsAndToolsTest {
             "title/hello",
             "description",
             listOf(
-                mapOf(
-                    "type" to "var",
-                    "vars" to "arg1",
-                    "prefixGlobal" to "prefixG",
-                    "prefixVariable" to "prefixV",
-                    "suffixVariable" to "suffixV",
-                    "suffixGlobal" to "suffixG"
-                )
+                buildJsonObject {
+                    mapOf(
+                        "type" to "var",
+                        "vars" to "arg1",
+                        "prefixGlobal" to "prefixG",
+                        "prefixVariable" to "prefixV",
+                        "suffixVariable" to "suffixV",
+                        "suffixGlobal" to "suffixG"
+                    )
+                }
             ),
             mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
             listOf("globs")
@@ -87,7 +95,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(2),
+            listOf(JsonPrimitive(2)),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs")
         )
@@ -102,7 +110,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "var"), Pair("vars", "hello"))}),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -117,7 +125,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "var"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "var")) } ),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -132,7 +140,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"), Pair("flag", "true"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "flag"), Pair("var", "hello"), Pair("flag", "true"))}),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -148,7 +156,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "NO"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "NO")) }),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -163,7 +171,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "flag"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "flag")) }),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -178,7 +186,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "flag"), Pair("var", "hello")) }),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -193,7 +201,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("notType", "var"))),
+            listOf(buildJsonObject { mapOf(Pair("notType", "var")) }),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs")
         )
@@ -208,7 +216,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
+            listOf(buildJsonObject { mapOf(Pair("type", "var"), Pair("vars", "hello")) }),
             mapOf(Pair("string", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
@@ -223,7 +231,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(2),
+            listOf(JsonPrimitive(2)),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs", "globs")
         )
@@ -238,7 +246,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf(Pair("type", "var")),
+            listOf(buildJsonObject { Pair("type", "var")}),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs")
         )
@@ -344,7 +352,7 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf("string"),
+            listOf(JsonPrimitive("string")),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs")
         )
@@ -359,7 +367,7 @@ class AppsAndToolsTest {
             listOf("Authors\n", "good author"),
             "title",
             "description",
-            listOf("string"),
+            listOf(JsonPrimitive("string")),
             mapOf(Pair("string", mockk(relaxed = true))),
             listOf("globs")
         )

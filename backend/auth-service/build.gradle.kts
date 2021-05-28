@@ -1,4 +1,4 @@
-version = "1.32.4"
+version = "1.32.5"
 
 application {
     mainClassName = "dk.sdu.cloud.auth.MainKt"

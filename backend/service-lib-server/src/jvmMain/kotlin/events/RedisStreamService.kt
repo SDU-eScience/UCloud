@@ -192,6 +192,7 @@ class RedisStreamService(
                 }
             } catch (ex: Throwable) {
                 if (ex is RedisConnectionException || ex is CompletionException) {
+                    println(ex)
                     log.warn("Lost connection to Redis")
                 } else {
                     log.warn("Caught exception in Redis subscription!\n${ex.stackTraceToString()}")
