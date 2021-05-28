@@ -64,6 +64,13 @@ interface ResourceUpdate {
 }
 
 @Serializable
+data class SpecificationAndPermissions<S : ResourceSpecification>(
+    val specification: S,
+    val owner: SimpleResourceOwner,
+    val permissions: List<ResourceAclEntry<Permission>>
+)
+
+@Serializable
 open class ResourceAclEntry<Permission>(val entity: AclEntity, val permissions: List<Permission>)
 
 @Serializable

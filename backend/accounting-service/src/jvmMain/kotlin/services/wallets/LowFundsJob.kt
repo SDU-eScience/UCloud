@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
+import dk.sdu.cloud.accounting.services.products.ProductCategoryTable
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -37,10 +38,16 @@ class LowFundsJob(
                         setParameter("type", WalletOwnerType.PROJECT.toString())
                     },
                     """
-                        DECLARE curs NO SCROLL CURSOR WITH HOLD
-                        FOR SELECT * FROM accounting.wallets 
-                        WHERE low_funds_notifications_send = :sent AND balance < :limit AND account_type = :type
-                        GROUP BY account_id, account_type, product_provider, product_category
+                        declare curs no scroll cursor with hold for 
+                        select w.*, pc.category, pc.provider 
+                        from
+                            accounting.wallets w join
+                            accounting.product_categories pc on w.category = pc.id
+                        where
+                            low_funds_notifications_send = :sent and 
+                            balance < :limit and 
+                            account_type = :type
+                        group by account_id, account_type, pc.category, pc.provider
                     """
                 )
             while (true) {
@@ -48,7 +55,7 @@ class LowFundsJob(
                     .sendPreparedStatement(
                         //language=sql
                         """
-                        FETCH FORWARD 1000 FROM curs
+                        fetch forward 1000 from curs
                         """
                     ).rows
 
@@ -71,8 +78,8 @@ class LowFundsJob(
                         it.getField(WalletTable.accountId),
                         WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
                         ProductCategoryId(
-                            it.getField(WalletTable.productCategory),
-                            it.getField(WalletTable.productProvider)
+                            it.getField(ProductCategoryTable.category),
+                            it.getField(ProductCategoryTable.provider)
                         )
                     )
                 }
@@ -116,21 +123,19 @@ class LowFundsJob(
                 .sendPreparedStatement(
                     //language=sql
                     """
-                        CLOSE curs
+                        close curs
                     """
                 )
             //set sent status
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("state", true)
-                        setParameter("oldstate", false)
                         setParameter("limit", config.notificationLimit)
                     },
                     """
-                        UPDATE accounting.wallets
-                        SET low_funds_notifications_send = :state
-                        WHERE low_funds_notifications_send = :oldstate AND balance < :limit
+                        update accounting.wallets
+                        set low_funds_notifications_send = true
+                        where low_funds_notifications_send = false and balance < :limit
                     """
                 )
         }
