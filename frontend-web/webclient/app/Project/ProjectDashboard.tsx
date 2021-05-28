@@ -29,6 +29,7 @@ import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import * as UCloud from "UCloud";
 
 export function computeUsageInPeriod(charts: NativeChart[]): number {
     let result = 0;
@@ -100,7 +101,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
-        setGrantParams(ingoingGrantApplications({itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
         fetchSettings(readGrantRequestSettings({projectId}));
         setUsageParams(usage({
             bucketSize: durationOption.bucketSize,
