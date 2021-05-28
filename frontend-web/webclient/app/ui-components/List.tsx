@@ -71,7 +71,10 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
-            <div className="row-left-content" onClick={doNavigate}>{props.left}</div>
+            <div className="row-left-wrapper">
+                <div className="row-left-content" onClick={doNavigate}>{props.left}</div>
+                <div className="row-left-padding" />
+            </div>
             <div className="row-left-sub">{props.leftSub}</div>
         </div>
         <div className="row-right">{props.right}</div>
@@ -143,6 +146,15 @@ const ListStyle = styled.div`
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .row-left-wrapper {
+      display: flex;
+  }
+
+  .row-left-padding {
+      width: auto;
+      cursor: auto;
   }
 
   .row-left-sub {

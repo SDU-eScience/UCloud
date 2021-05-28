@@ -9,7 +9,7 @@ import {getParentPath, pathComponents, resolvePath, sizeToString} from "Utilitie
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {extensionFromPath, joinToString} from "UtilityFunctions";
-import {Box, Flex, FtIcon, List} from "ui-components";
+import {Box, Checkbox, Flex, FtIcon, List, Label} from "ui-components";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {NamingField} from "UtilityComponents";
 import {dateToString} from "Utilities/DateUtilities";
@@ -240,6 +240,11 @@ export const Files: React.FunctionComponent<CommonFileProps & {
 
         {props.embedded ? null : breadcrumbsComponent}
 
+
+        <Label>
+            <Checkbox checked={toggleSet.allChecked} onChange={e => e.target.checked ? toggleSet.checkAll() : toggleSet.uncheckAll()} />
+            Select all
+        </Label>
         <List bordered={true}>
             {!isCreatingFolder ? null : (
                 <ListRow
@@ -441,7 +446,8 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         icon: "rename",
         primary: false,
         onClick: (selected, cb) => cb.startRenaming(selected[0]),
-        enabled: selected => selected.length === 1,
+        /* NOTE(jonas): Is this good enough? */
+        enabled: selected => selected.length === 1 && selected.every(it => it.icon === null),
     },
     {
         text: "Download",
