@@ -6,6 +6,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {Button, Input} from "ui-components";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
 
 export interface KillJobRequest {
     jobId: string,
@@ -27,8 +28,7 @@ export interface IsPausedResponse {
     paused: boolean,
 }
 
-export interface IsPausedRequest {
-}
+export type IsPausedRequest = Record<string, never>;
 
 export function isPaused(
     request: IsPausedRequest
@@ -74,8 +74,7 @@ export function drainNode(
     };
 }
 
-export interface DrainClusterRequest {
-}
+export type DrainClusterRequest = Record<string, never>;
 
 export function drainCluster(
     request: DrainClusterRequest
@@ -103,9 +102,9 @@ const AppK8Admin: React.FunctionComponent = props => {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHeaderCell>Name</TableHeaderCell>
-                            <TableHeaderCell>Description</TableHeaderCell>
-                            <TableHeaderCell>Actions</TableHeaderCell>
+                            <TableHeaderCell width="20%">Name</TableHeaderCell>
+                            <TableHeaderCell width="40%">Description</TableHeaderCell>
+                            <TableHeaderCell width="40%">Actions</TableHeaderCell>
                         </TableRow>
                     </TableHeader>
                     <tbody>
@@ -129,15 +128,15 @@ const AppK8Admin: React.FunctionComponent = props => {
                             You can kill a specific job by supplying the UCloud job id
                         </TableCell>
                         <TableCell>
-                            <form onSubmit={async (e) => {
+                            <FlexForm onSubmit={async (e) => {
                                 e.preventDefault();
                                 await runWork(killJob({jobId: killJobRef.current!.value}));
                                 snackbarStore.addInformation("Job has been killed", false);
                                 killJobRef.current!.value = "";
                             }}>
                                 <Input ref={killJobRef} placeholder={"Job ID"} />
-                                <Button type={"submit"}>Kill job</Button>
-                            </form>
+                                <Button width="100px" ml="4px" type={"submit"}>Kill job</Button>
+                            </FlexForm>
                         </TableCell>
                     </TableRow>
                     <TableRow>
@@ -148,15 +147,15 @@ const AppK8Admin: React.FunctionComponent = props => {
                             on it)
                         </TableCell>
                         <TableCell>
-                            <form onSubmit={async (e) => {
+                            <FlexForm onSubmit={async (e) => {
                                 e.preventDefault();
                                 await runWork(drainNode({node: drainNodeRef.current!.value}));
                                 snackbarStore.addInformation("Node has been drained", false);
                                 drainNodeRef.current!.value = "";
                             }}>
                                 <Input ref={drainNodeRef} placeholder={"Node"} />
-                                <Button type={"submit"}>Drain node</Button>
-                            </form>
+                                <Button width="122px" ml="4px" type={"submit"}>Drain node</Button>
+                            </FlexForm>
                         </TableCell>
                     </TableRow>
                     <TableRow>
@@ -178,5 +177,10 @@ const AppK8Admin: React.FunctionComponent = props => {
         }
     />;
 };
+
+const FlexForm = styled.form`
+    display: flex;
+    height: 40px;
+`;
 
 export default AppK8Admin;
