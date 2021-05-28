@@ -5,25 +5,45 @@ import com.github.jasync.sql.db.SuspendingConnectionImpl
 import com.github.jasync.sql.db.asSuspending
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.http.*
 import kotlinx.coroutines.future.await
 
 sealed class DBContext
 
-suspend fun <R> DBContext.withSession(block: suspend (session: AsyncDBConnection) -> R): R {
-    return when (this) {
-        is AsyncDBSessionFactory -> {
-            withTransaction<R, AsyncDBConnection> { session ->
-                block(session)
+suspend fun <R> DBContext.withSession(
+    remapExceptions: Boolean = false,
+    block: suspend (session: AsyncDBConnection) -> R
+): R {
+    try {
+        return when (this) {
+            is AsyncDBSessionFactory -> {
+                withTransaction<R, AsyncDBConnection> { session ->
+                    block(session)
+                }
+            }
+
+            is AsyncDBConnection -> {
+                block(this)
+            }
+        }
+    } catch (ex: GenericDatabaseException) {
+        if (remapExceptions) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+
+            if (ex.errorCode == PostgresErrorCodes.RAISE_EXCEPTION) {
+                throw RPCException(ex.errorMessage.message ?: "", HttpStatusCode.BadRequest)
             }
         }
 
-        is AsyncDBConnection -> {
-            block(this)
-        }
+        throw ex
     }
 }
 
