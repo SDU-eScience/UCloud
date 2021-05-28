@@ -76,7 +76,7 @@ class GrantApplicationService(
             serviceClient
         ).orThrow()
 
-        return balance.wallets.flatMap{ wb ->
+        return balance.wallets.flatMap { wb ->
             val allProducts = productCacheByProvider.get(wb.wallet.paysFor.provider) ?: emptyList()
             allProducts.filter { it.category.id == wb.wallet.paysFor.id }
         }
@@ -171,10 +171,12 @@ class GrantApplicationService(
                 userMessage = null
             ),
             actor.safeUsername(),
-            meta = JsonObject(mapOf(
-                "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
-                "appId" to JsonPrimitive(returnedApplication.id),
-            ))
+            meta = JsonObject(
+                mapOf(
+                    "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
+                    "appId" to JsonPrimitive(returnedApplication.id),
+                )
+            )
         )
 
         return returnedId
@@ -244,9 +246,9 @@ class GrantApplicationService(
                 val settings = settings.fetchSettings(session, Actor.System, resourcesOwnedBy)
                 val isAllowed = settings.allowRequestsFrom.any { it.matches(actor.principal) }
                 val emailIsBlacklisted = actor.principal.email != null &&
-                        settings.excludeRequestsFrom.any {
-                            actor.principal.email!!.endsWith((it as UserCriteria.EmailDomain).domain)
-                        }
+                    settings.excludeRequestsFrom.any {
+                        actor.principal.email!!.endsWith((it as UserCriteria.EmailDomain).domain)
+                    }
 
                 if (!isAllowed || emailIsBlacklisted) {
                     log.debug("Deny: 3")
@@ -340,10 +342,12 @@ class GrantApplicationService(
                 )
             ),
             "_ucloud",
-            JsonObject(mapOf(
-                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                "appId" to JsonPrimitive(application.id),
-            ))
+            JsonObject(
+                mapOf(
+                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                    "appId" to JsonPrimitive(application.id),
+                )
+            )
         )
         return true
     }
@@ -374,36 +378,27 @@ class GrantApplicationService(
         newResources: List<ResourceRequest>
     ) {
         ctx.withSession { session ->
-            val (projectId, requestedBy, status) = session
+            val (requestedBy, status) = session
                 .sendPreparedStatement(
-                    { setParameter("id", id) },
-                    """
-                        select resources_owned_by, requested_by, status
-                        from "grant".applications
-                        where id = :id
-                    """
+                    {
+                        setParameter("username", actor.safeUsername())
+                        setParameter("id", id)
+                    },
+                    """select requested_by, status from "grant".my_applications(:username, true, true) where id = :id"""
                 )
-                .rows
-                .singleOrNull()
-                ?.let { listOf(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }
+                .rows.singleOrNull()?.let { Pair(it.getString(0)!!, ApplicationStatus.valueOf(it.getString(1)!!)) }
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
-            val isCreator = actor.safeUsername() == requestedBy
-            if (!isCreator && !isProjectAdmin) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (status != ApplicationStatus.IN_PROGRESS) {
+                throw RPCException("Cannot update a closed application", HttpStatusCode.BadRequest)
             }
 
-            if (ApplicationStatus.valueOf(status) != ApplicationStatus.IN_PROGRESS) {
-                throw RPCException("Grant application has been closed", HttpStatusCode.BadRequest)
-            }
+            val isCreator = requestedBy == actor.safeUsername()
 
             if (isCreator) {
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("requestedBy", actor.safeUsername())
-                            setParameter("isProjectAdmin", isProjectAdmin)
                             setParameter("id", id)
                             setParameter("document", newDocument)
                         },
@@ -456,10 +451,12 @@ class GrantApplicationService(
                 )
             ),
             actor.safeUsername(),
-            meta = JsonObject(mapOf(
-                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                "appId" to JsonPrimitive(application.id),
-            ))
+            meta = JsonObject(
+                mapOf(
+                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                    "appId" to JsonPrimitive(application.id),
+                )
+            )
         )
     }
 
@@ -473,60 +470,31 @@ class GrantApplicationService(
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
 
         ctx.withSession { session ->
-            val currentStatus = session
+            val didUpdate = session
                 .sendPreparedStatement(
                     {
-                        setParameter("id", id)
-                    },
-                    """
-                        SELECT *
-                        FROM "grant".applications
-                        WHERE id = :id
-                    """
-                ).rows
-                .singleOrNull()
-                ?.getField(ApplicationTable.status) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not able to change status of finished application")
-            }
-
-            val (updatedProjectId, requestedBy) = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", id)
                         setParameter("status", newStatus.name)
-                        setParameter(
-                            "changedBy",
-                            if (newStatus == ApplicationStatus.APPROVED ||
-                                newStatus == ApplicationStatus.REJECTED ||
-                                newStatus == ApplicationStatus.CLOSED
-                            ) {
-                                actor.username
-                            } else {
-                                null
-                            }
-                        )
+                        setParameter("username", actor.safeUsername())
+                        setParameter("id", id)
                     },
                     """
                         update "grant".applications
-                        set status = :status, status_changed_by = :changedBy
-                        where id = :id
-                        returning resources_owned_by, requested_by
+                        set
+                            status = :status,
+                            status_changed_by = :changedBy
+                        where
+                            id in (
+                                select id
+                                from "grant".my_applications(:username, :status != 'CLOSED', :status = 'CLOSED')
+                                where
+                                    id = :id and
+                                    status = 'IN_PROGRESS'
+                            )
                     """
                 )
-                .rows
-                .singleOrNull()
-                ?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .rowsAffected > 0L
 
-            if (!projects.isAdminOfParent(updatedProjectId, actor) && newStatus != ApplicationStatus.CLOSED) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-
-            if (newStatus == ApplicationStatus.CLOSED && requestedBy != actor.safeUsername()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
+            if (!didUpdate) throw RPCException("Could not update grant application", HttpStatusCode.BadRequest)
 
             if (newStatus == ApplicationStatus.APPROVED) {
                 onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
@@ -561,20 +529,25 @@ class GrantApplicationService(
                     UserGrantNotificationMessage(
                         { "Grant application updated ($statusTitle)" },
                         GRANT_APP_RESPONSE,
-                        when (newStatus){
+                        when (newStatus) {
                             ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(application.resourcesOwnedByTitle)
                             ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(application.resourcesOwnedByTitle)
-                            ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(application.resourcesOwnedByTitle, actor.safeUsername())
+                            ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(
+                                application.resourcesOwnedByTitle,
+                                actor.safeUsername()
+                            )
                             else -> throw IllegalStateException()
                         },
                         application.requestedBy
                     )
                 ),
                 actor.safeUsername(),
-                JsonObject(mapOf(
-                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                    "appId" to JsonPrimitive(application.id),
-                ))
+                JsonObject(
+                    mapOf(
+                        "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                        "appId" to JsonPrimitive(application.id),
+                    )
+                )
             )
         }
     }
@@ -586,54 +559,32 @@ class GrantApplicationService(
         applicationId: Long,
         transferToProjectId: String
     ) {
-        val application = viewApplicationById(ctx, actor, applicationId)
-        if (application.first.grantRecipient is GrantRecipient.ExistingProject) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Transfer not applicable to existing projects")
-        }
-        if (!projects.isAdminOfProject(application.first.resourcesOwnedBy, actor)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-        val projectTitle = Projects.lookupById.call(
-            LookupByIdRequest(transferToProjectId),
-            serviceClient
-        ).orThrow().title
-
-        val senderTitle = if (currentProject != null) {
-            Projects.lookupById.call(
-                LookupByIdRequest(currentProject),
-                serviceClient
-            ).orThrow().title
-        } else "another project"
-        ctx.withSession { session ->
-            session
+        ctx.withSession(remapExceptions = true) { session ->
+            val mailsToSend = session
                 .sendPreparedStatement(
                     {
-                        setParameter("transfer", transferToProjectId)
-                        setParameter("applicationId", applicationId)
+                        setParameter("username", actor.safeUsername())
+                        setParameter("id", applicationId)
+                        setParameter("target", transferToProjectId)
                     },
                     """
-                        UPDATE "grant".applications
-                        SET resources_owned_by = :transfer
-                        WHERE id = :applicationId
+                        select source_title, destination_title, recipient_title, user_to_notify
+                        from "grant".transfer_application(:username, :id, :target)
                     """
                 )
-        }
-        val admins = projects.admins.get(transferToProjectId) ?: emptyList()
-        MailDescriptions.sendBulk.call(
-            SendBulkRequest(
-                admins.map { admin ->
+                .rows.map {
                     SendRequest(
-                        admin.username,
+                        it.getString(3)!!,
                         Mail.TransferApplicationMail(
-                            senderTitle,
-                            projectTitle,
-                            application.first.grantRecipientTitle
+                            it.getString(0)!!,
+                            it.getString(1)!!,
+                            it.getString(2)!!
                         )
                     )
                 }
-            ),
-            serviceClient
-        )
+
+            MailDescriptions.sendBulk.call(SendBulkRequest(mailsToSend), serviceClient)
+        }
     }
 
     private suspend fun onApplicationApproved(
