@@ -10,6 +10,8 @@ import {Markdown} from "ui-components";
 import {fileName} from "./Files";
 import * as Heading from "ui-components/Heading";
 
+export const MAX_PREVIEW_SIZE_IN_BYTES = 5_000_000;
+
 function Preview(): JSX.Element {
     const params = useLocation();
     const pathFromQuery = getQueryParam(params.search, "path") ?? "";

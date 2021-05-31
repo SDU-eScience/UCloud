@@ -8,8 +8,8 @@ import {bulkRequestOf} from "DefaultObjects";
 import {getParentPath, pathComponents, resolvePath, sizeToString} from "Utilities/FileUtilities";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import HexSpin from "LoadingIcon/LoadingIcon";
-import {extensionFromPath, joinToString} from "UtilityFunctions";
-import {Box, Checkbox, Flex, FtIcon, List, Label} from "ui-components";
+import {extensionFromPath, isExtPreviewSupported, joinToString} from "UtilityFunctions";
+import {Box, Checkbox, Flex, FtIcon, List, Label, Link} from "ui-components";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {NamingField} from "UtilityComponents";
 import {dateToString} from "Utilities/DateUtilities";
@@ -30,6 +30,7 @@ import {associateBy} from "Utilities/CollectionUtilities";
 import metadataApi = file.orchestrator.metadata;
 import {buildQueryString} from "Utilities/URIUtilities";
 import {removeUploadFromStorage} from "./ChunkedFileReader";
+import {MAX_PREVIEW_SIZE_IN_BYTES} from "./Preview";
 
 export function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
@@ -223,6 +224,8 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         filesOperations.filter(it => !["Move to...", "Copy to..."].includes(it.text))
     ) : filesOperations;
 
+    const providerAllowsPreviews = true && toggleSet.checked.items.length === 0;
+
     const main = <>
         {!props.embedded ? null :
             <Flex>
@@ -268,14 +271,19 @@ export const Files: React.FunctionComponent<CommonFileProps & {
             {props.files.data.items.map(it => {
                 const isFavorite = favoriteCache[it.path] ?? false;
 
+                const extension = extensionFromPath(it.path);
+                const isValidExtension = isExtPreviewSupported(extension);
+                const canPreviewFile = providerAllowsPreviews && it.type === "FILE" && isValidExtension &&
+                    (it.stats?.sizeInBytes ?? MAX_PREVIEW_SIZE_IN_BYTES) < MAX_PREVIEW_SIZE_IN_BYTES;
+
                 return <ListRow
                     key={it.path}
                     icon={
                         <>
                             <Icon
                                 mr={10}
-                                cursor={"pointer"}
-                                size={"24"}
+                                cursor="pointer"
+                                size="24"
                                 name={isFavorite ? "starFilled" : "starEmpty"}
                                 color={isFavorite ? "blue" : "midGray"}
                                 onClick={() => {
@@ -316,7 +324,9 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                                 onCancel={() => setRenaming(null)}
                                 onSubmit={renameFile}
                                 inputRef={renameRef}
-                            /> : fileName(it.path)
+                            /> : (canPreviewFile ?
+                                <Link to={`/files/preview/?path=${it.path}`}>{fileName(it.path)}</Link> :
+                                fileName(it.path))
                     }
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
@@ -339,7 +349,10 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                             }
                         </ListStatContainer>
                     }
-                    right={
+                    right={<>
+                        {canPreviewFile ? <Link to={`/files/preview/?path=${it.path}`}><Icon name="preview" color="black" /></Link> :
+                            <Icon name="preview" color={"lightGray"} />
+                        }
                         <Operations
                             selected={toggleSet.checked.items}
                             location={"IN_ROW"}
@@ -348,7 +361,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                             operations={fileredOperations}
                             row={it}
                         />
-                    }
+                    </>}
                     navigate={it.type === "FILE" ? undefined : () => {
                         navigateTo(it.path);
                     }}
@@ -454,7 +467,7 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         icon: "download",
         primary: false,
         onClick: (files, cb) => cb.download(files),
-        enabled: selected => selected.every(it => it.type === "FILE"),
+        enabled: selected => selected.length > 0 && selected.every(it => it.type === "FILE"),
     },
     {
         text: "Empty trash",
