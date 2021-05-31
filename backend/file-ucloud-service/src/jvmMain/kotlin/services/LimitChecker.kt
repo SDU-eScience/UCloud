@@ -35,7 +35,7 @@ class LimitChecker(
          */
     }
 
-    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): FileCollection.Quota {
+    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Nothing {
         /*
         return ctx.withSession { session ->
             when (actor) {

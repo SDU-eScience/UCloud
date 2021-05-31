@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -232,7 +233,7 @@ class NetworkIPDao(
                     ),
                     firewall = defaultMapper.decodeFromString(it.getField(NetworkIPTable.firewall)),
                 ),
-                NetworkIPOwner(it.getField(NetworkIPTable.ownerUsername), it.getField(NetworkIPTable.ownerProject)),
+                ResourceOwner(it.getField(NetworkIPTable.ownerUsername), it.getField(NetworkIPTable.ownerProject)),
                 it.getField(NetworkIPTable.createdAt).toDateTime().millis,
                 NetworkIPStatus(
                     NetworkIPState.valueOf(it.getField(NetworkIPTable.currentState)),

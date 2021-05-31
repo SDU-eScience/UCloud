@@ -13,7 +13,6 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.SimpleResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -121,7 +120,7 @@ class MetadataTemplates(
         ),
         FileMetadataTemplate.Status(emptyList()),
         emptyList(),
-        SimpleResourceOwner(row.getString("created_by")!!, row.getString("project")),
+        ResourceOwner(row.getString("created_by")!!, row.getString("project")),
         defaultMapper.decodeFromString(row.getString("acl")!!),
         (row["created_at"]!! as LocalDateTime).toDateTime().millis,
         row.getBoolean("is_public")!!
@@ -240,7 +239,7 @@ class MetadataTemplates(
                         actorAndProject,
                         FileMetadataTemplatePermission.WRITE,
                         projectStatus,
-                        SimpleResourceOwner(
+                        ResourceOwner(
                             templateManifest.getString("created_by")!!,
                             templateManifest.getString("project")
                         ),
@@ -332,7 +331,7 @@ class MetadataTemplates(
                     actorAndProject,
                     FileMetadataTemplatePermission.WRITE,
                     projectStatus,
-                    SimpleResourceOwner(
+                    ResourceOwner(
                         deprecatedRow.getString("created_by")!!,
                         deprecatedRow.getString("project")
                     ),

@@ -24,7 +24,7 @@ data class FileMetadataTemplate(
     override val specification: Spec,
     override val status: Status,
     override val updates: List<Update>,
-    override val owner: SimpleResourceOwner,
+    override val owner: ResourceOwner,
     override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
     override val createdAt: Long,
     val public: Boolean,

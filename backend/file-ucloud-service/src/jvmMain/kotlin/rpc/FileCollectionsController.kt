@@ -23,6 +23,7 @@ class FileCollectionsController(
             ok(FileCollectionsProviderRetrieveManifestResponse(listOf(productSupport)))
         }
 
+        /*
         implement(UCloudFileCollections.browse) {
             ok(fileCollections.browse(retrieveActorAndProject(), request.request.normalize()))
         }
@@ -30,6 +31,7 @@ class FileCollectionsController(
         implement(UCloudFileCollections.retrieve) {
             ok(fileCollections.retrieve(retrieveActorAndProject(), request.request.id))
         }
+         */
 
         implement(UCloudFileCollections.create) {
             ok(fileCollections.create(retrieveActorAndProject(), request.request))

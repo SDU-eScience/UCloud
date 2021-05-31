@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -311,7 +312,7 @@ class JobQueryService(
 fun RowData.toJob(): Job {
     return Job(
         getField(JobsTable.id),
-        JobOwner(
+        ResourceOwner(
             getField(JobsTable.launchedBy),
             getFieldNullable(JobsTable.project)
         ),

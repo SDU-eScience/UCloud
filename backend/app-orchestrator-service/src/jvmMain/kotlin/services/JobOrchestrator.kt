@@ -371,11 +371,11 @@ class JobOrchestrator(
             val project = job.owner.project
             if (project != null) {
                 val projectRole = projectCache.retrieveRole(user.safeUsername(), project)
-                val isUserAndLauncher = job.owner.launchedBy == user.safeUsername() && projectRole != null
+                val isUserAndLauncher = job.owner.createdBy == user.safeUsername() && projectRole != null
                 val isProjectAdmin = projectRole?.isAdmin() == true
                 isUserAndLauncher || isProjectAdmin
             } else {
-                job.owner.launchedBy == user.safeUsername()
+                job.owner.createdBy == user.safeUsername()
             }
         }
         if (!ownsAllJobs) {

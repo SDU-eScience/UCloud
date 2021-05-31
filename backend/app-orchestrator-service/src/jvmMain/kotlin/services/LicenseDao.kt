@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -55,7 +56,7 @@ class LicenseDao(
                 set(LicenseTable.productProvider, license.specification.product.provider)
                 set(LicenseTable.productPricePerUnit, license.billing.pricePerUnit)
                 set(LicenseTable.creditsCharged, license.billing.creditsCharged)
-                set(LicenseTable.ownerUsername, license.owner.username)
+                set(LicenseTable.ownerUsername, license.owner.createdBy)
                 set(LicenseTable.ownerProject, license.owner.project)
                 set(LicenseTable.currentState, license.status.state.name)
             }
@@ -237,7 +238,7 @@ class LicenseDao(
                         it.getField(LicenseTable.productProvider),
                     )
                 ),
-                LicenseOwner(it.getField(LicenseTable.ownerUsername), it.getField(LicenseTable.ownerProject)),
+                ResourceOwner(it.getField(LicenseTable.ownerUsername), it.getField(LicenseTable.ownerProject)),
                 it.getField(LicenseTable.createdAt).toDateTime().millis,
                 LicenseStatus(
                     LicenseState.valueOf(it.getField(LicenseTable.currentState))

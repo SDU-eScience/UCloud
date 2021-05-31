@@ -62,7 +62,7 @@ class JobDao {
 
             session.insert(JobsTable) {
                 set(JobsTable.id, job.id)
-                set(JobsTable.launchedBy, job.owner.launchedBy)
+                set(JobsTable.launchedBy, job.owner.createdBy)
                 set(JobsTable.project, job.owner.project)
                 set(JobsTable.refreshToken, refreshToken)
                 set(JobsTable.applicationName, parameters.application.name)

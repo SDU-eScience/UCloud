@@ -100,7 +100,7 @@ data class Job(
     override val id: String,
 
     @UCloudApiDoc("A reference to the owner of this job")
-    override val owner: JobOwner,
+    override val owner: ResourceOwner,
 
     @UCloudApiDoc(
         "A list of status updates from the compute backend.\n\n" +
@@ -172,22 +172,6 @@ data class JobBilling(
     @Deprecated("Only used for a single quick and temporary hack")
     val __creditsAllocatedToWalletDoNotDependOn__: Long,
 ) : ResourceBilling
-
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@Serializable
-data class JobOwner(
-    @UCloudApiDoc("The username of the user which started the job")
-    override val createdBy: String,
-
-    @UCloudApiDoc(
-        "The project ID of the project which owns this job\n\n" +
-            "This value can be null and this signifies that the job belongs to the personal workspace of the user."
-    )
-    override val project: String? = null,
-) : ResourceOwner {
-    @Transient @Deprecated("Renamed to createdBy", ReplaceWith("createdBy"))
-    val launchedBy = createdBy
-}
 
 @Serializable
 data class JobUpdate(

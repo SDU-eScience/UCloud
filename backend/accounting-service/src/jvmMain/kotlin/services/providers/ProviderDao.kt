@@ -199,7 +199,7 @@ class ProviderDao(
             ProviderStatus(),
             emptyList(),
             ProviderBilling(0, 0),
-            ProviderOwner(
+            ResourceOwner(
                 result.getString("created_by")!!,
                 result.getString("project")!!
             ),
@@ -222,7 +222,7 @@ class ProviderDao(
 
     private suspend fun hasPermission(
         actor: Actor,
-        owner: ProviderOwner,
+        owner: ResourceOwner,
         aclToVerifyAgainst: List<ResourceAclEntry<ProviderAclPermission>>,
         permission: ProviderAclPermission,
     ): Boolean {

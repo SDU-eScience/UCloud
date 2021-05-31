@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -121,7 +122,7 @@ class JobVerificationService(
                 JobDataIncludeFlags()
             )
 
-            if (!resolvedPeers.values.all { it.job.owner.launchedBy == unverifiedJob.username }) {
+            if (!resolvedPeers.values.all { it.job.owner.createdBy == unverifiedJob.username }) {
                 throw JobException.VerificationError("You do not have permissions to connect to some of your peers")
             }
 
@@ -166,7 +167,7 @@ class JobVerificationService(
         val verified = VerifiedJobWithAccessToken(
             Job(
                 id,
-                JobOwner(
+                ResourceOwner(
                     unverifiedJob.username,
                     unverifiedJob.project
                 ),

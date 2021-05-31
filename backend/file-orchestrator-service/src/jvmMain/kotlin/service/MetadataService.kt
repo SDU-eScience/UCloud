@@ -8,7 +8,6 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.SimpleResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement

@@ -283,7 +283,7 @@ data class FileMetadataDocument(
     override val createdAt: Long,
     override val status: Status,
     override val updates: List<ResourceUpdate>,
-    override val owner: SimpleResourceOwner,
+    override val owner: ResourceOwner,
 ) : FileMetadataOrDeleted(), Resource<Nothing?> {
     @Contextual
     override val acl: Nothing? = null
@@ -385,9 +385,10 @@ data class FileCollection(
     override val status: Status,
     override val updates: List<Update>,
     override val billing: Billing,
-    override val owner: SimpleResourceOwner,
+    override val owner: ResourceOwner,
     override val acl: List<ResourceAclEntry<FilePermission>>?,
     override val permissions: ResourcePermissions? = null,
+    override val providerGeneratedId: String? = null
 ) : Resource<FilePermission> {
     @Serializable
     data class Spec(
@@ -404,18 +405,8 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        val quota: Quota,
         val support: FSSupport?,
     ) : ResourceStatus
-
-    @Serializable
-    data class Quota(
-        val usedInBytes: Long? = null,
-        val capacityInBytes: Long? = null,
-
-        // NOTE: If this FS shares quota between several other FS then this is not simply "capacity - used"
-        val availableInBytes: Long? = null,
-    )
 
     @Serializable
     data class Billing(

@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwError
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -40,7 +41,7 @@ class IngressService(
 
                 val computeProvider = job.specification.product.provider
                 val jobProject = job.owner.project
-                val jobLauncher = job.owner.launchedBy
+                val jobLauncher = job.owner.createdBy
 
                 ctx.withSession { session ->
                     ingressPoints.forEach { ingress ->
@@ -90,7 +91,7 @@ class IngressService(
                         if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
                             paymentService.creditCheck(
                                 product,
-                                job.owner.project ?: job.owner.launchedBy,
+                                job.owner.project ?: job.owner.createdBy,
                                 if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                             )
                         }
@@ -290,7 +291,7 @@ class IngressService(
                             spec.domain,
                             spec.product,
                         ),
-                        IngressOwner(actor.safeUsername(), project),
+                        ResourceOwner(actor.safeUsername(), project),
                         Time.now(),
                         IngressStatus(null, IngressState.PREPARING),
                         IngressBilling(product.pricePerUnit, 0L),

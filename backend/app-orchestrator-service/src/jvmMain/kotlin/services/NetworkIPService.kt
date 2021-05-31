@@ -13,6 +13,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -273,7 +274,7 @@ class NetworkIPService(
                             spec.product,
                             spec.firewall,
                         ),
-                        NetworkIPOwner(actor.safeUsername(), project),
+                        ResourceOwner(actor.safeUsername(), project),
                         Time.now(),
                         NetworkIPStatus(NetworkIPState.PREPARING),
                         NetworkIPBilling(product.pricePerUnit, 0L),

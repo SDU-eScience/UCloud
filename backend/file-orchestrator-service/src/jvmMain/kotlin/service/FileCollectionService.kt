@@ -8,51 +8,83 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.paginateV2
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
+import kotlinx.serialization.decodeFromString
 
 class FileCollectionService(
     private val providers: Providers,
     private val providerSupport: ProviderSupport,
     private val projectCache: ProjectCache,
+    private val db: DBContext,
 ) {
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: FileCollectionsBrowseRequest,
     ): FileCollectionsBrowseResponse {
-        val comms = providers.prepareCommunication(request.provider)
+        providers.prepareCommunication(request.provider)
 
-        return comms.fileCollectionsApi.browse.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                FileCollectionsProviderBrowseRequest(
-                    request.itemsPerPage,
-                    request.next,
-                    request.consistency,
-                    request.itemsToSkip
-                )
-            ),
-            comms.client
-        ).orThrow()
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("user", actorAndProject.actor.safeUsername())
+                            setParameter("project", actorAndProject.project)
+                        },
+                        """
+                            declare c cursor for
+                            select
+                                provider.resource_to_json(r, file_orchestrator.collection_to_json(c)) ||
+                                    jsonb_build_object('status', jsonb_build_object('quota', jsonb_build_object(), 'support', null))
+                            from
+                                provider.accessible_resources(:user, 'file_collection', 'READ', null, :project) r join
+                                file_orchestrator.collections c on (r.resource).id = c.resource
+                        """
+                    )
+            },
+            mapper = { _, rows ->
+                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+            }
+        )
     }
 
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: FileCollectionsRetrieveRequest,
     ): FileCollection {
-        val comms = providers.prepareCommunication(request.provider)
+        providers.prepareCommunication(request.provider)
 
-        return comms.fileCollectionsApi.retrieve.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                FindByStringId(request.id)
-            ),
-            comms.client
-        ).orThrow()
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("user", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                        setParameter("id", request.id)
+                    },
+                    """
+                        select provider.resource_to_json(r, file_orchestrator.collection_to_json(c))
+                            from
+                                provider.accessible_resources(:user, 'file_collection', 'READ', :id,
+                                    :project::text) r join
+                                file_orchestrator.collections c on (r.resource).id = c.resource
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
     }
 
     suspend fun retrieveManifest(

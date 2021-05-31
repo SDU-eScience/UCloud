@@ -72,16 +72,6 @@ open class FileCollectionsProvider(
 ) : CallDescriptionContainer("files.collections.provider.$namespace") {
     val baseContext = "/ucloud/$namespace/files/collections"
 
-    val browse = call<ProxiedRequest<FileCollectionsProviderBrowseRequest>, FileCollectionsProviderBrowseResponse,
-        CommonErrorMessage>("browse") {
-        httpBrowse(baseContext, roles = Roles.SERVICE)
-    }
-
-    val retrieve = call<FileCollectionsProviderRetrieveRequest, FileCollectionsProviderRetrieveResponse,
-        CommonErrorMessage>("retrieve") {
-        httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE)
-    }
-
     val retrieveManifest = call<FileCollectionsProviderRetrieveManifestRequest,
         FileCollectionsProviderRetrieveManifestResponse, CommonErrorMessage>("retrieveManifest") {
         httpRetrieve(baseContext, "manifest", roles = Roles.SERVICE)

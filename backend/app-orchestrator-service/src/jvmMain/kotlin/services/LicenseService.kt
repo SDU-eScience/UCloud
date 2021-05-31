@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -101,7 +102,7 @@ class LicenseService(
                         if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
                             paymentService.creditCheck(
                                 product,
-                                job.owner.project ?: job.owner.launchedBy,
+                                job.owner.project ?: job.owner.createdBy,
                                 if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                             )
                         }
@@ -159,7 +160,7 @@ class LicenseService(
                 throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
             }
 
-            if (project == null && license.owner.username != actor.safeUsername()) {
+            if (project == null && license.owner.createdBy != actor.safeUsername()) {
                 throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
             }
         }
@@ -231,7 +232,7 @@ class LicenseService(
                         LicenseSpecification(
                             spec.product,
                         ),
-                        LicenseOwner(actor.safeUsername(), project),
+                        ResourceOwner(actor.safeUsername(), project),
                         Time.now(),
                         LicenseStatus(LicenseState.PREPARING),
                         LicenseBilling(product.pricePerUnit, 0L),

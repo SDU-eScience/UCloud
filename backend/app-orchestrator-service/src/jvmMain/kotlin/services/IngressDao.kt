@@ -5,6 +5,7 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -221,7 +222,7 @@ class IngressDao(
                         it.getField(IngressTable.productProvider),
                     )
                 ),
-                IngressOwner(it.getField(IngressTable.ownerUsername), it.getField(IngressTable.ownerProject)),
+                ResourceOwner(it.getField(IngressTable.ownerUsername), it.getField(IngressTable.ownerProject)),
                 it.getField(IngressTable.createdAt).toDateTime().millis,
                 IngressStatus(
                     it.getFieldNullable(IngressTable.statusBoundTo),

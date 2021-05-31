@@ -24,16 +24,11 @@ interface ResourceBilling {
 }
 
 @UCloudApiDoc("The owner of a `Resource`")
-interface ResourceOwner {
-    val createdBy: String
-    val project: String?
-}
-
 @Serializable
-data class SimpleResourceOwner(
-    override val createdBy: String,
-    override val project: String?,
-) : ResourceOwner
+data class ResourceOwner(
+    val createdBy: String,
+    val project: String?,
+)
 
 interface ResourceSpecification {
     @UCloudApiDoc("""A reference to the product which backs this `Resource`
@@ -66,7 +61,7 @@ interface ResourceUpdate {
 @Serializable
 data class SpecificationAndPermissions<S : ResourceSpecification>(
     val specification: S,
-    val owner: SimpleResourceOwner,
+    val owner: ResourceOwner,
     val permissions: List<ResourceAclEntry<Permission>>
 )
 
@@ -140,6 +135,7 @@ resource.""")
 
     // ---
     @UCloudApiDoc("Contains information related to billing information for this `Resource`")
+    @Deprecated("Going away")
     val billing: ResourceBilling
 
     // ---
@@ -154,4 +150,6 @@ resource.""")
     @UCloudApiDoc("Permissions assigned to this resource\n\n" +
         "A null value indicates that permissions are not supported by this resource type.")
     val permissions: ResourcePermissions?
+
+    val providerGeneratedId: String? get() = id
 }

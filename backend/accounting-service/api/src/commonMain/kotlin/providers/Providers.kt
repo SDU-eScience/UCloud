@@ -16,7 +16,7 @@ data class Provider(
     override val status: ProviderStatus,
     override val updates: List<ProviderUpdate>,
     override val billing: ProviderBilling,
-    override val owner: ProviderOwner,
+    override val owner: ResourceOwner,
     override val acl: List<ResourceAclEntry<ProviderAclPermission>>,
     override val permissions: ResourcePermissions? = null
 ) : Resource<ProviderAclPermission> {
@@ -51,12 +51,6 @@ data class ProviderUpdate(
     override val timestamp: Long,
     override val status: String? = null,
 ) : ResourceUpdate
-
-@Serializable
-data class ProviderOwner(
-    override val createdBy: String,
-    override val project: String? = null,
-) : ResourceOwner
 
 @Serializable
 data class ProvidersUpdateAclRequestItem(

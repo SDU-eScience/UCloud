@@ -68,7 +68,7 @@ data class License(
     override val specification: LicenseSpecification,
 
     @UCloudApiDoc("Information about the owner of this resource")
-    override val owner: LicenseOwner,
+    override val owner: ResourceOwner,
 
     @UCloudApiDoc("Information about when this resource was created")
     override val createdAt: Long,
@@ -131,23 +131,6 @@ data class LicenseUpdate(
     @UCloudApiDoc("A new status message for the `License` (if any)")
     override val status: String? = null,
 ) : ResourceUpdate
-
-@Serializable
-data class LicenseOwner(
-    @UCloudApiDoc(
-        "The username of the user which created this resource.\n\n" +
-            "In cases where this user is removed from the project the ownership will be transferred to the current " +
-            "PI of the project."
-    )
-    override val createdBy: String,
-
-    @UCloudApiDoc("The project which owns the resource")
-    override val project: String? = null,
-) : ResourceOwner {
-    @Transient
-    @Deprecated("Renamed to createdBy", ReplaceWith("createdBy"))
-    val username = createdBy
-}
 
 interface LicenseFilters {
     val provider: String?

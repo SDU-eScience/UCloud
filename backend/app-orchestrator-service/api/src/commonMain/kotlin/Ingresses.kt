@@ -78,7 +78,7 @@ data class Ingress(
     override val specification: IngressSpecification,
 
     @UCloudApiDoc("Information about the owner of this resource")
-    override val owner: IngressOwner,
+    override val owner: ResourceOwner,
 
     @UCloudApiDoc("Information about when this resource was created")
     override val createdAt: Long,
@@ -148,22 +148,6 @@ data class IngressUpdate(
 
     val newBinding: String? = null,
 ) : ResourceUpdate
-
-@Serializable
-data class IngressOwner(
-    @UCloudApiDoc(
-        "The username of the user which created this resource.\n\n" +
-            "In cases where this user is removed from the project the ownership will be transferred to the current " +
-            "PI of the project."
-    )
-    override val createdBy: String,
-
-    @UCloudApiDoc("The project which owns the resource")
-    override val project: String? = null
-) : ResourceOwner {
-    @Transient @Deprecated("Renamed", ReplaceWith("createdBy"))
-    val username = createdBy
-}
 
 interface IngressFilters {
     val domain: String?

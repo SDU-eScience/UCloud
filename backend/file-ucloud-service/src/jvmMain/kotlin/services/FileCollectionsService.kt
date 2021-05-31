@@ -10,7 +10,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.provider.api.SimpleResourceOwner
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -38,13 +38,13 @@ class FileCollectionsService(
             FileCollection.Spec("Home", PRODUCT_REFERENCE),
             Time.now(),
             FileCollection.Status(
-                FileCollection.Quota(), // TODO
                 productSupport
             ),
             emptyList(),
             FileCollection.Billing(0L, 0L),
-            SimpleResourceOwner(actorAndProject.actor.safeUsername(), null),
-            null
+            ResourceOwner(actorAndProject.actor.safeUsername(), null),
+            null,
+            providerGeneratedId = "h-${actorAndProject.actor.safeUsername()}"
         )
     }
 
@@ -95,13 +95,13 @@ class FileCollectionsService(
             it.getAs<LocalDateTime?>("created_at")
                 ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
             FileCollection.Status(
-                FileCollection.Quota(), // TODO
                 productSupport
             ),
             emptyList(),
             FileCollection.Billing(0L, 0L),
-            SimpleResourceOwner(it.getString("created_by")!!, it.getString("project_id")!!),
-            aclService.fetchOtherPermissions(pathConverter.internalToUCloud(repoFile))
+            ResourceOwner(it.getString("created_by")!!, it.getString("project_id")!!),
+            aclService.fetchOtherPermissions(pathConverter.internalToUCloud(repoFile)),
+            providerGeneratedId = ""
         )
     }
 

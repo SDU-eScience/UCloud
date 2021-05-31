@@ -45,7 +45,7 @@ sealed class Payment {
         override val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.specification.replicas
 
         override val product = job.specification.product
-        override val launchedBy: String = job.owner.launchedBy
+        override val launchedBy: String = job.owner.createdBy
         override val project: String? = job.owner.project
         override val productArea = ProductArea.COMPUTE
 
@@ -61,7 +61,7 @@ sealed class Payment {
         override val pricePerUnit = ingress.billing.pricePerUnit
 
         override val product = ingress.specification.product
-        override val launchedBy: String = ingress.owner.username
+        override val launchedBy: String = ingress.owner.createdBy
         override val project: String? = ingress.owner.project
         override val productArea = ProductArea.INGRESS
     }
@@ -73,7 +73,7 @@ sealed class Payment {
         override val pricePerUnit = license.billing.pricePerUnit
 
         override val product = license.specification.product
-        override val launchedBy: String = license.owner.username
+        override val launchedBy: String = license.owner.createdBy
         override val project: String? = license.owner.project
         override val productArea = ProductArea.LICENSE
     }
