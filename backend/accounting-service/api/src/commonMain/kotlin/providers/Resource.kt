@@ -5,6 +5,11 @@ import dk.sdu.cloud.calls.UCloudApiDoc
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+interface ResourceIncludeFlags {
+    val includeOthers: Boolean
+    val includeUpdates: Boolean
+}
+
 @UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
 
 Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
@@ -56,6 +61,11 @@ interface ResourceUpdate {
     val timestamp: Long
     @UCloudApiDoc("A generic text message describing the current status of the `Resource`")
     val status: String?
+}
+
+interface ResourceUpdateAndId<U : ResourceUpdate> {
+    val id: String
+    val update: U
 }
 
 @Serializable

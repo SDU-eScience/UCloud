@@ -67,3 +67,10 @@ data class ResourcePermissions(
         "This value typically needs to be included through the `includeFullPermissions` flag")
     val others: List<ResourceAclEntry<Permission>>?
 )
+
+@Serializable
+data class UpdatedAcl(
+    val id: String,
+    val added: List<ResourceAclEntry<Permission>>,
+    val deleted: List<AclEntity>,
+)

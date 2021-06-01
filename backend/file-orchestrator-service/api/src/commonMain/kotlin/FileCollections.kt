@@ -9,12 +9,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class FileCollectionsBrowseRequest(
-    val provider: String,
     override val includeSupport: Boolean? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
+    override val includeOthers: Boolean,
+    override val includeUpdates: Boolean,
 ) : WithPaginationRequestV2, FileCollectionIncludeFlags
 typealias FileCollectionsBrowseResponse = PageV2<FileCollection>
 
@@ -31,7 +32,6 @@ typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameReques
 @Serializable
 data class FileCollectionsRenameRequestItem(
     val id: String,
-    val provider: String,
     val newTitle: String,
 )
 typealias FileCollectionsRenameResponse = Unit
@@ -41,7 +41,6 @@ typealias FileCollectionsUpdateAclRequest = BulkRequest<FileCollectionsUpdateAcl
 @Serializable
 data class FileCollectionsUpdateAclRequestItem(
     val id: String,
-    val provider: String,
     val newAcl: List<ResourceAclEntry<FilePermission>>,
 )
 typealias FileCollectionsUpdateAclResponse = Unit
@@ -49,8 +48,9 @@ typealias FileCollectionsUpdateAclResponse = Unit
 @Serializable
 data class FileCollectionsRetrieveRequest(
     val id: String,
-    val provider: String,
     override val includeSupport: Boolean? = null,
+    override val includeOthers: Boolean,
+    override val includeUpdates: Boolean,
 ) : FileCollectionIncludeFlags
 typealias FileCollectionsRetrieveResponse = FileCollection
 

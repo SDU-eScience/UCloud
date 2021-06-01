@@ -9,6 +9,7 @@ kotlin.sourceSets {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation(project(":accounting-service:api"))
+            implementation(project(":accounting-service:util"))
             implementation(project(":notification-service:api"))
             implementation("com.github.java-json-tools:json-schema-validator:2.2.14")
         }

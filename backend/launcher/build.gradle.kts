@@ -49,6 +49,11 @@ kotlin {
                             .find { it.name == p.name }!!.subprojects
                             .any { it.name == "api" }
                         if (hasApiProject) implementation(project(":" + p.name + ":api"))
+
+                        val hasUtilProject = rootProject.subprojects
+                            .find { it.name == p.name }!!.subprojects
+                            .any { it.name == "util" }
+                        if (hasUtilProject) implementation(project(":" + p.name + ":util"))
                     }
             }
         }

@@ -35,6 +35,7 @@ subprojects {
         "dk.sdu.cloud." + groupBuilder.reversed().joinToString(".")
     }
 
+    val isUtil = project.name == "util"
     val isApi = project.name == "api"
     val isService = project.name.endsWith("-service")
 
@@ -251,6 +252,69 @@ subprojects {
                         this.groupId = "dk.sdu.cloud"
                         val metadata = artifactId.substringAfterLast("-")
                         this.artifactId = project.parent!!.name + "-api" + if (metadata == "api") "" else "-$metadata"
+                    }
+                }
+            }
+        }
+
+        tasks.withType<Jar> {
+            val metadata = archiveName.substringAfterLast("-").removeSuffix(".jar")
+            val name = if (groupBuilder.isEmpty()) {
+                "ucloud"
+            } else {
+                "ucloud-" + groupBuilder.reversed().joinToString("-")
+            }
+
+            archiveName = "$name-${metadata}.jar"
+        }
+    }
+
+    if (isUtil) {
+        apply(plugin = "org.jetbrains.kotlin.multiplatform")
+        apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
+
+        val utilProject = project
+        utilProject.parent?.afterEvaluate {
+            utilProject.version = project.version
+        }
+
+        extensions.configure<KotlinMultiplatformExtension>("kotlin") {
+            macosX64()
+            linuxX64()
+
+            jvm {
+                withJava()
+
+                val main by compilations.getting {
+                    kotlinOptions {
+                        jvmTarget = "11"
+                    }
+                }
+
+                val test by compilations.getting {
+                    kotlinOptions {
+                        jvmTarget = "11"
+                    }
+                }
+            }
+
+            sourceSets {
+                val jvmMain by getting {
+                    dependencies {
+                        implementation(project(":service-lib"))
+
+                        val myApiProject = project.parent?.childProjects?.get("api")
+                        if (myApiProject != null) {
+                            implementation(myApiProject)
+                        }
+
+                        implementation(project(":service-lib-server"))
+                    }
+                }
+
+                val jvmTest by getting {
+                    dependencies {
+                        implementation(project(":service-lib-test"))
                     }
                 }
             }

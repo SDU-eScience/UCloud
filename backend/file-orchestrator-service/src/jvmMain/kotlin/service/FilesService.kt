@@ -37,8 +37,8 @@ suspend fun <T> proxiedRequest(
 }
 
 class FilesService(
-    private val providers: Providers,
-    private val providerSupport: ProviderSupport,
+    private val providers: StorageProviders,
+    private val providerSupport: StorageProviderSupport,
     private val projectCache: ProjectCache,
     private val metadataService: MetadataService,
 ) {
@@ -368,7 +368,7 @@ class FilesService(
         actor: Actor,
         request: BulkRequest<T>,
         verifyRequest: (FSSupport, T) -> Unit,
-        proxyRequest: (comms: ProviderCommunication, requestItems: List<T>) -> BulkResponse<R>,
+        proxyRequest: (comms: StorageCommunication, requestItems: List<T>) -> BulkResponse<R>,
     ): BulkResponse<R> {
         val requestsByProvider = HashMap<String, List<T>>()
         for (requestItem in request.items) {

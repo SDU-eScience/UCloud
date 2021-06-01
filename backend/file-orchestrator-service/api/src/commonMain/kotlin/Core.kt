@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
@@ -349,9 +350,21 @@ Note: This mode is not supported for all operations.
     MERGE_RENAME
 }
 
-interface FileCollectionIncludeFlags {
+interface FileCollectionIncludeFlags : ResourceIncludeFlags {
     val includeSupport: Boolean?
 }
+
+data class SimpleFileCollectionIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean? = false
+) : FileCollectionIncludeFlags
+
+fun FileCollectionIncludeFlags(
+    includeOthers: Boolean = false,
+    includeUpdates: Boolean = false,
+    includeSupport: Boolean? = false
+) = SimpleFileCollectionIncludeFlags(includeOthers, includeUpdates, includeSupport)
 
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -405,7 +418,7 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        val support: FSSupport?,
+        val support: FSSupport? = null,
     ) : ResourceStatus
 
     @Serializable
@@ -415,6 +428,10 @@ data class FileCollection(
     ) : ResourceBilling
 }
 
+fun FileCollection.withSupport(support: FSSupport): FileCollection {
+    return copy(status = status.copy(support = support))
+}
+
 data class FSSupportResolved(
     val product: Product.Storage,
     val support: FSSupport,
@@ -422,11 +439,11 @@ data class FSSupportResolved(
 
 @Serializable
 data class FSSupport(
-    val product: ProductReference,
+    override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),
     val collection: FSCollectionSupport = FSCollectionSupport(),
     val files: FSFileSupport = FSFileSupport(),
-)
+) : ProductSupport
 
 @UCloudApiDoc("Declares which stats a given product supports")
 @Serializable

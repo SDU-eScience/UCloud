@@ -1,21 +1,24 @@
-package dk.sdu.cloud.file.orchestrator.service
+package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.accounting.api.FindProductRequest
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
 
-class ProviderSupport(
-    private val providers: Providers,
+class ProviderSupport<Communication : ProviderComms, P : Product, Support : ProductSupport>(
+    private val providers: Providers<Communication>,
     private val serviceClient: AuthenticatedClient,
+    private val fetchSupport: suspend (comms: Communication) -> List<Support>
 ) {
-    private val productCache = SimpleCache<ProductReference, Product.Storage>(
+    @Suppress("UNCHECKED_CAST")
+    private val productCache = SimpleCache<ProductReference, P>(
         maxAge = 60_000 * 15,
         lookup = { ref ->
             val productResp = Products.findProduct.call(
@@ -28,32 +31,24 @@ class ProviderSupport(
                 null
             } else {
                 val product = productResp.orThrow()
-                if (product !is Product.Storage) {
-                    log.warn("Did not receive a comptue related product: $ref")
-                    null
-                } else {
-                    product
-                }
+                product as P
             }
         }
     )
 
-    private val providerProductCache = SimpleCache<String, List<FSSupportResolved>>(
+    private val providerProductCache = SimpleCache<String, List<ResolvedSupport<P, Support>>>(
         maxAge = 60_000 * 15,
         lookup = { provider ->
             runCatching {
                 val comm = providers.prepareCommunication(provider)
-                val providerResponse = comm.fileCollectionsApi.retrieveManifest.call(Unit, comm.client).orNull()
-                if (providerResponse == null) {
-                    log.warn("Did not receive a valid product response from: $provider")
-                }
+                val providerResponse = fetchSupport(comm)
 
-                providerResponse?.support?.mapNotNull {
+                providerResponse.mapNotNull {
                     val product = productCache.get(it.product)
                     if (product == null) {
                         null
                     } else {
-                        FSSupportResolved(product, it)
+                        ResolvedSupport(product, it)
                     }
                 }
             }.getOrElse {
@@ -63,14 +58,14 @@ class ProviderSupport(
         }
     )
 
-    suspend fun retrieveProducts(providerIds: Collection<String>): Map<String, List<FSSupportResolved>> {
+    suspend fun retrieveProducts(providerIds: Collection<String>): Map<String, List<ResolvedSupport<P, Support>>> {
         if (providerIds.isEmpty()) return emptyMap()
         return providerIds.map { provider ->
             provider to (providerProductCache.get(provider) ?: emptyList())
         }.toMap()
     }
 
-    suspend fun retrieveProductSupport(product: ProductReference): FSSupportResolved {
+    suspend fun retrieveProductSupport(product: ProductReference): ResolvedSupport<P, Support> {
         return providerProductCache.get(product.provider)
             ?.find {
                 it.product.id == product.id &&
@@ -79,7 +74,7 @@ class ProviderSupport(
             } ?: throw RPCException("Unknown product requested $product", HttpStatusCode.InternalServerError)
     }
 
-    suspend fun retrieveProviderSupport(provider: String): List<FSSupportResolved> {
+    suspend fun retrieveProviderSupport(provider: String): List<ResolvedSupport<P, Support>> {
         return providerProductCache.get(provider)
             ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.BadRequest)
     }

@@ -1,32 +1,45 @@
-package dk.sdu.cloud.file.orchestrator.service
+package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 
-data class ProviderCommunication(
-    val client: AuthenticatedClient,
-    val wsClient: AuthenticatedClient,
-    val provider: ProviderSpecification,
-    val filesApi: FilesProvider,
-    val fileCollectionsApi: FileCollectionsProvider,
-)
+interface ProviderComms {
+    val client: AuthenticatedClient
+    val wsClient: AuthenticatedClient
+    val provider: ProviderSpecification
+}
 
-class Providers(
+private data class SimpleProviderCommunication(
+    override val client: AuthenticatedClient,
+    override val wsClient: AuthenticatedClient,
+    override val provider: ProviderSpecification
+) : ProviderComms
+
+class Providers<Communication : ProviderComms>(
     private val serviceClient: AuthenticatedClient,
+    private val communicationFactory: (comms: ProviderComms) -> Communication
 ) {
     private val rpcClient = serviceClient.withoutAuthentication()
 
-    private val communicationCache = SimpleCache<String, ProviderCommunication>(
+    val placeholderCommunication = runBlocking {
+        val spec = ProviderSpecification("placeholder", "192.0.2.100", false, 80)
+        val client = AuthenticatedClient(rpcClient.client, OutgoingHttpCall) {}
+        val wsClient = AuthenticatedClient(rpcClient.client, OutgoingWSCall) {}
+        val simpleComms = SimpleProviderCommunication(client, wsClient, spec)
+        communicationFactory(simpleComms)
+    }
+
+    private val communicationCache = SimpleCache<String, Communication>(
         maxAge = 60_000 * 15,
         lookup = { provider ->
             val auth = RefreshingJWTAuthenticator(
@@ -43,10 +56,8 @@ class Providers(
             val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
             val wsClient = auth.authenticateClient(OutgoingWSCall).withFixedHost(hostInfo)
 
-            val filesApi = FilesProvider(provider)
-            val fileCollectionsApi = FileCollectionsProvider(provider)
-
-            ProviderCommunication(httpClient, wsClient, providerSpec, filesApi, fileCollectionsApi)
+            val simpleComms = SimpleProviderCommunication(httpClient, wsClient, providerSpec)
+            communicationFactory(simpleComms)
         }
     )
 
@@ -54,7 +65,7 @@ class Providers(
      * Prepares communication with a given provider represented by an actor
      * @throws RPCException (Internal Server Error) in case of unknown providers
      */
-    suspend fun prepareCommunication(actor: Actor): ProviderCommunication {
+    suspend fun prepareCommunication(actor: Actor): Communication {
         return prepareCommunication(actor.safeUsername().removePrefix(PROVIDER_USERNAME_PREFIX))
     }
 
@@ -62,7 +73,7 @@ class Providers(
      * Prepares communication with a given provider
      * @throws RPCException (Internal Server Error) in case of unknown providers
      */
-    suspend fun prepareCommunication(provider: String): ProviderCommunication {
+    suspend fun prepareCommunication(provider: String): Communication {
         return communicationCache.get(provider)
             ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
     }

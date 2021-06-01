@@ -1,91 +1,27 @@
 package dk.sdu.cloud.file.orchestrator.service
 
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.ResourceService
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.KSerializer
 
 class FileCollectionService(
-    private val providers: Providers,
-    private val providerSupport: ProviderSupport,
+    private val providers: StorageProviders,
+    private val providerSupport: StorageProviderSupport,
     private val projectCache: ProjectCache,
-    private val db: DBContext,
-) {
-    suspend fun browse(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsBrowseRequest,
-    ): FileCollectionsBrowseResponse {
-        providers.prepareCommunication(request.provider)
-
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("user", actorAndProject.actor.safeUsername())
-                            setParameter("project", actorAndProject.project)
-                        },
-                        """
-                            declare c cursor for
-                            select
-                                provider.resource_to_json(r, file_orchestrator.collection_to_json(c)) ||
-                                    jsonb_build_object('status', jsonb_build_object('quota', jsonb_build_object(), 'support', null))
-                            from
-                                provider.accessible_resources(:user, 'file_collection', 'READ', null, :project) r join
-                                file_orchestrator.collections c on (r.resource).id = c.resource
-                        """
-                    )
-            },
-            mapper = { _, rows ->
-                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
-            }
-        )
-    }
-
-    suspend fun retrieve(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsRetrieveRequest,
-    ): FileCollection {
-        providers.prepareCommunication(request.provider)
-
-        return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("id", request.id)
-                    },
-                    """
-                        select provider.resource_to_json(r, file_orchestrator.collection_to_json(c))
-                            from
-                                provider.accessible_resources(:user, 'file_collection', 'READ', :id,
-                                    :project::text) r join
-                                file_orchestrator.collections c on (r.resource).id = c.resource
-                    """
-                )
-                .rows
-                .singleOrNull()
-                ?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
-    }
+    private val db: AsyncDBSessionFactory,
+) : ResourceService<FileCollection, FileCollection.Spec, FileCollectionIncludeFlags, StorageCommunication,
+    FSSupport, Product.Storage>(db, providers, providerSupport) {
+    override val serializer: KSerializer<FileCollection> = FileCollection.serializer()
+    override val sortColumn: String = "title"
+    override val table: String = "file_orchestrator.file_collections"
 
     suspend fun retrieveManifest(
         request: FileCollectionsRetrieveManifestRequest,
@@ -121,6 +57,12 @@ class FileCollectionService(
         actorAndProject: ActorAndProject,
         request: FileCollectionsRenameRequest,
     ) {
+        retrieveBulk(
+            actorAndProject,
+            request.items.map { it.id },
+            FileCollectionIncludeFlags(),
+            Permission.Edit
+        )
         val requestsByProvider = request.items.groupBy { it.provider }
         for ((provider, requests) in requestsByProvider) {
             val comms = providers.prepareCommunication(provider)
