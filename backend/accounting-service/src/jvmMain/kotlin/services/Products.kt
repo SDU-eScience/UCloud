@@ -301,7 +301,7 @@ class ProductService(
                         where provider = :provider and area = :area and
                             (hidden_in_grant_applications is false or :showHidden is true)
                     """,
-                    "order by priority, id"
+                    "order by category, priority, id"
                 )
                 .mapItems { it.toProduct() }
         }
