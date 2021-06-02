@@ -156,11 +156,17 @@ config("app-kubernetes") { ctx ->
                                 types:
                                     u1-standard:
                                         cpuMillis: 64000
-                                        memMegabytes: 385024
+                                        memMegabytes: 385584
                                         gpus: 0
                                     u1-gpu:
                                         cpuMillis: 80000
-                                        memMegabytes: 191488
+                                        memMegabytes: 1920429
+                                    u2-gpu:
+                                        cpuMillis: 96000
+                                        memMegabytes: 2064007
+                                    u1-fat:
+                                        cpuMillis: 80000
+                                        memMegabytes: 772656
                 """.trimIndent()
             )
         }
