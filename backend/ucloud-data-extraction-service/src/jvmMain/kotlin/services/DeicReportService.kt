@@ -1,5 +1,6 @@
 package dk.sdu.cloud.ucloud.data.extraction.services
 
+import com.fasterxml.jackson.module.kotlin.jsonMapper
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ucloud.data.extraction.api.*
 import org.joda.time.Days
@@ -17,16 +18,12 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
         val hoursInPeriod = daysInPeriod * 24L
         val usedCPUInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.CPU)
-        val numberOfGPUCores = if (startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
-            TYPE_1_GPU_CORES
-        } else {
-            0L
-        }
-        val usedGPUHoursInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.GPU)
+        val numberOfGPUCores = TYPE_1_GPU_CORES
+        val usedGPUHoursInPeriod = 0L//postgresDataService.calculateProductUsage(startDate, endDate, ProductType.GPU)
 
         val storageUsed = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.STORAGE)
 
-        val networkUsed = networkUsage(startDate, endDate)
+        //val networkUsed = networkUsage(startDate, endDate)
 
         val centerReport = Center(
             TYPE_1_HPC_CENTER_ID,
@@ -37,11 +34,11 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             usedCPUInPeriod,
             numberOfGPUCores * hoursInPeriod,
             usedGPUHoursInPeriod,
-            storageUsed,
-            networkUsed.toLong(),
-            ((networkUsed*8)/daysInPeriod/24/3600)
+            storageUsed
+            //networkUsed.toLong(),
+            //((networkUsed*8)/daysInPeriod/24/3600)
         )
-        val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(centerReport)
+        val json = jsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerReport)
         println("$json,")
     }
 
@@ -74,11 +71,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         println("[")
         for (day in 0..daysInPeriod) {
             val start = startDate.plusDays(day)
-            val numberOfGPUCores = if (startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
-                TYPE_1_GPU_CORES
-            } else {
-                0L
-            }
+            val numberOfGPUCores = TYPE_1_GPU_CORES
             postgresDataService.findProjects().forEach { project ->
                 val ancestors = postgresDataService.viewAncestors(project.id)
                 //Skips subsub(etc.) projects of the UCloud root-project
@@ -97,12 +90,12 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         projectMember.username,
                         deicProject
                     )
-                    val gpuUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
+                    val gpuUsed = 0L/*postgresDataService.calculateProductUsageForUserInProjectForDate(
                         start,
                         ProductType.GPU,
                         projectMember.username,
                         deicProject
-                    )
+                    )*/
                     val storageUsed = if (excludeProject(project.title)) {
                         0L
                     } else {
@@ -118,9 +111,11 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         TYPE_1_HPC_CENTER_ID,
                         TYPE_1_HPC_SUB_CENTER_ID_SDU,
                         start.toString().substringBefore("T"),
+                        null,
                         hashUsernameInSHA256(projectMember.username),
                         deicProject,
                         universityId.value,
+                        null,
                         accessType,
                         TYPE_1_CPU_CORES * 24,
                         cpuUsed,
@@ -131,7 +126,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         null
                     )
 
-                    val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(centerDaily)
+                    val json = jsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerDaily)
                     println("$json,")
                 }
             }
@@ -154,8 +149,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 if (cpuAssignedAmount !=  null) { (cpuAssignedAmount / ProductType.CPU.getPricing()).toLong() } else { 0L }
 
             val gpuAssignedAmount = wallets.find { it.productType == ProductType.GPU }?.allocated
-            val gpuAssigned =
-                if (gpuAssignedAmount !=  null) { (gpuAssignedAmount / ProductType.GPU.getPricing()).toLong() } else { 0L }
+            val gpuAssigned = 0L
+                //if (gpuAssignedAmount !=  null) { (gpuAssignedAmount / ProductType.GPU.getPricing()).toLong() } else { 0L }
 
             val storageAssignedInMB = postgresDataService.getStorageQuotaInBytes(deicProject)/1000/1000
 
@@ -172,12 +167,12 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     projectMember.username,
                     deicProject
                 )
-                val gpuUsed = postgresDataService.calculateProductUsageForUserInProject(
+                val gpuUsed = 0L/*postgresDataService.calculateProductUsageForUserInProject(
                     projectMember.addedToProjectAt,
                     ProductType.GPU,
                     projectMember.username,
                     deicProject
-                )
+                )*/
                 val storageUsed = postgresDataService.calculateProductUsageForUserInProject(
                     projectMember.addedToProjectAt,
                     ProductType.STORAGE,
@@ -186,17 +181,19 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 )
 
                 val personReport = Person(
+                    null,
                     hashUsernameInSHA256(projectMember.username),
                     deicProject,
                     TYPE_1_HPC_CENTER_ID,
                     TYPE_1_HPC_SUB_CENTER_ID_SDU,
+                    null,
                     universityId.value,
                     accessType,
                     userStart,
-                    userEnd,
+                    //userEnd,
                     cpuAssigned,
                     cpuUsed,
-                    if (projectMember.addedToProjectAt.isBefore(LocalDateTime.parse("2021-03-01"))) 0L else gpuAssigned,
+                    gpuAssigned,
                     gpuUsed,
                     storageAssignedInMB,
                     // This is due to allocations might change during the course of a project
@@ -204,7 +201,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     min(storageUsed, storageAssignedInMB)
                 )
 
-                val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(personReport)
+                val json = jsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(personReport)
                 println("$json,")
             }
         }

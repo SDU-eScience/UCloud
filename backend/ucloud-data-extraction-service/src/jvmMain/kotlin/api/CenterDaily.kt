@@ -21,6 +21,10 @@ data class CenterDaily(
      */
     val orcid: String?,
     /*
+     * Local id. Some unique id, uuid/guid
+     */
+    val localId: String,
+    /*
      * Each project that are assigned usage time have a generated project id. The format of the ID is GUID.
      */
     val deicProjectId : String,
@@ -28,6 +32,10 @@ data class CenterDaily(
      * Each university is defined as a constant. New will be added if needed.
      */
     val universityId: Int,
+    /*
+     * In case of unknown, industry or other is used please specify in the IdExpanded field.
+     */
+    val idExpanded: String?,
     /*
      * Each access type is defined as a constand.
      */
@@ -55,11 +63,11 @@ data class CenterDaily(
     /*
     * Network usage in MB
     */
-    val networkUsageInMB: Long?,
+   // val networkUsageInMB: Long?,
     /*
      * Network avg in Mbps
      */
-    val networkAvgUsage: Double?,
+   // val networkAvgUsage: Double?,
     /*
      * Max node time. For Type 4 only as they do not have CPU/GPU core times.
      */

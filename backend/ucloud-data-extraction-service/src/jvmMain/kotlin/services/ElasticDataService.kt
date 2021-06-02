@@ -1,5 +1,6 @@
 package dk.sdu.cloud.ucloud.data.extraction.services
 
+import com.fasterxml.jackson.module.kotlin.jsonMapper
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ucloud.data.extraction.api.UCloudUser
 import org.elasticsearch.action.search.SearchRequest
@@ -43,7 +44,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
                 )
         )
         val searchResponse = elasticHighLevelClient.search(searchRequest, RequestOptions.DEFAULT)
-        val tree = defaultMapper.readTree(searchResponse.toString())
+        val tree = jsonMapper().readTree(searchResponse.toString())
         val mostConcurrent = tree["aggregations"]["date_histogram#requests_per_15_min"]["buckets"].maxByOrNull { it ->
             it["sterms#users"]["buckets"].filter { !it["key"].textValue().startsWith("_") }.size
         } ?: error("No max")
@@ -75,7 +76,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
             )
             val searchResponse = elasticHighLevelClient.search(searchRequest, RequestOptions.DEFAULT)
             val result = searchResponse.hits.hits.firstOrNull() ?: return@forEach
-            val tree = defaultMapper.readTree(result.toString())
+            val tree = jsonMapper().readTree(result.toString())
             val lastRequestTime = LocalDateTime.parse(tree["_source"]["@timestamp"].textValue().substringBefore("Z"))
             val timeBetween = Minutes.minutesBetween(user.createdAt, lastRequestTime).minutes
             timeBetweenStartAndNewest += timeBetween

@@ -8,6 +8,10 @@ data class Person (
      */
     val orcid: String? = null,
     /*
+     * Local id. Some unique id, uuid/guid
+     */
+    val localId: String,
+    /*
      * Each project that are assigned usage time have a generated project id. The format of the ID is GUID.
      */
     val deicProjectId: String,
@@ -19,6 +23,10 @@ data class Person (
      * In case of sub centers they can use a sub id. This is defined as a GUID
      */
     val subHPCCenterId: String,
+    /*
+     * In case of unknown, industry or other is used please specify in the IdExpanded field.
+     */
+    val idExpanded: String?,
     /*
      * Each university is defined as a constant. New will be added if needed.
      */
@@ -34,7 +42,7 @@ data class Person (
     /*
      * Access end time in ISO 8601 format.
      */
-    val accessEndDate: String?,
+    //val accessEndDate: String?,
     /*
      * Assigned CPU core time in hours
      */

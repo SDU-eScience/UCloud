@@ -3,21 +3,25 @@ package dk.sdu.cloud.ucloud.data.extraction.api
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
 import org.joda.time.LocalDateTime
 import java.net.HttpURLConnection
 import java.net.URL
 
+@Serializable
 data class PrometheusQueryResponseDataResult(
-    val metric: JsonNode,
-    val value: List<Any>
+    val metric: @Contextual JsonNode,
+    val value: List<@Contextual Any>
 )
-
+@Serializable
 data class PrometheusQueryResponseData(
     val resultType: String,
     val result: List<PrometheusQueryResponseDataResult>
 )
+@Serializable
 data class PrometheusQueryResponse(
     val status: String,
     val data: PrometheusQueryResponseData
@@ -36,7 +40,7 @@ fun networkUsage(startDate: LocalDateTime, endDate: LocalDateTime): Double {
             inputStream.bufferedReader().use {
                 it.lines().forEach { line ->
                     val result = try {
-                        defaultMapper.readValue<PrometheusQueryResponse>(line)
+                        defaultMapper.decodeFromString(PrometheusQueryResponse.serializer(), line)
                     } catch (ex: Exception) {
                         return@forEach
                     }
