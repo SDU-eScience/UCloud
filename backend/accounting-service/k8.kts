@@ -5,8 +5,38 @@ bundle {
     name = "accounting"
     version = "1.7.7"
 
-    withAmbassador("/api/accounting") {
-        addSimpleMapping("/api/products")
+    withAmbassador(null) {
+        services.add(
+            AmbassadorMapping(
+                """
+                  ---
+                  apiVersion: ambassador/v1
+                  kind: Mapping
+                  name: accounting-1
+                  prefix: ^/api/accounting(/.*)?$
+                  prefix_regex: true
+                  service: accounting:8080
+                  rewrite: ""
+                  timeout_ms: 0
+                """.trimIndent()
+            )
+        )
+
+        services.add(
+            AmbassadorMapping(
+                """
+                  ---
+                  apiVersion: ambassador/v1
+                  kind: Mapping
+                  name: accounting-2
+                  prefix: ^/api/products(/.*)?$
+                  prefix_regex: true
+                  service: accounting:8080
+                  rewrite: ""
+                  timeout_ms: 0
+                """.trimIndent()
+            )
+        )
     }
 
     val deployment = withDeployment {
