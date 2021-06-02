@@ -40,7 +40,7 @@ bundle {
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 4
     }
 
     withPostgresMigration(deployment)
