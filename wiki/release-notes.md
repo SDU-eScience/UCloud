@@ -12,7 +12,8 @@ For details look in the `k8.kts` folders of each microservice.
 Fix sort order of a query
 
 ```
-✅  Deployment(accounting, 1.7.6) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.7) (UP-TO-DATE)
+✅  Deployment(accounting, 1.7.7) (UP-TO-DATE)
 ```
 
 ## 27-05-21

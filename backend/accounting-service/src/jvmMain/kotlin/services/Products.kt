@@ -244,7 +244,7 @@ class ProductService(
                         select * from products
                         where provider = :provider and
                             (hidden_in_grant_applications is false or :showHidden is true)
-                        order by priority, id
+                        order by category, priority, id
                     """
                 )
                 .rows
@@ -271,7 +271,7 @@ class ProductService(
                         from products
                         where provider = :provider
                     """,
-                    "order by priority, id"
+                    "order by category, priority, id"
                 )
                 .mapItems { it.toProduct() }
         }
@@ -342,7 +342,7 @@ class ProductService(
                                 (:filterCategory::text is null or p.category = :filterCategory) and
                                 (:filterProvider::text is null or p.provider = :filterProvider) and
                                 (:filterArea::text is null or p.area = :filterArea)
-                            order by p.provider, p.priority, p.id
+                            order by p.provider, p.category, p.priority, p.id
                         """
                     )
                 } else {
@@ -381,7 +381,7 @@ class ProductService(
                                     (w.balance is not null and w.balance > 0) or 
                                     (p.price_per_unit = 0 and p.payment_model != :requireCredits)
                                 )
-                            order by p.provider, p.priority, p.id
+                            order by p.provider, p.category, p.priority, p.id
                         """
                     )
                 }
