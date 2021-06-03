@@ -76,17 +76,17 @@ abstract class ResourceProviderApi<
             errorClass = typeOf<CommonErrorMessage>()
         )
 
-    val retrieveProducts: CallDescription<Unit, ProviderProducts<Support>, CommonErrorMessage>
+    val retrieveProducts: CallDescription<Unit, BulkResponse<SupportWithProductReference<Support>>, CommonErrorMessage>
         get() = call(
             name = "retrieveProducts",
             handler = {
                 httpRetrieve(Unit.serializer(), typeOf<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
             },
             requestType = Unit.serializer(),
-            successType = ProviderProducts.serializer(typeInfo.supportSerializer),
+            successType = BulkResponse.serializer(SupportWithProductReference.serializer(typeInfo.supportSerializer)),
             errorType = CommonErrorMessage.serializer(),
             requestClass = typeOf<Unit>(),
-            successClass = typeOf<ProviderProducts<Support>>(),
+            successClass = typeOf<BulkResponse<SupportWithProductReference<Support>>>(),
             errorClass = typeOf<CommonErrorMessage>()
         )
 

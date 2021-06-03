@@ -2,13 +2,12 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.providers.ProductSupport
-import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
-import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -44,51 +43,6 @@ suspend fun <T : Resource<*>> DBContext.paginateResource(
     )
 }
 
-interface ResourceSvc<
-    R : Resource<*>,
-    F : ResourceIncludeFlags,
-    Spec : ResourceSpecification,
-    Update : ResourceUpdate> {
-    suspend fun browse(
-        actorAndProject: ActorAndProject,
-        request: WithPaginationRequestV2,
-        flags: F,
-        ctx: DBContext? = null,
-    ): PageV2<R>
-
-    suspend fun retrieve(
-        actorAndProject: ActorAndProject,
-        id: String,
-        flags: F,
-        ctx: DBContext? = null,
-    ): R
-
-    suspend fun create(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<Spec>,
-    ): BulkResponse<FindByStringId?>
-
-    suspend fun updateAcl(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<UpdatedAcl>
-    ): BulkResponse<Unit?>
-
-    suspend fun delete(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<FindByStringId>
-    ): BulkResponse<Unit?>
-
-    suspend fun addUpdate(
-        actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<Update>>
-    )
-
-    suspend fun register(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<ProviderRegisteredResource<Spec>>
-    ): BulkResponse<FindByStringId>
-}
-
 abstract class ResourceService<
     Res : Resource<*>,
     Spec : ResourceSpecification,
@@ -98,21 +52,25 @@ abstract class ResourceService<
     Prod : Product,
     Support : ProductSupport,
     Comms : ProviderComms>(
-    private val db: AsyncDBSessionFactory,
-    private val providers: Providers<Comms>,
-    private val support: ProviderSupport<Comms, Prod, Support>
-) : ResourceSvc<Res, Flags, Spec, Update> {
+    protected val db: AsyncDBSessionFactory,
+    protected val providers: Providers<Comms>,
+    protected val support: ProviderSupport<Comms, Prod, Support>,
+    protected val serviceClient: AuthenticatedClient,
+) : ResourceSvc<Res, Flags, Spec, Update, Prod, Support> {
     protected abstract val table: String
     protected abstract val sortColumn: String
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String get() = table.substringAfterLast('.').removeSuffix("s")
     protected open val sqlJsonConverter: String get() = table.removeSuffix("s") + "_to_json"
 
+    abstract val productArea: ProductArea
+
     protected abstract fun providerApi(
         comms: ProviderComms
     ): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
+    private val payment = PaymentService(db, serviceClient)
 
     override suspend fun browse(
         actorAndProject: ActorAndProject,
@@ -187,6 +145,9 @@ abstract class ResourceService<
         flags: Flags?,
         vararg permissionOneOf: Permission,
         requireAll: Boolean = true,
+        includeUpdates: Boolean = false,
+        includeOthers: Boolean = false,
+        includeSupport: Boolean = false,
         ctx: DBContext? = null,
     ): List<Res> {
         return (ctx ?: db).withSession { session ->
@@ -197,8 +158,8 @@ abstract class ResourceService<
                         setParameter("table", table)
                         setParameter("to_json", sqlJsonConverter)
 
-                        setParameter("include_others", flags?.includeOthers ?: false)
-                        setParameter("include_updates", flags?.includeUpdates ?: false)
+                        setParameter("include_others", flags?.includeOthers ?: includeOthers)
+                        setParameter("include_updates", flags?.includeUpdates ?: includeUpdates)
 
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("ids", ids.mapNotNull { it.toLongOrNull() })
@@ -227,18 +188,18 @@ abstract class ResourceService<
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result.attachSupport(flags)
+            result.attachSupport(flags, includeSupport)
         }
     }
 
-    private suspend fun List<Res>.attachSupport(flags: Flags?): List<Res> {
-        if (flags == null || !flags.includeSupport) return this
+    private suspend fun List<Res>.attachSupport(flags: Flags?, includeSupport: Boolean = false): List<Res> {
+        if (!includeSupport && (flags == null || !flags.includeSupport)) return this
         forEach { it.status.support = support.retrieveProductSupport(it.specification.product) }
         return this
     }
 
-    private suspend fun Res.attachSupport(flags: Flags?): Res {
-        if (flags == null || !flags.includeSupport) return this
+    private suspend fun Res.attachSupport(flags: Flags?, includeSupport: Boolean = false): Res {
+        if (!includeSupport && (flags == null || !flags.includeSupport)) return this
         status.support = support.retrieveProductSupport(specification.product)
         return this
     }
@@ -333,8 +294,14 @@ abstract class ResourceService<
 
                     lastBatchOfIds = generatedIds
 
-                    retrieveBulk(actorAndProject, generatedIds.map { it.toString() }, null, Permission.Edit)
-                        .zip(req.map { it.second })
+                    BulkRequest(
+                        retrieveBulk(
+                            actorAndProject,
+                            generatedIds.map { it.toString() },
+                            null,
+                            Permission.Edit
+                        )
+                    )
                 },
                 afterCall = { _, _, resp ->
                     session
@@ -454,13 +421,16 @@ abstract class ResourceService<
                                 """
                             )
                     }
-                    req.map {
-                        UpdatedAclWithResource(
-                            (it.second as ProductRefOrResource.SomeResource<Res>).resource,
-                            it.first.added,
-                            it.first.deleted
-                        ) to it.second
-                    }
+
+                    BulkRequest(
+                        req.map {
+                            UpdatedAclWithResource(
+                                (it.second as ProductRefOrResource.SomeResource<Res>).resource,
+                                it.first.added,
+                                it.first.deleted
+                            )
+                        }
+                    )
                 },
                 afterCall = { _, _, _ -> db.commit(session) },
                 onProviderFailure = { _, _, _ -> db.rollback(session) }
@@ -533,7 +503,7 @@ abstract class ResourceService<
                         "delete from provider.resource where id = some(:ids)"
                     )
 
-                    req.map { ((it.second) as ProductRefOrResource.SomeResource<Res>).resource to it.second }
+                    BulkRequest(req.map { ((it.second) as ProductRefOrResource.SomeResource<Res>).resource })
                 },
                 afterCall = { _, _, _ -> db.commit(session) },
                 onProviderFailure = { _, _, _ -> db.rollback(session) }
@@ -652,5 +622,94 @@ abstract class ResourceService<
 
             generatedIds.map { FindByStringId(it.toString()) }
         })
+    }
+
+    override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Prod, Support> {
+        val relevantProviders = db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("area", productArea.name)
+                        setParameter("project", actorAndProject.project)
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                    },
+                    """
+                        with personal_wallets as (
+                            select pc.provider
+                            from
+                                accounting.product_categories pc join 
+                                accounting.products product on product.category = pc.id left join 
+                                accounting.wallets w on pc.id = w.category
+                            where
+                                w.account_type = 'USER' and
+                                w.account_id = :username and
+                                pc.area = :area and
+                                (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
+                        ),
+                        project_wallets as (
+                            select pc.provider
+                            from
+                                accounting.product_categories pc left join
+                                accounting.products product on product.category = pc.id left join
+                                accounting.wallets w on pc.id = w.category join
+                                project.projects p on w.account_id = p.id and w.account_type = 'PROJECT' join
+                                project.project_members pm on p.id = pm.project_id
+                            where
+                                pm.username = :username and
+                                pc.area = :area and
+                                (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
+                        )
+                        select * from personal_wallets union select * from project_wallets
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! }
+        }
+
+        return SupportByProvider(support.retrieveProducts(relevantProviders))
+    }
+
+    override suspend fun chargeCredits(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ResourceChargeCredits>
+    ): ResourceChargeCreditsResponse {
+        val ids = request.items.asSequence().map { it.id }.toSet()
+
+        val allResources = retrieveBulk(
+            actorAndProject,
+            ids,
+            null,
+            Permission.Provider,
+            includeSupport = true
+        ).associateBy { it.id }
+
+        val chargeResults = ArrayList<Pair<Res, PaymentService.ChargeResult>>()
+        for (reqItem in request.items) {
+            val resource = allResources.getValue(reqItem.id)
+            chargeResults.add(
+                resource to payment.charge(
+                    Payment(
+                        reqItem.chargeId,
+                        reqItem.units,
+                        resource.status.support!!.product.pricePerUnit,
+                        reqItem.id,
+                        resource.owner.createdBy,
+                        resource.owner.project,
+                        resource.specification.product,
+                        productArea
+                    )
+                )
+            )
+        }
+
+        return ResourceChargeCreditsResponse(
+            insufficientFunds = chargeResults
+                .filter { (_, result) -> result is PaymentService.ChargeResult.InsufficientFunds }
+                .map { FindByStringId(it.first.id) },
+
+            duplicateCharges = chargeResults
+                .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
+                .map { FindByStringId(it.first.id) },
+        )
     }
 }

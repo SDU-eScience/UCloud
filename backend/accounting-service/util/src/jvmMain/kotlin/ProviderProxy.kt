@@ -46,15 +46,41 @@ class ProviderProxy<
     private val providers: Providers<Comms>,
     private val support: ProviderSupport<Comms, Prod, Support>
 ) {
-    suspend fun <R : Any, S : Any, R2 : Any> bulkProxy(
-        callFn: (comms: Comms) -> CallDescription<BulkRequest<R2>, BulkResponse<S?>, CommonErrorMessage>,
+    @Suppress("UNCHECKED_CAST")
+    suspend fun <R : Any, S : Any, R2 : Any> bulkProxyMandatory(
+        callFn: (comms: Comms) -> CallDescription<R2, BulkResponse<S>, CommonErrorMessage>,
         actorAndProject: ActorAndProject,
         request: BulkRequest<R>,
         isUserRequest: Boolean,
         verifyAndFetchResources: suspend (ActorAndProject, BulkRequest<R>) -> List<RequestWithRefOrResource<R, Res>>,
         verifyRequest: (request: R, ProductRefOrResource<Res>, support: Support) -> Unit,
-        beforeCall: suspend (provider: String, l: List<RequestWithRefOrResource<R, Res>>) ->
-            List<RequestWithRefOrResource<R2, Res>>,
+        beforeCall: suspend (provider: String, l: List<RequestWithRefOrResource<R, Res>>) -> R2,
+        afterCall: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, BulkResponse<S?>) ->
+        Unit = { _, _, _ -> },
+        onProviderFailure: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, Throwable) ->
+        Unit = { _, _, _ -> },
+    ): BulkResponse<S?> {
+        return bulkProxy(
+            { callFn(it) as CallDescription<R2, BulkResponse<S?>, CommonErrorMessage> },
+            actorAndProject,
+            request,
+            isUserRequest,
+            verifyAndFetchResources,
+            verifyRequest,
+            beforeCall,
+            afterCall,
+            onProviderFailure
+        )
+    }
+
+    suspend fun <R : Any, S : Any, R2 : Any> bulkProxy(
+        callFn: (comms: Comms) -> CallDescription<R2, BulkResponse<S?>, CommonErrorMessage>,
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<R>,
+        isUserRequest: Boolean,
+        verifyAndFetchResources: suspend (ActorAndProject, BulkRequest<R>) -> List<RequestWithRefOrResource<R, Res>>,
+        verifyRequest: (request: R, ProductRefOrResource<Res>, support: Support) -> Unit,
+        beforeCall: suspend (provider: String, l: List<RequestWithRefOrResource<R, Res>>) -> R2,
         afterCall: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, BulkResponse<S?>) ->
             Unit = { _, _, _ -> },
         onProviderFailure: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, Throwable) ->
@@ -85,13 +111,12 @@ class ProviderProxy<
                 val comms = providers.prepareCommunication(provider)
                 val providerCall = callFn(comms)
                 val im = IntegrationProvider(provider)
-                val newReq = beforeCall(provider, requestsAndResources)
-                val requestForProvider = BulkRequest(newReq.map { it.first })
+                val requestForProvider = beforeCall(provider, requestsAndResources)
 
                 for (attempt in 0 until 5) {
                     if (provider == Provider.UCLOUD_CORE_PROVIDER) {
                         anySuccess = true
-                        afterCall(provider, requestsAndResources, BulkResponse(newReq.map { null }))
+                        afterCall(provider, requestsAndResources, BulkResponse(requestsAndResources.map { null }))
                         break
                     }
 
@@ -121,9 +146,7 @@ class ProviderProxy<
                     }
 
                     val providerResponses = response.orThrow()
-                    val indexes = requestForProvider.items.mapIndexed { index, r2 ->
-                        request.items.indexOf(requestsAndResources[index].first)
-                    }
+                    val indexes = requestsAndResources.map { request.items.indexOf(it.first) }
                     for ((i, resp) in indexes.zip(providerResponses.responses)) {
                         responses[i] = resp
                     }
