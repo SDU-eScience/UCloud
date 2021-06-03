@@ -34,7 +34,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             usedCPUInPeriod,
             numberOfGPUCores * hoursInPeriod,
             usedGPUHoursInPeriod,
-            storageUsed
+            storageUsed,
             //networkUsed.toLong(),
             //((networkUsed*8)/daysInPeriod/24/3600)
         )
@@ -186,8 +186,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     deicProject,
                     TYPE_1_HPC_CENTER_ID,
                     TYPE_1_HPC_SUB_CENTER_ID_SDU,
-                    null,
                     universityId.value,
+                    null,
                     accessType,
                     userStart,
                     //userEnd,

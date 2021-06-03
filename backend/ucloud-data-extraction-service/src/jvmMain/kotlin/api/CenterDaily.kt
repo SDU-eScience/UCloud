@@ -63,11 +63,11 @@ data class CenterDaily(
     /*
     * Network usage in MB
     */
-   // val networkUsageInMB: Long?,
+    val networkUsageInMB: Long?,
     /*
      * Network avg in Mbps
      */
-   // val networkAvgUsage: Double?,
+    val networkAvgUsage: Double?,
     /*
      * Max node time. For Type 4 only as they do not have CPU/GPU core times.
      */

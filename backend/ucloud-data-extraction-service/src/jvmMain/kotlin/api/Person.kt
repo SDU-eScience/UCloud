@@ -24,13 +24,13 @@ data class Person (
      */
     val subHPCCenterId: String,
     /*
-     * In case of unknown, industry or other is used please specify in the IdExpanded field.
-     */
-    val idExpanded: String?,
-    /*
      * Each university is defined as a constant. New will be added if needed.
      */
     val universityId: Int,
+    /*
+     * In case of unknown, industry or other is used please specify in the IdExpanded field.
+     */
+    val idExpanded: String?,
     /*
      * Each access type is defined as a constand.
      */
