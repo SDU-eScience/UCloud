@@ -45,6 +45,62 @@ export function injectFonts(): void {
 }
 
 const UIGlobalStyle = `
+
+/*  /files/metadata/templates/create/ START */
+
+div.tooltip.show.bs-tooltip-auto {
+    color: var(--text, #f00);
+    background-color: var(--white);
+    border: 1px solid var(--midGray);
+    border-radius: 5px;
+    padding: 2px 5px 2px 5px;
+}
+
+div#form-builder_add_popover.popover-inner h3.popover-header {
+    margin-top: 0px;
+    border-bottom: none;
+}
+
+div.popover.show.bs-popover-auto {
+    background-color: var(--lightGray);
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-top: 4px;
+
+    .popover-inner {
+        border: none;
+    }
+}
+
+span.toggle-collapse {
+    display: hidden;
+}
+
+/* /files/metadata/templates/create/ END */
+
+div.action-buttons > button.btn {
+    font-smoothing: antialiased;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+    font-weight: ${theme.bold};
+    cursor: pointer;
+    border-radius: ${theme.radius};
+    background-color: var(--blue, #f00);
+    color: var(--white, #f00);
+    border-width: 0;
+    border-style: solid;
+    line-height: 1.5;
+    width: 100px;
+    height: 40px;
+}
+
 /* Colors */
 html {
     --black: #000;

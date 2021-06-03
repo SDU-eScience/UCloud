@@ -13,13 +13,14 @@ import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import MainContainer from "MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
-import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid} from "ui-components";
+import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation, Operations} from "ui-components/Operation";
 import {Section} from "ui-components/Section";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {bulkRequestOf} from "DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
+import styled from "styled-components";
 
 enum Stage {
     INFO,
@@ -150,12 +151,15 @@ const Create: React.FunctionComponent = props => {
     return <MainContainer
         header={
             <SelectableTextWrapper mb={"16px"}>
-                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO}
-                                children={"1. Info"} mr={"1em"}/>
-                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA}
-                                children={"2. Schema"} mr={"1em"}/>
-                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW}
-                                children={"3. Preview and save"} mr={"1em"}/>
+                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO} mr="1em">
+                    1. Info
+                </SelectableText>
+                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA} mr="1em">
+                    2. Schema
+                </SelectableText>
+                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW} mr="1em">
+                    3. Preview and save
+                </SelectableText>
             </SelectableTextWrapper>
         }
         headerSize={45}
@@ -167,14 +171,14 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Information</Heading.h3>
                             <Label>
                                 ID
-                                <Input ref={idRef} placeholder={"schema-xyz"}/>
+                                <Input ref={idRef} placeholder={"schema-xyz"} />
                             </Label>
                             <Label>
                                 Title
-                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"}/>
+                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"} />
                             </Label>
                             <Label>
-                                Description <br/>
+                                Description <br />
                                 <TextArea
                                     ref={descriptionRef}
                                     rows={5}
@@ -188,13 +192,13 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Versioning</Heading.h3>
                             <Label>
                                 Version
-                                <Input ref={versionRef} placeholder={"1.0.0"}/>
+                                <Input ref={versionRef} placeholder={"1.0.0"} />
                             </Label>
 
                             <Label>
-                                Changes since last version <br/>
+                                Changes since last version <br />
                                 <TextArea ref={changeLogRef} rows={2} width={"100%"}
-                                          placeholder={"Version 1.1.0 has made the following changes..."}/>
+                                    placeholder={"Version 1.1.0 has made the following changes..."} />
                             </Label>
                         </Section>
 
@@ -262,14 +266,16 @@ const Create: React.FunctionComponent = props => {
                     </Grid>
                 </Box>
                 {stage !== Stage.SCHEMA ? null :
-                    <FormBuilder
-                        schema={schema}
-                        uiSchema={uiSchema}
-                        onChange={(newSchema: any, newUiSchema: any) => {
-                            setSchema(newSchema);
-                            setUiSchema(newUiSchema);
-                        }}
-                    />
+                    <BootstrapReplacement>
+                        <FormBuilder
+                            schema={schema}
+                            uiSchema={uiSchema}
+                            onChange={(newSchema: any, newUiSchema: any) => {
+                                setSchema(newSchema);
+                                setUiSchema(newUiSchema);
+                            }}
+                        />
+                    </BootstrapReplacement>
                 }
                 {stage !== Stage.PREVIEW ? null :
                     <Grid gridGap={"32px"} width={"800px"} margin={"0 auto"}>
@@ -313,7 +319,7 @@ const Create: React.FunctionComponent = props => {
         }
         sidebar={
             <Operations location={"SIDEBAR"} operations={operations} selected={[]} extra={callbacks}
-                        entityNameSingular={entityName}/>
+                entityNameSingular={entityName} />
         }
     />;
 };
@@ -368,5 +374,110 @@ const operations: Operation<void, Callbacks>[] = [
         }
     }
 ];
+
+const BootstrapReplacement = styled.div`
+    & > div.formBuilder-0-2-1 {
+        div.formHead-0-2-2 {
+            border: 1px solid transparent;
+            background-color: var(--lightGray, #f00);
+
+            div > {
+                h5.form-name-label {
+                    color: var(--text, #f00);
+                }
+
+                input.form-control:focus-visible {
+                    outline: none;
+                }
+            }
+        }
+        
+        div.card-select {
+            background-color: var(--lightGray, #f00);
+        }
+
+        span.label {
+            color: var(--text);
+        }
+
+        div.form-body {
+
+            div.collapse-element.card-container {
+                background-color: var(--lightGray, #f00);
+                border: 2px solid transparent;
+            }
+
+            div.collapse-element.card-container:hover {
+                border: 2px solid var(--blue, #f00);
+            }
+
+            div.section-container {
+                background-color: var(--lightGray, #f00);
+                border: 1px solid transparent;
+            }
+
+            div.section-container:hover {
+                border: 1px solid var(--blue, #f00);
+            }
+        }
+
+        div > span > svg.svg-inline--fa.fa-plus-square.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa,
+        span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+            color: var(--blue, #f00);
+        }
+
+        span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+            border: none;
+        }
+        
+        span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
+            color: var(--blue, #f00);
+            border: 1px solid var(--blue, #f00);
+        }
+
+        span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
+            color: var(--red, #f00);
+            border: 1px solid var(--red, #f00);
+        }
+
+        input.form-control {
+            border: 2px solid var(--midGray);
+            display: block;
+            font-family: inherit;
+            width: 100%;
+            color: var(--black, #f00);
+            background-color: transparent;
+        
+            margin: 0;
+            &:invalid {
+                border-color: var(--red, #f00);
+            }
+        
+            border-radius: 5px;
+            padding: 7px 12px 7px 12px;
+        
+            ::placeholder {
+                color: var(--gray, #f00);
+            }
+        
+            &:focus {
+                outline: none;
+                background-color: transparent;
+            }
+        
+            &:disabled {
+                background-color: var(--lightGray, #f00);
+            }
+        }
+
+        input.form-control:active, input.form-control:focus {
+            border: 2px solid var(--blue);            
+        }
+
+        div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
+            background-color: var(--lightGray);
+        }
+    }
+`;
 
 export default Create;
