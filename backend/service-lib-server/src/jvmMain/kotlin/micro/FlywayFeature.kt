@@ -76,6 +76,12 @@ fun DatabaseConfig.migrateAll() {
 
     data class SchemaMigrations(val schema: String, val location: Location, val loadedClasses: List<Class<*>>)
 
+    val schemaPriority = mapOf(
+        "newaccounting" to 100,
+        "file_orchestrator" to 101,
+    )
+    var priorityDontCareCounter = 0
+
     javaClass.classLoader.resources("db/migration")
         .toList()
         .map { migrationUrl ->
@@ -130,6 +136,7 @@ fun DatabaseConfig.migrateAll() {
             )
         }
         .groupBy { it.schema }
+        .toSortedMap(Comparator.comparingInt { schemaPriority[it] ?: priorityDontCareCounter++ })
         .forEach { (schema, migrations) ->
             val flyway = Flyway.configure().apply {
                 resolvers(object : MigrationResolver {
