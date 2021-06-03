@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.calls.*
@@ -55,13 +57,13 @@ data class FileMetadataTemplate(
         val namespaceType: FileMetadataTemplateNamespaceType,
         val uiSchema: JsonObject? = null,
     ) : ResourceSpecification {
-        @Contextual
-        override val product: Nothing? = null
+        override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
     }
 
     @Serializable
     class Status(
         val oldVersions: List<String>,
+        override var support: ResolvedSupport<*, *>? = null,
     ) : ResourceStatus
 
     @Serializable

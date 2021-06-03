@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.provider.api.Provider
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
@@ -32,7 +33,7 @@ class Providers<Communication : ProviderComms>(
     private val rpcClient = serviceClient.withoutAuthentication()
 
     val placeholderCommunication = runBlocking {
-        val spec = ProviderSpecification("placeholder", "192.0.2.100", false, 80)
+        val spec = ProviderSpecification(Provider.UCLOUD_CORE_PROVIDER, "192.0.2.100", false, 80)
         val client = AuthenticatedClient(rpcClient.client, OutgoingHttpCall) {}
         val wsClient = AuthenticatedClient(rpcClient.client, OutgoingWSCall) {}
         val simpleComms = SimpleProviderCommunication(client, wsClient, spec)
@@ -89,5 +90,6 @@ class Providers<Communication : ProviderComms>(
 
     companion object {
         const val PROVIDER_USERNAME_PREFIX = "#P_"
+
     }
 }

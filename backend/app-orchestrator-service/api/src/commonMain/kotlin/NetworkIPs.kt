@@ -6,6 +6,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
@@ -164,6 +165,7 @@ data class NetworkIPStatus(
 
     @UCloudApiDoc("The externally accessible IP address allocated to this `NetworkIP`")
     val ipAddress: String? = null,
+    override var support: ResolvedSupport<*, *>? = null
 ) : ResourceStatus
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

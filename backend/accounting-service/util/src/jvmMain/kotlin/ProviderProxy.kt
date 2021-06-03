@@ -12,10 +12,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwError
-import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.provider.api.IntegrationProviderInitRequest
-import dk.sdu.cloud.provider.api.Resource
-import dk.sdu.cloud.provider.api.withProxyInfo
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import io.ktor.http.*
 import kotlinx.coroutines.delay
@@ -84,6 +81,11 @@ class ProviderProxy<
         var anySuccess = false
 
         for ((provider, requestsAndResources) in groupedByProvider) {
+            if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                anySuccess = true
+                continue
+            }
+
             try {
                 val comms = providers.prepareCommunication(provider)
                 val providerCall = callFn(comms)
@@ -118,7 +120,9 @@ class ProviderProxy<
                     }
 
                     val providerResponses = response.orThrow()
-                    val indexes = requestForProvider.items.map { request.items.indexOf(it) }
+                    val indexes = requestForProvider.items.mapIndexed { index, r2 ->
+                        request.items.indexOf(requestsAndResources[index].first)
+                    }
                     for ((i, resp) in indexes.zip(providerResponses.responses)) {
                         responses[i] = resp
                     }

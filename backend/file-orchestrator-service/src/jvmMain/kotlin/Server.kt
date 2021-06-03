@@ -32,19 +32,20 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
         val providerSupport = StorageProviderSupport(providers, serviceClient) { comms ->
-            comms.fileCollectionsApi.retrieveManifest.call(Unit, comms.client).orThrow().support
+            // comms.fileCollectionsApi.retrieveManifest.call(Unit, comms.client).orThrow().support
+            TODO()
         }
         val projectCache = ProjectCache(serviceClient)
         val metadataTemplates = MetadataTemplates(db, projectCache)
         val metadataService = MetadataService(db, projectCache, metadataTemplates)
         val filesService = FilesService(providers, providerSupport, projectCache, metadataService)
-        val fileCollections = FileCollectionService(providers, providerSupport, projectCache, db)
+        // val fileCollections = FileCollectionService(providers, providerSupport, projectCache, db)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
 
         configureControllers(
             FileMetadataController(metadataService),
             FileController(filesService),
-            FileCollectionController(fileCollections),
+            // FileCollectionController(fileCollections),
             FileMetadataTemplateController(metadataTemplates),
             ShareController(shares)
         )

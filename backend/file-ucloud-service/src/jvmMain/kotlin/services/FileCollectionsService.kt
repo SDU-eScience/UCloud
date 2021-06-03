@@ -38,7 +38,7 @@ class FileCollectionsService(
             FileCollection.Spec("Home", PRODUCT_REFERENCE),
             Time.now(),
             FileCollection.Status(
-                productSupport
+                // productSupport
             ),
             emptyList(),
             FileCollection.Billing(0L, 0L),
@@ -95,7 +95,7 @@ class FileCollectionsService(
             it.getAs<LocalDateTime?>("created_at")
                 ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
             FileCollection.Status(
-                productSupport
+                // productSupport
             ),
             emptyList(),
             FileCollection.Billing(0L, 0L),
@@ -246,33 +246,6 @@ class FileCollectionsService(
                 if (!success) throw FSException.NotFound()
             }
         }
-    }
-
-    suspend fun updateAcl(
-        actorAndProject: ActorAndProject,
-        updates: BulkRequest<FileCollectionsProviderUpdateAclRequestItem>,
-    ) {
-        if (actorAndProject.project == null) throw FSException.BadRequest()
-        aclService.updateAcl(
-            actorAndProject.actor,
-            bulkRequestOf(updates.items.map {
-                FilesUpdateAclRequestItem(
-                    UCloudFile.create(
-                        buildString {
-                            append('/')
-                            append(UCLOUD_PROVIDER)
-                            append('/')
-                            append(PRODUCT_REFERENCE.category)
-                            append('/')
-                            append(PRODUCT_REFERENCE.id)
-                            append('/')
-                            append(it.id)
-                        }
-                    ).path,
-                    it.newAcl
-                )
-            })
-        )
     }
 
     companion object : Loggable {

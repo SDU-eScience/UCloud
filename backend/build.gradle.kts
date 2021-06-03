@@ -82,6 +82,11 @@ subprojects {
                         if (myApiProject != null) {
                             implementation(myApiProject)
                         }
+
+                        val myUtilProject = project.childProjects["util"]
+                        if (myUtilProject != null) {
+                            implementation(myUtilProject)
+                        }
                         implementation(project(":service-lib-server"))
                     }
                 }

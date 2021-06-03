@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
 
+/*
 class FileCollectionService(
     private val providers: StorageProviders,
     private val providerSupport: StorageProviderSupport,
@@ -177,3 +178,5 @@ class FileCollectionService(
     }
      */
 }
+
+ */

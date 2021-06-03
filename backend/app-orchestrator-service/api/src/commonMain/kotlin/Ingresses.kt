@@ -6,6 +6,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
@@ -111,7 +112,8 @@ data class IngressStatus(
     @UCloudApiDoc("The ID of the `Job` that this `Ingress` is currently bound to")
     val boundTo: String? = null,
 
-    val state: IngressState
+    val state: IngressState,
+    override var support: ResolvedSupport<*, *>? = null
 ) : ResourceStatus
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

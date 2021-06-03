@@ -15,9 +15,10 @@ import dk.sdu.cloud.file.ucloud.services.productSupport
 import dk.sdu.cloud.service.Controller
 
 class FileCollectionsController(
-    private val fileCollections: FileCollectionsService,
+    // private val fileCollections: FileCollectionsService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(UCloudFileCollections.retrieveManifest) {
             // TODO We probably need to split the home and project partition into two different products
             ok(FileCollectionsProviderRetrieveManifestResponse(listOf(productSupport)))
@@ -50,6 +51,7 @@ class FileCollectionsController(
         }
 
         return@with
+         */
     }
 
     private fun <T> CallHandler<ProxiedRequest<T>, *, *>.retrieveActorAndProject(): ActorAndProject {

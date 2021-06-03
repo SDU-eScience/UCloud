@@ -1,7 +1,10 @@
 package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -24,6 +27,10 @@ data class Provider(
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
             "billing=$billing, owner=$owner)"
     }
+
+    companion object {
+        const val UCLOUD_CORE_PROVIDER = "ucloud_core"
+    }
 }
 
 @Serializable
@@ -38,11 +45,15 @@ data class ProviderSpecification(
     val https: Boolean,
     val port: Int? = null,
 ) : ResourceSpecification {
-    override val product: ProductReference? = null
+    override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
 }
 
 @Serializable
-class ProviderStatus : ResourceStatus
+data class ProviderSupport(override val product: ProductReference) : ProductSupport
+
+@Serializable
+data class ProviderStatus(override var support: ResolvedSupport<*, *>? = null) : ResourceStatus
+
 @Serializable
 class ProviderBilling(override val pricePerUnit: Long, override val creditsCharged: Long) : ResourceBilling
 

@@ -7,7 +7,6 @@ import dk.sdu.cloud.accounting.api.FindProductRequest
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.accounting.services.ProductService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.pagesInTotal
 import dk.sdu.cloud.service.NormalizedPaginationRequest

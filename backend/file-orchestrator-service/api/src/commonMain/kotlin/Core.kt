@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.orchestrator.api
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
@@ -47,7 +48,8 @@ enum class FileType {
 @Serializable
 @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
 enum class FilePermission {
-    @UCloudApiDoc("""The user is allowed to read the contents of the file
+    @UCloudApiDoc(
+        """The user is allowed to read the contents of the file
 
 - For regular files (`FILE`) this allows a user to read the data and metadata of the file.
 - For directories (`DIRECTORY`) this allows the user to read metadata about the folder along with _listing_ the files
@@ -57,10 +59,12 @@ enum class FilePermission {
 - For dangling metadata (`DANGLING_METADATA`) this allows the user to read the metadata which is dangling
 
 In addition, this will allow users to read the metadata of a file.
-""")
+"""
+    )
     READ,
 
-    @UCloudApiDoc("""The user is allowed to write to this file
+    @UCloudApiDoc(
+        """The user is allowed to write to this file
 
 - For regular files (`FILE`) this allows a user to change the contents of a file, including deleting the file entirely
 - For directories (`DIRECTORY`) this allows a user to change the contents of a folder. This includes creating and
@@ -70,22 +74,26 @@ In addition, this will allow users to read the metadata of a file.
 
 In addition, this will allow users to change the metadata of a file. However, it will not allow the user to add new
 metadata templates to the file.
-""")
+"""
+    )
     WRITE,
 
-    @UCloudApiDoc("""The user is allowed to perform administrative actions to this file
+    @UCloudApiDoc(
+        """The user is allowed to perform administrative actions to this file
 
 For all files, this will allow the entity to change the permissions and ACL of a file.
 
 This permission also allows the user to attach new metadata templates to a file. If a metadata template is inheritable,
 see `FileMetadataTemplate.specification.inheritable`, then users will be able to change the value on descendants of this
 file.
-""")
+"""
+    )
     ADMINISTRATOR,
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("""A `UFile` is a resource for storing, retrieving and organizing data in UCloud
+@UCloudApiDoc(
+    """A `UFile` is a resource for storing, retrieving and organizing data in UCloud
     
 A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
 functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
@@ -114,10 +122,12 @@ User-defined metadata describe the contents of a file. All metadata is described
 this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
 purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
 metadata formats.
-""")
+"""
+)
 @Serializable
 data class UFile(
-    @UCloudApiDoc("""A unique reference to a file
+    @UCloudApiDoc(
+        """A unique reference to a file
 
 All files in UCloud have a `name` associated with them. This name uniquely identifies them within their directory. All
 files in UCloud belong to exactly one directory. A `name` can be any textual string, for example: `thesis-42.docx`.
@@ -207,7 +217,8 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     - Older versions of Unixes report `PATH_MAX` as 1024
     - Newer versions of Unixes report `PATH_MAX` as 4096
     - Older versions of Windows start failing above 256 characters
-""")
+"""
+    )
     val path: String,
     @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
     val type: FileType,
@@ -302,12 +313,13 @@ data class FileMetadataDocument(
         val changeLog: String,
     ) : ResourceSpecification {
         @Contextual
-        override val product: Nothing? = null
+        override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
     }
 
     @Serializable
     data class Status(
         val approval: ApprovalStatus,
+        override var support: ResolvedSupport<*, *>? = null
     ) : ResourceStatus
 
     @Serializable
@@ -315,12 +327,15 @@ data class FileMetadataDocument(
         @Serializable
         @SerialName("approved")
         class Approved(val approvedBy: String) : ApprovalStatus()
+
         @Serializable
         @SerialName("pending")
         class Pending() : ApprovalStatus()
+
         @Serializable
         @SerialName("rejected")
         class Rejected(val rejectedBy: String) : ApprovalStatus()
+
         @Serializable
         @SerialName("not_required")
         class NotRequired : ApprovalStatus()
@@ -340,35 +355,36 @@ enum class WriteConflictPolicy {
     @UCloudApiDoc("UCloud should replace the existing file")
     REPLACE,
 
-    @UCloudApiDoc(""""Attempt to merge the results
+    @UCloudApiDoc(
+        """"Attempt to merge the results
         
 This will result in the merging of folders. Concretely this means that _directory_ conflicts will be resolved by
 re-using the existing directory. If there any file conflicts in the operation then this will act identical to `RENAME`.
 
 Note: This mode is not supported for all operations.
-"""")
+""""
+    )
     MERGE_RENAME
 }
 
-interface FileCollectionIncludeFlags : ResourceIncludeFlags {
-    val includeSupport: Boolean?
-}
+interface FileCollectionIncludeFlags : ResourceIncludeFlags
 
 data class SimpleFileCollectionIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
-    override val includeSupport: Boolean? = false
+    override val includeSupport: Boolean = false,
 ) : FileCollectionIncludeFlags
 
 fun FileCollectionIncludeFlags(
     includeOthers: Boolean = false,
     includeUpdates: Boolean = false,
-    includeSupport: Boolean? = false
+    includeSupport: Boolean = false
 ) = SimpleFileCollectionIncludeFlags(includeOthers, includeUpdates, includeSupport)
 
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("""A `FileCollection` is an entrypoint to a user's files
+@UCloudApiDoc(
+    """A `FileCollection` is an entrypoint to a user's files
 
 This entrypoint allows the user to access all the files they have access to within a single project. It is important to
 note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
@@ -389,7 +405,8 @@ has both fast and slow tiers of storage, which is typically billed very differen
 All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
 title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
 if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
-""")
+"""
+)
 @Serializable
 data class FileCollection(
     override val id: String, // corresponds to the path prefix
@@ -418,7 +435,7 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        val support: FSSupport? = null,
+        override var support: ResolvedSupport<*, *>? = null
     ) : ResourceStatus
 
     @Serializable
@@ -426,10 +443,6 @@ data class FileCollection(
         override val pricePerUnit: Long,
         override val creditsCharged: Long,
     ) : ResourceBilling
-}
-
-fun FileCollection.withSupport(support: FSSupport): FileCollection {
-    return copy(status = status.copy(support = support))
 }
 
 data class FSSupportResolved(

@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
@@ -158,6 +159,7 @@ data class JobStatus(
             "equal to the initial `RUNNING` state + `timeAllocation`."
     )
     val expiresAt: Long? = null,
+    override var support: ResolvedSupport<*, *>? = null
 ) : ResourceStatus
 
 @Serializable

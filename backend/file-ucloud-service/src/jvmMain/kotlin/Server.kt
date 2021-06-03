@@ -72,7 +72,7 @@ class Server(
 
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, aclService),
-            FileCollectionsController(fileCollectionService),
+            // FileCollectionsController(fileCollectionService),
         )
 
         startServices()
