@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -38,6 +39,8 @@ sealed class ProductRefOrResource<Res : Resource<*>> {
     }
 }
 
+typealias RequestWithRefOrResource<Req, Res> = Pair<Req, ProductRefOrResource<Res>>
+
 class ProviderProxy<
     Comms : ProviderComms,
     Prod : Product,
@@ -46,16 +49,19 @@ class ProviderProxy<
     private val providers: Providers<Comms>,
     private val support: ProviderSupport<Comms, Prod, Support>
 ) {
-    suspend fun <R : Any, S : Any, E : Any> bulkProxy(
-        callFn: (comms: Comms) -> CallDescription<BulkRequest<R>, BulkResponse<S?>, E>,
+    suspend fun <R : Any, S : Any, R2 : Any> bulkProxy(
+        callFn: (comms: Comms) -> CallDescription<BulkRequest<R2>, BulkResponse<S?>, CommonErrorMessage>,
         actorAndProject: ActorAndProject,
         request: BulkRequest<R>,
         isUserRequest: Boolean,
-        verifyAndFetchResources: suspend (ActorAndProject, BulkRequest<R>) -> List<Pair<R, ProductRefOrResource<Res>>>,
+        verifyAndFetchResources: suspend (ActorAndProject, BulkRequest<R>) -> List<RequestWithRefOrResource<R, Res>>,
         verifyRequest: (request: R, ProductRefOrResource<Res>, support: Support) -> Unit,
-        beforeCall: suspend (provider: String, List<Pair<R, ProductRefOrResource<Res>>>) -> Unit = { _, _ -> },
-        afterCall: suspend (provider: String, List<Pair<R, ProductRefOrResource<Res>>>, BulkResponse<S?>) -> Unit = { _, _, _ -> },
-        onProviderFailure: suspend (provider: String, List<Pair<R, ProductRefOrResource<Res>>>, Throwable) -> Unit = { _, _, _ -> },
+        beforeCall: suspend (provider: String, l: List<RequestWithRefOrResource<R, Res>>) ->
+            List<RequestWithRefOrResource<R2, Res>>,
+        afterCall: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, BulkResponse<S?>) ->
+            Unit = { _, _, _ -> },
+        onProviderFailure: suspend (provider: String, List<RequestWithRefOrResource<R, Res>>, Throwable) ->
+            Unit = { _, _, _ -> },
     ): BulkResponse<S?> {
         val call = callFn(providers.placeholderCommunication)
         if (request.items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -78,12 +84,13 @@ class ProviderProxy<
         var anySuccess = false
 
         for ((provider, requestsAndResources) in groupedByProvider) {
-            val requestForProvider = BulkRequest(requestsAndResources.map { it.first })
             try {
                 val comms = providers.prepareCommunication(provider)
                 val providerCall = callFn(comms)
                 val im = IntegrationProvider(provider)
-                beforeCall(provider, requestsAndResources)
+                val newReq = beforeCall(provider, requestsAndResources)
+                val requestForProvider = BulkRequest(newReq.map { it.first })
+
                 for (attempt in 0 until 5) {
                     val response = providerCall.call(
                         requestForProvider,

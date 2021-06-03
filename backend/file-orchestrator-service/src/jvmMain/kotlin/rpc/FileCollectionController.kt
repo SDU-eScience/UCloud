@@ -10,6 +10,7 @@ class FileCollectionController(
     private val fileCollections: FileCollectionService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(FileCollections.browse) {
             ok(fileCollections.browse(actorAndProject, request))
         }
@@ -40,6 +41,8 @@ class FileCollectionController(
             fileCollections.updateAcl(actorAndProject, request)
             ok(Unit)
         }
+
+         */
 
         return@with
     }

@@ -389,7 +389,7 @@ of bytes.
                 Creates a folder at a specified location.
                 
                 This folder will automatically create parent directories if needed. This request may fail half-way
-                through and leave the file-system in an inconsistent state. It is up to the user to clean up this.
+                through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
             """.trimIndent()
 
             error {

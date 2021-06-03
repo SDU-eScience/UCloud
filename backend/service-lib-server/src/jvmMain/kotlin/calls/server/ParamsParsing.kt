@@ -19,19 +19,30 @@ class ParamsParsing(
     private val call: CallDescription<*, *, *>,
 ) : AbstractDecoder() {
     private var lastReadIdx: Int = -1
+    private var lastReadStruct = -1
     private var lastRead: String? = null
-    private val parameters = call.http.params?.parameters ?: emptyList()
+    private val didNest = HashSet<String>()
+    private val parameters = (call.http.params?.parameters ?: emptyList()).groupBy {
+        if (it is HttpQueryParameter.Property<*>) {
+            it.nestedInside
+        } else {
+            null
+        }
+    }
+    private val nestedStructures = parameters.keys.toList()
+    private var nestedIdx = 0
     private var elementIndex = 0
     override val serializersModule: SerializersModule = EmptySerializersModule
     private val value: String?
         get() {
-            if (lastReadIdx == elementIndex) {
+            if (lastReadIdx == elementIndex && lastReadStruct == nestedIdx) {
                 return lastRead
             } else {
-                when (val param = parameters[elementIndex - 1]) {
+                when (val param = parameters[nestedStructures[nestedIdx]]!![elementIndex - 1]) {
                     is HttpQueryParameter.Property<*> -> {
                         lastRead = applicationCall.request.queryParameters[param.property]
                         lastReadIdx = elementIndex
+                        lastReadStruct = nestedIdx
                     }
                 }
             }
@@ -89,9 +100,24 @@ class ParamsParsing(
     override fun decodeNull(): Nothing? = null
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
-        if (elementIndex == parameters.size) return CompositeDecoder.DECODE_DONE
-        return when (val param = parameters[elementIndex++]) {
-            is HttpQueryParameter.Property<*> -> descriptor.getElementIndex(param.property)
+        val nestedField = nestedStructures[nestedIdx]
+        val currentStruct = parameters[nestedField]!!
+        if (elementIndex == currentStruct.size) {
+            nestedIdx++
+            elementIndex = 0
+            return CompositeDecoder.DECODE_DONE
+        }
+        val param = currentStruct[elementIndex++]
+        return when (param) {
+            is HttpQueryParameter.Property<*> -> {
+                if (nestedField != null && nestedField !in didNest) {
+                    didNest.add(nestedField)
+                    elementIndex = 0
+                    descriptor.getElementIndex(nestedField)
+                } else {
+                    descriptor.getElementIndex(param.property)
+                }
+            }
             else -> error("unknown type $param")
         }
     }

@@ -1,6 +1,9 @@
 package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.UCloudApiDoc
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -8,6 +11,7 @@ import kotlinx.serialization.Serializable
 interface ResourceIncludeFlags {
     val includeOthers: Boolean
     val includeUpdates: Boolean
+    val includeSupport: Boolean
 }
 
 @UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
@@ -36,12 +40,8 @@ data class ResourceOwner(
 )
 
 interface ResourceSpecification {
-    @UCloudApiDoc("""A reference to the product which backs this `Resource`
-
-All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
-consume the backing `Product` should simply have a `pricePerUnit` of 0.""")
-    val product: ProductReference?
-
+    @UCloudApiDoc("""A reference to the product which backs this `Resource`""")
+    val product: ProductReference
 }
 
 @UCloudApiDoc("""Describes an update to the `Resource`
@@ -63,10 +63,11 @@ interface ResourceUpdate {
     val status: String?
 }
 
-interface ResourceUpdateAndId<U : ResourceUpdate> {
-    val id: String
+@Serializable
+data class ResourceUpdateAndId<U : ResourceUpdate>(
+    val id: String,
     val update: U
-}
+)
 
 @Serializable
 data class SpecificationAndPermissions<S : ResourceSpecification>(
@@ -102,7 +103,9 @@ this will contain information such as:
 - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
   should be listed in the `status` section.
 """)
-interface ResourceStatus
+interface ResourceStatus {
+    var support: ResolvedSupport<*, *>?
+}
 
 @UCloudApiDoc("""A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
 

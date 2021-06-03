@@ -1,31 +1,13 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.provider.api.ResourceAclEntry
 import kotlinx.serialization.Serializable
 
 // ---
-
-@Serializable
-data class FileCollectionsBrowseRequest(
-    override val includeSupport: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val includeOthers: Boolean,
-    override val includeUpdates: Boolean,
-) : WithPaginationRequestV2, FileCollectionIncludeFlags
-typealias FileCollectionsBrowseResponse = PageV2<FileCollection>
-
-typealias FileCollectionsCreateRequest = BulkRequest<FileCollection.Spec>
-typealias FileCollectionsCreateResponse = BulkResponse<FindByStringId>
-
-typealias FileCollectionsDeleteRequest = BulkRequest<FileCollectionsDeleteRequestItem>
-@Serializable
-data class FileCollectionsDeleteRequestItem(val id: String, val provider: String)
-typealias FileCollectionsDeleteResponse = Unit
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
@@ -36,69 +18,62 @@ data class FileCollectionsRenameRequestItem(
 )
 typealias FileCollectionsRenameResponse = Unit
 
-typealias FileCollectionsUpdateAclRequest = BulkRequest<FileCollectionsUpdateAclRequestItem>
-
-@Serializable
-data class FileCollectionsUpdateAclRequestItem(
-    val id: String,
-    val newAcl: List<ResourceAclEntry<FilePermission>>,
-)
-typealias FileCollectionsUpdateAclResponse = Unit
-
-@Serializable
-data class FileCollectionsRetrieveRequest(
-    val id: String,
-    override val includeSupport: Boolean? = null,
-    override val includeOthers: Boolean,
-    override val includeUpdates: Boolean,
-) : FileCollectionIncludeFlags
-typealias FileCollectionsRetrieveResponse = FileCollection
-
-@Serializable
-data class FileCollectionsRetrieveManifestRequest(val provider: String)
-typealias FileCollectionsRetrieveManifestResponse = FileCollectionsProviderRetrieveManifestResponse
-
 // ---
 
-object FileCollections : CallDescriptionContainer("files.collections") {
-    const val baseContext = "/api/files/collections"
+object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
-    val browse = call<FileCollectionsBrowseRequest, FileCollectionsBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-    }
+    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
+        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
 
-    val create = call<FileCollectionsCreateRequest, FileCollectionsCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
-    }
-
-    val delete = call<FileCollectionsDeleteRequest, FileCollectionsDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-    }
+    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
 
     val rename = call<FileCollectionsRenameRequest, FileCollectionsRenameResponse, CommonErrorMessage>("rename") {
         httpUpdate(baseContext, "rename")
     }
 
+    /*
+    const val baseContext = "/api/files/collections"
+
+    TODO Need includeSupport to be compatible
+    val browse = call<FileCollectionsBrowseRequest, FileCollectionsBrowseResponse, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
+    }
+
+    This is identical
+    val create = call<FileCollectionsCreateRequest, FileCollectionsCreateResponse, CommonErrorMessage>("create") {
+        httpCreate(baseContext)
+    }
+
+    The provider has been removed, otherwise identical
+    val delete = call<FileCollectionsDeleteRequest, FileCollectionsDeleteResponse, CommonErrorMessage>("delete") {
+        httpDelete(baseContext)
+    }
+
+    New API
     val updateAcl = call<FileCollectionsUpdateAclRequest, FileCollectionsUpdateAclResponse,
         CommonErrorMessage>("updateAcl") {
         httpUpdate(baseContext, "updateAcl")
     }
 
+    Provider has been removed
     val retrieve = call<FileCollectionsRetrieveRequest, FileCollectionsRetrieveResponse,
         CommonErrorMessage>("retrieve") {
         httpRetrieve(baseContext)
     }
 
+    New API
     val retrieveManifest = call<FileCollectionsRetrieveManifestRequest, FileCollectionsRetrieveManifestResponse,
         CommonErrorMessage>("retrieveManifest") {
         httpRetrieve(baseContext, "manifest")
     }
+
+     */
 
     /*
     // TODO Interface tbd
     val search = call<FileCollectionsSearchRequest, FileCollectionsSearchResponse, CommonErrorMessage>("search") {
     }
      */
-
-    // TODO Quota?
 }

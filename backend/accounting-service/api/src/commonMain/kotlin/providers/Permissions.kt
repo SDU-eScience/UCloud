@@ -30,10 +30,17 @@ the resource and related operations.
 """)
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 sealed class Permission(val name: String) {
+    open val canBeGranted: Boolean = true
     object Read : Permission("READ")
     object Edit : Permission("EDIT")
-    object Admin : Permission("ADMIN")
-    open class Custom(name: String) : Permission(name)
+
+    object Admin : Permission("ADMIN") {
+        override val canBeGranted = false
+    }
+
+    object Provider : Permission("PROVIDER") {
+        override val canBeGranted = false
+    }
 
     companion object {
         fun fromString(name: String): Permission {
@@ -41,7 +48,8 @@ sealed class Permission(val name: String) {
                 Read.name -> Read
                 Edit.name -> Edit
                 Admin.name -> Admin
-                else -> Custom(name)
+                Provider.name -> Provider
+                else -> throw IllegalStateException("Unknown permission: $name")
             }
         }
     }
@@ -71,6 +79,13 @@ data class ResourcePermissions(
 @Serializable
 data class UpdatedAcl(
     val id: String,
+    val added: List<ResourceAclEntry<Permission>>,
+    val deleted: List<AclEntity>,
+)
+
+@Serializable
+data class UpdatedAclWithResource<Res : Resource<*>>(
+    val resource: Res,
     val added: List<ResourceAclEntry<Permission>>,
     val deleted: List<AclEntity>,
 )

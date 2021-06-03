@@ -1,9 +1,17 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.serializer
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 // ---
 
@@ -24,25 +32,6 @@ data class ProxiedRequest<T> internal constructor(
     }
 }
 
-@Serializable
-data class FileCollectionsProviderBrowseRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
-
-typealias FileCollectionsProviderBrowseResponse = PageV2<FileCollection>
-
-typealias FileCollectionsProviderRetrieveRequest = ProxiedRequest<FindByStringId>
-typealias FileCollectionsProviderRetrieveResponse = FileCollection
-
-typealias FileCollectionsProviderCreateRequest = ProxiedRequest<BulkRequest<FileCollection.Spec>>
-typealias FileCollectionsProviderCreateResponse = BulkResponse<FindByStringId>
-
-typealias FileCollectionsProviderDeleteRequest = ProxiedRequest<BulkRequest<FindByStringId>>
-typealias FileCollectionsProviderDeleteResponse = Unit
-
 typealias FileCollectionsProviderRenameRequest = ProxiedRequest<BulkRequest<FileCollectionsProviderRenameRequestItem>>
 
 @Serializable
@@ -52,24 +41,26 @@ data class FileCollectionsProviderRenameRequestItem(
 )
 typealias FileCollectionsProviderRenameResponse = Unit
 
-typealias FileCollectionsProviderUpdateAclRequest = ProxiedRequest<BulkRequest<FileCollectionsProviderUpdateAclRequestItem>>
-
-@Serializable
-data class FileCollectionsProviderUpdateAclRequestItem(
-    val id: String,
-    val newAcl: List<ResourceAclEntry<FilePermission>>,
-)
-typealias FileCollectionsProviderUpdateAclResponse = Unit
-
-typealias FileCollectionsProviderRetrieveManifestRequest = Unit
-@Serializable
-data class FileCollectionsProviderRetrieveManifestResponse(val support: List<FSSupport>)
 
 // ---
 
 open class FileCollectionsProvider(
-    namespace: String,
-) : CallDescriptionContainer("files.collections.provider.$namespace") {
+    provider: String,
+) : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections", provider) {
+
+    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
+        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+
+    val rename = call<FileCollectionsProviderRenameRequest, FileCollectionsProviderRenameResponse,
+        CommonErrorMessage>("rename") {
+        httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
+    }
+
+    override val delete: CallDescription<BulkRequest<FileCollection>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
+
+    /*
     val baseContext = "/ucloud/$namespace/files/collections"
 
     val retrieveManifest = call<FileCollectionsProviderRetrieveManifestRequest,
@@ -87,13 +78,11 @@ open class FileCollectionsProvider(
         httpDelete(baseContext, roles = Roles.SERVICE)
     }
 
-    val rename = call<FileCollectionsProviderRenameRequest, FileCollectionsProviderRenameResponse,
-        CommonErrorMessage>("rename") {
-        httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
-    }
+
 
     val updateAcl = call<FileCollectionsProviderUpdateAclRequest, FileCollectionsProviderUpdateAclResponse,
         CommonErrorMessage>("updateAcl") {
         httpUpdate(baseContext, "updateAcl", roles = Roles.SERVICE)
     }
+     */
 }

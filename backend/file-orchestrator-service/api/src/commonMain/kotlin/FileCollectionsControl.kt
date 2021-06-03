@@ -1,46 +1,16 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.provider.api.SpecificationAndPermissions
-import kotlinx.serialization.Serializable
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 
-// ---
+object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
-typealias FileCollectionsControlUpdateRequest = BulkRequest<FileCollectionsControlUpdateRequestItem>
+    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
+        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
 
-@Serializable
-data class FileCollectionsControlUpdateRequestItem(
-    val id: String,
-    val update: FileCollection.Update,
-)
-typealias FileCollectionsControlUpdateResponse = Unit
-
-typealias FileCollectionsControlChargeCreditsRequest = BulkRequest<FileCollectionsControlChargeCreditsRequestItem>
-
-@Serializable
-data class FileCollectionsControlChargeCreditsRequestItem(
-    val id: String,
-    val chargeId: String,
-    val units: Long,
-)
-
-@Serializable
-data class FileCollectionsControlChargeCreditsResponse(
-    val insufficientFunds: List<FindByStringId>,
-    val duplicateCharges: List<FindByStringId>,
-)
-
-typealias FileCollectionsControlCreateRequest = BulkRequest<SpecificationAndPermissions<FileCollection.Spec>>
-typealias FileCollectionsControlCreateResponse = BulkResponse<FindByStringId>
-
-// ---
-
-object FileCollectionsControl : CallDescriptionContainer("files.collections.control") {
-    const val baseContext = "/api/files/collections/control"
-
+    /*
     val update = call<FileCollectionsControlUpdateRequest, FileCollectionsControlUpdateResponse,
         CommonErrorMessage>("update") {
         httpUpdate(baseContext, "update", roles = Roles.PROVIDER)
@@ -51,6 +21,7 @@ object FileCollectionsControl : CallDescriptionContainer("files.collections.cont
         httpUpdate(baseContext, "chargeCredits", roles = Roles.PROVIDER)
     }
 
+    Name is changing and TODO permissions
     val create = call<FileCollectionsControlCreateRequest, FileCollectionsControlCreateResponse,
         CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PROVIDER)
@@ -65,4 +36,5 @@ object FileCollectionsControl : CallDescriptionContainer("files.collections.cont
             """.trimIndent()
         }
     }
+     */
 }

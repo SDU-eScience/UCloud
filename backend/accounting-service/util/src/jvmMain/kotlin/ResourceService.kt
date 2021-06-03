@@ -3,6 +3,8 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
@@ -11,6 +13,9 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 suspend fun <T : Resource<*>> DBContext.paginateResource(
     actorAndProject: ActorAndProject,
@@ -77,16 +82,22 @@ interface ResourceSvc<
         actorAndProject: ActorAndProject,
         updates: BulkRequest<ResourceUpdateAndId<Update>>
     )
+
+    suspend fun register(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProviderRegisteredResource<Spec>>
+    ): BulkResponse<FindByStringId>
 }
 
 abstract class ResourceService<
     Res : Resource<*>,
     Spec : ResourceSpecification,
-    Flags : ResourceIncludeFlags,
-    Comms : ProviderComms,
-    Support : ProductSupport,
     Update : ResourceUpdate,
-    Prod : Product>(
+    Flags : ResourceIncludeFlags,
+    Status : ResourceStatus,
+    Prod : Product,
+    Support : ProductSupport,
+    Comms : ProviderComms>(
     private val db: AsyncDBSessionFactory,
     private val providers: Providers<Comms>,
     private val support: ProviderSupport<Comms, Prod, Support>
@@ -96,6 +107,10 @@ abstract class ResourceService<
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String get() = table.substringAfterLast('.').removeSuffix("s")
     protected open val sqlJsonConverter: String get() = table.removeSuffix("s") + "_to_json"
+
+    protected abstract fun providerApi(
+        comms: ProviderComms
+    ): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
 
@@ -127,7 +142,7 @@ abstract class ResourceService<
                 )
             },
             mapper = { _, rows ->
-                rows.map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
+                rows.map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }.attachSupport(flags)
             }
         )
     }
@@ -161,15 +176,16 @@ abstract class ResourceService<
                 .rows
                 .singleOrNull()
                 ?.let { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
+                ?.attachSupport(flags)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
 
     protected open suspend fun retrieveBulk(
         actorAndProject: ActorAndProject,
-        ids: List<String>,
+        ids: Collection<String>,
         flags: Flags?,
-        permission: Permission,
+        vararg permissionOneOf: Permission,
         requireAll: Boolean = true,
         ctx: DBContext? = null,
     ): List<Res> {
@@ -186,22 +202,45 @@ abstract class ResourceService<
 
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("ids", ids.mapNotNull { it.toLongOrNull() })
-                        setParameter("permission", permission.name)
+                        setParameter("permissions", permissionOneOf.map { it.name })
                     },
                     """
                         select * from provider.default_bulk_retrieve(:resource_type, :table, :to_json, :user, :ids, 
-                            :permission, :include_others, :include_updates)
+                            :permissions, :include_others, :include_updates)
                     """
                 )
                 .rows
+                .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
+                .filter {
+                    if (permissionOneOf.singleOrNull() == Permission.Provider) {
+                        // Admin isn't enough if we looking for Provider
+                        if (Permission.Provider !in (it.permissions?.myself ?: emptyList())) {
+                            return@filter false
+                        }
+                    }
+                    return@filter true
+                }
+                .toList()
 
             if (requireAll && result.size != ids.size) {
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result
+            result.attachSupport(flags)
         }
+    }
+
+    private suspend fun List<Res>.attachSupport(flags: Flags?): List<Res> {
+        if (flags == null || !flags.includeSupport) return this
+        forEach { it.status.support = support.retrieveProductSupport(it.specification.product) }
+        return this
+    }
+
+    private suspend fun Res.attachSupport(flags: Flags?): Res {
+        if (flags == null || !flags.includeSupport) return this
+        status.support = support.retrieveProductSupport(specification.product)
+        return this
     }
 
     private suspend fun verifyMembership(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
@@ -223,16 +262,18 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun endpointForCreate(
-        comms: Comms
-    ): CallDescription<BulkRequest<Spec>, BulkResponse<FindByStringId?>, CommonErrorMessage>
-
     protected abstract fun verifyProviderSupportsCreate(
         spec: Spec,
         res: ProductRefOrResource<Res>,
         support: Support
     )
-    protected abstract suspend fun createSpecification(resourceId: Long, specification: Spec, session: AsyncDBConnection)
+
+    protected abstract suspend fun createSpecification(
+        resourceId: Long,
+        specification: Spec,
+        session: AsyncDBConnection,
+        allowConflicts: Boolean = false
+    )
 
     override suspend fun create(
         actorAndProject: ActorAndProject,
@@ -243,7 +284,7 @@ abstract class ResourceService<
         val adjustedResponse = ArrayList<FindByStringId?>()
         try {
             proxy.bulkProxy(
-                this::endpointForCreate,
+                { comms -> providerApi(comms).create },
                 actorAndProject,
                 request,
                 isUserRequest = true,
@@ -252,7 +293,7 @@ abstract class ResourceService<
                         verifyMembership(actorAndProject, session)
                     }
 
-                    request.items.map { it to ProductRefOrResource.SomeRef(it.product!!) }
+                    request.items.map { it to ProductRefOrResource.SomeRef(it.product) }
                 },
                 verifyRequest = this::verifyProviderSupportsCreate,
                 beforeCall = { provider, req ->
@@ -291,6 +332,9 @@ abstract class ResourceService<
                     }
 
                     lastBatchOfIds = generatedIds
+
+                    retrieveBulk(actorAndProject, generatedIds.map { it.toString() }, null, Permission.Edit)
+                        .zip(req.map { it.second })
                 },
                 afterCall = { _, _, resp ->
                     session
@@ -328,10 +372,6 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun endpointForUpdateAcl(
-        comms: Comms
-    ): CallDescription<BulkRequest<UpdatedAcl>, BulkResponse<Unit?>, CommonErrorMessage>
-
     protected abstract fun verifyProviderSupportsUpdateAcl(
         spec: UpdatedAcl,
         res: ProductRefOrResource<Res>,
@@ -345,7 +385,7 @@ abstract class ResourceService<
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                this::endpointForUpdateAcl,
+                { comms -> providerApi(comms).updateAcl },
                 actorAndProject,
                 request,
                 isUserRequest = true,
@@ -368,7 +408,9 @@ abstract class ResourceService<
                                     val toAddUsers = ArrayList<String?>()
                                     val toAddPermissions = ArrayList<String>()
                                     acl.added.forEach { entityAndPermissions ->
-                                        entityAndPermissions.permissions.forEach {
+                                        entityAndPermissions.permissions.forEach p@{
+                                            if (!it.canBeGranted) return@p
+
                                             when (val entity = entityAndPermissions.entity) {
                                                 is AclEntity.ProjectGroup -> {
                                                     toAddGroups.add(entity.group)
@@ -412,6 +454,13 @@ abstract class ResourceService<
                                 """
                             )
                     }
+                    req.map {
+                        UpdatedAclWithResource(
+                            (it.second as ProductRefOrResource.SomeResource<Res>).resource,
+                            it.first.added,
+                            it.first.deleted
+                        ) to it.second
+                    }
                 },
                 afterCall = { _, _, _ -> db.commit(session) },
                 onProviderFailure = { _, _, _ -> db.rollback(session) }
@@ -421,16 +470,11 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun endpointForDelete(
-        comms: Comms
-    ): CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
-
     protected abstract fun verifyProviderSupportsDelete(
         id: FindByStringId,
         res: ProductRefOrResource<Res>,
         support: Support
     )
-
 
     protected open suspend fun deleteSpecification(resourceIds: List<Long>, session: AsyncDBConnection) {
         session
@@ -449,10 +493,13 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
+        val hasDelete = providerApi(providers.placeholderCommunication).delete != null
+        if (!hasDelete) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                this::endpointForDelete,
+                { comms -> providerApi(comms).delete!! },
                 actorAndProject,
                 request,
                 isUserRequest = true,
@@ -471,14 +518,22 @@ abstract class ResourceService<
 
                     deleteSpecification(ids, session)
 
-                    session.sendPreparedStatement(block,
-                        "delete from provider.resource_acl_entry where resource_id = some(:ids)")
+                    session.sendPreparedStatement(
+                        block,
+                        "delete from provider.resource_acl_entry where resource_id = some(:ids)"
+                    )
 
-                    session.sendPreparedStatement(block,
-                        "delete from provider.resource_update where resource = some(:ids)")
+                    session.sendPreparedStatement(
+                        block,
+                        "delete from provider.resource_update where resource = some(:ids)"
+                    )
 
-                    session.sendPreparedStatement(block,
-                        "delete from provider.resource where id = some(:ids)")
+                    session.sendPreparedStatement(
+                        block,
+                        "delete from provider.resource where id = some(:ids)"
+                    )
+
+                    req.map { ((it.second) as ProductRefOrResource.SomeResource<Res>).resource to it.second }
                 },
                 afterCall = { _, _, _ -> db.commit(session) },
                 onProviderFailure = { _, _, _ -> db.rollback(session) }
@@ -488,13 +543,114 @@ abstract class ResourceService<
         }
     }
 
+    abstract val updateSerializer: KSerializer<Update>
+    open suspend fun onUpdate(
+        resources: List<Res>,
+        updates: List<ResourceUpdateAndId<Update>>,
+        session: AsyncDBConnection
+    ) {
+    }
+
     override suspend fun addUpdate(
         actorAndProject: ActorAndProject,
         updates: BulkRequest<ResourceUpdateAndId<Update>>
     ) {
         db.withSession { session ->
+            val ids = updates.items.asSequence().map { it.id }.toSet()
+            val resources = retrieveBulk(actorAndProject, ids, null, Permission.Provider)
 
+            session
+                .sendPreparedStatement(
+                    {
+                        val resourceIds = ArrayList<Long>()
+                        val statusMessages = ArrayList<String?>()
+                        val extraMessages = ArrayList<String>()
+                        for (update in updates.items) {
+                            val rawEncoded = defaultMapper.encodeToJsonElement(updateSerializer, update.update)
+                            val encoded = if (rawEncoded is JsonObject) {
+                                val entries = HashMap<String, JsonElement>()
+                                for ((key, value) in rawEncoded) {
+                                    if (key == "timestamp") continue
+                                    if (key == "status") continue
+                                    entries[key] = value
+                                }
+                                JsonObject(entries)
+                            } else {
+                                rawEncoded
+                            }
+
+                            extraMessages.add(defaultMapper.encodeToString(encoded))
+                            resourceIds.add(update.id.toLong())
+                            statusMessages.add(update.update.status)
+                        }
+
+                        setParameter("resource_ids", resourceIds)
+                        setParameter("status_messages", statusMessages)
+                        setParameter("extra_messages", extraMessages)
+                    },
+                    """
+                        insert into provider.resource_update
+                        (resource, created_at, status, extra) 
+                        select unnest(:resource_ids), now(), unnest(:status_messages), unnest(:extra_messages)
+                    """
+                )
+
+            onUpdate(resources, updates.items, session)
         }
     }
-}
 
+    override suspend fun register(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProviderRegisteredResource<Spec>>
+    ): BulkResponse<FindByStringId> {
+        val provider = request.items.map { it.spec.product.provider }.toSet().singleOrNull()
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+        providers.verifyProvider(provider, actorAndProject.actor)
+
+        return BulkResponse(db.withSession { session ->
+            val generatedIds = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("type", resourceType)
+                        setParameter("provider", provider)
+                        setParameter("created_by", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                        setParameter("product_ids", request.items.map { it.spec.product.id })
+                        setParameter("product_categories", request.items.map { it.spec.product.category })
+                        setParameter("provider_generated_id", request.items.map { it.providerGeneratedId })
+                    },
+                    """
+                        with product_tuples as (
+                            select
+                                unnest(:product_ids::text[]) id, 
+                                unnest(:product_categories::text[]) cat,
+                                unnest(:provider_generated_ids) provider_generated_id
+                        )
+                        insert into provider.resource(type, provider, created_by, project, product, provider_generated_id) 
+                        select :type, :provider, :created_by, :project, p.id, t.provider_generated_id
+                        from
+                            product_tuples t join 
+                            accounting.product_categories pc on 
+                                pc.category = t.cat and pc.provider = :provider join
+                            accounting.products p on pc.id = p.category and t.id = p.name
+                        on conflict (provider_generated_id) do update set
+                            type = excluded.type,
+                            provider = excluded.provider,
+                            created_by = excluded.created_by,
+                            project = excluded.project,
+                            product = excluded.product
+                        returning id
+                    """
+                ).rows.map { it.getLong(0)!! }
+
+            check(generatedIds.size == request.items.size)
+
+            for ((id, req) in generatedIds.zip(request.items)) {
+                createSpecification(id, req.spec, session, allowConflicts = true)
+            }
+
+            generatedIds.map { FindByStringId(it.toString()) }
+        })
+    }
+}
