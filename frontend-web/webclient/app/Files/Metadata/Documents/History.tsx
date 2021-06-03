@@ -5,7 +5,7 @@ import FileMetadataHistory = file.orchestrator.FileMetadataHistory;
 import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "Authentication/DataHook";
 import FileMetadataOrDeleted = file.orchestrator.FileMetadataOrDeleted;
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {Box, Button, Flex, Icon, List} from "ui-components";
 import {AppLogo, hashF} from "Applications/Card";
 import * as Heading from "ui-components/Heading";
@@ -71,7 +71,7 @@ export const History: React.FunctionComponent<{
                     templateId: template.id,
                     document: editingDocument,
                     changeLog: "",
-                    product: undefined
+                    product: placeholderProduct()
                 }
             }))
         );

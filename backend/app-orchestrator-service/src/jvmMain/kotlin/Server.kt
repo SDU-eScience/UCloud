@@ -1,15 +1,16 @@
 package dk.sdu.cloud.app.orchestrator
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -96,9 +97,27 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         if (!micro.developmentModeEnabled) runBlocking { jobMonitoring.initialize() }
 
-        val ingressDao = IngressDao(productCache)
-        val ingressService = IngressService(db, ingressDao, providers, projectCache, productCache,
-            jobOrchestrator, paymentService)
+        val altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
+            ComputeCommunication(
+                JobsProvider(comms.provider.id),
+                comms.client,
+                comms.wsClient,
+                IngressProvider(comms.provider.id),
+                LicenseProvider(comms.provider.id),
+                NetworkIPProvider(comms.provider.id),
+                comms.provider
+            )
+        }
+
+        val ingressSupport = ProviderSupport<ComputeCommunication, Product.Ingress, IngressSettings>(
+            altProviders,
+            serviceClient,
+            fetchSupport = { comms ->
+                comms.ingressApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it.support }
+            }
+        )
+
+        val ingressService = IngressService(db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
 
         val licenseDao = LicenseDao(productCache)
         val licenseService = LicenseService(db, licenseDao, providers, projectCache, productCache,

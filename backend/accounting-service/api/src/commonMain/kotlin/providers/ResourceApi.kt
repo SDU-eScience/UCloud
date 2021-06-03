@@ -86,6 +86,7 @@ inline fun <
 }
 
 @OptIn(ExperimentalStdlibApi::class)
+@TSSkipCodegen
 abstract class ResourceApi<
     Res : Resource<*>,
     Spec : ResourceSpecification,

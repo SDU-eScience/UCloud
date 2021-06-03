@@ -18,7 +18,7 @@ import * as Heading from "ui-components/Heading";
 import {Operation, Operations} from "ui-components/Operation";
 import {Section} from "ui-components/Section";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
 
 enum Stage {
@@ -101,7 +101,7 @@ const Create: React.FunctionComponent = props => {
                 uiSchema: JSON.parse(uiSchema),
                 schema: JSON.parse(schema),
                 namespaceType: namespace as ("COLLABORATORS" | "PER_USER"),
-                product: undefined
+                product: placeholderProduct()
             }))
         ) != null;
 

@@ -135,7 +135,7 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
             +UCloudApi.BROWSE
         }
 
-        if (type != Unit::class) {
+        if (type != typeOf<Unit>()) {
             params {
                 serializer.descriptor.elementNames.forEach {
                     +boundTo(it)
@@ -213,7 +213,7 @@ fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
             +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
         }
 
-        if (type != Unit::class) {
+        if (type != typeOf<Unit>()) {
             params {
                 for (i in 0 until serializer.descriptor.elementsCount) {
                     val name = serializer.descriptor.getElementName(i)

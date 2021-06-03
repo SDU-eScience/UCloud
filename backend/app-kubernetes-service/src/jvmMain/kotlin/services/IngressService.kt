@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -80,7 +81,7 @@ class IngressService(
         IngressControl.update.call(
             bulkRequestOf(
                 ingresses.items.map {
-                    IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
+                    ResourceUpdateAndId(it.id, IngressUpdate(IngressState.READY, "Ingress is now ready"))
                 }
             ),
             k8.serviceClient

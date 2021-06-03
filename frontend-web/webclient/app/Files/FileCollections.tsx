@@ -8,12 +8,12 @@ import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Operation, Operations} from "ui-components/Operation";
 import MainContainer from "MainContainer/MainContainer";
-import FileCollection = file.orchestrator.FileCollection;
+// import FileCollection = file.orchestrator.FileCollection;
 import {CommonFileProps} from "Files/FileBrowser";
-import collectionsApi = file.orchestrator.collections;
-import FileCollectionsProviderRetrieveManifestResponse = file.orchestrator.FileCollectionsProviderRetrieveManifestResponse;
+// import collectionsApi = file.orchestrator.collections;
+// import FileCollectionsProviderRetrieveManifestResponse = file.orchestrator.FileCollectionsProviderRetrieveManifestResponse;
 import ProductReference = accounting.ProductReference;
-import FSSupport = file.orchestrator.FSSupport;
+// import FSSupport = file.orchestrator.FSSupport;
 import * as Heading from "ui-components/Heading";
 import {dialogStore} from "Dialog/DialogStore";
 import {doNothing} from "UtilityFunctions";
@@ -27,6 +27,7 @@ function productRefKey(ref: ProductReference): string {
     return `${ref.id}/${ref.category}/${ref.category}`;
 }
 
+/*
 function pathToCollection(collection: FileCollection): string {
     return `/${collection.specification.product.provider}/` +
         `${collection.specification.product.category}/` +
@@ -35,11 +36,15 @@ function pathToCollection(collection: FileCollection): string {
 
 type Manifest = FileCollectionsProviderRetrieveManifestResponse;
 type CollectionWithSupport = { collection: FileCollection, support: FSSupport };
+ */
 
 export const FileCollections: React.FunctionComponent<CommonFileProps & {
     provider: string;
-    collections: APICallState<PageV2<FileCollection>>;
+    collections?: any;
+    // collections: APICallState<PageV2<FileCollection>>;
 }> = props => {
+    return null;
+    /*
     const renameRef = useRef<HTMLInputElement>(null);
     const [renaming, setRenaming] = useState<FileCollection | null>(null);
 
@@ -202,8 +207,10 @@ export const FileCollections: React.FunctionComponent<CommonFileProps & {
         />;
     }
     return null;
+     */
 };
 
+/*
 // eslint-disable-next-line
 interface CollectionsCallbacks extends CommonFileProps {
     manifest: FSSupport[];
@@ -325,3 +332,6 @@ function collectionPropertiesPage(collection: FileCollection) {
         {id: collection.id, provider: collection.specification.product.provider}
     );
 }
+
+
+ */

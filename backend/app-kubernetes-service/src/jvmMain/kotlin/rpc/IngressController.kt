@@ -9,6 +9,7 @@ class IngressController(
     private val ingressService: IngressService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(KubernetesIngresses.create) {
             ingressService.create(request)
             ok(Unit)
@@ -29,5 +30,6 @@ class IngressController(
         }
 
         return@with
+         */
     }
 }

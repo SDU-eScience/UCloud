@@ -11,6 +11,8 @@ import {Spacer} from "ui-components/Spacer";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 
 const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinished?: () => void}> = props => {
+    return null;
+    /*
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
     const canChangeProvider = props.computeProvider === undefined;
     const [selectedProduct, setSelectedProduct] = useState<ProductNS.Ingress | null>(null);
@@ -133,6 +135,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             props.onCreateFinished?.();
         }
     }
+     */
 };
 
 export default Create;

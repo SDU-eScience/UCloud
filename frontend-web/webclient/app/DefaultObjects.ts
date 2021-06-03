@@ -29,6 +29,10 @@ export enum KeyCode {
     ESC = 27
 }
 
+export function placeholderProduct(): { "id": "", "category": "", "provider": "ucloud_core" } {
+    return { "id": "", "category": "", "provider": "ucloud_core" };
+}
+
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
     return {"type": "bulk", items};
 }

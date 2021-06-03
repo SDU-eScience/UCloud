@@ -34,10 +34,13 @@ export const ImportParameters: React.FunctionComponent<{
         `${Client.currentProjectFolder}/Members' Files/${Client.username}/Jobs/${title}`
         : `${Client.homeFolder}Jobs/${title}`;
 
+    /*
     const [previousRuns, fetchPreviousRuns] = useCloudAPI<UCloud.Page<UCloud.file.StorageFile>>(
         {noop: true},
         emptyPage
     );
+
+     */
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
@@ -100,6 +103,7 @@ export const ImportParameters: React.FunctionComponent<{
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
             {
+                /*
                 previousRuns.data.items.slice(0, 5).map((file, idx) => (
                     <Box mr="0.8em" key={idx}>
                         <BaseLink
@@ -124,6 +128,7 @@ export const ImportParameters: React.FunctionComponent<{
                         </BaseLink>
                     </Box>
                 ))
+                 */
             }
         </Flex>
 

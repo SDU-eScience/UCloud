@@ -60,8 +60,16 @@ abstract class ResourceService<
     protected abstract val table: String
     protected abstract val sortColumn: String
     protected abstract val serializer: KSerializer<Res>
-    protected open val resourceType: String get() = table.substringAfterLast('.').removeSuffix("s")
-    protected open val sqlJsonConverter: String get() = table.removeSuffix("s") + "_to_json"
+    protected open val resourceType: String get() = table.substringAfterLast('.').removePluralSuffix()
+    protected open val sqlJsonConverter: String get() = table.removePluralSuffix() + "_to_json"
+
+    private fun String.removePluralSuffix(): String {
+        return when {
+            endsWith("es") -> removeSuffix("es")
+            endsWith("s") -> removeSuffix("s")
+            else -> this
+        }
+    }
 
     abstract val productArea: ProductArea
 
@@ -70,7 +78,7 @@ abstract class ResourceService<
     ): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
-    private val payment = PaymentService(db, serviceClient)
+    protected val payment = PaymentService(db, serviceClient)
 
     override suspend fun browse(
         actorAndProject: ActorAndProject,
@@ -223,11 +231,11 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun verifyProviderSupportsCreate(
+    protected open fun verifyProviderSupportsCreate(
         spec: Spec,
         res: ProductRefOrResource<Res>,
         support: Support
-    )
+    ) {}
 
     protected abstract suspend fun createSpecification(
         resourceId: Long,
@@ -339,11 +347,11 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun verifyProviderSupportsUpdateAcl(
+    protected open fun verifyProviderSupportsUpdateAcl(
         spec: UpdatedAcl,
         res: ProductRefOrResource<Res>,
         support: Support
-    )
+    ) {}
 
     override suspend fun updateAcl(
         actorAndProject: ActorAndProject,
@@ -440,11 +448,11 @@ abstract class ResourceService<
         }
     }
 
-    protected abstract fun verifyProviderSupportsDelete(
+    protected open fun verifyProviderSupportsDelete(
         id: FindByStringId,
         res: ProductRefOrResource<Res>,
         support: Support
-    )
+    ) {}
 
     protected open suspend fun deleteSpecification(resourceIds: List<Long>, session: AsyncDBConnection) {
         session

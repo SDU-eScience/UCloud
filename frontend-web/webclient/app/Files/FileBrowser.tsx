@@ -6,10 +6,10 @@ import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHo
 import {file, PageV2} from "UCloud";
 import UFile = file.orchestrator.UFile;
 import {emptyPageV2} from "DefaultObjects";
-import FileCollection = file.orchestrator.FileCollection;
+// import FileCollection = file.orchestrator.FileCollection;
 import metadataApi = file.orchestrator.metadata;
 import filesApi = file.orchestrator.files;
-import collectionsApi = file.orchestrator.collections;
+// import collectionsApi = file.orchestrator.collections;
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {buildQueryString, getQueryParam} from "Utilities/URIUtilities";
@@ -46,6 +46,8 @@ export interface CommonFileProps {
 }
 
 const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
+    return null;
+    /*
     const projectId = useProjectId();
     const params = useLocation();
     const pathFromQuery = getQueryParam(params.search, "path");
@@ -126,6 +128,7 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
     } else {
         return <Files files={files} {...commonProps} />;
     }
+     */
 };
 
 export default FileBrowser;

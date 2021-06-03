@@ -6,7 +6,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useProjectId} from "Project";
 import * as Pagination from "Pagination";
 import {compute} from "UCloud";
-import Ingress = compute.Ingress;
+// import Ingress = compute.Ingress;
 import {PageRenderer} from "Pagination/PaginationV2";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {Box, List} from "ui-components";
@@ -18,7 +18,12 @@ import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import Create from "Applications/Ingresses/Create";
 
-const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: Ingress) => void}> = props => {
+const Browse: React.FunctionComponent<{
+    computeProvider?: string;
+    // onSelect?: (selection: Ingress) => void
+}> = props => {
+    return null;
+    /*
     const projectId = useProjectId();
     const [infScrollId, setInfScrollId] = useState(0);
     const [ingresses, fetchIngresses] = useCloudAPI({noop: true}, emptyPageV2);
@@ -110,8 +115,11 @@ const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (sel
             />
         </Box>
     </Box>;
+
+     */
 };
 
+/*
 interface IngressCallbacks {
     invokeCommand: InvokeCommand;
     onSelect: (ingress: Ingress) => void;
@@ -173,5 +181,7 @@ const operations: Operation<Ingress, IngressCallbacks>[] = [
         }
     }
 ];
+
+ */
 
 export default Browse;

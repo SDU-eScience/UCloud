@@ -13,8 +13,8 @@ import HexSpin from "LoadingIcon/LoadingIcon";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import FileCollection = file.orchestrator.FileCollection;
-import collectionsApi = file.orchestrator.collections;
+// import FileCollection = file.orchestrator.FileCollection;
+// import collectionsApi = file.orchestrator.collections;
 import ResourceAclEntry = provider.ResourceAclEntry;
 
 const aclOptions: { icon: IconName; name: string, title?: string }[] = [
@@ -23,6 +23,8 @@ const aclOptions: { icon: IconName; name: string, title?: string }[] = [
 ];
 
 const FileCollectionProperties: React.FunctionComponent = props => {
+    return null;
+    /*
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const params = useLocation();
     const idFromQuery = getQueryParam(params.search, "id");
@@ -94,6 +96,8 @@ const FileCollectionProperties: React.FunctionComponent = props => {
     return <MainContainer
         main={main}
     />;
+
+     */
 };
 
 export default FileCollectionProperties;

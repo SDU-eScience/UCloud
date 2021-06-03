@@ -8,10 +8,10 @@ import {useProjectId} from "Project";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import UFile = file.orchestrator.UFile;
-import FileCollection = file.orchestrator.FileCollection;
+// import FileCollection = file.orchestrator.FileCollection;
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {pathComponents} from "Utilities/FileUtilities";
-import collectionsApi = file.orchestrator.collections;
+// import collectionsApi = file.orchestrator.collections;
 import metadataApi = file.orchestrator.metadata;
 import filesApi = file.orchestrator.files;
 import MainContainer from "MainContainer/MainContainer";
@@ -22,6 +22,8 @@ import HexSpin from "LoadingIcon/LoadingIcon";
 import {Browse} from "Files/Metadata/Documents/Browse";
 
 const Properties: React.FunctionComponent = () => {
+    return null;
+    /*
     const history = useHistory();
     const path = getQueryParam(history.location.search, "path");
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
@@ -107,6 +109,8 @@ const Properties: React.FunctionComponent = () => {
     }
 
     return <MainContainer main={main}/>;
+     */
 };
+
 
 export default Properties;

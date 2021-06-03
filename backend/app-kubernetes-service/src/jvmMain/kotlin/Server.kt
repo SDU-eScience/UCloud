@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
@@ -98,7 +99,11 @@ class Server(
         val resourceCache = ResourceCache(k8Dependencies)
         val sessions = SessionDao()
         val ingressService = IngressService(
-            IngressSettings(configuration.prefix, "." + configuration.domain),
+            IngressSettings(
+                configuration.prefix,
+                "." + configuration.domain,
+                ProductReference("u1-publiclink", "u1-publiclink", "ucloud")
+            ),
             db,
             k8Dependencies
         )

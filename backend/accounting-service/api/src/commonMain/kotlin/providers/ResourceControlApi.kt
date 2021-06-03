@@ -50,6 +50,7 @@ data class ProviderRegisteredResource<Spec : ResourceSpecification>(
 )
 
 @OptIn(ExperimentalStdlibApi::class)
+@TSSkipCodegen
 abstract class ResourceControlApi<
     Res : Resource<*>,
     Spec : ResourceSpecification,

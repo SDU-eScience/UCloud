@@ -1,59 +1,25 @@
 package dk.sdu.cloud.app.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-
-// Data model
-interface IngressId {
-    val id: String
-}
-
-fun IngressId(id: String): IngressId = IngressRetrieve(id)
-@Serializable
-data class IngressRetrieve(override val id: String) : IngressId
-
-@Serializable
-data class IngressRetrieveWithFlags(
-    override val id: String,
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-) : IngressDataIncludeFlags, IngressId
 
 @Serializable
 data class IngressSettings(
     val domainPrefix: String,
     val domainSuffix: String,
-)
-
-interface IngressDataIncludeFlags {
-    @UCloudApiDoc("Includes `updates`")
-    val includeUpdates: Boolean?
-
-    @UCloudApiDoc("Includes `resolvedProduct`")
-    val includeProduct: Boolean?
-}
-
-@Serializable
-data class IngressDataIncludeFlagsImpl(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-) : IngressDataIncludeFlags
-
-fun IngressDataIncludeFlags(
-    includeUpdates: Boolean? = null,
-    includeProduct: Boolean? = null,
-): IngressDataIncludeFlags = IngressDataIncludeFlagsImpl(includeUpdates, includeProduct)
+    override val product: ProductReference,
+) : ProductSupport
 
 @Serializable
 data class IngressSpecification(
@@ -87,24 +53,14 @@ data class Ingress(
     @UCloudApiDoc("The current status of this resource")
     override val status: IngressStatus,
 
-    @UCloudApiDoc("Billing information associated with this `Ingress`")
-    override val billing: IngressBilling,
-
     @UCloudApiDoc("A list of updates for this `Ingress`")
     override val updates: List<IngressUpdate> = emptyList(),
 
-    val resolvedProduct: Product.Ingress? = null,
-
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
-
     override val permissions: ResourcePermissions? = null,
-) : IngressId, Resource<Nothing?>
-
-@Serializable
-data class IngressBilling(
-    override val pricePerUnit: Long,
-    override val creditsCharged: Long
-) : ResourceBilling
+) : Resource<Nothing?> {
+    override val billing = ResourceBilling.Free
+    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null
+}
 
 @UCloudApiDoc("The status of an `Ingress`")
 @Serializable
@@ -137,9 +93,6 @@ enum class IngressState {
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
 data class IngressUpdate(
-    @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
-    override val timestamp: Long,
-
     @UCloudApiDoc("The new state that the `Ingress` transitioned to (if any)")
     val state: IngressState? = null,
 
@@ -149,6 +102,9 @@ data class IngressUpdate(
     val didBind: Boolean = false,
 
     val newBinding: String? = null,
+
+    @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
+    override val timestamp: Long = 0,
 ) : ResourceUpdate
 
 interface IngressFilters {
@@ -156,65 +112,26 @@ interface IngressFilters {
     val provider: String?
 }
 
-// Request and response types
 @Serializable
-data class IngressesBrowseRequest(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val domain: String? = null,
-    override val provider: String? = null,
-) : IngressDataIncludeFlags, IngressFilters, WithPaginationRequestV2
-typealias IngressesBrowseResponse = PageV2<Ingress>
-
-typealias IngressesCreateRequest = BulkRequest<IngressCreateRequestItem>
-
-typealias IngressCreateRequestItem = IngressSpecification
-@Serializable
-data class IngressesCreateResponse(val ids: List<String>)
-
-typealias IngressesDeleteRequest = BulkRequest<IngressRetrieve>
-typealias IngressesDeleteResponse = Unit
-
-typealias IngressesRetrieveRequest = IngressRetrieveWithFlags
-typealias IngressesRetrieveResponse = Ingress
-
-typealias IngressesRetrieveSettingsRequest = ProductReference
-typealias IngressesRetrieveSettingsResponse = IngressSettings
+data class IngressIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+) : ResourceIncludeFlags
 
 @TSNamespace("compute.ingresses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-object Ingresses : CallDescriptionContainer("ingresses") {
-    const val baseContext = "/api/ingresses"
+object Ingresses : ResourceApi<
+    Ingress,
+    IngressSpecification,
+    IngressUpdate,
+    IngressIncludeFlags,
+    IngressStatus,
+    Product.Ingress,
+    IngressSettings>("ingresses") {
+    override val typeInfo = ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate,
+        IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSettings>()
 
-    init {
-        title = "Compute: Ingresses"
-        description = """
-            TODO
-        """
-    }
-
-    val browse = call<IngressesBrowseRequest, IngressesBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-    }
-
-    val create = call<IngressesCreateRequest, IngressesCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
-    }
-
-    val delete = call<IngressesDeleteRequest, IngressesDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-    }
-
-    val retrieve = call<IngressesRetrieveRequest, IngressesRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-    }
-
-    val retrieveSettings = call<IngressesRetrieveSettingsRequest, IngressesRetrieveSettingsResponse,
-        CommonErrorMessage>("retrieveSettings") {
-        httpRetrieve(baseContext, "settings")
-    }
+    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
 }

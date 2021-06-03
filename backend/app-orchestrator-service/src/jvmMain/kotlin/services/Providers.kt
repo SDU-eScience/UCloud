@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -15,22 +16,22 @@ import dk.sdu.cloud.provider.api.Providers as ProvidersApi
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 
-data class ProviderCommunication(
+data class ComputeCommunication(
     val api: JobsProvider,
-    val client: AuthenticatedClient,
-    val wsClient: AuthenticatedClient,
-    val ingressApi: IngressProvider?,
-    val licenseApi: LicenseProvider?,
-    val networkApi: NetworkIPProvider?,
-    val provider: ProviderSpecification,
-)
+    override val client: AuthenticatedClient,
+    override val wsClient: AuthenticatedClient,
+    val ingressApi: IngressProvider,
+    val licenseApi: LicenseProvider,
+    val networkApi: NetworkIPProvider,
+    override val provider: ProviderSpecification,
+) : ProviderComms
 
 class Providers(
     private val serviceClient: AuthenticatedClient,
 ) {
     private val rpcClient = serviceClient.withoutAuthentication()
 
-    private val communicationCache = SimpleCache<String, ProviderCommunication>(
+    private val communicationCache = SimpleCache<String, ComputeCommunication>(
         maxAge = 60_000 * 15L,
         lookup = { provider ->
             val auth = RefreshingJWTAuthenticator(
@@ -53,7 +54,7 @@ class Providers(
             val networkApi = NetworkIPProvider(provider)
             val computeApi = JobsProvider(provider)
 
-            ProviderCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
+            ComputeCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
         }
     )
 
@@ -61,7 +62,7 @@ class Providers(
      * Prepares communication with a given provider represented by an actor
      * @throws RPCException (Internal Server Error) in case of unknown providers
      */
-    suspend fun prepareCommunication(actor: Actor): ProviderCommunication {
+    suspend fun prepareCommunication(actor: Actor): ComputeCommunication {
         return prepareCommunication(actor.safeUsername().removePrefix(PROVIDER_USERNAME_PREFIX))
     }
 
@@ -69,7 +70,7 @@ class Providers(
      * Prepares communication with a given provider
      * @throws RPCException (Internal Server Error) in case of unknown providers
      */
-    suspend fun prepareCommunication(provider: String): ProviderCommunication {
+    suspend fun prepareCommunication(provider: String): ComputeCommunication {
         return communicationCache.get(provider)
             ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
     }
@@ -98,7 +99,7 @@ class Providers(
     suspend fun <R : Any, S : Any, E : Any> proxyCall(
         provider: String,
         endUser: Actor?,
-        call: (ProviderCommunication) -> CallDescription<R, S, E>,
+        call: (ComputeCommunication) -> CallDescription<R, S, E>,
         request: R,
         useWebsockets: Boolean = false,
     ): IngoingCallResponse<S, E> {
@@ -136,7 +137,7 @@ class Providers(
     suspend fun <R : Any, S : Any, E : Any> proxySubscription(
         provider: String,
         endUser: Actor?,
-        call: (ProviderCommunication) -> CallDescription<R, S, E>,
+        call: (ComputeCommunication) -> CallDescription<R, S, E>,
         request: R,
         handler: suspend (S) -> Unit,
     ): IngoingCallResponse<S, E> {

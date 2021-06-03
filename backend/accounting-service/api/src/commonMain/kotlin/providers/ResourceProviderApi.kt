@@ -19,6 +19,7 @@ data class ProviderProducts<Support : ProductSupport>(
 )
 
 @OptIn(ExperimentalStdlibApi::class)
+@TSSkipCodegen
 abstract class ResourceProviderApi<
     Res : Resource<*>,
     Spec : ResourceSpecification,

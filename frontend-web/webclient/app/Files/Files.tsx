@@ -4,7 +4,7 @@ import {BulkResponse, file, PageV2} from "UCloud";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {getParentPath, pathComponents, resolvePath, sizeToString} from "Utilities/FileUtilities";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import HexSpin from "LoadingIcon/LoadingIcon";
@@ -19,8 +19,8 @@ import Icon, {IconName} from "ui-components/Icon";
 import FileBrowser, {CommonFileProps} from "Files/FileBrowser";
 import UFile = file.orchestrator.UFile;
 import filesApi = file.orchestrator.files;
-import collectionsApi = file.orchestrator.collections;
-import FileCollection = file.orchestrator.FileCollection;
+// import collectionsApi = file.orchestrator.collections;
+// import FileCollection = file.orchestrator.FileCollection;
 import ReactModal from "react-modal";
 import {FileType} from "./";
 import FilesMoveRequestItem = file.orchestrator.FilesMoveRequestItem;
@@ -43,8 +43,10 @@ export function fileName(path: string): string {
 export const Files: React.FunctionComponent<CommonFileProps & {
     files: APICallState<PageV2<UFile>>;
 }> = props => {
+    return null;
+    /*
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
+    // const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
 
     const toggleSet = useToggleSet(props.files.data.items);
 
@@ -285,7 +287,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                                             templateId: "favorite",
                                             changeLog: "",
                                             document: {"favorite": !isFavorite},
-                                            product: undefined
+                                            product: placeholderProduct()
                                         }
                                     })));
 
@@ -398,6 +400,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         />;
     }
     return main;
+    */
 };
 
 interface FilesCallbacks extends CommonFileProps {
