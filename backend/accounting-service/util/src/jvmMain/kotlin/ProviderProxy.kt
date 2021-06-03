@@ -81,11 +81,6 @@ class ProviderProxy<
         var anySuccess = false
 
         for ((provider, requestsAndResources) in groupedByProvider) {
-            if (provider == Provider.UCLOUD_CORE_PROVIDER) {
-                anySuccess = true
-                continue
-            }
-
             try {
                 val comms = providers.prepareCommunication(provider)
                 val providerCall = callFn(comms)
@@ -94,6 +89,12 @@ class ProviderProxy<
                 val requestForProvider = BulkRequest(newReq.map { it.first })
 
                 for (attempt in 0 until 5) {
+                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                        anySuccess = true
+                        afterCall(provider, requestsAndResources, BulkResponse(newReq.map { null }))
+                        break
+                    }
+
                     val response = providerCall.call(
                         requestForProvider,
                         if (isUserRequest) {
