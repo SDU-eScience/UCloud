@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
@@ -83,7 +84,7 @@ abstract class ResourceService<
     override suspend fun browse(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
-        flags: Flags,
+        flags: Flags?,
         ctx: DBContext?
     ): PageV2<Res> {
         return (ctx ?: db).paginateV2(
@@ -97,8 +98,8 @@ abstract class ResourceService<
                         setParameter("sort_column", sortColumn)
                         setParameter("to_json", sqlJsonConverter)
 
-                        setParameter("include_others", flags.includeOthers)
-                        setParameter("include_updates", flags.includeUpdates)
+                        setParameter("include_others", flags?.includeOthers ?: false)
+                        setParameter("include_updates", flags?.includeUpdates ?: false)
 
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
@@ -108,7 +109,15 @@ abstract class ResourceService<
                 )
             },
             mapper = { _, rows ->
-                rows.map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }.attachSupport(flags)
+                rows.mapNotNull {
+                    try {
+                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
+                    } catch (ex: Throwable) {
+                        log.warn("Caught exception while browsing resource: ${it.getString(0)}")
+                        log.warn(ex.stackTraceToString())
+                        null
+                    }
+                }.attachSupport(flags)
             }
         )
     }
@@ -116,7 +125,7 @@ abstract class ResourceService<
     override suspend fun retrieve(
         actorAndProject: ActorAndProject,
         id: String,
-        flags: Flags,
+        flags: Flags?,
         ctx: DBContext?
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -128,8 +137,8 @@ abstract class ResourceService<
                         setParameter("table", table)
                         setParameter("to_json", sqlJsonConverter)
 
-                        setParameter("include_others", flags.includeOthers)
-                        setParameter("include_updates", flags.includeUpdates)
+                        setParameter("include_others", flags?.includeOthers ?: false)
+                        setParameter("include_updates", flags?.includeUpdates ?: false)
 
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("id", convertedId)
@@ -141,7 +150,15 @@ abstract class ResourceService<
                 )
                 .rows
                 .singleOrNull()
-                ?.let { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
+                ?.let {
+                    try {
+                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
+                    } catch (ex: Throwable) {
+                        log.warn("Caught exception while retrieving resource: ${it.getString(0)}")
+                        log.warn(ex.stackTraceToString())
+                        null
+                    }
+                }
                 ?.attachSupport(flags)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
@@ -719,5 +736,9 @@ abstract class ResourceService<
                 .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
                 .map { FindByStringId(it.first.id) },
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

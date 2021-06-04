@@ -21,14 +21,14 @@ interface ResourceSvc<
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
-        flags: F,
+        flags: F?,
         ctx: DBContext? = null,
     ): PageV2<R>
 
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         id: String,
-        flags: F,
+        flags: F?,
         ctx: DBContext? = null,
     ): R
 

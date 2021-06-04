@@ -78,6 +78,12 @@ export abstract class ResourceApi<
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
     }
 
+    public abstract title: string;
+
+    public get titlePlural(): string {
+        return this.title + "s";
+    }
+
     browse(req: PaginationRequestV2 & Flags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {
         return {
             context: "",

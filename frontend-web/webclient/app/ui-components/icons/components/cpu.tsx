@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgCpu = React.memo((props: any) => (
+const SvgCpu = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 79 79"
@@ -59,7 +59,6 @@ const SvgCpu = React.memo((props: any) => (
       </tspan>
     </text>
   </svg>
-), () => true);
-
+);
 
 export default SvgCpu;

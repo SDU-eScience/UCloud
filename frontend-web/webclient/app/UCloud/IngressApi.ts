@@ -9,32 +9,34 @@ import {
 import {accounting} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
 
-interface IngressSpecification extends ResourceSpecification {
+export interface IngressSpecification extends ResourceSpecification {
     domain: string;
 }
 
-type IngressState = "READY" | "PREPARING" | "UNAVAILABLE";
+export type IngressState = "READY" | "PREPARING" | "UNAVAILABLE";
 
-interface IngressStatus extends ResourceStatus {
+export interface IngressStatus extends ResourceStatus {
     boundTo?: string;
     state: IngressState;
 }
 
-interface IngressSupport extends ProductSupport {
+export interface IngressSupport extends ProductSupport {
     domainPrefix: string;
     domainSuffix: string;
 }
 
-interface IngressUpdate extends ResourceUpdate {
+export interface IngressUpdate extends ResourceUpdate {
     state?: IngressState;
     didBind: boolean;
     newBinding?: string;
 }
 
-interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}
+export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}
 
 class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecification, IngressUpdate,
     ResourceIncludeFlags, IngressStatus, IngressSupport> {
+    title = "Public Link";
+
     constructor() {
         super("ingresses");
     }

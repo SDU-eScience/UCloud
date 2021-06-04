@@ -6,6 +6,7 @@ import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
+import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
@@ -20,7 +21,6 @@ import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
-import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -31,7 +31,6 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
-import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
@@ -44,6 +43,7 @@ import io.ktor.server.netty.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
 import org.apache.logging.log4j.Level
 import java.io.File
 import kotlin.system.exitProcess
@@ -101,7 +101,8 @@ suspend fun main(args: Array<String>) {
     }.configuration
 
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true) {
+        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
+    ) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
