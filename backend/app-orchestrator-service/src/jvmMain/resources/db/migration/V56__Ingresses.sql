@@ -43,6 +43,7 @@ alter table app_orchestrator.ingresses drop column credits_charged;
 alter table app_orchestrator.ingresses drop column owner_username;
 alter table app_orchestrator.ingresses drop column owner_project;
 alter table app_orchestrator.ingresses alter column resource set not null;
+alter table app_orchestrator.ingresses drop column id;
 alter table app_orchestrator.ingresses add constraint ingress_pkey primary key (resource);
 drop function if exists app_orchestrator.update_ingress_state();
 alter table app_orchestrator.ingresses alter column status_bound_to set default null;

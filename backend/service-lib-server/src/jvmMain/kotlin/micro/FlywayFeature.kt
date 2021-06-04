@@ -79,6 +79,7 @@ fun DatabaseConfig.migrateAll() {
     val schemaPriority = mapOf(
         "newaccounting" to 100,
         "file_orchestrator" to 101,
+        "app_orchestrator" to 102,
     )
     var priorityDontCareCounter = 0
 

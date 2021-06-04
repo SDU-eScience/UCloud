@@ -13,7 +13,7 @@ as $jsonb_merge_func$
                    when e2.v is null then e1.v
                    when e1.v is null then e2.v
                    when e1.v = e2.v then e1.v
-                   else jsonb_merge(e1.v, e2.v)
+                   else provider.jsonb_merge(e1.v, e2.v)
                  end)
        from      jsonb_each(CurrentData) e1(k, v)
        full join jsonb_each(newData) e2(k, v) using (k)
