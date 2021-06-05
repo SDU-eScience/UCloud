@@ -138,14 +138,14 @@ abstract class ResourceApi<
             errorClass = typeOf<CommonErrorMessage>()
         )
 
-    val create: CallDescription<BulkRequest<Spec>, BulkResponse<FindByStringId>, CommonErrorMessage>
+    val create: CallDescription<BulkRequest<Spec>, BulkResponse<FindByStringId?>, CommonErrorMessage>
         get() = call(
             name = "create",
             handler = {
                 httpCreate(BulkRequest.serializer(typeInfo.specSerializer), baseContext)
             },
             requestType = BulkRequest.serializer(typeInfo.specSerializer),
-            successType = BulkResponse.serializer(FindByStringId.serializer()),
+            successType = BulkResponse.serializer(FindByStringId.serializer().nullable),
             errorType = CommonErrorMessage.serializer(),
             requestClass = typeOf<BulkRequest<Spec>>(),
             successClass = typeOf<BulkResponse<FindByStringId>>(),

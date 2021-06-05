@@ -662,14 +662,19 @@ abstract class ResourceService<
                         with personal_wallets as (
                             select pc.provider
                             from
-                                accounting.product_categories pc join 
-                                accounting.products product on product.category = pc.id left join 
+                                accounting.product_categories pc join
+                                accounting.products product on product.category = pc.id left join
                                 accounting.wallets w on pc.id = w.category
                             where
-                                w.account_type = 'USER' and
-                                w.account_id = :username and
                                 pc.area = :area and
-                                (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
+                                (
+                                    product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or
+                                    (
+                                        w.account_type = 'USER' and
+                                        w.account_id = :username and
+                                        w.balance > 0
+                                    )
+                                )
                         ),
                         project_wallets as (
                             select pc.provider
@@ -680,8 +685,8 @@ abstract class ResourceService<
                                 project.projects p on w.account_id = p.id and w.account_type = 'PROJECT' join
                                 project.project_members pm on p.id = pm.project_id
                             where
-                                pm.username = :username and
                                 pc.area = :area and
+                                pm.username = :username and
                                 (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
                         )
                         select * from personal_wallets union select * from project_wallets

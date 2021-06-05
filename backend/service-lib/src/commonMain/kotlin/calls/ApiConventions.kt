@@ -595,5 +595,10 @@ fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     return BulkRequest(items.toList())
 }
 
+fun <T : Any> bulkResponseOf(vararg items: T): BulkResponse<T> {
+    if (items.isEmpty()) error("No items provided")
+    return BulkResponse(listOf(*items))
+}
+
 @Serializable
 data class BulkResponse<T>(val responses: List<T>)

@@ -113,7 +113,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             altProviders,
             serviceClient,
             fetchSupport = { comms ->
-                comms.ingressApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it.support }
+                comms.ingressApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it }
             }
         )
 

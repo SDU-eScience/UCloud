@@ -288,6 +288,7 @@ fun runInstaller(configDir: File) {
                                         )
 
                                         session.sendPreparedStatement(
+                                            //language=sql
                                             """
                                                 insert into auth.refresh_tokens
                                                     (token, associated_user_id, csrf, public_session_reference, 

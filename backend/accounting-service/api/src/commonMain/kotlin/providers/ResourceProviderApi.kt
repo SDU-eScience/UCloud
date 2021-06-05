@@ -15,7 +15,7 @@ import kotlin.reflect.typeOf
 
 @Serializable
 data class ProviderProducts<Support : ProductSupport>(
-    val products: List<SupportWithProductReference<Support>>,
+    val products: List<Support>,
 )
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -77,17 +77,17 @@ abstract class ResourceProviderApi<
             errorClass = typeOf<CommonErrorMessage>()
         )
 
-    val retrieveProducts: CallDescription<Unit, BulkResponse<SupportWithProductReference<Support>>, CommonErrorMessage>
+    val retrieveProducts: CallDescription<Unit, BulkResponse<Support>, CommonErrorMessage>
         get() = call(
             name = "retrieveProducts",
             handler = {
                 httpRetrieve(Unit.serializer(), typeOf<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
             },
             requestType = Unit.serializer(),
-            successType = BulkResponse.serializer(SupportWithProductReference.serializer(typeInfo.supportSerializer)),
+            successType = BulkResponse.serializer(typeInfo.supportSerializer),
             errorType = CommonErrorMessage.serializer(),
             requestClass = typeOf<Unit>(),
-            successClass = typeOf<BulkResponse<SupportWithProductReference<Support>>>(),
+            successClass = typeOf<BulkResponse<Support>>(),
             errorClass = typeOf<CommonErrorMessage>()
         )
 

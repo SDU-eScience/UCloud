@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
@@ -17,4 +18,7 @@ open class IngressProvider(provider: String) : ResourceProviderApi<
     override val typeInfo =
         ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
             Product.Ingress, IngressSettings>()
+
+    override val delete: CallDescription<BulkRequest<Ingress>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
 }

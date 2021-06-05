@@ -13,9 +13,3 @@ data class ResolvedSupport<P : Product, Support : ProductSupport>(
     val product: P,
     val support: Support
 )
-
-@Serializable
-data class SupportWithProductReference<Support : ProductSupport>(
-    val product: ProductReference,
-    val support: Support,
-)

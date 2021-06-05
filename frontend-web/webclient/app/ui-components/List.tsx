@@ -133,7 +133,7 @@ const ListStyle = styled.div`
 
   .row-left {
     flex-grow: 1;
-    overflow: auto;
+    overflow: visible;
   }
 
   &[data-navigate="true"] .row-left-content {
@@ -143,7 +143,7 @@ const ListStyle = styled.div`
   .row-left-content {
     margin-bottom: -4px;
     font-size: 20px;
-    overflow: hidden;
+    /*overflow: hidden;*/
     white-space: nowrap;
     text-overflow: ellipsis;
   }

@@ -13,9 +13,13 @@ class IngressController(
         implement(Ingresses.browse) {
             ok(ingressService.browse(actorAndProject, request, request.flags))
         }
-        implement(Ingresses.create) {}
+        implement(Ingresses.create) {
+            ok(ingressService.create(actorAndProject, request))
+        }
         implement(Ingresses.retrieve) {}
-        implement(Ingresses.retrieveProducts) {}
+        implement(Ingresses.retrieveProducts) {
+            ok(ingressService.retrieveProducts(actorAndProject))
+        }
         implement(Ingresses.delete) {}
         implement(Ingresses.updateAcl) {}
         return@with

@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
-import {Resource, ResourceApi} from "UCloud/ResourceApi";
+import {ResolvedSupport, Resource, ResourceApi, SupportByProvider} from "UCloud/ResourceApi";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {accounting, PageV2} from "UCloud";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -19,6 +19,9 @@ import MainContainer from "MainContainer/MainContainer";
 import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
+import {ProductSelector} from "Resource/ProductSelector";
+import {timestampUnixMs} from "UtilityFunctions";
+import {Client} from "Authentication/HttpClientInstance";
 
 export interface ResourceBrowseProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
@@ -31,6 +34,8 @@ export interface ResourceBrowseProps<Res extends Resource> {
 
     onSelect?: (resource: Res) => void;
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => void;
+    inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
+    inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
 
     createOperations?: (defaults: Operation<Res, ResourceBrowseCallbacks<Res>>[]) =>
         Operation<Res, ResourceBrowseCallbacks<Res>>[];
@@ -42,6 +47,7 @@ interface ResourceBrowseCallbacks<Res extends Resource> {
     invokeCommand: InvokeCommand;
     reload: () => void;
     api: ResourceApi<Res, never>;
+    isCreating: boolean;
     startCreation: () => void;
     viewProperties: (res: Res) => void;
     onSelect?: (resource: Res) => void;
@@ -52,6 +58,9 @@ export const ResourceBrowse = <Res extends Resource>(
         onSelect, api, IconRenderer, TitleRenderer, StatsRenderer, ...props
     }: PropsWithChildren<ResourceBrowseProps<Res>>
 ): ReactElement | null => {
+    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
+        {productsByProvider: {}})
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [resources, fetchResources] = useCloudAPI<PageV2<Res>>({noop: true}, emptyPageV2);
     const [infScroll, setInfScroll] = useState(0);
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -62,8 +71,28 @@ export const ResourceBrowse = <Res extends Resource>(
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
 
+    const products: Product[] = useMemo(() => {
+        const allProducts: Product[] = [];
+        for (const provider of Object.keys(productsWithSupport.data.productsByProvider)) {
+            for (const productWithSupport of productsWithSupport.data.productsByProvider[provider]) {
+                allProducts.push(productWithSupport.product);
+            }
+        }
+        return allProducts;
+    }, [productsWithSupport]);
+
+    const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
+        if (selectedProduct) {
+            return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
+                .find(it => it.product.id === selectedProduct.id &&
+                    it.product.category.id === selectedProduct.category.id) ?? null;
+        }
+        return null;
+    }, [selectedProduct, productsWithSupport]);
+
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
+        fetchProductsWithSupport(api.retrieveProducts());
         fetchResources(api.browse({itemsPerPage: 50}));
         toggleSet.uncheckAll();
     }, [projectId]);
@@ -76,6 +105,7 @@ export const ResourceBrowse = <Res extends Resource>(
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
+        isCreating,
         invokeCommand,
         commandLoading,
         reload,
@@ -86,12 +116,12 @@ export const ResourceBrowse = <Res extends Resource>(
             }
         },
         viewProperties: res => 0
-    }), [api, invokeCommand, commandLoading, reload, props.onInlineCreation]);
+    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation]);
 
     const inlineInputRef = useRef<HTMLInputElement>(null);
     const onInlineCreate = useCallback(() => {
         if (inlineInputRef.current && props.onInlineCreation) {
-            // props.onInlineCreation(inlineInputRef.current.value, null, callbacks);
+            props.onInlineCreation(inlineInputRef.current.value, selectedProduct!, callbacks);
         }
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating]);
@@ -113,7 +143,11 @@ export const ResourceBrowse = <Res extends Resource>(
                 color: "blue",
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
-                enabled: (selected) => selected.length === 0,
+                enabled: (selected, cb) => {
+                    if (selected.length !== 0) return false;
+                    if (cb.isCreating) return "You are already creating a " + api.title.toLowerCase();
+                    return true;
+                },
                 onClick: (selected, cb) => cb.startCreation()
             },
             {
@@ -158,23 +192,50 @@ export const ResourceBrowse = <Res extends Resource>(
         return <List childPadding={"8px"} bordered={false}>
             {!isCreating ? null :
                 <ListRow
-                    icon={IconRenderer ? <IconRenderer resource={null} /> : null}
+                    icon={IconRenderer ? <IconRenderer resource={null}/> : null}
                     left={
-                        <NamingField
-                            confirmText={"Create"}
-                            onCancel={() => setIsCreating(false)}
-                            onSubmit={onInlineCreate}
-                            inputRef={inlineInputRef}
-                        />
+                        !selectedProduct ?
+                            <ProductSelector products={products} onProductSelected={setSelectedProduct}/>
+                            :
+                            <NamingField
+                                confirmText={"Create"}
+                                onCancel={() => setIsCreating(false)}
+                                onSubmit={onInlineCreate}
+                                inputRef={inlineInputRef}
+                                prefix={props.inlinePrefix && selectedProductWithSupport ?
+                                    props.inlinePrefix(selectedProductWithSupport) : null}
+                                suffix={props.inlineSuffix && selectedProductWithSupport ?
+                                    props.inlineSuffix(selectedProductWithSupport) : null}
+                            />
+                    }
+                    leftSub={
+                        <ListStatContainer>
+                            {props.withDefaultStats === true || !selectedProduct ? null :
+                                <>
+                                    <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
+                                    <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
+                                    <ListRowStat icon={"cubeSolid"}>
+                                        {selectedProduct.id} / {selectedProduct.category.id}
+                                    </ListRowStat>
+                                </>
+                            }
+
+                        </ListStatContainer>
                     }
                     right={null}
                 />
             }
+            {items.length > 0 || isCreating ? null :
+                <>
+                    No {api.titlePlural.toLowerCase()} available. Click "Create {api.title.toLowerCase()}"
+                    to create a new one.
+                </>
+            }
             {items.map(it =>
                 <ListRow
                     key={it.id}
-                    icon={IconRenderer ? <IconRenderer resource={it} /> : null}
-                    left={TitleRenderer ? <TitleRenderer resource={it} /> : <>{api.title} ({it.id})</>}
+                    icon={IconRenderer ? <IconRenderer resource={it}/> : null}
+                    left={TitleRenderer ? <TitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     leftSub={
@@ -205,11 +266,11 @@ export const ResourceBrowse = <Res extends Resource>(
                 />
             )}
         </List>
-    }, [toggleSet, isCreating]);
+    }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport]);
 
     useEffect(() => reload(), [reload]);
 
-    if (props.embedded !== true) {
+    if (!props.embedded) {
         useTitle(api.titlePlural);
         useLoading(commandLoading || resources.loading);
         useRefreshFunction(reload);
@@ -222,7 +283,7 @@ export const ResourceBrowse = <Res extends Resource>(
             infiniteScrollGeneration={infScroll}
             loading={resources.loading}
             pageRenderer={pageRenderer}
-            customEmptyPage={`No ${api.titlePlural} available. Click "Create ${api.title}" to create a new one.`}
+            customEmptyPage={pageRenderer([])}
         />
     </>;
 
@@ -231,7 +292,7 @@ export const ResourceBrowse = <Res extends Resource>(
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
                             entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+                            extra={callbacks} operations={operations}/>
             </StickyBox>
             {main}
         </Box>;
@@ -241,7 +302,7 @@ export const ResourceBrowse = <Res extends Resource>(
             sidebar={
                 <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
                             entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+                            extra={callbacks} operations={operations}/>
             }
         />
     }

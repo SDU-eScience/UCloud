@@ -32,6 +32,8 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
 import {capitalized} from "UtilityFunctions";
+import {accounting} from "UCloud";
+import Product = accounting.Product;
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -62,6 +64,17 @@ function getDateFormatter(duration: Duration): (timestamp: number) => string {
         case "Today":
         default:
             return dateFormatter;
+    }
+}
+
+export function priceExplainer(product: Product): string {
+    switch (product.type) {
+        case "compute":
+            return `${creditFormatter(product.pricePerUnit * 60, 4)}/hour`;
+        case "storage":
+            return `${creditFormatter(product.pricePerUnit * 30)}/GB per month`;
+        default:
+            return `${creditFormatter(product.pricePerUnit)}/unit`;
     }
 }
 

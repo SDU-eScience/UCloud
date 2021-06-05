@@ -152,6 +152,8 @@ export const ConfirmCancelButtons = ({
 export const NamingField: React.FunctionComponent<{
     onCancel: () => void;
     confirmText: string;
+    prefix?: string | null;
+    suffix?: string | null;
     inputRef: React.MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
     defaultValue?: string;
@@ -170,6 +172,7 @@ export const NamingField: React.FunctionComponent<{
     return (
         <form onSubmit={submit}>
             <Flex>
+                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -186,6 +189,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
+                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
                 <div onClick={stopPropagationAndPreventDefault} style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons
                         confirmText={props.confirmText}
