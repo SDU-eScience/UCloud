@@ -33,7 +33,7 @@ export interface ResourceBrowseProps<Res extends Resource> {
     StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
 
     onSelect?: (resource: Res) => void;
-    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => void;
+    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
 
@@ -119,12 +119,20 @@ export const ResourceBrowse = <Res extends Resource>(
     }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation]);
 
     const inlineInputRef = useRef<HTMLInputElement>(null);
-    const onInlineCreate = useCallback(() => {
+    const onInlineCreate = useCallback(async () => {
         if (inlineInputRef.current && props.onInlineCreation) {
-            props.onInlineCreation(inlineInputRef.current.value, selectedProduct!, callbacks);
+            const prefix = props?.inlinePrefix?.(selectedProductWithSupport!) ?? "";
+            const suffix = props?.inlineSuffix?.(selectedProductWithSupport!) ?? "";
+            const spec = props.onInlineCreation(
+                prefix + inlineInputRef.current.value + suffix,
+                selectedProduct!,
+                callbacks
+            );
+            await callbacks.invokeCommand(api.create(bulkRequestOf(spec)));
+            callbacks.reload();
         }
         setIsCreating(false);
-    }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating]);
+    }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
     const operations: Operation<Res, ResourceBrowseCallbacks<Res>>[] = useMemo(() => {
         const defaults: Operation<Res, ResourceBrowseCallbacks<Res>>[] = [

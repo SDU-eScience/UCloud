@@ -324,7 +324,8 @@ abstract class ResourceService<
                             actorAndProject,
                             generatedIds.map { it.toString() },
                             null,
-                            Permission.Edit
+                            Permission.Edit,
+                            ctx = session
                         )
                     )
                 },

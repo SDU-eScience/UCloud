@@ -147,7 +147,7 @@ class IngressService(
                 },
                 """
                     insert into app_orchestrator.ingresses (domain, resource) values (:domain, :resource) 
-                    on conflict do update set domain = excluded.domain
+                    on conflict (resource) do update set domain = excluded.domain
                 """
             )
     }
