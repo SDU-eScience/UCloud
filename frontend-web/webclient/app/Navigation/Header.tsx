@@ -56,7 +56,7 @@ export function NonAuthenticatedHeader(): JSX.Element {
             <ui.Link to="/login">
                 <ui.Button color="green" textColor="headerIconColor" mr="12px">Log in</ui.Button>
             </ui.Link>
-        </HeaderContainer >
+        </HeaderContainer>
     );
 }
 
@@ -102,8 +102,8 @@ function Header(props: HeaderProps): JSX.Element | null {
                 />
             </ui.Hide>
             <ui.Box mr="auto" />
-            {upcomingDowntime !== -1 ? (
-                <Link to={`/news/detailed/${upcomingDowntime}`}>
+            <ui.Flex justifyContent="center" width="48px">
+                <Link to={`/news/detailed/upcomingDowntime`}>
                     <ui.Tooltip
                         right="0"
                         bottom="1"
@@ -115,12 +115,16 @@ function Header(props: HeaderProps): JSX.Element | null {
                         Click to view
                     </ui.Tooltip>
                 </Link>
-            ) : null}
+            </ui.Flex>
             <ui.Hide xs sm md lg>
                 <DevelopmentBadge />
             </ui.Hide>
-            <VersionManager />
-            <BackgroundTask />
+            <ui.Flex justifyContent="center" width="48px">
+                <VersionManager />
+            </ui.Flex>
+            <ui.Flex justifyContent="center" width="48px">
+                <BackgroundTask />
+            </ui.Flex>
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
             </ui.Flex>

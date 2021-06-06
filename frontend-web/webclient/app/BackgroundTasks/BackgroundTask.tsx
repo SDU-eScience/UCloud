@@ -119,7 +119,7 @@ const BackgroundTasks = (props: BackgroundTaskProps): JSX.Element | null => {
                 width="600px"
                 left="-400px"
                 top="37px"
-                trigger={<TasksIcon />}
+                trigger={<Flex justifyContent="center"><TasksIcon /></Flex>}
             >
                 {props.activeUploads <= 0 ? null : <TaskComponent onClick={props.showUploader} {...uploadTask} />}
                 {!props.tasks ? null :
