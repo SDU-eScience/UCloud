@@ -2,6 +2,8 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -125,6 +127,8 @@ class IngressService(
         })
     }
 
+    override fun userApi() = Ingresses
+    override fun controlApi() = IngressControl
     override fun providerApi(comms: ProviderComms): IngressProvider = IngressProvider(comms.provider.id)
 
     override suspend fun createSpecification(

@@ -137,7 +137,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 CallbackController(jobOrchestrator),
 
-                IngressController(ingressService),
+                ingressService.asController(),
 
                 LicenseController(licenseService),
 

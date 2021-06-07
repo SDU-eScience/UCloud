@@ -8,8 +8,11 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
@@ -74,6 +77,56 @@ abstract class ResourceService<
     }
 
     abstract val productArea: ProductArea
+
+    fun asController(): Controller = object : Controller {
+        override fun configure(rpcServer: RpcServer) =  with(rpcServer) {
+            val userApi = userApi()
+            val controlApi = controlApi()
+
+            implement(userApi.create) {
+                ok(create(actorAndProject, request))
+            }
+
+            implement(userApi.retrieveProducts) {
+                ok(retrieveProducts(actorAndProject))
+            }
+
+            implement(userApi.browse) {
+                ok(browse(actorAndProject, request, request.flags))
+            }
+
+            implement(userApi.retrieve) {
+                ok(retrieve(actorAndProject, request.id, request.flags))
+            }
+
+            userApi.delete?.let {
+                implement(it) {
+                    ok(delete(actorAndProject, request))
+                }
+            }
+
+            implement(userApi.updateAcl) {
+                ok(updateAcl(actorAndProject, request))
+            }
+
+
+            implement(controlApi.update) {
+                ok(addUpdate(actorAndProject, request))
+            }
+
+            implement(controlApi.chargeCredits) {
+                ok(chargeCredits(actorAndProject, request))
+            }
+
+            implement(controlApi.register) {
+                ok(register(actorAndProject, request))
+            }
+        }
+    }
+
+    protected abstract fun userApi(): ResourceApi<Res, Spec, Update, Flags, Status, Prod, Support>
+
+    protected abstract fun controlApi(): ResourceControlApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected abstract fun providerApi(
         comms: ProviderComms
