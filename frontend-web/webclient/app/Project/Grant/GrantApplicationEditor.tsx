@@ -1062,7 +1062,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             <Button
                                                                                 color="red"
                                                                                 disabled={!isLocked}
-                                                                                onClick={() => {}}
+                                                                                onClick={() => undefined}
                                                                             >
                                                                                 Reject
                                                                             </Button>

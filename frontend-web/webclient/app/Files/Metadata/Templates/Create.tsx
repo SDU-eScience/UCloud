@@ -432,12 +432,12 @@ const BootstrapReplacement = styled.div`
         
         span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
             color: var(--blue, #f00);
-            border: 1px solid var(--blue, #f00);
+            border: 2px solid var(--blue, #f00);
         }
 
         span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
             color: var(--red, #f00);
-            border: 1px solid var(--red, #f00);
+            border: 2px solid var(--red, #f00);
         }
 
         input.form-control {
@@ -476,6 +476,21 @@ const BootstrapReplacement = styled.div`
 
         div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
             background-color: var(--lightGray);
+        }
+
+        div.delete-button {
+            color: var(--red);
+            margin-left: 6px;
+        }
+
+        span.toggle-collapse {
+            display: none;
+        }
+
+        svg.svg-inline--fa.fa-plus.fa-w-14.fa {
+            margin-left: auto;
+            margin-right: auto;
+            color: var(--blue);            
         }
     }
 `;

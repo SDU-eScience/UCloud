@@ -9,12 +9,14 @@ import MainContainer from "MainContainer/MainContainer";
 import {Markdown} from "ui-components";
 import {fileName} from "./Files";
 import * as Heading from "ui-components/Heading";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = 5_000_000;
 
 function Preview(): JSX.Element {
     const params = useLocation();
     const pathFromQuery = getQueryParam(params.search, "path") ?? "";
+    useTitle("Preview");
 
     const extension = extensionFromPath(pathFromQuery);
     const isValidExtension = isExtPreviewSupported(extension);

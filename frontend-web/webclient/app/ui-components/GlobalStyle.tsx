@@ -48,6 +48,12 @@ const UIGlobalStyle = `
 
 /*  /files/metadata/templates/create/ START */
 
+div.modal.fade.show { 
+    max-width: 800px;
+    background-color: var(--lightGray, #f00);
+    border-color: 2px solid var(--black, #f00);
+}
+
 div.tooltip.show.bs-tooltip-auto {
     color: var(--text, #f00);
     background-color: var(--white);
@@ -79,9 +85,25 @@ span.toggle-collapse {
     display: hidden;
 }
 
-/* /files/metadata/templates/create/ END */
+div.popover.show.bs-popover-auto > div.popover-inner > h3.popover-header {
+    border-bottom: none;
+    margin-top: 0px;
+}
 
-div.action-buttons > button.btn {
+div > div > div.modal { 
+    margin-left: calc(50% - 400px);
+    padding: 10px 10px 10px 10px;
+    background-color: var(--white, #f00);
+    border: 1px solid var(--gray, #f00);
+    border-radius: 5px;
+}
+
+
+div.modal-footer > button {
+    margin-right: 5px;
+}
+
+div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
     font-smoothing: antialiased;
     display: inline-flex;
     justify-content: center;
@@ -100,6 +122,9 @@ div.action-buttons > button.btn {
     width: 100px;
     height: 40px;
 }
+
+
+/* /files/metadata/templates/create/ END */
 
 /* Colors */
 html {
