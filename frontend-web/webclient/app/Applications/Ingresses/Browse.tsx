@@ -13,7 +13,11 @@ const Browse: React.FunctionComponent<{
         TitleRenderer={p => <>{p.resource.specification.domain}</>}
         IconRenderer={() => <Icon name={"globeEuropeSolid"}/>}
         onSelect={props.onSelect}
-        onInlineCreation={doNothing}
+        onInlineCreation={((text, product, cb) => ({
+                product: {id: product.id, category: product.category.id, provider: product.category.provider},
+                domain: text
+            })
+        )}
         inlinePrefix={p => (p.support as IngressSupport).domainPrefix}
         inlineSuffix={p => (p.support as IngressSupport).domainSuffix}
     />;

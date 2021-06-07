@@ -135,6 +135,10 @@ class EnhancedPreparedStatement(
         return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
     }
 
+    override fun toString(): String {
+        return "EnhancedPreparedStatement(parameterNamesToIndex=$parameterNamesToIndex, boundValues=$boundValues, preparedStatement='$preparedStatement', parameters=${parameters.contentToString()})"
+    }
+
     companion object : Loggable {
         override val log = logger()
         private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")

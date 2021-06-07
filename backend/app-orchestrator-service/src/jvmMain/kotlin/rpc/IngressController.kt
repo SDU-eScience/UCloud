@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
+import dk.sdu.cloud.app.orchestrator.api.IngressControl
 import dk.sdu.cloud.app.orchestrator.api.Ingresses
 import dk.sdu.cloud.app.orchestrator.services.IngressService
 import dk.sdu.cloud.calls.server.RpcServer
@@ -19,6 +20,9 @@ class IngressController(
         implement(Ingresses.retrieve) {}
         implement(Ingresses.retrieveProducts) {
             ok(ingressService.retrieveProducts(actorAndProject))
+        }
+        implement(IngressControl.update) {
+            ok(ingressService.addUpdate(actorAndProject, request))
         }
         implement(Ingresses.delete) {}
         implement(Ingresses.updateAcl) {}

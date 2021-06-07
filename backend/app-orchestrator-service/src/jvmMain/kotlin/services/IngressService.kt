@@ -2,24 +2,18 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.provider.api.UpdatedAcl
-import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
-import java.util.*
 import kotlin.collections.ArrayList
 
 class IngressService(
@@ -170,14 +164,18 @@ class IngressService(
                         newBinding.add(update.update.newBinding)
                         newState.add(update.update.state?.name)
                     }
+                    setParameter("ids", ids)
+                    setParameter("did_bind", didBind)
+                    setParameter("new_binding", newBinding)
+                    setParameter("new_state", newState)
                 },
                 """
                     with new_updates as (
                         select
-                            unnest(:ids) as id, 
-                            unnest(:did_bind) as did_bind,
-                            unnest(:new_binding) as new_binding,
-                            unnest(:new_state) as new_state
+                            unnest(:ids::bigint[]) as id, 
+                            unnest(:did_bind::boolean[]) as did_bind,
+                            unnest(:new_binding::text[]) as new_binding,
+                            unnest(:new_state::text[]) as new_state
                     )
                     update app_orchestrator.ingresses i
                     set
@@ -192,8 +190,20 @@ class IngressService(
             )
     }
 
+    override suspend fun deleteSpecification(
+        resourceIds: List<Long>,
+        resources: List<Ingress>,
+        session: AsyncDBConnection
+    ) {
+        if (resources.any { it.status.boundTo != null }) {
+            throw RPCException(
+                "One of your public links are currently in use and cannot be deleted",
+                HttpStatusCode.BadRequest
+            )
+        }
 
-    // TODO We must verify that delete isn't being done on a bound resource
+        super.deleteSpecification(resourceIds, resources, session)
+    }
 
     // TODO Old note about create
     // NOTE(Dan): It is important that this is performed in a single transaction to allow the provider to
