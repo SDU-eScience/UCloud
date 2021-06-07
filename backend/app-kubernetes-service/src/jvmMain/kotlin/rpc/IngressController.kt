@@ -31,6 +31,10 @@ class IngressController(
             ok(Unit)
         }
 
+        implement(KubernetesIngresses.updateAcl) {
+            ok(BulkResponse(request.items.map {  }))
+        }
+
         return@with
     }
 }

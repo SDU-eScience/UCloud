@@ -20,8 +20,10 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {timestampUnixMs} from "UtilityFunctions";
+import {doNothing, timestampUnixMs} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
+import {dialogStore} from "Dialog/DialogStore";
+import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 
 export interface ResourceBrowseProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
@@ -60,6 +62,7 @@ export const ResourceBrowse = <Res extends Resource>(
 ): ReactElement | null => {
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
         {productsByProvider: {}})
+    const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [resources, fetchResources] = useCloudAPI<PageV2<Res>>({noop: true}, emptyPageV2);
     const [infScroll, setInfScroll] = useState(0);
@@ -93,13 +96,13 @@ export const ResourceBrowse = <Res extends Resource>(
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
-        fetchResources(api.browse({itemsPerPage: 50}));
+        fetchResources(api.browse({itemsPerPage: 50, includeOthers}));
         toggleSet.uncheckAll();
     }, [projectId]);
 
     const loadMore = useCallback(() => {
         if (resources.data.next) {
-            fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50}));
+            fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers}));
         }
     }, [resources.data.next]);
 
@@ -112,6 +115,7 @@ export const ResourceBrowse = <Res extends Resource>(
         onSelect,
         startCreation: () => {
             if (props.onInlineCreation != null) {
+                setSelectedProduct(null);
                 setIsCreating(true);
             }
         },
@@ -161,11 +165,14 @@ export const ResourceBrowse = <Res extends Resource>(
             {
                 text: "Permissions",
                 icon: "share",
-                enabled: (selected) => selected.length === 1,
+                enabled: (selected) => selected.length === 1 && selected[0].owner.project != null,
                 onClick: (selected, cb) => {
                     if (!props.embedded) {
-                        // TODO Show inline permission dialog
-                        cb.viewProperties(selected[0]);
+                        dialogStore.addDialog(
+                            <ResourcePermissionEditor reload={reload} entity={selected[0]} api={api} />,
+                            doNothing,
+                            true
+                        );
                     } else {
                         cb.viewProperties(selected[0]);
                     }

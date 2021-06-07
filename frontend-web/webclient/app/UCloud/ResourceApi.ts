@@ -20,9 +20,13 @@ export type ResourceSpecification = UCloud.provider.ResourceSpecification;
 
 export type Permission = "READ" | "EDIT" | "ADMIN";
 
+export type AclEntity =
+    { type: "project_group", projectId: string, group: string } |
+    { type: "user", username: string };
+
 export interface ResourceAclEntry {
-    entity: { type: "project_group", projectId: string, group: string } | { type: "user", username: string };
-    permission: Permission[];
+    entity: AclEntity;
+    permissions: Permission[];
 }
 
 export interface ResourcePermissions {
@@ -39,11 +43,10 @@ export interface ResourceIncludeFlags {
 export interface UpdatedAcl {
     id: string;
     added: ResourceAclEntry[];
-    deleted: ResourceAclEntry[];
+    deleted: AclEntity[];
 }
 
-export interface Resource<
-    Update extends ResourceUpdate = ResourceUpdate,
+export interface Resource<Update extends ResourceUpdate = ResourceUpdate,
     Status extends ResourceStatus = ResourceStatus,
     Spec extends ResourceSpecification = ResourceSpecification> {
     id: string;
@@ -63,8 +66,7 @@ export interface SupportByProvider {
     productsByProvider: Record<string, ResolvedSupport[]>;
 }
 
-export abstract class ResourceApi<
-    Res extends Resource,
+export abstract class ResourceApi<Res extends Resource,
     Prod extends Product,
     Spec extends ResourceSpecification = ResourceSpecification,
     Update extends ResourceUpdate = ResourceUpdate,
@@ -73,6 +75,7 @@ export abstract class ResourceApi<
     Support extends ProductSupport = ProductSupport> {
     private namespace: string;
     private baseContext: string;
+
     protected constructor(namespace: string) {
         this.namespace = namespace;
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";

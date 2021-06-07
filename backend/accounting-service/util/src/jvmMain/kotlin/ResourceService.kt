@@ -532,6 +532,7 @@ abstract class ResourceService<
                                         setParameter("to_add_groups", toAddGroups)
                                         setParameter("to_add_users", toAddUsers)
                                         setParameter("to_add_users", toAddUsers)
+                                        setParameter("to_add_permissions", toAddPermissions)
 
                                         val toRemoveGroups = ArrayList<String?>()
                                         val toRemoveUsers = ArrayList<String?>()

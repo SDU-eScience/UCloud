@@ -137,8 +137,17 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
 
         if (type != typeOf<Unit>()) {
             params {
-                serializer.descriptor.elementNames.forEach {
-                    +boundTo(it)
+                for (i in 0 until serializer.descriptor.elementsCount) {
+                    val name = serializer.descriptor.getElementName(i)
+                    val descriptor = serializer.descriptor.getElementDescriptor(i)
+
+                    if (descriptor.kind == StructureKind.CLASS) {
+                        descriptor.elementNames.forEach {
+                            +boundTo(it, name)
+                        }
+                    } else {
+                        +boundTo(name)
+                    }
                 }
             }
         }

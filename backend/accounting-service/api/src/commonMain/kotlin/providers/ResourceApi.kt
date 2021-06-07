@@ -15,7 +15,7 @@ import kotlin.reflect.typeOf
 
 @Serializable
 data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
-    val flags: Flags? = null,
+    val flags: Flags,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
@@ -24,7 +24,7 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
-    val flags: Flags? = null,
+    val flags: Flags,
     val id: String,
 )
 
