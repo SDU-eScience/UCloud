@@ -24,8 +24,8 @@ system:
  - Kubernetes
    - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
      - macOS: `minikube start -p hyperkit --kubernetes-version v1.15.5`
-     - __Note: If you are not running macOS you probably shouldn't specify `-p hyperkit`, you should also remove
-       `--context hyperkit` from all commands on this page__
+     - __Note:__ If you are not running macOS you probably shouldn't specify `-p hyperkit`, you should also remove
+       `--context hyperkit` from all commands on this page
    
 ## Configuring Minikube to Run Applications
 
