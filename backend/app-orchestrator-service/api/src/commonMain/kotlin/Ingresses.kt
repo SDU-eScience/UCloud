@@ -117,6 +117,7 @@ data class IngressIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
+    val filterState: IngressState? = null,
 ) : ResourceIncludeFlags
 
 @TSNamespace("compute.ingresses")

@@ -73,7 +73,13 @@ class Process(
             val result = waitpid(pid, wstatus.ptr, if (waitForExit) 0 else WNOHANG)
             return when {
                 result == 0 -> ProcessStatus(-1)
-                result < 0 -> throw IllegalStateException(getNativeErrorMessage(errno))
+                result < 0 -> {
+                    if (waitForExit && errno == ECHILD) {
+                        ProcessStatus(-1)
+                    } else {
+                        throw IllegalStateException(getNativeErrorMessage(errno))
+                    }
+                }
                 else -> ProcessStatus(
                     if (wifexited(wstatus.value)) wexitstatus(wstatus.value)
                     else 255
@@ -222,7 +228,7 @@ fun startProcessAndCollectToMemory(
     return ProcessResult(status.getExitCode(), stdoutBuffer.copyOf(stdoutPtr), stderrBuffer.copyOf(stderrPtr))
 }
 
-class ProcessResultText(
+data class ProcessResultText(
     val statusCode: Int,
     val stdout: String,
     val stderr: String,

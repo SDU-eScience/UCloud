@@ -2,8 +2,6 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.ResourceApi
-import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -26,8 +24,8 @@ class IngressService(
     private val orchestrator: JobOrchestrator,
 ) : ResourceService<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
     Product.Ingress, IngressSettings, ComputeCommunication>(db, providers, support, serviceClient) {
-    override val table: String = "app_orchestrator.ingresses"
-    override val sortColumn: String = "domain"
+    override val table = SqlObject.Table("app_orchestrator.ingresses")
+    override val sortColumn  = SqlObject.Column(table, "domain")
     override val serializer: KSerializer<Ingress> = serializer()
     override val productArea: ProductArea = ProductArea.INGRESS
     override val updateSerializer: KSerializer<IngressUpdate> = serializer()
@@ -209,9 +207,18 @@ class IngressService(
         super.deleteSpecification(resourceIds, resources, session)
     }
 
-    // TODO Old note about create
-    // NOTE(Dan): It is important that this is performed in a single transaction to allow the provider to
-    // immediately start calling us back about these resources, even before it has successfully created the
-    // resource. This allows the provider to, for example, perform a charge on the resource before it has
-    // been marked as 'created'.
+    override suspend fun browseQuery(
+        flags: IngressIncludeFlags?,
+    ): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("filter_state", flags?.filterState?.name)
+            },
+            """
+                select *
+                from app_orchestrator.ingresses
+                where :filter_state::text is null or :filter_state = current_state
+            """
+        )
+    }
 }

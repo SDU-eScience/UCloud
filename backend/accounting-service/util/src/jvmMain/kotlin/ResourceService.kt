@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.Language
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.RpcServer
@@ -16,10 +17,17 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+
+data class PartialQuery(
+    val arguments: EnhancedPreparedStatement.() -> Unit,
+    @Language("sql")
+    val query: String,
+)
 
 suspend fun <T : Resource<*, *>> DBContext.paginateResource(
     actorAndProject: ActorAndProject,
@@ -62,11 +70,23 @@ abstract class ResourceService<
     protected val support: ProviderSupport<Comms, Prod, Support>,
     protected val serviceClient: AuthenticatedClient,
 ) : ResourceSvc<Res, Flags, Spec, Update, Prod, Support> {
-    protected abstract val table: String
-    protected abstract val sortColumn: String
+    protected abstract val table: SqlObject.Table
+    protected abstract val sortColumn: SqlObject.Column
     protected abstract val serializer: KSerializer<Res>
-    protected open val resourceType: String get() = table.substringAfterLast('.').removePluralSuffix()
-    protected open val sqlJsonConverter: String get() = table.removePluralSuffix() + "_to_json"
+    protected open val resourceType: String by lazy {
+        runBlocking {
+            db.withSession { session ->
+                table.verify({ session }).substringAfterLast('.').removePluralSuffix()
+            }
+        }
+    }
+    protected open val sqlJsonConverter: SqlObject.Function by lazy {
+        runBlocking {
+            db.withSession { session ->
+                SqlObject.Function(table.verify({ session }).removePluralSuffix() + "_to_json")
+            }
+        }
+    }
 
     private fun String.removePluralSuffix(): String {
         return when {
@@ -79,7 +99,7 @@ abstract class ResourceService<
     abstract val productArea: ProductArea
 
     fun asController(): Controller = object : Controller {
-        override fun configure(rpcServer: RpcServer) =  with(rpcServer) {
+        override fun configure(rpcServer: RpcServer) = with(rpcServer) {
             val userApi = userApi()
             val controlApi = controlApi()
 
@@ -135,12 +155,17 @@ abstract class ResourceService<
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
     protected val payment = PaymentService(db, serviceClient)
 
+    @Suppress("SqlResolve")
     override suspend fun browse(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
         flags: Flags?,
         ctx: DBContext?
     ): PageV2<Res> {
+        val (params, query) = browseQuery(flags)
+        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortBy = sortColumn.verify({ db.openSession() }, { db.closeSession(it) })
+
         return (ctx ?: db).paginateV2(
             actorAndProject.actor,
             request.normalize(),
@@ -148,18 +173,26 @@ abstract class ResourceService<
                 session.sendPreparedStatement(
                     {
                         setParameter("resource_type", resourceType)
-                        setParameter("table", table)
-                        setParameter("sort_column", sortColumn)
-                        setParameter("to_json", sqlJsonConverter)
 
                         setParameter("include_others", flags?.includeOthers ?: false)
                         setParameter("include_updates", flags?.includeUpdates ?: false)
 
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
+
+                        params()
                     },
-                    "select provider.default_browse(:resource_type, :table, :sort_column, :to_json, :user, :project, " +
-                        ":include_others, :include_updates)"
+                    """
+                        declare c cursor for
+                        with spec as ($query)
+                        select provider.resource_to_json(r, $converter(spec))
+                        from
+                            provider.accessible_resources(:user, :resource_type, 
+                                array['READ'], null, :project, :include_others, :include_updates, false) r join
+                            spec on (r.resource).id = spec.resource
+                        order by
+                            spec.$sortBy
+                    """,
                 )
             },
             mapper = { _, rows ->
@@ -176,6 +209,16 @@ abstract class ResourceService<
         )
     }
 
+    protected open suspend fun browseQuery(
+        flags: Flags?,
+    ): PartialQuery {
+        val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
+        return PartialQuery(
+            {},
+            "select * from $tableName"
+        )
+    }
+
     override suspend fun retrieve(
         actorAndProject: ActorAndProject,
         id: String,
@@ -188,8 +231,8 @@ abstract class ResourceService<
                 .sendPreparedStatement(
                     {
                         setParameter("resource_type", resourceType)
-                        setParameter("table", table)
-                        setParameter("to_json", sqlJsonConverter)
+                        setParameter("table", table.verify({ session }))
+                        setParameter("to_json", sqlJsonConverter.verify({ session }))
 
                         setParameter("include_others", flags?.includeOthers ?: false)
                         setParameter("include_updates", flags?.includeUpdates ?: false)
@@ -235,8 +278,8 @@ abstract class ResourceService<
                 .sendPreparedStatement(
                     {
                         setParameter("resource_type", resourceType)
-                        setParameter("table", table)
-                        setParameter("to_json", sqlJsonConverter)
+                        setParameter("table", table.verify({ session }))
+                        setParameter("to_json", sqlJsonConverter.verify({ session }))
 
                         setParameter("include_others", flags?.includeOthers ?: includeOthers)
                         setParameter("include_updates", flags?.includeUpdates ?: includeUpdates)
@@ -610,7 +653,7 @@ abstract class ResourceService<
         session
             .sendPreparedStatement(
                 {
-                    setParameter("table", table)
+                    setParameter("table", table.verify({ session }))
                     setParameter("ids", resourceIds)
                 },
                 """

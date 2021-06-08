@@ -34,10 +34,13 @@ export interface IngressUpdate extends ResourceUpdate {
     newBinding?: string;
 }
 
+export interface IngressFlags extends ResourceIncludeFlags {
+}
+
 export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}
 
 class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecification, IngressUpdate,
-    ResourceIncludeFlags, IngressStatus, IngressSupport> {
+    IngressFlags, IngressStatus, IngressSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
     page = SidebarPages.Runs;
