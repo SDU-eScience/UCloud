@@ -272,7 +272,7 @@ const Create: React.FunctionComponent = props => {
                             uiSchema={uiSchema}
                             onChange={(newSchema: any, newUiSchema: any) => {
                                 setSchema(newSchema);
-                                setUiSchema(newUiSchema);
+                                setUiSchema(newUiSchema ?? uiSchema);
                             }}
                         />
                     </BootstrapReplacement>
@@ -308,10 +308,12 @@ const Create: React.FunctionComponent = props => {
                         </Section>
                         <Section>
                             <Heading.h3>Form preview</Heading.h3>
-                            <JsonSchemaForm
-                                schema={JSON.parse(schema)}
-                                uiSchema={JSON.parse(uiSchema)}
-                            />
+                            <JsonSchemaFormBootstrapReplacement>
+                                <JsonSchemaForm
+                                    schema={JSON.parse(schema)}
+                                    uiSchema={JSON.parse(uiSchema)}
+                                />
+                            </JsonSchemaFormBootstrapReplacement>
                         </Section>
                     </Grid>
                 }
@@ -523,6 +525,14 @@ const BootstrapReplacement = styled.div`
     }
 
     & div.cardEntries-0-2-7 {
+        border-bottom: none;
+    }
+
+    & div.section-interactions { 
+        border-top: none; 
+    }
+
+    & div.section-head { 
         border-bottom: none;
     }
 `;
