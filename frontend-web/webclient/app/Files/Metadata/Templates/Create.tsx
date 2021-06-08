@@ -483,15 +483,133 @@ const BootstrapReplacement = styled.div`
             margin-left: 6px;
         }
 
-        span.toggle-collapse {
-            display: none;
-        }
-
         svg.svg-inline--fa.fa-plus.fa-w-14.fa {
             margin-left: auto;
             margin-right: auto;
             color: var(--blue);            
         }
+
+    & form > button {
+        font-smoothing: antialiased;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        text-decoration: none;
+        font-family: inherit;
+        font-weight: ${theme.bold};
+        cursor: pointer;
+        border-radius: ${theme.radius};
+        background-color: var(--blue, #f00);
+        color: var(--white, #f00);
+        border-width: 0;
+        border-style: solid;
+        line-height: 1.5;
+        width: 100px;
+        height: 40px;
+    }
+
+    & div.d-flex {
+        display: flex;
+        border-bottom: none;
+    }
+
+    & div.collapse, & div.collapsing {
+        display: none;
+    }
+
+    & div.collapse.show {
+        display: block;
+    }
+
+    & div.cardEntries-0-2-7 {
+        border-bottom: none;
+    }
+`;
+
+const JsonSchemaFormBootstrapReplacement = styled.div`
+
+    & button {
+        font-smoothing: antialiased;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        text-decoration: none;
+        font-family: inherit;
+        font-weight: ${theme.bold};
+        cursor: pointer;
+        border-radius: ${theme.radius};
+        background-color: var(--blue, #f00);
+        color: var(--white, #f00);
+        border-width: 0;
+        border-style: solid;
+        line-height: 1.5;
+        width: 100px;
+        height: 40px;
+    }
+
+    & form.rjsf > div > button:hover {
+        transform: translateY(-2px);
+    }
+
+    & form.rjsf > div > fieldset > div > input {
+        margin-top: 2px;
+        margin-bottom: 4px;
+    }
+
+    & button:hover {
+        transform: translateY(-2px);
+    }
+
+    & i.glyphicon.glyphicon-remove::before {
+        content: "❌";
+    }
+
+    & button.btn-add {
+        width: 45px;
+        color: var(--white, #f00);
+        background-color: var(--green, #f00);
+    }
+
+    & i {
+        font-style: normal;
+    }
+
+
+
+    & .glyphicon-arrow-up::before {
+        content: '↑';
+    }
+
+    & .glyphicon-arrow-down::before {
+        content: '↓';
+    }
+
+    & button.btn-danger {
+        width: 45px;
+        color: var(--white, #f00);
+        background-color: var(--red, #f00);
+    }
+
+    & div.array-item > div.col.xs-9 { 
+        width: 100%;
+    }
+    
+    & div.array-item {
+        display: flex;
+    }
+
+    & button.btn.btn-default.array-item-move-up, & button.btn.btn-default.array-item-move-down, & button.btn.btn-default.array-item-remove { 
+        width: 45px;
+    }
+
+    & i.glyphicon.glyphicon-plus::before {
+        content: "+";
+    }
+
+    & div.array-item > div.col.xs-9 {
+        width: 100%;
     }
 `;
 
