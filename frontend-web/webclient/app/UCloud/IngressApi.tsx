@@ -35,6 +35,7 @@ export interface IngressUpdate extends ResourceUpdate {
 }
 
 export interface IngressFlags extends ResourceIncludeFlags {
+    filterState?: string;
 }
 
 export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}

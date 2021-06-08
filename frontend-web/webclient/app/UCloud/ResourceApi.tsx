@@ -46,7 +46,6 @@ export interface ResourceIncludeFlags {
     includeOthers?: boolean;
     includeSupport?: boolean;
     includeUpdates?: boolean;
-    filterState?: string;
 }
 
 export interface UpdatedAcl {

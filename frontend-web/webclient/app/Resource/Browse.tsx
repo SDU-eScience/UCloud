@@ -86,7 +86,7 @@ export const ResourceBrowse = <Res extends Resource>(
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
-        fetchResources(api.browse({itemsPerPage: 50, includeOthers, filterState: "READY"}));
+        fetchResources(api.browse({itemsPerPage: 50, includeOthers}));
         toggleSet.uncheckAll();
     }, [projectId]);
 
