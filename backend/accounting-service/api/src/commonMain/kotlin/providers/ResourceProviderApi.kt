@@ -21,11 +21,11 @@ data class ProviderProducts<Support : ProductSupport>(
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceProviderApi<
-    Res : Resource<*>,
+    Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,
     Flags : ResourceIncludeFlags,
-    Status : ResourceStatus,
+    Status : ResourceStatus<Prod, Support>,
     Prod : Product,
     Support : ProductSupport>(
     namespace: String,

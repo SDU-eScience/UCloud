@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
@@ -128,10 +129,10 @@ data class Job(
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
 
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
+    override val acl: List<ResourceAclEntry>? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Nothing?> {
+) : Resource<Product, ProductSupport> {
     @Transient @Deprecated("Renamed to specification", ReplaceWith("specification"))
     val parameters = specification
 }
@@ -159,8 +160,8 @@ data class JobStatus(
             "equal to the initial `RUNNING` state + `timeAllocation`."
     )
     val expiresAt: Long? = null,
-    override var support: ResolvedSupport<*, *>? = null
-) : ResourceStatus
+    override var support: ResolvedSupport<Product, ProductSupport>? = null
+) : ResourceStatus<Product, ProductSupport>
 
 @Serializable
 data class JobBilling(

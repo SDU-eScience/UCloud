@@ -6,6 +6,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
@@ -85,10 +86,10 @@ data class License(
 
     val resolvedProduct: Product.License? = null,
 
-    override val acl: List<ResourceAclEntry<LicensePermission>>? = null,
+    override val acl: List<ResourceAclEntry>? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<LicensePermission>, LicenseId
+) : Resource<Product, ProductSupport>, LicenseId
 
 @Serializable
 data class LicenseBilling(
@@ -100,8 +101,8 @@ data class LicenseBilling(
 @Serializable
 data class LicenseStatus(
     val state: LicenseState,
-    override var support: ResolvedSupport<*, *>? = null
-) : ResourceStatus
+    override var support: ResolvedSupport<Product, ProductSupport>? = null
+) : ResourceStatus<Product, ProductSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -186,7 +187,7 @@ typealias LicensesUpdateAclRequest = BulkRequest<LicensesUpdateAclRequestItem>
 @Serializable
 data class LicensesUpdateAclRequestItem(
     override val id: String,
-    val acl: List<ResourceAclEntry<LicensePermission>>,
+    val acl: List<ResourceAclEntry>,
 ) : LicenseId
 
 typealias LicensesUpdateAclResponse = Unit

@@ -30,17 +30,11 @@ interface AclService {
     suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean
     suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest)
     suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission>
-    suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry<FilePermission>>
+    suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry>
 }
 
 fun Collection<FilePermission>.normalize(): Set<FilePermission> {
-    val result = HashSet<FilePermission>()
-    result.addAll(this)
-    if (contains(FilePermission.WRITE)) {
-        result.add(FilePermission.READ)
-        result.add(FilePermission.WRITE)
-    }
-    return result
+    return toSet()
 }
 
 /**
@@ -186,7 +180,8 @@ class AclServiceImpl(
 
     override suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission> {
         if (actor == Actor.System || isAdmin(actor, file)) {
-            return setOf(FilePermission.READ, FilePermission.WRITE, FilePermission.ADMINISTRATOR)
+            // return setOf(FilePermission.READ, FilePermission.WRITE, FilePermission.ADMINISTRATOR)
+            TODO()
         }
 
         val relativeFile = pathConverter.ucloudToRelative(file)
@@ -237,7 +232,7 @@ class AclServiceImpl(
         }
     }
 
-    override suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry<FilePermission>> {
+    override suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry> {
         val relativeFile = pathConverter.ucloudToRelative(file)
 
         return db.withSession { session ->
@@ -247,6 +242,8 @@ class AclServiceImpl(
                     metadataDao
                         .listMetadata(session, relevantPaths, null, ACL_USER_METADATA_TYPE)
                         .flatMap { entry ->
+                            emptyList<ResourceAclEntry>()
+                            /*
                             entry.value.mapNotNull {
                                 ResourceAclEntry(
                                     AclEntity.User(it.username ?: return@mapNotNull null),
@@ -257,6 +254,8 @@ class AclServiceImpl(
                                         .toList()
                                 )
                             }
+
+                             */
                         }
                 }
 
@@ -271,12 +270,15 @@ class AclServiceImpl(
                             defaultMapper.decodeFromJsonElement<ProjectAclMetadata>(data.payload).entries
                         }
 
+                    emptyList()
+                    /*
                     relevantEntries.map {
                         ResourceAclEntry(
                             AclEntity.ProjectGroup(projectId, it.group),
                             it.permissions.normalize().toList()
                         )
                     }
+                     */
                 }
 
                 else -> {

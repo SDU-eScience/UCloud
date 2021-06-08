@@ -1,8 +1,16 @@
 import * as UCloud from ".";
+import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
 import Product = accounting.Product;
 import {buildQueryString} from "Utilities/URIUtilities";
+import {SidebarPages} from "ui-components/Sidebar";
+import {InvokeCommand} from "Authentication/DataHook";
+import {Operation} from "ui-components/Operation";
+import {dialogStore} from "Dialog/DialogStore";
+import {ResourcePermissionEditor} from "Resource/PermissionEditor";
+import {doNothing} from "UtilityFunctions";
+import {bulkRequestOf} from "DefaultObjects";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -66,6 +74,19 @@ export interface SupportByProvider {
     productsByProvider: Record<string, ResolvedSupport[]>;
 }
 
+export interface ResourceBrowseCallbacks<Res extends Resource> {
+    commandLoading: boolean;
+    invokeCommand: InvokeCommand;
+    reload: () => void;
+    api: ResourceApi<Res, never>;
+    isCreating: boolean;
+    startCreation?: () => void;
+    viewProperties?: (res: Res) => void;
+    closeProperties?: () => void;
+    onSelect?: (resource: Res) => void;
+    embedded: boolean;
+}
+
 export abstract class ResourceApi<Res extends Resource,
     Prod extends Product,
     Spec extends ResourceSpecification = ResourceSpecification,
@@ -81,7 +102,87 @@ export abstract class ResourceApi<Res extends Resource,
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
     }
 
+    public abstract routingNamespace;
     public abstract title: string;
+    public abstract page: SidebarPages;
+
+    public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
+    public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public NameRenderer?: React.FunctionComponent<{ resource: Res }>;
+
+    public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
+        return [
+            {
+                text: "Back to " + this.titlePlural.toLowerCase(),
+                primary: true,
+                icon: "backward",
+                enabled: (selected, cb) => cb.closeProperties != null,
+                onClick: (selected, cb) => {
+                    cb.closeProperties!();
+                }
+            },
+            {
+                text: "Use",
+                primary: true,
+                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined,
+                canAppearInLocation: loc => loc === "IN_ROW",
+                onClick: (selected, cb) => {
+                    cb.onSelect!(selected[0]);
+                }
+            },
+            {
+                text: "Create " + this.title.toLowerCase(),
+                icon: "upload",
+                color: "blue",
+                primary: true,
+                canAppearInLocation: loc => loc !== "IN_ROW",
+                enabled: (selected, cb) => {
+                    if (selected.length !== 0 || cb.startCreation == null) return false;
+                    if (cb.isCreating) return "You are already creating a " + this.title.toLowerCase();
+                    return true;
+                },
+                onClick: (selected, cb) => cb.startCreation!()
+            },
+            {
+                text: "Permissions",
+                icon: "share",
+                enabled: (selected, cb) => selected.length === 1 && selected[0].owner.project != null
+                    && cb.viewProperties != null,
+                onClick: (selected, cb) => {
+                    if (!cb.embedded) {
+                        dialogStore.addDialog(
+                            <ResourcePermissionEditor reload={cb.reload} entity={selected[0]} api={cb.api}/>,
+                            doNothing,
+                            true
+                        );
+                    } else {
+                        cb.viewProperties!(selected[0]);
+                    }
+                }
+            },
+            {
+                text: "Delete",
+                icon: "trash",
+                color: "red",
+                confirm: true,
+                enabled: (selected) => selected.length >= 1,
+                onClick: async (selected, cb) => {
+                    await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
+                    cb.reload();
+                    cb.closeProperties?.();
+                }
+            },
+            {
+                text: "Properties",
+                icon: "properties",
+                enabled: (selected, cb) => selected.length === 1 && cb.viewProperties != null,
+                onClick: (selected, cb) => {
+                    cb.viewProperties!(selected[0]);
+                }
+            }
+        ];
+    }
 
     public get titlePlural(): string {
         return this.title + "s";

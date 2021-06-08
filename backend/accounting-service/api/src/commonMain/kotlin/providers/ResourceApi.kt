@@ -34,11 +34,11 @@ data class SupportByProvider<P : Product, S : ProductSupport>(
 )
 
 data class ResourceTypeInfo<
-    Res : Resource<*>,
+    Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,
     Flags : ResourceIncludeFlags,
-    Status : ResourceStatus,
+    Status : ResourceStatus<Prod, Support>,
     Prod : Product,
     Support : ProductSupport>(
     val resSerializer: KSerializer<Res>,
@@ -59,11 +59,11 @@ data class ResourceTypeInfo<
 
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <
-    reified Res : Resource<*>,
+    reified Res : Resource<Prod, Support>,
     reified Spec : ResourceSpecification,
     reified Update : ResourceUpdate,
     reified Flags : ResourceIncludeFlags,
-    reified Status : ResourceStatus,
+    reified Status : ResourceStatus<Prod, Support>,
     reified Prod : Product,
     reified Support : ProductSupport
     > ResourceTypeInfo(): ResourceTypeInfo<Res, Spec, Update, Flags, Status, Prod, Support> {
@@ -88,11 +88,11 @@ inline fun <
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceApi<
-    Res : Resource<*>,
+    Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,
     Flags : ResourceIncludeFlags,
-    Status : ResourceStatus,
+    Status : ResourceStatus<Prod, Support>,
     Prod : Product,
     Support : ProductSupport>(
     namespace: String

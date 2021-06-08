@@ -52,11 +52,11 @@ data class ProviderRegisteredResource<Spec : ResourceSpecification>(
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceControlApi<
-    Res : Resource<*>,
+    Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,
     Flags : ResourceIncludeFlags,
-    Status : ResourceStatus,
+    Status : ResourceStatus<Prod, Support>,
     Prod : Product,
     Support : ProductSupport>(namespace: String) : CallDescriptionContainer("$namespace.control") {
     val baseContext = "/api/${namespace.replace(".", "/")}/control"

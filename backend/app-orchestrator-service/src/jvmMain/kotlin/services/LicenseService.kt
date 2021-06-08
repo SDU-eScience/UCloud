@@ -13,6 +13,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
@@ -77,7 +78,7 @@ class LicenseService(
                             val groups = projectStatus.userStatus?.groups ?: emptyList()
                             val hasAccess = retrievedLicense.acl!!.any { entry ->
                                 val entity = entry.entity
-                                if (!entry.permissions.any { it == LicensePermission.USE }) return@any false
+                                if (!entry.permissions.any { it == Permission.Read }) return@any false
                                 if (entity !is AclEntity.ProjectGroup) return@any false
 
                                 groups.any { it.group == entity.group && it.project == entity.projectId }

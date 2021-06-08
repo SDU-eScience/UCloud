@@ -1,5 +1,6 @@
 package dk.sdu.cloud.provider.api
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
@@ -73,11 +74,11 @@ data class ResourceUpdateAndId<U : ResourceUpdate>(
 data class SpecificationAndPermissions<S : ResourceSpecification>(
     val specification: S,
     val owner: ResourceOwner,
-    val permissions: List<ResourceAclEntry<Permission>>
+    val permissions: List<ResourceAclEntry>
 )
 
 @Serializable
-open class ResourceAclEntry<Permission>(val entity: AclEntity, val permissions: List<Permission>)
+open class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
 
 @Serializable
 sealed class AclEntity {
@@ -103,8 +104,8 @@ this will contain information such as:
 - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
   should be listed in the `status` section.
 """)
-interface ResourceStatus {
-    var support: ResolvedSupport<*, *>?
+interface ResourceStatus<P : Product, Support : ProductSupport> {
+    var support: ResolvedSupport<P, Support>?
 }
 
 @UCloudApiDoc("""A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
@@ -124,7 +125,7 @@ provider. It is then up to the provider to implement the functionality of the `R
 
 __Figure:__ UCloud orchestrates with the provider to create a `Resource`
 """)
-interface Resource<Permission> {
+interface Resource<P : Product, Support : ProductSupport> {
     @UCloudApiDoc("""A unique identifier referencing the `Resource`
 
 The ID is unique across a provider for a single resource type.""")
@@ -138,7 +139,7 @@ The ID is unique across a provider for a single resource type.""")
     val createdAt: Long
 
     @UCloudApiDoc("Holds the current status of the `Resource`")
-    val status: ResourceStatus
+    val status: ResourceStatus<P, Support>
 
     @UCloudApiDoc("""Contains a list of updates from the provider as well as UCloud
 
@@ -158,7 +159,7 @@ resource.""")
 
     @UCloudApiDoc("An ACL for this `Resource`")
     @Deprecated("Replace with permissions")
-    val acl: List<ResourceAclEntry<Permission>>?
+    val acl: List<ResourceAclEntry>?
 
     @UCloudApiDoc("Permissions assigned to this resource\n\n" +
         "A null value indicates that permissions are not supported by this resource type.")

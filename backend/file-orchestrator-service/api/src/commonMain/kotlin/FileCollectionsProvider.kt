@@ -46,7 +46,7 @@ typealias FileCollectionsProviderRenameResponse = Unit
 
 open class FileCollectionsProvider(
     provider: String,
-) : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+)/* : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections", provider) {
 
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
@@ -59,6 +59,7 @@ open class FileCollectionsProvider(
 
     override val delete: CallDescription<BulkRequest<FileCollection>, BulkResponse<Unit?>, CommonErrorMessage>
         get() = super.delete!!
+        */
 
     /*
     val baseContext = "/ucloud/$namespace/files/collections"
@@ -85,4 +86,4 @@ open class FileCollectionsProvider(
         httpUpdate(baseContext, "updateAcl", roles = Roles.SERVICE)
     }
      */
-}
+// }

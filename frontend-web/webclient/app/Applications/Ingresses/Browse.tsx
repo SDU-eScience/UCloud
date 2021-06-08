@@ -1,6 +1,6 @@
 import * as React from "react";
 import {default as IngressApi, Ingress, IngressSupport} from "UCloud/IngressApi";
-import {ResourceBrowse} from "Resource/ResourceBrowse";
+import {ResourceBrowse} from "Resource/Browse";
 import {Icon} from "ui-components";
 import {doNothing} from "UtilityFunctions";
 
@@ -10,8 +10,6 @@ const Browse: React.FunctionComponent<{
 }> = props => {
     return <ResourceBrowse
         api={IngressApi}
-        TitleRenderer={p => <>{p.resource.specification.domain}</>}
-        IconRenderer={() => <Icon name={"globeEuropeSolid"}/>}
         onSelect={props.onSelect}
         onInlineCreation={((text, product, cb) => ({
                 product: {id: product.id, category: product.category.id, provider: product.category.provider},

@@ -20,9 +20,9 @@ data class Provider(
     override val updates: List<ProviderUpdate>,
     override val billing: ProviderBilling,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<ProviderAclPermission>>,
+    override val acl: List<ResourceAclEntry>,
     override val permissions: ResourcePermissions? = null
-) : Resource<ProviderAclPermission> {
+) : Resource<Product, ProductSupport> {
     override fun toString(): String {
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
             "billing=$billing, owner=$owner)"
@@ -33,10 +33,7 @@ data class Provider(
     }
 }
 
-@Serializable
-enum class ProviderAclPermission {
-    EDIT
-}
+typealias ProviderAclPermission = Permission
 
 @Serializable
 data class ProviderSpecification(
@@ -52,7 +49,9 @@ data class ProviderSpecification(
 data class ProviderSupport(override val product: ProductReference) : ProductSupport
 
 @Serializable
-data class ProviderStatus(override var support: ResolvedSupport<*, *>? = null) : ResourceStatus
+data class ProviderStatus(
+    override var support: ResolvedSupport<Product, ProductSupport>? = null
+) : ResourceStatus<Product, ProductSupport>
 
 @Serializable
 class ProviderBilling(override val pricePerUnit: Long, override val creditsCharged: Long) : ResourceBilling
@@ -66,7 +65,7 @@ data class ProviderUpdate(
 @Serializable
 data class ProvidersUpdateAclRequestItem(
     val id: String,
-    val acl: List<ResourceAclEntry<ProviderAclPermission>>
+    val acl: List<ResourceAclEntry>
 )
 
 @Serializable

@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
-import {ResolvedSupport, Resource, ResourceApi, SupportByProvider} from "UCloud/ResourceApi";
+import {ResolvedSupport, Resource, ResourceApi, ResourceBrowseCallbacks, SupportByProvider} from "UCloud/ResourceApi";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {accounting, PageV2} from "UCloud";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -24,40 +24,26 @@ import {doNothing, timestampUnixMs} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
+import {useSidebarPage} from "ui-components/Sidebar";
+import {ResourceProperties} from "Resource/Properties";
+import * as Heading from "ui-components/Heading";
+import {useHistory} from "react-router";
 
 export interface ResourceBrowseProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
     embedded?: boolean;
-
-    // NOTE(Dan): The resource will be null when rendering a row for the inline creation of resources
-    IconRenderer?: React.FunctionComponent<{ resource: Res | null }>;
-    TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
-    StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
 
     onSelect?: (resource: Res) => void;
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
 
-    createOperations?: (defaults: Operation<Res, ResourceBrowseCallbacks<Res>>[]) =>
-        Operation<Res, ResourceBrowseCallbacks<Res>>[];
     withDefaultStats?: boolean;
-}
-
-interface ResourceBrowseCallbacks<Res extends Resource> {
-    commandLoading: boolean;
-    invokeCommand: InvokeCommand;
-    reload: () => void;
-    api: ResourceApi<Res, never>;
-    isCreating: boolean;
-    startCreation: () => void;
-    viewProperties: (res: Res) => void;
-    onSelect?: (resource: Res) => void;
 }
 
 export const ResourceBrowse = <Res extends Resource>(
     {
-        onSelect, api, IconRenderer, TitleRenderer, StatsRenderer, ...props
+        onSelect, api, ...props
     }: PropsWithChildren<ResourceBrowseProps<Res>>
 ): ReactElement | null => {
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
@@ -73,6 +59,10 @@ export const ResourceBrowse = <Res extends Resource>(
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
+    const history = useHistory();
+
+    const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
+    const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
 
     const products: Product[] = useMemo(() => {
         const allProducts: Product[] = [];
@@ -112,6 +102,7 @@ export const ResourceBrowse = <Res extends Resource>(
         invokeCommand,
         commandLoading,
         reload,
+        embedded: props.embedded == true,
         onSelect,
         startCreation: () => {
             if (props.onInlineCreation != null) {
@@ -119,8 +110,14 @@ export const ResourceBrowse = <Res extends Resource>(
                 setIsCreating(true);
             }
         },
-        viewProperties: res => 0
-    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation]);
+        viewProperties: res => {
+            if (props.embedded) {
+                setInlineInspecting(res);
+            } else {
+                history.push(`${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+            }
+        }
+    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history]);
 
     const inlineInputRef = useRef<HTMLInputElement>(null);
     const onInlineCreate = useCallback(async () => {
@@ -139,75 +136,14 @@ export const ResourceBrowse = <Res extends Resource>(
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
     const operations: Operation<Res, ResourceBrowseCallbacks<Res>>[] = useMemo(() => {
-        const defaults: Operation<Res, ResourceBrowseCallbacks<Res>>[] = [
-            {
-                text: "Use",
-                primary: true,
-                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined,
-                canAppearInLocation: loc => loc === "IN_ROW",
-                onClick: (selected, cb) => {
-                    cb.onSelect!(selected[0]);
-                }
-            },
-            {
-                text: "Create " + api.title.toLowerCase(),
-                icon: "upload",
-                color: "blue",
-                primary: true,
-                canAppearInLocation: loc => loc !== "IN_ROW",
-                enabled: (selected, cb) => {
-                    if (selected.length !== 0) return false;
-                    if (cb.isCreating) return "You are already creating a " + api.title.toLowerCase();
-                    return true;
-                },
-                onClick: (selected, cb) => cb.startCreation()
-            },
-            {
-                text: "Permissions",
-                icon: "share",
-                enabled: (selected) => selected.length === 1 && selected[0].owner.project != null,
-                onClick: (selected, cb) => {
-                    if (!props.embedded) {
-                        dialogStore.addDialog(
-                            <ResourcePermissionEditor reload={reload} entity={selected[0]} api={api} />,
-                            doNothing,
-                            true
-                        );
-                    } else {
-                        cb.viewProperties(selected[0]);
-                    }
-                }
-            },
-            {
-                text: "Delete",
-                icon: "trash",
-                color: "red",
-                confirm: true,
-                enabled: (selected) => selected.length >= 1,
-                onClick: async (selected, cb) => {
-                    await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
-                    cb.reload();
-                }
-            },
-            {
-                text: "Properties",
-                icon: "properties",
-                enabled: (selected) => selected.length === 1,
-                onClick: (selected, cb) => {
-                    cb.viewProperties(selected[0]);
-                }
-            }
-        ];
-
-        if (props.createOperations) return props.createOperations(defaults);
-        return defaults;
-    }, [props.createOperations, api, props.embedded]);
+        return api.retrieveOperations();
+    }, [callbacks, api]);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false}>
             {!isCreating ? null :
                 <ListRow
-                    icon={IconRenderer ? <IconRenderer resource={null}/> : null}
+                    icon={api.IconRenderer ? <api.IconRenderer resource={null} size={"24px"}/> : null}
                     left={
                         !selectedProduct ?
                             <ProductSelector products={products} onProductSelected={setSelectedProduct}/>
@@ -249,8 +185,8 @@ export const ResourceBrowse = <Res extends Resource>(
             {items.map(it =>
                 <ListRow
                     key={it.id}
-                    icon={IconRenderer ? <IconRenderer resource={it}/> : null}
-                    left={TitleRenderer ? <TitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
+                    icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"24px"}/> : null}
+                    left={api.TitleRenderer ? <api.TitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     leftSub={
@@ -264,7 +200,7 @@ export const ResourceBrowse = <Res extends Resource>(
                                     </ListRowStat>
                                 </> : null
                             }
-                            {StatsRenderer ? <StatsRenderer resource={it}/> : null}
+                            {api.StatsRenderer ? <api.StatsRenderer resource={it}/> : null}
                         </ListStatContainer>
                     }
                     right={
@@ -289,9 +225,10 @@ export const ResourceBrowse = <Res extends Resource>(
         useTitle(api.titlePlural);
         useLoading(commandLoading || resources.loading);
         useRefreshFunction(reload);
+        useSidebarPage(api.page);
     }
 
-    const main = <>
+    const main = !inlineInspecting ? <>
         <Pagination.ListV2
             page={resources.data}
             onLoadMore={loadMore}
@@ -300,14 +237,20 @@ export const ResourceBrowse = <Res extends Resource>(
             pageRenderer={pageRenderer}
             customEmptyPage={pageRenderer([])}
         />
+    </> : <>
+        <ResourceProperties api={api} resource={inlineInspecting} reload={reload} embedded={true}
+                            closeProperties={closeProperties}/>
     </>;
 
     if (props.embedded) {
         return <Box ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
-                <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations}/>
+                {inlineInspecting ?
+                    <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
+                    <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
+                                entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                extra={callbacks} operations={operations}/>
+                }
             </StickyBox>
             {main}
         </Box>;
@@ -315,9 +258,10 @@ export const ResourceBrowse = <Res extends Resource>(
         return <MainContainer
             main={main}
             sidebar={
-                <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations}/>
+                inlineInspecting ? null :
+                    <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
+                                entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                extra={callbacks} operations={operations}/>
             }
         />
     }

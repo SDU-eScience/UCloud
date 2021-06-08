@@ -227,12 +227,12 @@ create or replace function provider.resource_to_json(
                 )
             ),
             'updates', (
-                select coalesce('[]'::jsonb, jsonb_agg(
+                select coalesce(jsonb_agg(
                     jsonb_build_object(
                         'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
                         'status', u.status
                     ) || u.extra
-                ))
+                ), '[]'::jsonb)
                 from unnest(r.updates) u
             ),
             'specification', (

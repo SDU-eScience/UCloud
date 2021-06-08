@@ -50,8 +50,10 @@ class CopyTask : TaskHandler {
 
         // Check permissions
         for (reqItem in realRequest.items) {
+            /*
             aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.READ)
             aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
+             */
         }
 
         var fileCount = 0

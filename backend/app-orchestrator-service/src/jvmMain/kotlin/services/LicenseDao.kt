@@ -158,7 +158,7 @@ class LicenseDao(
     suspend fun updateAcl(
         ctx: DBContext,
         id: LicenseId,
-        acl: List<ResourceAclEntry<LicensePermission>>,
+        acl: List<ResourceAclEntry>,
     ): License {
         return ctx.withSession { session ->
             session

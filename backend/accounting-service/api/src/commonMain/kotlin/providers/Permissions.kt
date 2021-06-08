@@ -73,19 +73,19 @@ data class ResourcePermissions(
     val myself: List<Permission>,
     @UCloudApiDoc("The permissions that other users might have access to\n\n" +
         "This value typically needs to be included through the `includeFullPermissions` flag")
-    val others: List<ResourceAclEntry<Permission>>?
+    val others: List<ResourceAclEntry>?
 )
 
 @Serializable
 data class UpdatedAcl(
     val id: String,
-    val added: List<ResourceAclEntry<Permission>>,
+    val added: List<ResourceAclEntry>,
     val deleted: List<AclEntity>,
 )
 
 @Serializable
-data class UpdatedAclWithResource<Res : Resource<*>>(
+data class UpdatedAclWithResource<Res : Resource<*, *>>(
     val resource: Res,
-    val added: List<ResourceAclEntry<Permission>>,
+    val added: List<ResourceAclEntry>,
     val deleted: List<AclEntity>,
 )

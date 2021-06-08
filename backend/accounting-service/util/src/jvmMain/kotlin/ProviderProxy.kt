@@ -17,21 +17,21 @@ import dk.sdu.cloud.safeUsername
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 
-sealed class ProductRefOrResource<Res : Resource<*>> {
+sealed class ProductRefOrResource<Res : Resource<*, *>> {
     abstract val reference: ProductReference
 
-    data class SomeResource<Res : Resource<*>>(val resource: Res) : ProductRefOrResource<Res>() {
+    data class SomeResource<Res : Resource<*, *>>(val resource: Res) : ProductRefOrResource<Res>() {
         override val reference = resource.specification.product ?: error("Not handled")
     }
 
-    data class SomeRef<Res : Resource<*>>(val ref: ProductReference) : ProductRefOrResource<Res>() {
+    data class SomeRef<Res : Resource<*, *>>(val ref: ProductReference) : ProductRefOrResource<Res>() {
         override val reference: ProductReference = ref
     }
 }
 
 typealias RequestWithRefOrResource<Req, Res> = Pair<Req, ProductRefOrResource<Res>>
 
-abstract class BulkProxyInstructions<Comms : ProviderComms, Support : ProductSupport, Res : Resource<*>,
+abstract class BulkProxyInstructions<Comms : ProviderComms, Support : ProductSupport, Res : Resource<*, *>,
     ApiRequest : Any, ProviderRequest : Any, ProviderResponse : Any> {
     abstract val isUserRequest: Boolean
 
@@ -69,7 +69,7 @@ class ProviderProxy<
     Comms : ProviderComms,
     Prod : Product,
     Support : ProductSupport,
-    Res : Resource<*>>(
+    Res : Resource<Prod, Support>>(
     private val providers: Providers<Comms>,
     private val support: ProviderSupport<Comms, Prod, Support>
 ) {

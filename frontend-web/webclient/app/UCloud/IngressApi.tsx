@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
     ProductSupport,
     Resource,
@@ -8,6 +9,8 @@ import {
 } from "UCloud/ResourceApi";
 import {accounting} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
+import {SidebarPages} from "ui-components/Sidebar";
+import {Icon} from "ui-components";
 
 export interface IngressSpecification extends ResourceSpecification {
     domain: string;
@@ -35,7 +38,13 @@ export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressS
 
 class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecification, IngressUpdate,
     ResourceIncludeFlags, IngressStatus, IngressSupport> {
+    routingNamespace = "public-links";
     title = "Public Link";
+    page = SidebarPages.Runs;
+
+    TitleRenderer = ({resource}) => resource.specification.domain
+    IconRenderer = ({resource, size}) => <Icon name={"globeEuropeSolid"} size={size}/>
+    NameRenderer = this.TitleRenderer;
 
     constructor() {
         super("ingresses");

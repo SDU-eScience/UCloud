@@ -20,7 +20,7 @@ typealias FileCollectionsRenameResponse = Unit
 
 // ---
 
-object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+object FileCollections/* : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
@@ -77,3 +77,5 @@ object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCo
     }
      */
 }
+
+   */

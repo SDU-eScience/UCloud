@@ -12,7 +12,7 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 
 interface ResourceSvc<
-    R : Resource<*>,
+    R : Resource<Prod, Support>,
     F : ResourceIncludeFlags,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,

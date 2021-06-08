@@ -1,7 +1,9 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.provider.api.*
@@ -27,11 +29,11 @@ data class FileMetadataTemplate(
     override val status: Status,
     override val updates: List<Update>,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
+    override val acl: List<ResourceAclEntry>,
     override val createdAt: Long,
     val public: Boolean,
     override val permissions: ResourcePermissions? = null,
-) : Resource<FileMetadataTemplatePermission> {
+) : Resource<Product, ProductSupport> {
     override val billing: ResourceBilling.Free = ResourceBilling.Free
 
     @Serializable
@@ -63,8 +65,8 @@ data class FileMetadataTemplate(
     @Serializable
     class Status(
         val oldVersions: List<String>,
-        override var support: ResolvedSupport<*, *>? = null,
-    ) : ResourceStatus
+        override var support: ResolvedSupport<Product, ProductSupport>? = null,
+    ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable
     data class Update(
@@ -87,11 +89,7 @@ This means that a metadata document might exist for every user who has/had acces
     PER_USER
 }
 
-@Serializable
-enum class FileMetadataTemplatePermission {
-    READ,
-    WRITE
-}
+typealias FileMetadataTemplatePermission = Permission
 
 @Serializable
 data class FileMetadataHistory(

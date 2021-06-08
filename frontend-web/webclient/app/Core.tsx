@@ -60,7 +60,7 @@ const RegisterProvider = React.lazy(() => import("Admin/Providers/Approve"));
 const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 
-const IngressBrowse = React.lazy(() => import("Applications/Ingresses/Browse"));
+const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -142,7 +142,7 @@ const Core = (): JSX.Element => (
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo} />}
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest} />}
 
-                    <Route exact path={"/ingresses"} component={IngressBrowse}/>
+                    <IngressRouter/>
 
                     <Route exact path="/admin" component={requireAuth(AdminOverview)} />
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />

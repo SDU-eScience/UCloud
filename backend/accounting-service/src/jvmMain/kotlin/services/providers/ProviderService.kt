@@ -87,7 +87,7 @@ class ProviderService(
     ) {
         db.withSession { session ->
             request.items.forEach { req ->
-                if (!dao.hasPermission(session, actor, req.id, ProviderAclPermission.EDIT)) {
+                if (!dao.hasPermission(session, actor, req.id, Permission.Edit)) {
                     throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 }
             }

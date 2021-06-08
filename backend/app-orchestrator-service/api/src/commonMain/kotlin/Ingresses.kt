@@ -57,9 +57,9 @@ data class Ingress(
     override val updates: List<IngressUpdate> = emptyList(),
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Nothing?> {
+) : Resource<Product.Ingress, IngressSettings> {
     override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null
+    override val acl: List<ResourceAclEntry>? = null
 }
 
 @UCloudApiDoc("The status of an `Ingress`")
@@ -69,8 +69,8 @@ data class IngressStatus(
     val boundTo: String? = null,
 
     val state: IngressState,
-    override var support: ResolvedSupport<*, *>? = null
-) : ResourceStatus
+    override var support: ResolvedSupport<Product.Ingress, IngressSettings>? = null
+) : ResourceStatus<Product.Ingress, IngressSettings>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable

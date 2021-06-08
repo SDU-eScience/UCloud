@@ -45,9 +45,9 @@ enum class FileType {
     DANGLING_METADATA
 }
 
-@Serializable
-@UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
-enum class FilePermission {
+//@Serializable
+// @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
+typealias FilePermission = Permission/* {
     @UCloudApiDoc(
         """The user is allowed to read the contents of the file
 
@@ -90,6 +90,7 @@ file.
     )
     ADMINISTRATOR,
 }
+*/
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc(
@@ -261,7 +262,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
         val myself: List<FilePermission>?,
 
         @UCloudApiDoc("Information about what other users and entities can do with this file")
-        val others: List<ResourceAclEntry<FilePermission>>?,
+        val others: List<ResourceAclEntry>?,
     )
 }
 
@@ -296,7 +297,7 @@ data class FileMetadataDocument(
     override val status: Status,
     override val updates: List<ResourceUpdate>,
     override val owner: ResourceOwner,
-) : FileMetadataOrDeleted(), Resource<Nothing?> {
+) : FileMetadataOrDeleted(), Resource<Product, ProductSupport> {
     @Contextual
     override val acl: Nothing? = null
     override val permissions: ResourcePermissions? = null
@@ -319,8 +320,8 @@ data class FileMetadataDocument(
     @Serializable
     data class Status(
         val approval: ApprovalStatus,
-        override var support: ResolvedSupport<*, *>? = null
-    ) : ResourceStatus
+        override var support: ResolvedSupport<Product, ProductSupport>? = null
+    ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable
     sealed class ApprovalStatus {
@@ -416,10 +417,10 @@ data class FileCollection(
     override val updates: List<Update>,
     override val billing: Billing,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<FilePermission>>?,
+    override val acl: List<ResourceAclEntry>?,
     override val permissions: ResourcePermissions? = null,
     override val providerGeneratedId: String? = null
-) : Resource<FilePermission> {
+) : Resource<Product, ProductSupport> {
     @Serializable
     data class Spec(
         val title: String,
@@ -435,8 +436,8 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        override var support: ResolvedSupport<*, *>? = null
-    ) : ResourceStatus
+        override var support: ResolvedSupport<Product, ProductSupport>? = null
+    ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable
     data class Billing(

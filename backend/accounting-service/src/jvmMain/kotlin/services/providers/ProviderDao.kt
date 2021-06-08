@@ -71,7 +71,7 @@ class ProviderDao(
                 .map { rowToProvider(it) }
                 .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
+            if (!hasPermission(actor, provider.owner, provider.acl, Permission.Edit)) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
 
@@ -106,7 +106,7 @@ class ProviderDao(
             mapper = { _, rows ->
                 rows.mapNotNull {
                     val (provider) = rowToProvider(it)
-                    val hasPermission = hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)
+                    val hasPermission = hasPermission(actor, provider.owner, provider.acl, Permission.Edit)
                     if (!isPrivileged && !hasPermission) {
                         null
                     } else {
@@ -146,7 +146,7 @@ class ProviderDao(
                 .map { rowToProvider(it) }
                 .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
+            if (!hasPermission(actor, provider.owner, provider.acl, Permission.Edit)) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
@@ -156,7 +156,7 @@ class ProviderDao(
         ctx: DBContext,
         actor: Actor,
         id: String,
-        newAcl: List<ResourceAclEntry<ProviderAclPermission>>,
+        newAcl: List<ResourceAclEntry>,
     ) {
         ctx.withSession { session ->
             val (provider) = session
@@ -176,7 +176,7 @@ class ProviderDao(
                 .map { rowToProvider(it) }
                 .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
+            if (!hasPermission(actor, provider.owner, provider.acl, Permission.Edit)) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
@@ -223,7 +223,7 @@ class ProviderDao(
     private suspend fun hasPermission(
         actor: Actor,
         owner: ResourceOwner,
-        aclToVerifyAgainst: List<ResourceAclEntry<ProviderAclPermission>>,
+        aclToVerifyAgainst: List<ResourceAclEntry>,
         permission: ProviderAclPermission,
     ): Boolean {
         val project = owner.project ?: return false

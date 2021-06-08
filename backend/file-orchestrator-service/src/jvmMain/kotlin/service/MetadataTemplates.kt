@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.safeUsername
@@ -53,7 +54,7 @@ class MetadataTemplates(
                 .singleOrNull()
         } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        if (!hasPermissions(actorAndProject, FileMetadataTemplatePermission.READ, listOf(template)).single()) {
+        if (!hasPermissions(actorAndProject, Permission.Read, listOf(template)).single()) {
             throw RPCException("You do not have permission to use this metadata template", HttpStatusCode.Forbidden)
         }
 
@@ -96,7 +97,7 @@ class MetadataTemplates(
             mapper = { _, rows ->
                 val templates = rows.map { rowToTemplate(it) }
                 templates
-                    .zip(hasPermissions(actorAndProject, FileMetadataTemplatePermission.READ, templates))
+                    .zip(hasPermissions(actorAndProject, Permission.Read, templates))
                     .mapNotNull { (template, hasPermission) ->
                         if (hasPermission) template else null
                     }
@@ -150,16 +151,16 @@ class MetadataTemplates(
 
     private fun hasPermission(
         actorAndProject: ActorAndProject,
-        permission: FileMetadataTemplatePermission,
+        permission: Permission,
         projectStatus: ProjectCache.CacheResponse,
 
         owner: ResourceOwner,
         public: Boolean,
-        acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
+        acl: List<ResourceAclEntry>,
     ): Boolean {
         val groups = projectStatus.userStatus?.groups ?: emptyList()
         val projects = projectStatus.userStatus?.membership ?: emptyList()
-        return if (public && permission == FileMetadataTemplatePermission.READ) {
+        return if (public && permission == Permission.Read) {
             true
         } else {
             val project = owner.project
@@ -237,7 +238,7 @@ class MetadataTemplates(
 
                     val isAllowedToWrite = hasPermission(
                         actorAndProject,
-                        FileMetadataTemplatePermission.WRITE,
+                        Permission.Edit,
                         projectStatus,
                         ResourceOwner(
                             templateManifest.getString("created_by")!!,
@@ -329,7 +330,7 @@ class MetadataTemplates(
 
                 val isAllowedToWrite = hasPermission(
                     actorAndProject,
-                    FileMetadataTemplatePermission.WRITE,
+                    Permission.Edit,
                     projectStatus,
                     ResourceOwner(
                         deprecatedRow.getString("created_by")!!,

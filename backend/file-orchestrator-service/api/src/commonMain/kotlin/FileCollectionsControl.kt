@@ -4,11 +4,12 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 
-object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+object FileCollectionsControl/* : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
         FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+        */
 
     /*
     val update = call<FileCollectionsControlUpdateRequest, FileCollectionsControlUpdateResponse,
@@ -37,4 +38,4 @@ object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollectio
         }
     }
      */
-}
+// }

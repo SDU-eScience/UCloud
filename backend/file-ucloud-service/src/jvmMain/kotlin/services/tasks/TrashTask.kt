@@ -30,7 +30,7 @@ class TrashTask(
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesTrashRequest>(request)
         for (reqItem in realRequest.items) {
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.path), FilePermission.WRITE)
+            // aclService.requirePermission(actor, UCloudFile.create(reqItem.path), FilePermission.WRITE)
         }
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))

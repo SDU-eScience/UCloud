@@ -23,12 +23,15 @@ class FileQueries(
     private val fileTrashService: TrashService,
 ) {
     suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
+        /*
         val myself = aclService.fetchMyPermissions(actor, file)
         if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
 
+         */
+
         val internalFile = pathConverter.ucloudToInternal(file)
         val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(internalFile, nativeStat, myself)
+        return convertNativeStatToUFile(internalFile, nativeStat, TODO())
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
@@ -88,8 +91,10 @@ class FileQueries(
         // directory. This allows the user to search a consistent snapshot of the files. If any files are removed
         // between calls then this endpoint will simply skip it.
 
+        /*
         val myself = aclService.fetchMyPermissions(actor, file)
         if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
+         */
 
         val next = pagination.next
         var foundFiles: List<InternalFile>? = null
@@ -118,7 +123,7 @@ class FileQueries(
                     convertNativeStatToUFile(
                         nextInternalFile,
                         nativeFs.stat(nextInternalFile),
-                        myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
+                        TODO() // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
                 )
             } catch (ex: FSException.NotFound) {

@@ -31,7 +31,7 @@ class CreateFolderTask : TaskHandler {
         for (reqItem in realRequest.items) {
             // TODO There is a fast-path we could optimize where all files are of a single parent and we have write
             //   permissions in that parent
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.path), FilePermission.WRITE)
+            // aclService.requirePermission(actor, UCloudFile.create(reqItem.path), FilePermission.WRITE)
         }
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))

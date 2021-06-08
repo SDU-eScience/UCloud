@@ -21,7 +21,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
-suspend fun <T : Resource<*>> DBContext.paginateResource(
+suspend fun <T : Resource<*, *>> DBContext.paginateResource(
     actorAndProject: ActorAndProject,
     request: NormalizedPaginationRequestV2,
     serializer: KSerializer<T>,
@@ -49,11 +49,11 @@ suspend fun <T : Resource<*>> DBContext.paginateResource(
 }
 
 abstract class ResourceService<
-    Res : Resource<*>,
+    Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
     Update : ResourceUpdate,
     Flags : ResourceIncludeFlags,
-    Status : ResourceStatus,
+    Status : ResourceStatus<Prod, Support>,
     Prod : Product,
     Support : ProductSupport,
     Comms : ProviderComms>(

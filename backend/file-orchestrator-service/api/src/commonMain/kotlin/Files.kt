@@ -130,7 +130,7 @@ typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 @Serializable
 data class FilesUpdateAclRequestItem(
     override val path: String,
-    val newAcl: List<ResourceAclEntry<FilePermission>>
+    val newAcl: List<ResourceAclEntry>
 ) : WithPath
 typealias FilesUpdateAclResponse = Unit
 
@@ -215,6 +215,7 @@ of bytes.
 
         documentation {
             summary = "Retrieves information about a single file"
+            /*
             description = """
                 Retrieves information about a single file.
                 
@@ -223,6 +224,7 @@ of bytes.
                 this information using ${docCallRef(FileCollections::browse)} or 
                 ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
             """.trimIndent()
+             */
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -409,12 +411,15 @@ of bytes.
 
         documentation {
             summary = "Updates the permissions of a file"
+            /*
             description = """
                 Updates the permissions of a file.
                 
                 Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
                 or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag. 
             """.trimIndent()
+
+             */
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -433,6 +438,7 @@ of bytes.
 
         documentation {
             summary = "Moves a file to the trash"
+            /*
             description = """
                 Moves a file to the trash.
                 
@@ -446,6 +452,8 @@ of bytes.
                 This is a long running task. As a result, this operation might respond with a status code which indicate
                 that it will continue in the background. Progress of this job can be followed using the task API.
             """.trimIndent()
+
+             */
 
             error {
                 statusCode = HttpStatusCode.NotFound

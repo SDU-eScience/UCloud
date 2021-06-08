@@ -35,8 +35,10 @@ class MoveTask : TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         for (reqItem in realRequest.items) {
+            /*
             aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.WRITE)
             aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
+             */
         }
 
         // TODO It might be beneficial to go into the background if the policy is MERGE and the destination exists

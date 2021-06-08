@@ -6,6 +6,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
@@ -144,10 +145,10 @@ data class NetworkIP(
 
     val resolvedProduct: Product.NetworkIP? = null,
 
-    override val acl: List<ResourceAclEntry<NetworkIPPermission>>? = null,
+    override val acl: List<ResourceAclEntry>? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<NetworkIPPermission>, NetworkIPId
+) : Resource<Product, ProductSupport>, NetworkIPId
 
 @Serializable
 data class NetworkIPBilling(
@@ -165,8 +166,8 @@ data class NetworkIPStatus(
 
     @UCloudApiDoc("The externally accessible IP address allocated to this `NetworkIP`")
     val ipAddress: String? = null,
-    override var support: ResolvedSupport<*, *>? = null
-) : ResourceStatus
+    override var support: ResolvedSupport<Product, ProductSupport>? = null
+) : ResourceStatus<Product, ProductSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -249,7 +250,7 @@ typealias NetworkIPsUpdateAclRequest = BulkRequest<NetworkIPsUpdateAclRequestIte
 @Serializable
 data class NetworkIPsUpdateAclRequestItem(
     override val id: String,
-    val acl: List<ResourceAclEntry<NetworkIPPermission>>,
+    val acl: List<ResourceAclEntry>,
 ) : NetworkIPId
 
 typealias NetworkIPsUpdateAclResponse = Unit

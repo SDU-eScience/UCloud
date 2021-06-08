@@ -298,7 +298,7 @@ class NetworkIPDao(
     suspend fun updateAcl(
         ctx: DBContext,
         id: NetworkIPId,
-        acl: List<ResourceAclEntry<NetworkIPPermission>>,
+        acl: List<ResourceAclEntry>,
     ): NetworkIP {
         return ctx.withSession { session ->
             session
