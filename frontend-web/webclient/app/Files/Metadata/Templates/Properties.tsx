@@ -46,7 +46,7 @@ const Properties: React.FunctionComponent = props => {
     if (template.error) {
         main = <>{template.error.statusCode}: {template.error.why}</>
     } else if (template.loading || !template.data) {
-        main = <HexSpin/>;
+        main = <HexSpin />;
     } else {
         const t = template.data!;
         main = <ResourcePage
@@ -104,7 +104,7 @@ const Properties: React.FunctionComponent = props => {
         />;
     }
 
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 };
 
 export default Properties;
