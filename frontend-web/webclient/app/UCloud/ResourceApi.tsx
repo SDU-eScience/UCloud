@@ -11,7 +11,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {doNothing} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
-import {FilterWidgetProps, PillProps} from "Resource/Filter";
+import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resource/Filter";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -118,6 +118,10 @@ export abstract class ResourceApi<Res extends Resource,
     protected constructor(namespace: string) {
         this.namespace = namespace;
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
+
+        this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
+        this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
+        // TODO We need to add a pill for provider and product
     }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {

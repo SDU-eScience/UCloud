@@ -69,23 +69,26 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
-    return <Grid gridGap={"8px"} mt={"32px"}>
-        <Heading.h5><Icon name={"filterSolid"} size={"16px"} mr={"8px"}/> Filters</Heading.h5>
-        {props.pills.map((Pill, idx) =>
-            <Pill key={Pill.displayName + "_" + idx} properties={properties} onDelete={onPillDeleted}/>
-        )}
-        {Object.keys(properties).length === 0 ? null :
-            <Button color={"green"} size={"small"} onClick={props.onApplyFilters}>
-                <Icon name={"check"} mr={"8px"} size={"14px"} />
-                <Text.TextSpan fontSize={"14px"}>Apply filters</Text.TextSpan>
-            </Button>
-        }
-        <Box height={"16px"}/>
-        {props.filterWidgets.map((Widget, idx) =>
-            <Widget id={idx} key={Widget.displayName + "_" + idx} properties={properties}
-                    onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx}/>
-        )}
-    </Grid>;
+    return <>
+        <Heading.h4 mt={"32px"} mb={"16px"}><Icon name={"filterSolid"} size={"16px"} mr={"8px"}/> Filters</Heading.h4>
+        <Grid gridGap={"8px"}>
+            {props.pills.map((Pill, idx) =>
+                <Pill key={Pill.displayName + "_" + idx} properties={properties} onDelete={onPillDeleted}/>
+            )}
+            {Object.keys(properties).length === 0 ? null :
+                <Button color={"green"} size={"small"} onClick={props.onApplyFilters} mb={"30px"}>
+                    <Icon name={"check"} mr={"8px"} size={"14px"}/>
+                    <Text.TextSpan fontSize={"14px"}>Apply filters</Text.TextSpan>
+                </Button>
+            }
+        </Grid>
+        <Grid gridGap={"20px"}>
+            {props.filterWidgets.map((Widget, idx) =>
+                <Widget id={idx} key={Widget.displayName + "_" + idx} properties={properties}
+                        onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx}/>
+            )}
+        </Grid>
+    </>;
 };
 
 export const FilterPill: React.FunctionComponent<{

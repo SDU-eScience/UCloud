@@ -54,12 +54,11 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
     constructor() {
         super("ingresses");
 
-        this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
-        this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
+
         this.registerFilter(EnumFilter(
             "radioEmpty",
             "filterState",
-            "Current state",
+            "Status",
             [
                 {
                     title: "Preparing",
@@ -78,8 +77,6 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
                 }
             ]
         ));
-
-        this.registerFilter(CheckboxFilter("checkDouble", "filterIsAwesome", "Is awesome?"));
     }
 }
 
