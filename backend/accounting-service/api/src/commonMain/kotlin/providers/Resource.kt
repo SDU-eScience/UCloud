@@ -13,7 +13,26 @@ interface ResourceIncludeFlags {
     val includeOthers: Boolean
     val includeUpdates: Boolean
     val includeSupport: Boolean
+    val filterCreatedBy: String?
+    val filterCreatedAfter: Long?
+    val filterCreatedBefore: Long?
+    val filterProvider: String?
+    val filterProductId: String?
+    val filterProductCategory: String?
 }
+
+@Serializable
+data class SimpleResourceIncludeFlags(
+    override val includeOthers: Boolean,
+    override val includeUpdates: Boolean,
+    override val includeSupport: Boolean,
+    override val filterCreatedBy: String?,
+    override val filterCreatedAfter: Long?,
+    override val filterCreatedBefore: Long?,
+    override val filterProvider: String?,
+    override val filterProductId: String?,
+    override val filterProductCategory: String?
+) : ResourceIncludeFlags
 
 @UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
 

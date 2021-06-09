@@ -166,30 +166,31 @@ abstract class ResourceService<
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val sortBy = sortColumn.verify({ db.openSession() }, { db.closeSession(it) })
 
+        val (resourceParams, resourceQuery) = accessibleResources(
+            actorAndProject.actor,
+            listOf(Permission.Read),
+            projectFilter = actorAndProject.project,
+            flags = flags
+        )
+
         return (ctx ?: db).paginateV2(
             actorAndProject.actor,
             request.normalize(),
             create = { session ->
                 session.sendPreparedStatement(
                     {
-                        setParameter("resource_type", resourceType)
-
-                        setParameter("include_others", flags?.includeOthers ?: false)
-                        setParameter("include_updates", flags?.includeUpdates ?: false)
-
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-
+                        resourceParams()
                         params()
                     },
                     """
                         declare c cursor for
-                        with spec as ($query)
-                        select provider.resource_to_json(r, $converter(spec))
+                        with
+                            spec as ($query),
+                            accessible_resources as ($resourceQuery)
+                        select provider.resource_to_json(resc, $converter(spec))
                         from
-                            provider.accessible_resources(:user, :resource_type, 
-                                array['READ'], null, :project, :include_others, :include_updates, false) r join
-                            spec on (r.resource).id = spec.resource
+                            accessible_resources resc join
+                            spec on (resc.r).id = spec.resource
                         order by
                             spec.$sortBy
                     """,
@@ -959,6 +960,140 @@ abstract class ResourceService<
             duplicateCharges = chargeResults
                 .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
                 .map { FindByStringId(it.first.id) },
+        )
+    }
+
+    private fun accessibleResources(
+        actor: Actor,
+        permissionsOneOf: Collection<Permission>,
+        resourceId: Long? = null,
+        projectFilter: String? = "",
+        flags: Flags? = null,
+        simpleFlags: SimpleResourceIncludeFlags? = null,
+        includeUnconfirmed: Boolean = false
+    ): PartialQuery {
+        val includeOthers = flags?.includeOthers ?: simpleFlags?.includeOthers ?: false
+        val includeUpdates = flags?.includeUpdates ?: simpleFlags?.includeUpdates ?: false
+        return PartialQuery(
+            {
+                setParameter("username", actor.safeUsername())
+                setParameter("project_filter", projectFilter)
+                setParameter("permissions", permissionsOneOf.map { it.name })
+                setParameter("resource_id", resourceId)
+                setParameter("resource_type", resourceType)
+                setParameter("include_unconfirmed", includeUnconfirmed)
+                setParameter("filter_created_by", flags?.filterCreatedBy ?: simpleFlags?.filterCreatedBy)
+                setParameter("filter_created_after", flags?.filterCreatedAfter ?: simpleFlags?.filterCreatedAfter)
+                setParameter("filter_created_before", flags?.filterCreatedBefore ?: simpleFlags?.filterCreatedBefore)
+                setParameter("filter_provider", flags?.filterProvider ?: simpleFlags?.filterProvider)
+                setParameter("filter_product_id", flags?.filterProductId ?: simpleFlags?.filterProductId)
+                setParameter(
+                    "filter_product_category",
+                    flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
+                )
+            },
+            buildString {
+                append(
+                    """
+                        select distinct
+                            r,
+                            the_product.name,
+                            p_cat.category,
+                            p_cat.provider,
+                            array_agg(
+                                distinct
+                                case
+                                    when pm.role = 'PI' then 'ADMIN'
+                                    when pm.role = 'ADMIN' then 'ADMIN'
+                                    when r.created_by = :username and r.project is null then 'ADMIN'
+                                    when :username = '#P_' || r.provider then 'PROVIDER'
+                                    else acl.permission
+                                end
+                            ) as permissions,
+                            
+                    """
+                )
+
+                if (includeOthers) {
+                    append("array_remove(array_agg(distinct other_acl), null),")
+                } else {
+                    append("array[]::provider.resource_acl_entry[],")
+                }
+
+                if (includeUpdates) {
+                    append("array_remove(array_agg(distinct u), null) as updates")
+                } else {
+                    append("array[]::provider.resource_update[]")
+                }
+
+                append(
+                    """
+                        from
+                           provider.resource r join
+                           accounting.products the_product on r.product = the_product.id join
+                           accounting.product_categories p_cat on the_product.category = p_cat.id left join
+                           provider.resource_acl_entry acl on r.id = acl.resource_id left join
+                           project.projects p on r.project = p.id left join
+                           project.project_members pm on p.id = pm.project_id and pm.username = :username left join
+                           project.groups g on pm.project_id = g.project and acl.group_id = g.id left join
+                           project.group_members gm on g.id = gm.group_id and gm.username = :username
+                           
+                    """
+                )
+
+                if (includeOthers) {
+                    append(" left join provider.resource_acl_entry other_acl on r.id = other_acl.resource_id ")
+                }
+
+                if (includeUpdates) {
+                    append(" left join provider.resource_update u on r.id = u.resource ")
+                }
+
+                append(
+                    """
+                        where
+                           (confirmed_by_provider = true or :include_unconfirmed) and
+                           (:project_filter = '' or :project_filter is not distinct from r.project) and
+                           (:resource_id::bigint is null or r.id = :resource_id) and
+                           r.type = :resource_type and
+                           (
+                               (:username = '#P_' || r.provider) or
+                               (r.created_by = :username and r.project is null) or
+                               (acl.username = :username) or
+                               (pm.role = 'PI' or pm.role = 'ADMIN') or
+                               (gm.username is not null)
+                          ) and
+                          (:filter_created_by::text is null or :filter_created_by = r.created_by) and
+                          (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after / 1000)) and
+                          (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before / 1000)) and
+                          (:filter_provider::text is null or p_cat.provider = :filter_provider) and
+                          (:filter_product_id::text is null or the_product.name = :filter_product_id) and
+                          (:filter_product_category::text is null or p_cat.category = :filter_product_category)
+                                        
+                    """
+                )
+
+                if (includeOthers) {
+                    append(" and other_acl.username is distinct from :username ")
+                }
+
+                append(" group by r.*, the_product.name, p_cat.category, p_cat.provider ")
+
+                append(
+                    """
+                        having
+                           :permissions || array['ADMIN'] && array_agg(
+                               case
+                                   when pm.role = 'PI' then 'ADMIN'
+                                   when pm.role = 'ADMIN' then 'ADMIN'
+                                   when r.created_by = :username and r.project is null then 'ADMIN'
+                                   when :username = '#P_' || r.provider then 'PROVIDER'
+                                   else acl.permission
+                               end
+                           )
+                    """
+                )
+            }
         )
     }
 

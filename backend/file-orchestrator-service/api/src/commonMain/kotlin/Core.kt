@@ -374,6 +374,12 @@ data class SimpleFileCollectionIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
 ) : FileCollectionIncludeFlags
 
 fun FileCollectionIncludeFlags(
