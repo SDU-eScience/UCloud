@@ -182,6 +182,15 @@ function Activity(props: ActivityProps): JSX.Element {
     );
 }
 
+export const getEndOfDay = (d: Date): Date => {
+    const copy = new Date(d);
+    copy.setHours(23);
+    copy.setMinutes(59)
+    copy.setSeconds(59);
+    copy.setMilliseconds(999);
+    return copy;
+}
+
 export const getStartOfDay = (d: Date): Date => {
     const copy = new Date(d);
     copy.setHours(0);
@@ -203,6 +212,16 @@ export const getStartOfWeek = (d: Date): Date => {
     copy.setMilliseconds(0);
     return copy;
 };
+
+export const getStartOfMonth = (d: Date): Date => {
+    const copy = new Date(d);
+    copy.setDate(1);
+    copy.setHours(0);
+    copy.setMinutes(0);
+    copy.setSeconds(0);
+    copy.setMilliseconds(0);
+    return copy;
+}
 
 export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; selected?: Date}): JSX.Element => (
     <Box mb={16}>

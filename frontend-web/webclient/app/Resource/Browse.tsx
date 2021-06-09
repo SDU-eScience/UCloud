@@ -28,6 +28,7 @@ import {useSidebarPage} from "ui-components/Sidebar";
 import {ResourceProperties} from "Resource/Properties";
 import * as Heading from "ui-components/Heading";
 import {useHistory} from "react-router";
+import {ResourceFilter} from "Resource/Filter";
 
 export interface ResourceBrowseProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
@@ -54,6 +55,7 @@ export const ResourceBrowse = <Res extends Resource>(
     const [infScroll, setInfScroll] = useState(0);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const projectId = useProjectId();
+    const [filters, setFilters] = useState<Record<string, string>>({});
 
     const toggleSet = useToggleSet(resources.data.items);
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
@@ -86,15 +88,15 @@ export const ResourceBrowse = <Res extends Resource>(
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
-        fetchResources(api.browse({itemsPerPage: 50, includeOthers}));
+        fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters}));
         toggleSet.uncheckAll();
-    }, [projectId]);
+    }, [projectId, filters]);
 
     const loadMore = useCallback(() => {
         if (resources.data.next) {
-            fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers}));
+            fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers, ...filters}));
         }
-    }, [resources.data.next]);
+    }, [resources.data.next, filters]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
@@ -219,7 +221,7 @@ export const ResourceBrowse = <Res extends Resource>(
         </List>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport]);
 
-    useEffect(() => reload(), [reload]);
+    useEffect(() => reload(), [projectId]);
 
     if (!props.embedded) {
         useTitle(api.titlePlural);
@@ -259,9 +261,14 @@ export const ResourceBrowse = <Res extends Resource>(
             main={main}
             sidebar={
                 inlineInspecting ? null :
-                    <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                extra={callbacks} operations={operations}/>
+                    <>
+                        <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations}/>
+
+                        <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
+                                        properties={filters} setProperties={setFilters} onApplyFilters={reload}/>
+                    </>
             }
         />
     }

@@ -227,7 +227,7 @@ export const Browse: React.FunctionComponent<{
                         {g.instances.length <= 1 ? null : g.instances.map(instance => (
                             <Box ml={"45px"} key={instance.id}>
                                 <ListRow
-                                    fontSize={17}
+                                    fontSize={"17px"}
                                     isSelected={selected.instances.has(instance)}
                                     select={() => selectInstance(instance)}
                                     left={<Text>{shortUUID(instance.id)}</Text>}

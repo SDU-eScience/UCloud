@@ -27,6 +27,9 @@ export interface ClickableDropdownProps<T> {
     bottom?: string | number;
     right?: string | number;
 
+    useMousePositioning?: boolean;
+    paddingControlledByContent?: boolean;
+
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
@@ -40,7 +43,12 @@ const ClickableDropdown: ClickableDropdownType =
     ({keepOpenOnClick, onChange, onTriggerClick, ...props}) => {
         const dropdownRef = useRef<HTMLDivElement>(null);
         const [open, setOpen] = useState(props.open ?? false);
+        const [location, setLocation] = useState<[number, number]>([0, 0]);
         const isControlled = useMemo(() => props.open !== undefined, []);
+
+        if (isControlled && props.useMousePositioning) {
+            throw "Cannot use a controlled dropdown with useMousePositioning";
+        }
 
         useEffect(() => {
             if (isControlled && props.open !== undefined) {
@@ -59,10 +67,14 @@ const ClickableDropdown: ClickableDropdownType =
             if (!isControlled) setOpen(true);
         }, [onTriggerClick]);
 
-        const toggle = useCallback(() => {
+        const toggle = useCallback((e : React.MouseEvent) => {
             if (open) close();
             else doOpen();
-        }, [open]);
+
+            if (props.useMousePositioning) {
+                setLocation([e.clientX, e.clientY]);
+            }
+        }, [open, props.useMousePositioning]);
 
         let neither = true;
         if (props.children) neither = false;
@@ -109,7 +121,19 @@ const ClickableDropdown: ClickableDropdownType =
             children = props.children;
         }
         const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
-        const width = props.fullWidth ? "100%" : props.width;
+        let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
+        const top = !props.useMousePositioning ? props.top : location[1];
+
+        let left = !props.useMousePositioning ? props.left : location[0];
+        if (props.useMousePositioning) {
+            if (width === undefined) width = 300;
+            const widthAsNumber = parseInt(width.toString().replace("px", ""));
+            const leftAsNumber = parseInt((left ?? 0).toString().replace("px", ""));
+            if (leftAsNumber + widthAsNumber >= document.body.scrollWidth - 50) {
+                left = leftAsNumber - widthAsNumber;
+            }
+        }
+
         return (
             <Dropdown data-tag="dropdown" ref={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
@@ -117,7 +141,7 @@ const ClickableDropdown: ClickableDropdownType =
                     onClick={e => {
                         e.preventDefault();
                         e.stopPropagation();
-                        toggle();
+                        toggle(e);
                     }}
                 >
                     {props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
@@ -128,6 +152,9 @@ const ClickableDropdown: ClickableDropdownType =
                         squareTop={props.squareTop}
                         cursor="pointer"
                         {...props}
+                        top={top}
+                        left={left}
+                        fixed={props.useMousePositioning}
                         width={width}
                         hover={false}
                         visible={open}

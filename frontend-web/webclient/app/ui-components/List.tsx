@@ -48,26 +48,29 @@ interface ListRowProps {
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
     right: React.ReactNode;
-    fontSize?: string | number;
+    fontSize?: string;
     highlight?: boolean;
+    stopPropagation?: boolean;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
+    const stopPropagation = props.stopPropagation ?? true;
     const doNavigate = useCallback((e: React.SyntheticEvent) => {
         (props.navigate ?? props.select)?.();
-        e.stopPropagation();
-    }, [props.navigate, props.select]);
+        if (stopPropagation) e.stopPropagation();
+    }, [props.navigate, props.select, stopPropagation]);
 
     const doSelect = useCallback((e: React.SyntheticEvent) => {
         (props.select)?.();
-        e.stopPropagation();
-    }, [props.select]);
+        if (stopPropagation) e.stopPropagation();
+    }, [props.select, stopPropagation]);
 
     return <ListStyle
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
+        fontSize={props.fontSize}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
@@ -105,7 +108,7 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListStyle = styled.div`
+const ListStyle = styled.div<{fontSize?: string; }>`
   transition: background-color 0.3s;
   padding: 5px 0;
   width: 100%;
@@ -142,7 +145,7 @@ const ListStyle = styled.div`
 
   .row-left-content {
     margin-bottom: -4px;
-    font-size: 20px;
+    font-size: ${p => p.fontSize ?? "20px"};
     /*overflow: hidden;*/
     white-space: nowrap;
     text-overflow: ellipsis;

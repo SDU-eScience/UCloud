@@ -11,6 +11,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {doNothing} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
+import {FilterWidgetProps, PillProps} from "Resource/Filter";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -97,19 +98,27 @@ export abstract class ResourceApi<Res extends Resource,
     private namespace: string;
     private baseContext: string;
 
-    protected constructor(namespace: string) {
-        this.namespace = namespace;
-        this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
-    }
-
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
+
+    public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
+    public filterPills: React.FunctionComponent<PillProps>[] = [];
+
+    public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]) {
+        this.filterWidgets.push(w);
+        this.filterPills.push(p);
+    }
 
     public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
     public NameRenderer?: React.FunctionComponent<{ resource: Res }>;
+
+    protected constructor(namespace: string) {
+        this.namespace = namespace;
+        this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
+    }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
         return [

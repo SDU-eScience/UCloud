@@ -11,6 +11,7 @@ import {accounting} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
+import {CheckboxFilter, DateRangeFilter, EnumFilter, TextFilter} from "Resource/Filter";
 
 export interface IngressSpecification extends ResourceSpecification {
     domain: string;
@@ -52,6 +53,33 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
 
     constructor() {
         super("ingresses");
+
+        this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
+        this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
+        this.registerFilter(EnumFilter(
+            "radioEmpty",
+            "filterState",
+            "Current state",
+            [
+                {
+                    title: "Preparing",
+                    value: "PREPARING",
+                    icon: "hashtag"
+                },
+                {
+                    title: "Ready",
+                    value: "READY",
+                    icon: "hashtag"
+                },
+                {
+                    title: "Unavailable",
+                    value: "UNAVAILABLE",
+                    icon: "hashtag"
+                }
+            ]
+        ));
+
+        this.registerFilter(CheckboxFilter("checkDouble", "filterIsAwesome", "Is awesome?"));
     }
 }
 
