@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys, tty, subprocess, shutil, termios, signal
+
+from time import sleep
+import sys, tty, subprocess, shutil, termios, signal, os
+
 
 print("UCloud Launcher v2021.2.0")
 print()
@@ -30,6 +33,7 @@ tty.setcbreak(sys.stdin.fileno())
 frontend = False
 backend = False
 integrationModule = False
+slurm = False
 
 def printCheckbox(value):
 	if value:
@@ -56,6 +60,11 @@ try:
 
 		printCheckbox(integrationModule)
 		print("3) Integration Module")
+		
+		printCheckbox(slurm)
+		print("4) Slurm cluster - choose dev to deploy")
+
+
 		print()
 		print("Enter) Start selected modules")
 
@@ -66,10 +75,12 @@ try:
 			backend = not backend
 		elif read == '3':
 			integrationModule = not integrationModule
+		elif read == '4':
+			slurm = not slurm
 		elif read == '\n':
 			break
 
-		print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
+		print("\r\033[A\033[A\033[A\033[A\033[A\033[A\033[A")
 except KeyboardInterrupt:
 	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 	sys.exit(0)
@@ -93,6 +104,10 @@ if integrationModule:
 if not frontend:
 	command.append("-f")
 	command.append("compose/gateway.yml")
+
+if slurm:
+	command.append("-f")
+	command.append("compose/slurm.yml")
 
 command.append("up")
 command.append("-d")
@@ -151,3 +166,18 @@ print("  - Default credentials: user, mypassword")
 print()
 
 subprocess.run(command)
+
+
+
+if slurm:
+	print(header("# Slurm cluster deployed"))
+	print()
+	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster")
+	print()
+	print(header("Instructions:"))
+	print("For variations see README.MD at the above github project")
+	print()
+	#register cluster
+	print("register cluster...")
+	sleep(15)
+	os.system("""/bin/bash -c "docker exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld " """)
