@@ -11,14 +11,14 @@ import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import * as Heading from "ui-components/Heading";
 import {Box, Flex} from "ui-components";
 import {DashboardCard} from "Dashboard/Dashboard";
-import {doNothing, shortUUID} from "UtilityFunctions";
+import {shortUUID} from "UtilityFunctions";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {stateToTitle} from "Applications/Jobs";
 import MainContainer from "MainContainer/MainContainer";
 import {Operations} from "ui-components/Operation";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {useParams} from "react-router";
+import {useResourceSearch} from "Resource/Search";
 
 const enterAnimation = keyframes`
   from {
@@ -155,6 +155,7 @@ interface PropertiesProps<Res extends Resource> {
 export function ResourceProperties<Res extends Resource>(
     props: PropsWithChildren<PropertiesProps<Res>>
 ): ReactElement | null {
+    console.log("Trying to render something!");
     const {api} = props;
 
     const projectId = useProjectId();
@@ -202,6 +203,7 @@ export function ResourceProperties<Res extends Resource>(
         useLoading(ownResource.loading);
         useSidebarPage(props.api.page);
         useRefreshFunction(reload);
+        useResourceSearch(api);
     }
 
     const main = resource ? <>

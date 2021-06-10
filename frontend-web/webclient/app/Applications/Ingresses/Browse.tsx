@@ -6,7 +6,8 @@ import {doNothing} from "UtilityFunctions";
 
 const Browse: React.FunctionComponent<{
     computeProvider?: string;
-    onSelect?: (selection: Ingress) => void
+    onSelect?: (selection: Ingress) => void;
+    isSearch?: boolean;
 }> = props => {
     return <ResourceBrowse
         api={IngressApi}
@@ -18,6 +19,7 @@ const Browse: React.FunctionComponent<{
         )}
         inlinePrefix={p => (p.support as IngressSupport).domainPrefix}
         inlineSuffix={p => (p.support as IngressSupport).domainSuffix}
+        isSearch={props.isSearch}
     />;
 };
 export default Browse;

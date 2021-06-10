@@ -23,6 +23,9 @@ import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
 import * as UCloud from "UCloud";
 import {BulkRequest} from "UCloud";
+import {useEffect} from "react";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {doNothing} from "UtilityFunctions";
 
 export enum KeyCode {
     ENTER = 13,
@@ -141,6 +144,9 @@ export interface HookStore {
     uploads?: Upload[];
     uploadPath?: string;
 
+    searchPlaceholder?: string;
+    onSearch?: (query: string) => void;
+
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
@@ -230,3 +236,22 @@ export const initSidebar = (): SidebarReduxObject => ({
     options: []
 });
 
+export function useSearch(onSearch: (query: string) => void) {
+    const [, setOnSearch] = useGlobal("onSearch", doNothing);
+    useEffect(() => {
+        setOnSearch(() => onSearch);
+        return () => {
+            setOnSearch(() => doNothing);
+        };
+    }, [setOnSearch, onSearch]);
+}
+
+export function useSearchPlaceholder(searchPlaceholder: string) {
+    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", "");
+    useEffect(() => {
+        setSearchPlaceholder(searchPlaceholder);
+        return () => {
+            setSearchPlaceholder("");
+        };
+    }, [setSearchPlaceholder, searchPlaceholder]);
+}

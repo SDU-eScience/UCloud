@@ -29,10 +29,13 @@ import {ResourceProperties} from "Resource/Properties";
 import * as Heading from "ui-components/Heading";
 import {useHistory} from "react-router";
 import {ResourceFilter} from "Resource/Filter";
+import {useResourceSearch} from "Resource/Search";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 
 export interface ResourceBrowseProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
     embedded?: boolean;
+    isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
@@ -56,12 +59,13 @@ export const ResourceBrowse = <Res extends Resource>(
     const [commandLoading, invokeCommand] = useCloudCommand();
     const projectId = useProjectId();
     const [filters, setFilters] = useState<Record<string, string>>({});
+    const history = useHistory();
+    const query = getQueryParamOrElse(history.location.search, "q", "");
 
     const toggleSet = useToggleSet(resources.data.items);
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
-    const history = useHistory();
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
@@ -88,15 +92,24 @@ export const ResourceBrowse = <Res extends Resource>(
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
-        fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters}));
+        if (props.isSearch) {
+            fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query}));
+        } else {
+            fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters}));
+        }
         toggleSet.uncheckAll();
-    }, [projectId, filters]);
+    }, [projectId, filters, query, props.isSearch]);
 
     const loadMore = useCallback(() => {
         if (resources.data.next) {
-            fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers, ...filters}));
+            if (props.isSearch) {
+                fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                    next: resources.data.next}));
+            } else {
+                fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers, ...filters}));
+            }
         }
-    }, [resources.data.next, filters]);
+    }, [resources.data.next, filters, query, props.isSearch]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
@@ -116,7 +129,7 @@ export const ResourceBrowse = <Res extends Resource>(
             if (props.embedded) {
                 setInlineInspecting(res);
             } else {
-                history.push(`${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+                history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
             }
         }
     }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history]);
@@ -221,13 +234,14 @@ export const ResourceBrowse = <Res extends Resource>(
         </List>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport]);
 
-    useEffect(() => reload(), [projectId]);
+    useEffect(() => reload(), [projectId, query]);
 
     if (!props.embedded) {
         useTitle(api.titlePlural);
         useLoading(commandLoading || resources.loading);
         useRefreshFunction(reload);
         useSidebarPage(api.page);
+        useResourceSearch(api);
     }
 
     const main = !inlineInspecting ? <>

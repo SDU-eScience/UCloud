@@ -992,8 +992,8 @@ abstract class ResourceService<
                                (gm.username is not null)
                           ) and
                           (:filter_created_by::text is null or :filter_created_by = r.created_by) and
-                          (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after / 1000)) and
-                          (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before / 1000)) and
+                          (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
+                          (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category)

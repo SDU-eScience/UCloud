@@ -256,4 +256,16 @@ export abstract class ResourceApi<Res extends Resource,
             parameters: req
         };
     }
+
+    search(
+        req: {query: string; flags: Flags; } & PaginationRequestV2
+    ): APICallParameters<{query: string; flags: Flags; } & PaginationRequestV2, PageV2<Res>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "search",
+            payload: req,
+            parameters: req
+        };
+    }
 }
