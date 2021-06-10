@@ -41,6 +41,22 @@ services:
       - server
     hostname: k3s
 
+  syncthing:
+    image: syncthing/syncthing:1.17
+    user: root
+    hostname: syncthing
+    environment:
+      - PUID=0
+      - PGID=0
+    volumes:
+      - syncthingConfig:/var/syncthing
+      - ucloudFiles:/mnt/cephfs
+    ports:
+      - 8485:8384
+      - 22001:22001/tcp
+      - 22001:22001/udp
+    restart: unless-stopped
+
   backend:
     image: dreg.cloud.sdu.dk/ucloud/ucloud:2021.2.0-storage5
     user: root
@@ -53,6 +69,7 @@ services:
       - ucloudData:/etc/ucloud
       - ucloudFiles:/mnt/cephfs
       - k3sConfig:/mnt/k3s
+      - syncthingConfig:/mnt/syncthing
     ports:
       - 8080:8080
     restart: always
@@ -61,6 +78,7 @@ services:
       - postgres
       - elasticsearch
       - k3s
+      - syncthing
     hostname: backend
 
   frontend:

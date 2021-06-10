@@ -17,8 +17,11 @@ import io.ktor.server.netty.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.w3c.dom.Document
+import org.w3c.dom.Element
 import java.io.*
 import java.nio.file.Files
+import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.system.exitProcess
 
 enum class InstallStep {
@@ -96,6 +99,26 @@ fun runInstaller(configDir: File) {
 
             """.trimIndent()
         )
+
+        val syncthingConfig = File("/mnt/syncthing/config/config.xml")
+        if (syncthingConfig.exists()) {
+            val configDoc: Document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(syncthingConfig)
+            val guiElement = configDoc.getElementsByTagName("gui").item(0) as Element
+            val apiKeyElement = guiElement.getElementsByTagName("apikey")
+            val apiKey = apiKeyElement.item(0).textContent
+            val deviceElement = configDoc.getElementsByTagName("device").item(0) as Element
+            val deviceId = deviceElement.getAttribute("id")
+
+            File(configDir, "syncthing.yaml").writeText(
+                """
+                    syncthing:
+                      devices:
+                        - hostname: syncthing:8384
+                          apiKey: ${apiKey}
+                          id: ${deviceId}
+                """.trimIndent()
+            )
+        }
 
         val cephFs = File("/mnt/cephfs")
         if (cephFs.exists()) {
