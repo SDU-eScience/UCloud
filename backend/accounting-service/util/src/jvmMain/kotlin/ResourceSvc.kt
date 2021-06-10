@@ -65,4 +65,10 @@ interface ResourceSvc<
         actorAndProject: ActorAndProject,
         request: BulkRequest<ResourceChargeCredits>
     ): ResourceChargeCreditsResponse
+
+    suspend fun search(
+        actorAndProject: ActorAndProject,
+        request: ResourceSearchRequest<F>,
+        ctx: DBContext? = null
+    ): PageV2<R>
 }

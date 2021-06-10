@@ -23,6 +23,16 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
 ) : WithPaginationRequestV2
 
 @Serializable
+data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
+    val query: String,
+    val flags: Flags,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+
+@Serializable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     val id: String,
@@ -195,6 +205,23 @@ abstract class ResourceApi<
             errorType = CommonErrorMessage.serializer(),
             requestClass = typeOf<BulkRequest<UpdatedAcl>>(),
             successClass = typeOf<BulkResponse<Unit?>>(),
+            errorClass = typeOf<CommonErrorMessage>()
+        )
+
+    open val search: CallDescription<ResourceSearchRequest<Flags>, PageV2<Res>, CommonErrorMessage>?
+        get() = call(
+            name = "search",
+            handler = {
+                httpSearch(
+                    ResourceSearchRequest.serializer(typeInfo.flagsSerializer),
+                    baseContext
+                )
+            },
+            requestType = ResourceSearchRequest.serializer(typeInfo.flagsSerializer),
+            successType = PageV2.serializer(typeInfo.resSerializer),
+            errorType = CommonErrorMessage.serializer(),
+            requestClass = typeOf<ResourceSearchRequest<Flags>>(),
+            successClass = typeOf<PageV2<Res>>(),
             errorClass = typeOf<CommonErrorMessage>()
         )
 }

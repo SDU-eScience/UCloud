@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.rpc.*

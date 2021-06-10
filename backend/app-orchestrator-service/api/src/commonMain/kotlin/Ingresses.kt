@@ -2,12 +2,10 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ProductSupport
-import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.accounting.api.providers.ResourceApi
-import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
@@ -141,4 +139,7 @@ object Ingresses : ResourceApi<
 
     override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
         get() = super.delete!!
+
+    override val search: CallDescription<ResourceSearchRequest<IngressIncludeFlags>, PageV2<Ingress>, CommonErrorMessage>
+        get() = super.search!!
 }

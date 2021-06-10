@@ -222,4 +222,20 @@ class IngressService(
             """
         )
     }
+
+    override fun searchQuery(query: String, flags: IngressIncludeFlags?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("filter_state", flags?.filterState?.name)
+            },
+            """
+                select *
+                from app_orchestrator.ingresses
+                where
+                    domain ilike ('%' || :query || '%') and
+                    (:filter_state::text is null or :filter_state = current_state)
+            """
+        )
+    }
 }

@@ -318,7 +318,8 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
  *
  * @example [httpSearchExample]
  */
-inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
+fun <R : Any> CallDescription<R, *, *>.httpSearch(
+    serializer: KSerializer<R>,
     baseContext: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
@@ -335,8 +336,15 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
             +UCloudApi.SEARCH
         }
 
-        body { bindEntireRequestFromBody() }
+        body { bindEntireRequestFromBody(serializer) }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpSearch(serializer<R>(), baseContext, roles)
 }
 
 private fun CallDescriptionContainer.httpSearchExample() {

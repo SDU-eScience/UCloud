@@ -9,11 +9,8 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.Language
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
@@ -98,59 +95,9 @@ abstract class ResourceService<
 
     abstract val productArea: ProductArea
 
-    fun asController(): Controller = object : Controller {
-        override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-            val userApi = userApi()
-            val controlApi = controlApi()
-
-            implement(userApi.create) {
-                ok(create(actorAndProject, request))
-            }
-
-            implement(userApi.retrieveProducts) {
-                ok(retrieveProducts(actorAndProject))
-            }
-
-            implement(userApi.browse) {
-                ok(browse(actorAndProject, request, request.flags))
-            }
-
-            implement(userApi.retrieve) {
-                ok(retrieve(actorAndProject, request.id, request.flags))
-            }
-
-            userApi.delete?.let {
-                implement(it) {
-                    ok(delete(actorAndProject, request))
-                }
-            }
-
-            implement(userApi.updateAcl) {
-                ok(updateAcl(actorAndProject, request))
-            }
-
-
-            implement(controlApi.update) {
-                ok(addUpdate(actorAndProject, request))
-            }
-
-            implement(controlApi.chargeCredits) {
-                ok(chargeCredits(actorAndProject, request))
-            }
-
-            implement(controlApi.register) {
-                ok(register(actorAndProject, request))
-            }
-        }
-    }
-
-    protected abstract fun userApi(): ResourceApi<Res, Spec, Update, Flags, Status, Prod, Support>
-
-    protected abstract fun controlApi(): ResourceControlApi<Res, Spec, Update, Flags, Status, Prod, Support>
-
-    protected abstract fun providerApi(
-        comms: ProviderComms
-    ): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
+    abstract fun userApi(): ResourceApi<Res, Spec, Update, Flags, Status, Prod, Support>
+    abstract fun controlApi(): ResourceControlApi<Res, Spec, Update, Flags, Status, Prod, Support>
+    abstract fun providerApi(comms: ProviderComms): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
     protected val payment = PaymentService(db, serviceClient)
@@ -162,62 +109,13 @@ abstract class ResourceService<
         flags: Flags?,
         ctx: DBContext?
     ): PageV2<Res> {
-        val (params, query) = browseQuery(flags)
-        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-        val sortBy = sortColumn.verify({ db.openSession() }, { db.closeSession(it) })
-
-        val (resourceParams, resourceQuery) = accessibleResources(
-            actorAndProject.actor,
-            listOf(Permission.Read),
-            projectFilter = actorAndProject.project,
-            flags = flags
-        )
-
-        return (ctx ?: db).paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        resourceParams()
-                        params()
-                    },
-                    """
-                        declare c cursor for
-                        with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
-                        select provider.resource_to_json(resc, $converter(spec))
-                        from
-                            accessible_resources resc join
-                            spec on (resc.r).id = spec.resource
-                        order by
-                            spec.$sortBy
-                    """,
-                )
-            },
-            mapper = { _, rows ->
-                rows.mapNotNull {
-                    try {
-                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
-                    } catch (ex: Throwable) {
-                        log.warn("Caught exception while browsing resource: ${it.getString(0)}")
-                        log.warn(ex.stackTraceToString())
-                        null
-                    }
-                }.attachSupport(flags)
-            }
-        )
+        val browseQuery = browseQuery(flags)
+        return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, request.normalize(), ctx)
     }
 
-    protected open suspend fun browseQuery(
-        flags: Flags?,
-    ): PartialQuery {
+    protected open suspend fun browseQuery(flags: Flags?, ): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
-        return PartialQuery(
-            {},
-            "select * from $tableName"
-        )
+        return PartialQuery({}, "select * from $tableName")
     }
 
     override suspend fun retrieve(
@@ -978,6 +876,21 @@ abstract class ResourceService<
         )
     }
 
+    override suspend fun search(
+        actorAndProject: ActorAndProject,
+        request: ResourceSearchRequest<Flags>,
+        ctx: DBContext?,
+    ): PageV2<Res> {
+        val search = searchQuery(request.query, request.flags)
+        return paginatedQuery(search, actorAndProject, listOf(Permission.Read), request.flags,
+            request.normalize(), ctx)
+    }
+
+    open fun searchQuery(query: String, flags: Flags?): PartialQuery {
+        throw IllegalStateException(
+            "Feature not support. Remember to override searchQuery if search is defined in the API")
+    }
+
     private fun accessibleResources(
         actor: Actor,
         permissionsOneOf: Collection<Permission>,
@@ -1109,6 +1022,62 @@ abstract class ResourceService<
                             )
                     """
                 )
+            }
+        )
+    }
+
+    private suspend fun paginatedQuery(
+        partialQuery: PartialQuery,
+        actorAndProject: ActorAndProject,
+        permissionsOneOf: Collection<Permission>,
+        flags: Flags?,
+        pagination: NormalizedPaginationRequestV2,
+        ctx: DBContext?
+    ): PageV2<Res> {
+        val (params, query) = partialQuery
+        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortBy = sortColumn.verify({ db.openSession() }, { db.closeSession(it) })
+
+        val (resourceParams, resourceQuery) = accessibleResources(
+            actorAndProject.actor,
+            permissionsOneOf,
+            projectFilter = actorAndProject.project,
+            flags = flags
+        )
+
+        return (ctx ?: db).paginateV2(
+            actorAndProject.actor,
+            pagination,
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        resourceParams()
+                        params()
+                    },
+                    """
+                        declare c cursor for
+                        with
+                            spec as ($query),
+                            accessible_resources as ($resourceQuery)
+                        select provider.resource_to_json(resc, $converter(spec))
+                        from
+                            accessible_resources resc join
+                            spec on (resc.r).id = spec.resource
+                        order by
+                            spec.$sortBy
+                    """,
+                )
+            },
+            mapper = { _, rows ->
+                rows.mapNotNull {
+                    try {
+                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
+                    } catch (ex: Throwable) {
+                        log.warn("Caught exception while browsing resource: ${it.getString(0)}")
+                        log.warn(ex.stackTraceToString())
+                        null
+                    }
+                }.attachSupport(flags)
             }
         )
     }
