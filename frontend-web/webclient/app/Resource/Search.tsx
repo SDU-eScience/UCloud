@@ -13,6 +13,5 @@ export function useResourceSearch<Res extends Resource>(api: ResourceApi<Res, ne
 
     useSearch(onSearch);
     const searchPlaceholder = `Search ${api.titlePlural.toLowerCase()}...`;
-    console.log(searchPlaceholder);
     useSearchPlaceholder(searchPlaceholder);
 }
