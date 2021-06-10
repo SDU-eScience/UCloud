@@ -1,0 +1,15 @@
+---
+tool: v1
+name: dtu-slurm-poc-tool
+version: 1
+
+title: Slurm Tool
+description: Ubuntu is a Linux distribution based on Debian.
+authors: ["DTU AIT"]
+
+backend: DOCKER
+container: alpine:3
+
+# SLURM are by default not supported by any provider
+#supportedProviders:
+#- aau
