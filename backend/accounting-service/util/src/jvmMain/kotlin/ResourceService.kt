@@ -227,23 +227,33 @@ abstract class ResourceService<
         ctx: DBContext?
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val (params, query) = browseQuery(flags)
+        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
+
+        val (resourceParams, resourceQuery) = accessibleResources(
+            actorAndProject.actor,
+            listOf(Permission.Read),
+            resourceId = convertedId,
+            projectFilter = actorAndProject.project,
+            flags = flags
+        )
+
+        @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("resource_type", resourceType)
-                        setParameter("table", table.verify({ session }))
-                        setParameter("to_json", sqlJsonConverter.verify({ session }))
-
-                        setParameter("include_others", flags?.includeOthers ?: false)
-                        setParameter("include_updates", flags?.includeUpdates ?: false)
-
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("id", convertedId)
+                        resourceParams()
+                        params()
                     },
                     """
-                        select provider.default_retrieve(:resource_type, :table, :to_json, :user, :id, 
-                            :include_others, :include_updates)
+                        with
+                            spec as ($query),
+                            accessible_resources as ($resourceQuery)
+                        select provider.resource_to_json(resc, $converter(spec))
+                        from
+                            accessible_resources resc join
+                            spec on (resc.r).id = spec.resource
                     """
                 )
                 .rows
@@ -267,32 +277,40 @@ abstract class ResourceService<
         ids: Collection<String>,
         flags: Flags?,
         vararg permissionOneOf: Permission,
-        requireAll: Boolean = true,
-        includeUpdates: Boolean = false,
-        includeOthers: Boolean = false,
-        includeSupport: Boolean = false,
+        simpleFlags: SimpleResourceIncludeFlags? = null,
         includeUnconfirmed: Boolean = false,
+        requireAll: Boolean = true,
         ctx: DBContext? = null,
     ): List<Res> {
+        val (params, query) = browseQuery(flags)
+        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
+
+        val (resourceParams, resourceQuery) = accessibleResources(
+            actorAndProject.actor,
+            listOf(Permission.Read),
+            includeUnconfirmed = includeUnconfirmed,
+            flags = flags
+        )
+
+        @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
             val result = session
                 .sendPreparedStatement(
                     {
-                        setParameter("resource_type", resourceType)
-                        setParameter("table", table.verify({ session }))
-                        setParameter("to_json", sqlJsonConverter.verify({ session }))
-
-                        setParameter("include_others", flags?.includeOthers ?: includeOthers)
-                        setParameter("include_updates", flags?.includeUpdates ?: includeUpdates)
-                        setParameter("include_unconfirmed", includeUnconfirmed)
-
-                        setParameter("user", actorAndProject.actor.safeUsername())
+                        params()
+                        resourceParams()
                         setParameter("ids", ids.mapNotNull { it.toLongOrNull() })
-                        setParameter("permissions", permissionOneOf.map { it.name })
                     },
                     """
-                        select * from provider.default_bulk_retrieve(:resource_type, :table, :to_json, :user, :ids, 
-                            :permissions, :include_others, :include_updates, :include_unconfirmed)
+                        with
+                            spec as ($query),
+                            accessible_resources as ($resourceQuery)
+                        select provider.resource_to_json(resc, $converter(spec))
+                        from
+                            accessible_resources resc join
+                            spec on (resc.r).id = spec.resource
+                        where
+                            spec.resource = some(:ids::bigint[])
                     """
                 )
                 .rows
@@ -313,7 +331,7 @@ abstract class ResourceService<
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result.attachSupport(flags, includeSupport)
+            result.attachSupport(flags, flags?.includeSupport ?: simpleFlags?.includeSupport ?: false)
         }
     }
 
@@ -439,8 +457,8 @@ abstract class ResourceService<
                                 generatedIds.map { it.toString() },
                                 null,
                                 Permission.Edit,
-                                includeUnconfirmed = true,
-                                ctx = session
+                                ctx = session,
+                                includeUnconfirmed = true
                             )
                         )
                     }
@@ -481,7 +499,7 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
-                    if (mappedRequestIfAny != null) {
+                    if (mappedRequestIfAny != null && false) {
                         db.withTransaction { session ->
                             deleteInternal(
                                 mappedRequestIfAny.items.map { it.id.toLong() },
@@ -651,15 +669,12 @@ abstract class ResourceService<
         resources: List<Res>,
         session: AsyncDBConnection
     ) {
+        val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
+        @Suppress("SqlResolve")
         session
             .sendPreparedStatement(
-                {
-                    setParameter("table", table.verify({ session }))
-                    setParameter("ids", resourceIds)
-                },
-                """
-                    select provider.default_delete(:table, :ids)
-                """
+                { setParameter("ids", resourceIds) },
+                "delete from $tableName where resource = some(:ids::bigint[]) returning resource"
             )
     }
 
@@ -930,7 +945,7 @@ abstract class ResourceService<
             ids,
             null,
             Permission.Provider,
-            includeSupport = true
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
         ).associateBy { it.id }
 
         val chargeResults = ArrayList<Pair<Res, PaymentService.ChargeResult>>()
@@ -1082,15 +1097,16 @@ abstract class ResourceService<
                 append(
                     """
                         having
-                           :permissions || array['ADMIN'] && array_agg(
-                               case
-                                   when pm.role = 'PI' then 'ADMIN'
-                                   when pm.role = 'ADMIN' then 'ADMIN'
-                                   when r.created_by = :username and r.project is null then 'ADMIN'
-                                   when :username = '#P_' || r.provider then 'PROVIDER'
-                                   else acl.permission
-                               end
-                           )
+                           (:permissions || array['ADMIN', 'PROVIDER']) && array_agg(
+                                distinct
+                                case
+                                    when pm.role = 'PI' then 'ADMIN'
+                                    when pm.role = 'ADMIN' then 'ADMIN'
+                                    when r.created_by = :username and r.project is null then 'ADMIN'
+                                    when :username = '#P_' || r.provider then 'PROVIDER'
+                                    else acl.permission
+                                end
+                            )
                     """
                 )
             }

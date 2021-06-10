@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
@@ -50,7 +51,7 @@ class IngressService(
                     ingressPoints.map { it.id },
                     null,
                     Permission.Edit,
-                    includeSupport = true
+                    simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                 )
 
                 for (ingress in allIngresses) {

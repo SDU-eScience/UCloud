@@ -23,25 +23,28 @@ interface ResourceIncludeFlags {
 
 @Serializable
 data class SimpleResourceIncludeFlags(
-    override val includeOthers: Boolean,
-    override val includeUpdates: Boolean,
-    override val includeSupport: Boolean,
-    override val filterCreatedBy: String?,
-    override val filterCreatedAfter: Long?,
-    override val filterCreatedBefore: Long?,
-    override val filterProvider: String?,
-    override val filterProductId: String?,
-    override val filterProductCategory: String?
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
 ) : ResourceIncludeFlags
 
-@UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
+@UCloudApiDoc(
+    """Contains information related to the accounting/billing of a `Resource`
 
 Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
 the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-to be charged a different price than newly launched products.""")
+to be charged a different price than newly launched products."""
+)
 interface ResourceBilling {
     @UCloudApiDoc("The price per unit. This can differ from current price of `Product`")
     val pricePerUnit: Long
+
     @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
     val creditsCharged: Long
 
@@ -64,7 +67,8 @@ interface ResourceSpecification {
     val product: ProductReference
 }
 
-@UCloudApiDoc("""Describes an update to the `Resource`
+@UCloudApiDoc(
+    """Describes an update to the `Resource`
 
 Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
 The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
@@ -75,10 +79,12 @@ An update will typically contain information similar to the `status` field, for 
 - A state value. For example, a compute `Job` might be `RUNNING`.
 - Change in key metrics.
 - Bindings to related `Resource`s.
-""")
+"""
+)
 interface ResourceUpdate {
     @UCloudApiDoc("A timestamp referencing when UCloud received this update")
     val timestamp: Long
+
     @UCloudApiDoc("A generic text message describing the current status of the `Resource`")
     val status: String?
 }
@@ -113,7 +119,8 @@ sealed class AclEntity {
     data class User(val username: String) : AclEntity()
 }
 
-@UCloudApiDoc("""Describes the current state of the `Resource`
+@UCloudApiDoc(
+    """Describes the current state of the `Resource`
 
 The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
 this will contain information such as:
@@ -122,12 +129,14 @@ this will contain information such as:
 - Key metrics about the resource.
 - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
   should be listed in the `status` section.
-""")
+"""
+)
 interface ResourceStatus<P : Product, Support : ProductSupport> {
     var support: ResolvedSupport<P, Support>?
 }
 
-@UCloudApiDoc("""A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+@UCloudApiDoc(
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
 
 `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
 include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
@@ -143,11 +152,14 @@ provider. It is then up to the provider to implement the functionality of the `R
 ![](/backend/provider-service/wiki/resource_create.svg)
 
 __Figure:__ UCloud orchestrates with the provider to create a `Resource`
-""")
+"""
+)
 interface Resource<P : Product, Support : ProductSupport> {
-    @UCloudApiDoc("""A unique identifier referencing the `Resource`
+    @UCloudApiDoc(
+        """A unique identifier referencing the `Resource`
 
-The ID is unique across a provider for a single resource type.""")
+The ID is unique across a provider for a single resource type."""
+    )
     val id: String
 
     val specification: ResourceSpecification
@@ -160,10 +172,12 @@ The ID is unique across a provider for a single resource type.""")
     @UCloudApiDoc("Holds the current status of the `Resource`")
     val status: ResourceStatus<P, Support>
 
-    @UCloudApiDoc("""Contains a list of updates from the provider as well as UCloud
+    @UCloudApiDoc(
+        """Contains a list of updates from the provider as well as UCloud
 
 Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-resource.""")
+resource."""
+    )
     val updates: List<ResourceUpdate>
 
     // ---
@@ -180,8 +194,10 @@ resource.""")
     @Deprecated("Replace with permissions")
     val acl: List<ResourceAclEntry>?
 
-    @UCloudApiDoc("Permissions assigned to this resource\n\n" +
-        "A null value indicates that permissions are not supported by this resource type.")
+    @UCloudApiDoc(
+        "Permissions assigned to this resource\n\n" +
+            "A null value indicates that permissions are not supported by this resource type."
+    )
     val permissions: ResourcePermissions?
 
     val providerGeneratedId: String? get() = id
