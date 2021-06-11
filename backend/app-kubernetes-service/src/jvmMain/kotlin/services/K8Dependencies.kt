@@ -1,12 +1,13 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.k8.KubernetesClient
 
@@ -26,7 +27,7 @@ data class K8Dependencies(
         val last = lastMessage.get(jobId)
         if (last != message) {
             JobsControl.update.call(
-                bulkRequestOf(JobsControlUpdateRequestItem(jobId, status = message)),
+                bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(status = message))),
                 serviceClient
             )
             lastMessage.insert(jobId, message)
@@ -47,12 +48,14 @@ data class K8Dependencies(
         if (last != messageAsString) {
             JobsControl.update.call(
                 bulkRequestOf(
-                    JobsControlUpdateRequestItem(
+                    ResourceUpdateAndId(
                         jobId,
-                        state = state,
-                        status = newStatus,
-                        expectedState = expectedState,
-                        expectedDifferentState = expectedDifferentState
+                        JobUpdate(
+                            state = state,
+                            status = newStatus,
+                            expectedState = expectedState,
+                            expectedDifferentState = expectedDifferentState,
+                        )
                     )
                 ),
                 serviceClient

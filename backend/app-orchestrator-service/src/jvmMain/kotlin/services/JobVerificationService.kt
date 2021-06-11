@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -25,24 +24,16 @@ data class UnverifiedJob(
     val project: String?,
 )
 
-data class VerifiedJobWithAccessToken(
-    val job: Job,
-    val refreshToken: String,
-)
+class JobException {
+    class VerificationError(message: String) : RPCException(message, HttpStatusCode.BadRequest)
+}
 
-class JobVerificationService(
-    private val appService: AppStoreCache,
-    private val db: DBContext,
-    private val jobs: JobQueryService,
-    private val serviceClient: AuthenticatedClient,
-    private val providers: Providers,
-    private val productCache: ProductCache,
-    private val providerSupport: ProviderSupportService
-) {
+class JobVerificationService() {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
         listeners: List<JobListener> = emptyList(),
-    ): VerifiedJobWithAccessToken {
+    ){
+        /*
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
 
@@ -62,32 +53,6 @@ class JobVerificationService(
         } catch (ex: Throwable) {
             throw JobException.VerificationError("Invalid machine type supplied")
         }
-
-        // Check provider support
-        val comms = providers.prepareCommunication(unverifiedJob.request.product.provider)
-        run {
-            if (appBackend == ToolBackend.DOCKER && support.docker.enabled != true) {
-                throw JobException.VerificationError("The selected machine does not support this application")
-            }
-
-            if (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.enabled != true) {
-                throw JobException.VerificationError("The selected machine does not support this application")
-            }
-
-            if (appBackend == ToolBackend.SINGULARITY) {
-                throw RPCException(
-                    "Application is no longer supported. Please contact support.",
-                    HttpStatusCode.BadRequest
-                )
-            }
-        }
-
-        // Check product
-        val machine = productCache.find<Product.Compute>(
-            unverifiedJob.request.product.provider,
-            unverifiedJob.request.product.id,
-            unverifiedJob.request.product.category
-        ) ?: throw RPCException("Invalid machine type selected", HttpStatusCode.BadRequest)
 
         // Check input parameters
         val verifiedParameters = verifyParameters(
@@ -116,10 +81,11 @@ class JobVerificationService(
                 )
             }
 
+            /*
             val resolvedPeers = jobs.retrievePrivileged(
                 db,
                 allPeers.map { it.jobId },
-                JobDataIncludeFlags()
+                JobIncludeFlags()
             )
 
             if (!resolvedPeers.values.all { it.job.owner.createdBy == unverifiedJob.username }) {
@@ -132,6 +98,7 @@ class JobVerificationService(
             if (missingPeer != null) {
                 throw JobException.VerificationError("Could not find peer with id '${missingPeer.jobId}'")
             }
+             */
         }
 
         // Verify membership of project
@@ -163,41 +130,14 @@ class JobVerificationService(
             }
             ?.allocated ?: 0L
 
-        val id = UUID.randomUUID().toString()
-        val verified = VerifiedJobWithAccessToken(
-            Job(
-                id,
-                ResourceOwner(
-                    unverifiedJob.username,
-                    unverifiedJob.project
-                ),
-                listOf(
-                    JobUpdate(
-                        Time.now(),
-                        JobState.IN_QUEUE,
-                        "UCloud has accepted your job into the queue"
-                    )
-                ),
-                JobBilling(
-                    creditsCharged = 0L,
-                    pricePerUnit = machine.pricePerUnit,
-                    __creditsAllocatedToWalletDoNotDependOn__ = allocated
-                ),
-                unverifiedJob.request.copy(
-                    parameters = verifiedParameters,
-                    timeAllocation = unverifiedJob.request.timeAllocation ?: tool.description.defaultTimeAllocation
-                ),
-                JobStatus(JobState.IN_QUEUE),
-                System.currentTimeMillis()
-            ),
-            "REPLACED_LATER"
-        )
 
-        listeners.forEach { it.onVerified(db, verified.job) }
-        return verified
+        // listeners.forEach { it.onVerified(db, verified.job) }
+
+         */
     }
 
     private suspend fun findApplication(job: UnverifiedJob): Application {
+        /*
         val result = with(job.request.application) {
             appService.apps.get(NameAndVersion(name, version))
         } ?: throw JobException.VerificationError("Application '${job.request.application}' does not exist")
@@ -207,6 +147,8 @@ class JobVerificationService(
         val loadedTool = appService.tools.get(NameAndVersion(toolName, toolVersion))
 
         return result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
+         */
+        TODO()
     }
 
     private fun badValue(param: ApplicationParameter): Nothing {
@@ -453,7 +395,7 @@ class JobVerificationService(
     data class HasPermissionForExistingMount(val hasPermissions: Boolean, val pathToFile: String?)
 
     suspend fun hasPermissionsForExistingMounts(
-        jobWithToken: VerifiedJobWithAccessToken,
+        // jobWithToken: VerifiedJobWithAccessToken,
     ): HasPermissionForExistingMount {
         return HasPermissionForExistingMount(true, null)
         /*

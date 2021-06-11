@@ -32,17 +32,21 @@ import {ResourceFilter} from "Resource/Filter";
 import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 
-export interface ResourceBrowseProps<Res extends Resource> {
+export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
-    embedded?: boolean;
-    isSearch?: boolean;
 
-    onSelect?: (resource: Res) => void;
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
 
     withDefaultStats?: boolean;
+}
+
+export interface BaseResourceBrowseProps<Res extends Resource> {
+    embedded?: boolean;
+    isSearch?: boolean;
+
+    onSelect?: (resource: Res) => void;
 }
 
 export const ResourceBrowse = <Res extends Resource>(

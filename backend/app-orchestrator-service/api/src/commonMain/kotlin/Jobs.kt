@@ -3,16 +3,15 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 @Serializable
 enum class JobState {
@@ -58,7 +57,8 @@ enum class InteractiveSessionType {
     SHELL
 }
 
-@UCloudApiDoc("""A `Job` in UCloud is the core abstraction used to describe a unit of computation.
+@UCloudApiDoc(
+    """A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
 They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
 much bigger and more machines. In a simplified view, a `Job` describes the following information:
@@ -91,7 +91,8 @@ state. Any `Job` which is in a terminal state can no longer receive any updates 
 
 At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
 delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).""")
+any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources)."""
+)
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
 data class Job(
@@ -113,8 +114,6 @@ data class Job(
     )
     override val updates: List<JobUpdate>,
 
-    override val billing: JobBilling,
-
     @UCloudApiDoc(
         "The specification used to launch this job.\n\n" +
             "This property is always available but must be explicitly requested."
@@ -129,12 +128,13 @@ data class Job(
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
 
-    override val acl: List<ResourceAclEntry>? = null,
-
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product, ProductSupport> {
-    @Transient @Deprecated("Renamed to specification", ReplaceWith("specification"))
-    val parameters = specification
+) : Resource<Product.Compute, ComputeSupport> {
+    @Suppress("OverridingDeprecatedMember")
+    override val acl: List<ResourceAclEntry>? = null
+
+    @Suppress("OverridingDeprecatedMember")
+    override val billing = ResourceBilling.Free
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -160,8 +160,21 @@ data class JobStatus(
             "equal to the initial `RUNNING` state + `timeAllocation`."
     )
     val expiresAt: Long? = null,
-    override var support: ResolvedSupport<Product, ProductSupport>? = null
-) : ResourceStatus<Product, ProductSupport>
+
+    @UCloudApiDoc(
+        "The resolved product referenced by `product`.\n\n" +
+            "This attribute is not included by default unless `includeProduct` is specified."
+    )
+    val resolvedProduct: Product.Compute? = null,
+
+    @UCloudApiDoc(
+        "The resolved application referenced by `application`.\n\n" +
+            "This attribute is not included by default unless `includeApplication` is specified."
+    )
+    val resolvedApplication: Application? = null,
+
+    override var support: ResolvedSupport<Product.Compute, ComputeSupport>? = null,
+) : ResourceStatus<Product.Compute, ComputeSupport>
 
 @Serializable
 data class JobBilling(
@@ -178,9 +191,11 @@ data class JobBilling(
 
 @Serializable
 data class JobUpdate(
-    override val timestamp: Long,
     val state: JobState? = null,
     override val status: String? = null,
+    val expectedState: JobState? = null,
+    val expectedDifferentState: Boolean? = null,
+    override val timestamp: Long = 0L
 ) : ResourceUpdate
 
 @Serializable
@@ -241,22 +256,7 @@ data class JobSpecification(
     )
     val timeAllocation: SimpleDuration? = null,
 
-    @UCloudApiDoc(
-        "The resolved product referenced by `product`.\n\n" +
-            "This attribute is not included by default unless `includeProduct` is specified."
-    )
-    val resolvedProduct: Product.Compute? = null,
-
-    @UCloudApiDoc(
-        "The resolved application referenced by `application`.\n\n" +
-            "This attribute is not included by default unless `includeApplication` is specified."
-    )
-    val resolvedApplication: Application? = null,
-
-    @UCloudApiDoc("The resolved compute suport by the provider.\n\n" +
-        "This attribute is not included by default unless `includeSupport` is defined.")
-    val resolvedSupport: ComputeSupport? = null,
-) : ResourceSpecification {
+    ) : ResourceSpecification {
     init {
         if (name != null && !name.matches(nameRegex)) {
             throw RPCException(
@@ -282,70 +282,31 @@ data class JobOutput(
     val outputFolder: String,
 )
 
-interface JobDataIncludeFlags {
-    @UCloudApiDoc("Includes `specification.parameters` and `specification.resources`")
-    val includeParameters: Boolean?
+@Serializable
+data class JobIncludeFlags(
+    val filterApplication: String? = null,
 
-    @UCloudApiDoc("Includes `updates`")
-    val includeUpdates: Boolean?
+    val filterState: JobState? = null,
+
+    @UCloudApiDoc("Includes `specification.parameters` and `specification.resources`")
+    val includeParameters: Boolean? = null,
 
     @UCloudApiDoc("Includes `specification.resolvedApplication`")
-    val includeApplication: Boolean?
+    val includeApplication: Boolean? = null,
 
     @UCloudApiDoc("Includes `specification.resolvedProduct`")
-    val includeProduct: Boolean?
+    val includeProduct: Boolean? = null,
 
-    @UCloudApiDoc("Includes `specification.resolvedSupport`")
-    val includeSupport: Boolean?
-}
-
-interface JobFilters {
-    val filterApplication: String?
-    val filterLaunchedBy: String?
-    val filterState: JobState?
-    val filterTitle: String?
-    val filterBefore: Long?
-    val filterAfter: Long?
-}
-
-fun JobDataIncludeFlags(
-    includeParameters: Boolean? = null,
-    includeUpdates: Boolean? = null,
-    includeApplication: Boolean? = null,
-    includeProduct: Boolean? = null,
-    includeSupport: Boolean? = null,
-) = JobDataIncludeFlagsImpl(
-    includeParameters,
-    includeUpdates,
-    includeApplication,
-    includeProduct,
-    includeSupport,
-)
-
-@Serializable
-data class JobDataIncludeFlagsImpl(
-    override val includeParameters: Boolean? = null,
-    override val includeUpdates: Boolean? = null,
-    override val includeApplication: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeSupport: Boolean? = null
-) : JobDataIncludeFlags
-
-typealias JobsCreateRequest = BulkRequest<JobSpecification>
-
-@Serializable
-data class JobsCreateResponse(val ids: List<String>)
-
-@Serializable
-data class JobsRetrieveRequest(
-    val id: String,
-    override val includeParameters: Boolean? = null,
-    override val includeUpdates: Boolean? = null,
-    override val includeApplication: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeSupport: Boolean? = null
-) : JobDataIncludeFlags
-typealias JobsRetrieveResponse = Job
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+) : ResourceIncludeFlags
 
 @Serializable
 data class JobsRetrieveUtilizationRequest(val jobId: String)
@@ -356,37 +317,6 @@ data class JobsRetrieveUtilizationResponse(
     val usedCapacity: CpuAndMemory,
     val queueStatus: QueueStatus,
 )
-
-@Serializable
-data class JobsBrowseRequest(
-    override val itemsPerPage: Int,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val includeParameters: Boolean? = null,
-    override val includeUpdates: Boolean? = null,
-    override val includeApplication: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeSupport: Boolean? = null,
-    val sortBy: JobsSortBy? = null,
-    override val filterApplication: String? = null,
-    override val filterLaunchedBy: String? = null,
-    override val filterState: JobState? = null,
-    override val filterTitle: String? = null,
-    override val filterBefore: Long? = null,
-    override val filterAfter: Long? = null,
-) : WithPaginationRequestV2, JobDataIncludeFlags, JobFilters
-typealias JobsBrowseResponse = PageV2<Job>
-
-@Serializable
-enum class JobsSortBy {
-    CREATED_AT,
-    STATE,
-    APPLICATION,
-}
-
-typealias JobsDeleteRequest = BulkRequest<FindByStringId>
-typealias JobsDeleteResponse = Unit
 
 typealias JobsFollowRequest = FindByStringId
 
@@ -443,9 +373,6 @@ val Job.blockStorage: List<AppParameterValue.BlockStorage>
             (specification.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
     }
 
-val Job.currentState: JobState
-    get() = updates.findLast { it.state != null }?.state ?: error("job contains no states")
-
 typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
 
 @Serializable
@@ -496,26 +423,9 @@ sealed class OpenSession {
     ) : OpenSession()
 }
 
-@Serializable
-data class JobsRetrieveProductsRequest(val providers: String)
-val JobsRetrieveProductsRequest.providersAsList: List<String>
-    get() = providers.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-
-@Serializable
-data class ComputeProductSupportResolved(
-    val product: Product.Compute,
-    val support: ComputeSupport,
-)
-
-@Serializable
-data class JobsRetrieveProductsResponse(
-    val productsByProvider: Map<String, List<ComputeProductSupportResolved>>,
-)
-
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-object Jobs : CallDescriptionContainer("jobs") {
-    const val baseContext = "/api/jobs"
-
+object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus, Product.Compute,
+    ComputeSupport>("jobs") {
     init {
         title = "Jobs"
         description = """
@@ -530,16 +440,13 @@ object Jobs : CallDescriptionContainer("jobs") {
         )
     }
 
-    val create = call<JobsCreateRequest, JobsCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
+    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
+        Product.Compute, ComputeSupport>()
 
-        documentation {
-            summary = "Start a compute job"
-        }
-    }
+    override val delete: Nothing? = null
 
-    val delete = call<JobsDeleteRequest, JobsDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
+    val terminate = call<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>("delete") {
+        httpUpdate(baseContext, "terminate")
 
         documentation {
             summary = "Request job cancellation and destruction"
@@ -555,14 +462,6 @@ object Jobs : CallDescriptionContainer("jobs") {
         }
     }
 
-    val retrieve = call<JobsRetrieveRequest, JobsRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-
-        documentation {
-            summary = "Retrieve a single Job"
-        }
-    }
-
     val retrieveUtilization = call<JobsRetrieveUtilizationRequest, JobsRetrieveUtilizationResponse, CommonErrorMessage>(
         "retrieveUtilization"
     ) {
@@ -570,14 +469,6 @@ object Jobs : CallDescriptionContainer("jobs") {
 
         documentation {
             summary = "Retrieve utilization information from cluster"
-        }
-    }
-
-    val browse = call<JobsBrowseRequest, JobsBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-
-        documentation {
-            summary = "Browse the jobs available to this user"
         }
     }
 
@@ -629,16 +520,5 @@ object Jobs : CallDescriptionContainer("jobs") {
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession")
-    }
-
-    @UCloudApiInternal(InternalLevel.BETA)
-    val retrieveProducts = call<JobsRetrieveProductsRequest, JobsRetrieveProductsResponse,
-        CommonErrorMessage>("retrieveProducts") {
-        httpRetrieve(baseContext, "products")
-
-        documentation {
-            summary = "Retrieve products"
-            description = "A temporary API for retrieving the products and the support from a provider."
-        }
     }
 }

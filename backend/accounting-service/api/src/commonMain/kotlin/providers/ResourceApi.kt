@@ -34,8 +34,8 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
-    val flags: Flags,
     val id: String,
+    val flags: Flags,
 )
 
 @Serializable

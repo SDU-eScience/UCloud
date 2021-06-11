@@ -130,23 +130,24 @@ class IngressService(
     override fun controlApi() = IngressControl
     override fun providerApi(comms: ProviderComms): IngressProvider = IngressProvider(comms.provider.id)
 
-    override suspend fun createSpecification(
-        resourceId: Long,
-        specification: IngressSpecification,
+    override suspend fun createSpecifications(
+        idWithSpec: List<Pair<Long, IngressSpecification>>,
         session: AsyncDBConnection,
         allowConflicts: Boolean
     ) {
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("resource", resourceId)
-                    setParameter("domain", specification.domain)
-                },
-                """
-                    insert into app_orchestrator.ingresses (domain, resource) values (:domain, :resource) 
-                    on conflict (resource) do update set domain = excluded.domain
-                """
-            )
+        for ((id, spec) in idWithSpec) {
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("resource", id)
+                        setParameter("domain", spec.domain)
+                    },
+                    """
+                        insert into app_orchestrator.ingresses (domain, resource) values (:domain, :resource) 
+                        on conflict (resource) do update set domain = excluded.domain
+                    """
+                )
+        }
     }
 
     override suspend fun onUpdate(

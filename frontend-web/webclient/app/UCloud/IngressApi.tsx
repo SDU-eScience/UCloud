@@ -54,7 +54,6 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
     constructor() {
         super("ingresses");
 
-
         this.registerFilter(EnumFilter(
             "radioEmpty",
             "filterState",

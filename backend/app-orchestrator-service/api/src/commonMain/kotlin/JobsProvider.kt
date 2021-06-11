@@ -3,10 +3,13 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.title
 import dk.sdu.cloud.calls.*
@@ -14,15 +17,6 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KProperty
-import kotlin.reflect.typeOf
-
-typealias JobsProviderCreateRequest = BulkRequest<JobsProviderCreateRequestItem>
-typealias JobsProviderCreateResponse = Unit
-typealias JobsProviderCreateRequestItem = Job
-
-typealias JobsProviderDeleteRequest = BulkRequest<JobsProviderDeleteRequestItem>
-typealias JobsProviderDeleteResponse = Unit
-typealias JobsProviderDeleteRequestItem = Job
 
 typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
 typealias JobsProviderExtendResponse = Unit
@@ -36,10 +30,6 @@ data class JobsProviderExtendRequestItem(
 typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestItem>
 typealias JobsProviderSuspendResponse = Unit
 typealias JobsProviderSuspendRequestItem = Job
-
-typealias JobsProviderVerifyRequest = BulkRequest<JobsProviderVerifyRequestItem>
-typealias JobsProviderVerifyResponse = Unit
-typealias JobsProviderVerifyRequestItem = Job
 
 @Serializable
 sealed class JobsProviderFollowRequest {
@@ -93,45 +83,16 @@ data class QueueStatus(
     val pending: Int,
 )
 
-typealias JobsProviderRetrieveProductsRequest = Unit
-
-@Serializable
-data class JobsProviderRetrieveProductsResponse(
-    val products: List<ComputeProductSupport>,
-)
-
 @Serializable
 data class ComputeSupport(
+    override val product: ProductReference,
+
     @UCloudApiDoc("Support for `Tool`s using the `DOCKER` backend")
     val docker: Docker = Docker(),
 
     @UCloudApiDoc("Support for `Tool`s using the `VIRTUAL_MACHINE` backend")
     val virtualMachine: VirtualMachine = VirtualMachine(),
-) {
-    @Serializable
-    data class Permissions(
-        @UCloudApiDoc("""Flag to enable/disable permissions managed by UCloud (Default: `false`)
-            
-If the permissions of compute is not managed by UCloud, then it is the responsibility of the provider to verify that
-an entity has access to any requested resource. Note that UCloud will always verify project membership before forwarding
-it to the provider.
-
-If the permissions are managed by UCloud, then UCloud will enforce the following:
-
-- `jobs.create`: Will be allowed by any user
-- `jobs.delete`:
-    - If the user is a workspace admin: allowed for any job owned by the workspace
-    - If the user is not a workspace admin: allowed only for jobs created by the user
-- `jobs.browse`:
-    - If the user is a workspace admin: returns results from any job created in the project
-    - If the user is not a workspace admin: returns only the results created by the user
-- `jobs.extend`, `jobs.suspend`, `jobs.follow`, `jobs.openInteractiveSession`:
-    - If the user is a workspace admin: Allow
-    - If the user is not a workspace admin: Allow for jobs created by the user
-""")
-        var managedByUCloud: Boolean = false
-    )
-
+) : ProductSupport {
     @Serializable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
@@ -178,10 +139,12 @@ data class ComputeProductSupport(
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-open class JobsProvider(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
-    val baseContext = "/ucloud/$namespace/jobs"
-
+open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
+    JobStatus, Product.Compute, ComputeSupport>("jobs", provider) {
     override fun toString() = "JobsProvider($baseContext)"
+
+    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
+        Product.Compute, ComputeSupport>()
 
     init {
         title = "Provider API: Compute"
@@ -204,12 +167,16 @@ open class JobsProvider(namespace: String) : CallDescriptionContainer("jobs.comp
             responseMessage: String? = null,
         ): String {
             return buildString {
-                append("| [$id] Request | UCloud | ${if (ucloudSender) right else left} | Provider | " +
-                    "${docCallRef(call)} | $requestMessage |")
+                append(
+                    "| [$id] Request | UCloud | ${if (ucloudSender) right else left} | Provider | " +
+                        "${docCallRef(call)} | $requestMessage |"
+                )
 
                 if (responseMessage != null) {
-                    append("\n| [$id] Response | UCloud | ${if (ucloudSender) left else right} | Provider | " +
-                        "${docCallRef(call)} | $responseMessage |")
+                    append(
+                        "\n| [$id] Response | UCloud | ${if (ucloudSender) left else right} | Provider | " +
+                            "${docCallRef(call)} | $responseMessage |"
+                    )
                 }
             }
         }
@@ -271,7 +238,7 @@ ${req("2", false, JobsControl::update, "Proceed to `RUNNING`")}
 ${req("3", false, JobsControl::chargeCredits, "Charge for 15 minutes of use")}
 ${req("4", false, JobsControl::chargeCredits, "Charge for 15 minutes of use")}
 ${req("5", false, JobsControl::chargeCredits, "Charge for 15 minutes of use")}
-${req("6", true, ::delete, "Delete `FOO123`")}
+${req("6", true, ::terminate, "Delete `FOO123`")}
 ${req("7", false, JobsControl::chargeCredits, "Charge for 3 minutes of use")}
 ${req("8", false, JobsControl::update, "Proceed to `SUCCESS`")}
 
@@ -291,52 +258,27 @@ ${req("4", false, JobsControl::update, "Proceed to `SUCCESS` with message 'Insuf
 ${req("1", true, ::create, "Start application with ID `FOO123`", "OK")}
 ${req("2", false, JobsControl::update, "Proceed to `RUNNING`")}
 ${
-            req("3",
+            req(
+                "3",
                 false,
                 JobsControl::chargeCredits,
                 "Charge for 15 minutes of use",
-                "${HttpStatusCode.PaymentRequired}")
+                "${HttpStatusCode.PaymentRequired}"
+            )
         }           
 ${
-            req("3",
+            req(
+                "3",
                 false,
                 JobsControl::chargeCredits,
                 "Charge for 15 minutes of use",
-                "${HttpStatusCode.PaymentRequired}")
+                "${HttpStatusCode.PaymentRequired}"
+            )
         }           
 ${comment("4", "`FOO123` disappears/crashes at provider - Provider did not notice and notify UCloud automatically")}
 ${req("5", true, ::verify, "Verify that `FOO123` is running", "OK")}
 ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
 """
-    }
-
-    val create = call<JobsProviderCreateRequest, JobsProviderCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext, roles = Roles.PRIVILEGED)
-
-        documentation {
-            summary = "Start a compute job"
-            description = """
-                Starts one or more compute jobs. The jobs have already been verified by UCloud and it is assumed to be
-                ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
-                5XX status code. Note that the batch must be handled as a single transaction.
-                
-                The provider should respond to this request as soon as the jobs have been scheduled. The provider should
-                then switch to ${docCallRef(JobsControl::update)} in order to provide updates about the progress.
-            """.trimIndent()
-        }
-    }
-
-    val delete = call<JobsProviderDeleteRequest, JobsProviderDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext, roles = Roles.PRIVILEGED)
-
-        documentation {
-            summary = "Request job cancellation and destruction"
-            description = """
-                Deletes one or more compute jobs. The provider should not only stop the compute job but also delete
-                _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
-                should also be deleted. None of the resources attached to the job, however, should be deleted.
-            """.trimIndent()
-        }
     }
 
     val extend = call<JobsProviderExtendRequest, JobsProviderExtendResponse, CommonErrorMessage>("extend") {
@@ -347,27 +289,15 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
+    val terminate = call<BulkRequest<Job>, BulkResponse<Unit?>, CommonErrorMessage>("terminate") {
+        httpUpdate(baseContext, "terminate", roles = Roles.PRIVILEGED)
+    }
+
     val suspend = call<JobsProviderSuspendRequest, JobsProviderSuspendResponse, CommonErrorMessage>("suspend") {
         httpUpdate(baseContext, "suspend", roles = Roles.PRIVILEGED)
 
         documentation {
             summary = "Suspend a job"
-        }
-    }
-
-    val verify = call<JobsProviderVerifyRequest, JobsProviderVerifyResponse, CommonErrorMessage>("verify") {
-        httpVerify(baseContext, roles = Roles.PRIVILEGED)
-
-        documentation {
-            summary = "Verify UCloud data is synchronized with provider"
-            description = """
-                This call is periodically executed by UCloud against all active providers. It is the job of the
-                provider to ensure that the jobs listed in the request are in its local database. If some of the
-                jobs are not in the provider's database then this should be treated as a job which is no longer valid.
-                The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
-                
-                The backend should _not_ attempt to start the job.
-            """.trimIndent()
         }
     }
 
@@ -380,24 +310,15 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         websocket("/ucloud/$namespace/websocket")
     }
 
-    val openInteractiveSession = call<JobsProviderOpenInteractiveSessionRequest, JobsProviderOpenInteractiveSessionResponse,
-        CommonErrorMessage>("openInteractiveSession") {
-        httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
-    }
+    val openInteractiveSession =
+        call<JobsProviderOpenInteractiveSessionRequest, JobsProviderOpenInteractiveSessionResponse,
+            CommonErrorMessage>("openInteractiveSession") {
+            httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
+        }
 
     val retrieveUtilization = call<JobsProviderUtilizationRequest, JobsProviderUtilizationResponse,
         CommonErrorMessage>("retrieveUtilization") {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
     }
 
-    @UCloudApiInternal(InternalLevel.BETA)
-    val retrieveProducts = call<JobsProviderRetrieveProductsRequest,
-        JobsProviderRetrieveProductsResponse, CommonErrorMessage>("retrieveProducts") {
-        httpRetrieve(baseContext, "products", roles = Roles.PRIVILEGED)
-
-        documentation {
-            summary = "Retrieve products"
-            description = "An API for retrieving the products and the support from a provider."
-        }
-    }
 }

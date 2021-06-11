@@ -271,11 +271,10 @@ abstract class ResourceService<
     ) {
     }
 
-    protected abstract suspend fun createSpecification(
-        resourceId: Long,
-        specification: Spec,
+    protected abstract suspend fun createSpecifications(
+        idWithSpec: List<Pair<Long, Spec>>,
         session: AsyncDBConnection,
-        allowConflicts: Boolean = false
+        allowDuplicates: Boolean
     )
 
     override suspend fun create(
@@ -342,9 +341,7 @@ abstract class ResourceService<
 
                         check(generatedIds.size == resources.size)
 
-                        for ((id, spec) in generatedIds.zip(resources)) {
-                            createSpecification(id, spec.first, session)
-                        }
+                        createSpecifications(generatedIds.zip(resources.map { it.first }), session, false)
 
                         lastBatchOfIds = generatedIds
                         db.commit(session)
@@ -774,9 +771,7 @@ abstract class ResourceService<
 
             check(generatedIds.size == request.items.size)
 
-            for ((id, req) in generatedIds.zip(request.items)) {
-                createSpecification(id, req.spec, session, allowConflicts = true)
-            }
+            createSpecifications(generatedIds.zip(request.items.map { it.spec }), session, allowDuplicates = true)
 
             generatedIds.map { FindByStringId(it.toString()) }
         })
@@ -1045,6 +1040,7 @@ abstract class ResourceService<
             flags = flags
         )
 
+        @Suppress("SqlResolve")
         return (ctx ?: db).paginateV2(
             actorAndProject.actor,
             pagination,
