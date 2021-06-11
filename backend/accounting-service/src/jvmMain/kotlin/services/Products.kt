@@ -18,8 +18,9 @@ import kotlinx.serialization.encodeToString
 
 object ProductCategoryTable : SQLTable("product_categories") {
     val provider = text("provider", notNull = true)
-    val category = text("category", notNull = true)
+    val name = text("name", notNull = true)
     val area = text("area", notNull = true)
+    val chargeType = text("charge_type", notNull = true)
 }
 
 object ProductTable : SQLTable("products") {
