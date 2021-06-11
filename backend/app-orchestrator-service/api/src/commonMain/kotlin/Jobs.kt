@@ -349,7 +349,7 @@ data class JobsFollowResponse(
 data class JobsLog(val rank: Int, val stdout: String? = null, val stderr: String? = null)
 
 typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
-typealias JobsExtendResponse = Unit
+typealias JobsExtendResponse = BulkResponse<Unit?>
 
 @Serializable
 data class JobsExtendRequestItem(
@@ -400,8 +400,7 @@ data class JobsOpenInteractiveSessionRequestItem(
     val sessionType: InteractiveSessionType,
 )
 
-@Serializable
-data class JobsOpenInteractiveSessionResponse(val sessions: List<OpenSessionWithProvider>)
+typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
 
 @Serializable
 data class OpenSessionWithProvider(

@@ -9,14 +9,23 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import io.ktor.http.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
@@ -65,8 +74,8 @@ class JobOrchestrator(
         res: ProductRefOrResource<Job>,
         support: ComputeSupport
     ) {
-        val application = appService.resolveApplication(spec.application) ?:
-            throw JobException.VerificationError("Application does not exist")
+        val application = appService.resolveApplication(spec.application)
+            ?: throw JobException.VerificationError("Application does not exist")
 
         when (application.invocation.tool.tool!!.description.backend) {
             ToolBackend.SINGULARITY -> {
@@ -130,7 +139,7 @@ class JobOrchestrator(
                 select app_name, app_ver, time_alloc, name, output, 'IN_QUEUE', null, resource
                 from bulk_data
             """
-            )
+        )
 
         session.sendPreparedStatement(
             {
@@ -252,155 +261,117 @@ class JobOrchestrator(
         )
     }
 
-    suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {
-        /*
-        val extensions = request.items.groupBy { it.jobId }
-        db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(
-                session,
-                extensions.keys,
-                userActor,
-                Action.EXTEND,
-                flags = JobIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            )
+    suspend fun extendDuration(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsExtendRequestItem>
+    ): BulkResponse<Unit?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).extend },
+                requestToId = { it.jobId },
+                resourceToRequest = { req, res -> JobsProviderExtendRequestItem(res, req.requestedTime) },
+                verifyRequest = { req, res, support ->
+                    val job = (res as ProductRefOrResource.SomeResource).resource
+                    val application = appService.resolveApplication(job.specification.application)
+                        ?: throw RPCException("Unknown application", HttpStatusCode.BadRequest)
+                    val appBackend = application.invocation.tool.tool!!.description.backend
 
-            for ((job) in jobs.values) {
-                val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-                val support = job.specification.resolvedSupport!!
+                    val isSupported =
+                        (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
+                            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
 
-                val isSupported =
-                    (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
-                        (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
-
-                if (!isSupported) {
-                    throw RPCException(
-                        "Extension of deadline is not supported by the provider",
-                        HttpStatusCode.BadRequest,
-                        FEATURE_NOT_SUPPORTED_BY_PROVIDER
-                    )
+                    if (!isSupported) {
+                        throw RPCException(
+                            "Extension of deadline is not supported by the provider",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
                 }
-            }
-
-            val providerIds = jobs.values.map { it.job.specification.product.provider }
-
-            for (providerId in providerIds) {
-                providers.proxyCall(
-                    providerId,
-                    userActor,
-                    { it.api.extend },
-                    bulkRequestOf(request.items.mapNotNull { extensionRequest ->
-                        val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.specification.product.provider != providerId) null
-                        else JobsProviderExtendRequestItem(job, extensionRequest.requestedTime)
-                    })
-                ).orThrow()
-            }
-
-            request.items.groupBy { it.jobId }.forEach { (jobId, requests) ->
-                val existingJob = jobs.getValue(jobId)
-                val allocatedTime = existingJob.job.specification.timeAllocation?.toMillis() ?: 0L
-                val requestedTime = requests.sumOf { it.requestedTime.toMillis() }
-
-                jobDao.updateMaxTime(session, jobId, SimpleDuration.fromMillis(allocatedTime + requestedTime))
-            }
-        }
-         */
+            )
+        )
     }
 
-    suspend fun cancel(request: BulkRequest<FindByStringId>, userActor: Actor) {
-        /*
-        val extensions = request.items.groupBy { it.id }
-
-        db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.CANCEL)
-            val jobsByProvider = jobs.values.groupBy { it.job.specification.product.provider }
-            for ((provider, providerJobs) in jobsByProvider) {
-                providers.proxyCall(
-                    provider,
-                    userActor,
-                    { it.api.delete },
-                    bulkRequestOf(providerJobs.map { it.job }),
-                ).orThrow()
-            }
-        }
-         */
+    suspend fun terminate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+    ): BulkResponse<Unit?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(this, { providerApi(it).terminate }, { it.id }, { _, res -> res })
+        )
     }
 
     suspend fun follow(
         callHandler: CallHandler<JobsFollowRequest, JobsFollowResponse, *>,
-        actor: Actor,
-    ) {
-        /*
-        callHandler.withContext<WSCall> {
-            val (initialJob) = jobQueryService.retrieve(
-                actor,
-                ctx.project,
-                request.id,
-                JobIncludeFlags(includeUpdates = true, includeApplication = true, includeSupport = true)
-            )
+    ): Unit = with(callHandler) {
+        withContext<WSCall> {
+            val initialJob = retrieveBulk(
+                callHandler.actorAndProject, listOf(request.id), listOf(Permission.Read),
+                flags = JobIncludeFlags(includeUpdates = true, includeSupport = true)
+            ).single()
 
-            val appBackend = initialJob.specification.resolvedApplication!!.invocation.tool.tool!!
-                .description.backend
-            val support = initialJob.specification.resolvedSupport!!
-
+            val support = initialJob.status.support!!.support
+            val app = appService.resolveApplication(initialJob.specification.application)!!
+            val backend = app.invocation.tool.tool!!.description.backend
             val logsSupported =
-                (appBackend == ToolBackend.DOCKER && support.docker.logs == true) ||
-                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
+                (backend == ToolBackend.DOCKER && support.docker.logs == true) ||
+                    (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
 
-            val stateUpdate = initialJob.updates.lastOrNull { it.state != null }
-            if (stateUpdate != null) {
-                sendWSMessage(
-                    JobsFollowResponse(
-                        emptyList(),
-                        emptyList(),
-                        initialJob.status
-                    )
-                )
-            }
             // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
             // retrieve them by themselves.
+            sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
+
             var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
             var streamId: String? = null
             val states = JobState.values()
             val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)
 
             coroutineScope {
-                val logJob = launch {
-                    try {
-                        while (isActive) {
-                            if (currentState.get() == JobState.RUNNING.ordinal) {
-                                if (logsSupported) {
-                                    providers.proxySubscription(
-                                        initialJob.specification.product.provider,
-                                        actor,
-                                        { it.api.follow },
-                                        JobsProviderFollowRequest.Init(initialJob),
-                                        handler = { message ->
-                                            if (streamId == null) {
-                                                streamId = message.streamId
-                                            }
+                val logJob = if (!logsSupported) null else launch {
+                    while (isActive) {
+                        if (currentState.get() == JobState.RUNNING.ordinal) {
+                            proxy.proxySubscription(
+                                actorAndProject,
+                                Unit,
+                                object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                                    Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                    override val isUserRequest: Boolean = true
+                                    override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
 
-                                            // Providers are allowed to use negative ranks for control messages
-                                            if (message.rank >= 0) {
-                                                sendWSMessage(
-                                                    JobsFollowResponse(
-                                                        emptyList(),
-                                                        listOf(JobsLog(message.rank, message.stdout, message.stderr)),
-                                                        null
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    ).orThrow()
+                                    override suspend fun verifyAndFetchResources(
+                                        actorAndProject: ActorAndProject,
+                                        request: Unit
+                                    ): RequestWithRefOrResource<Unit, Job> {
+                                        return Unit to ProductRefOrResource.SomeResource(initialJob)
+                                    }
+
+                                    override suspend fun beforeCall(
+                                        provider: String,
+                                        resource: RequestWithRefOrResource<Unit, Job>
+                                    ): JobsProviderFollowRequest {
+                                        return JobsProviderFollowRequest.Init(initialJob)
+                                    }
+
+                                    override suspend fun onMessage(
+                                        provider: String,
+                                        resource: RequestWithRefOrResource<Unit, Job>,
+                                        message: JobsProviderFollowResponse
+                                    ) {
+                                        if (streamId == null) streamId = message.streamId
+                                        sendWSMessage(
+                                            JobsFollowResponse(
+                                                emptyList(),
+                                                listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                            )
+                                        )
+                                    }
                                 }
-                                break
-                            } else {
-                                delay(500)
-                            }
-                        }
-                    } catch (ex: Throwable) {
-                        if (ex !is CancellationException) {
-                            log.warn(ex.stackTraceToString())
+                            )
                         }
                     }
                 }
@@ -409,12 +380,10 @@ class JobOrchestrator(
                     try {
                         var lastStatus: JobStatus? = null
                         while (isActive && !states[currentState.get()].isFinal()) {
-                            val (job) = jobQueryService.retrieve(
-                                actor,
-                                ctx.project,
-                                request.id,
+                            val job = retrieveBulk(
+                                actorAndProject, listOf(request.id), listOf(Permission.Read),
                                 JobIncludeFlags(includeUpdates = true)
-                            )
+                            ).single()
 
                             currentState.set(job.status.state.ordinal)
 
@@ -447,174 +416,135 @@ class JobOrchestrator(
 
                 try {
                     select<Unit> {
-                        logJob.onJoin {}
+                        (logJob ?: Job()).onJoin {}
                         updateJob.onJoin {}
                     }
                 } finally {
                     val capturedId = streamId
                     if (capturedId != null) {
-                        providers.proxyCall(
-                            initialJob.specification.product.provider,
-                            actor,
-                            { it.api.follow },
-                            JobsProviderFollowRequest.CancelStream(capturedId),
-                            useWebsockets = true
+                        proxy.proxy(
+                            actorAndProject,
+                            Unit,
+                            object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job, Unit,
+                                JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                override val isUserRequest: Boolean = true
+                                override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
+
+                                override suspend fun verifyAndFetchResources(
+                                    actorAndProject: ActorAndProject,
+                                    request: Unit
+                                ): RequestWithRefOrResource<Unit, Job> =
+                                    Unit to ProductRefOrResource.SomeResource(initialJob)
+
+                                override suspend fun beforeCall(
+                                    provider: String,
+                                    resource: RequestWithRefOrResource<Unit, Job>
+                                ): JobsProviderFollowRequest = JobsProviderFollowRequest.CancelStream(capturedId)
+
+                            }
                         )
                     }
 
-                    runCatching { logJob.cancel("No longer following or EOF") }
+                    runCatching { logJob?.cancel("No longer following or EOF") }
                     runCatching { updateJob.cancel("No longer following or EOF") }
                 }
             }
         }
-         */
     }
 
     suspend fun openInteractiveSession(
+        actorAndProject: ActorAndProject,
         request: BulkRequest<JobsOpenInteractiveSessionRequestItem>,
-        actor: Actor,
     ): JobsOpenInteractiveSessionResponse {
-        /*
-        val errorMessage = "You do not have permissions to open an interactive session for this job"
+        val jobIdToProvider = HashMap<String, String>()
+        val responses = proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).openInteractiveSession },
+                requestToId = { it.id },
+                resourceToRequest = { req, res ->
+                    jobIdToProvider[req.id] = res.specification.product.provider
+                    JobsProviderOpenInteractiveSessionRequestItem(res, req.rank, req.sessionType)
+                }
+            )
+        )
 
-        return db.withSession { session ->
-            val requestsByJobId = request.items.groupBy { it.id }
-            val jobIds = request.items.map { it.id }.toSet()
-            val jobs = loadAndVerifyUserJobs(
-                session,
-                jobIds,
-                actor,
-                Action.OPEN_INTERACTIVE_SESSION,
-                flags = JobIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            ).values
-            val jobsByProvider = jobs.groupBy { it.job.specification.product.provider }
-
-            if (jobs.size != jobIds.size) {
-                log.debug("Not all jobs were found")
-                throw RPCException(errorMessage, HttpStatusCode.Forbidden)
-            }
-
-            for ((provider, jobs) in jobsByProvider) {
-                for ((job) in jobs) {
-                    val reqs = requestsByJobId.getValue(job.id)
-                    val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-                    val support = job.specification.resolvedSupport!!
-
-                    for (req in reqs) {
-                        val isSessionSupported = when (req.sessionType) {
-                            InteractiveSessionType.WEB ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.web == true)
-                            InteractiveSessionType.VNC ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.vnc == true) ||
-                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.vnc == true)
-                            InteractiveSessionType.SHELL ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.terminal == true) ||
-                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.terminal == true)
+        return BulkResponse(
+            request.items.zip(responses.responses).map { (request, response) ->
+                val providerSpec = providers.prepareCommunication(jobIdToProvider.getValue(request.id)).provider
+                if (response == null) null
+                else OpenSessionWithProvider(
+                    with(providerSpec) {
+                        buildString {
+                            if (https) append("https://") else append("http://")
+                            append(domain)
+                            if (port != null) append(":$port")
                         }
+                    },
+                    providerSpec.id,
+                    response
+                )
+            }
+        )
+    }
 
-                        if (!isSessionSupported) {
+    suspend fun retrieveUtilization(
+        actorAndProject: ActorAndProject,
+        request: JobsRetrieveUtilizationRequest
+    ): JobsRetrieveUtilizationResponse {
+        JobsRetrieveUtilizationResponse
+        return proxy.proxy(
+            actorAndProject,
+            request,
+            object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                JobsRetrieveUtilizationRequest, JobsProviderUtilizationRequest, JobsProviderUtilizationResponse>() {
+                override val isUserRequest: Boolean = false
+                override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).retrieveUtilization
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: JobsRetrieveUtilizationRequest
+                ): RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job> {
+                    val job = retrieveBulk(actorAndProject, listOf(request.jobId), listOf(Permission.Read)).single()
+                    return RequestWithRefOrResource(request, ProductRefOrResource.SomeResource(job))
+                }
+
+                override suspend fun verifyRequest(
+                    request: JobsRetrieveUtilizationRequest,
+                    res: ProductRefOrResource<Job>,
+                    support: ComputeSupport
+                ) {
+                    val job = (res as ProductRefOrResource.SomeResource).resource
+                    val app = appService.resolveApplication(job.specification.application)!!
+                    val backend = app.invocation.tool.tool!!.description.backend
+                    if (backend == ToolBackend.DOCKER) {
+                        if (support.docker.utilization != true) {
                             throw RPCException(
-                                "Unsupported by the provider",
+                                "Not supported",
+                                HttpStatusCode.BadRequest,
+                                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                            )
+                        }
+                    } else if (backend == ToolBackend.VIRTUAL_MACHINE) {
+                        if (support.virtualMachine.utilization != true) {
+                            throw RPCException(
+                                "Not supported",
                                 HttpStatusCode.BadRequest,
                                 FEATURE_NOT_SUPPORTED_BY_PROVIDER
                             )
                         }
                     }
                 }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resource: RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job>
+                ) {
+                }
             }
-
-            val sessions = ArrayList<OpenSessionWithProvider>()
-            for ((provider, jobs) in jobsByProvider) {
-                val providerSpec = providers.retrieveProviderSpecification(provider)
-                sessions.addAll(
-                    providers
-                        .proxyCall(
-                            provider,
-                            actor,
-                            { it.api.openInteractiveSession },
-                            bulkRequestOf(jobs.flatMap { (job) ->
-                                requestsByJobId.getValue(job.id).map { req ->
-                                    JobsProviderOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
-                                }
-                            })
-                        )
-                        .orThrow()
-                        .sessions
-                        .map {
-                            OpenSessionWithProvider(
-                                with(providerSpec) {
-                                    buildString {
-                                        if (https) {
-                                            append("https://")
-                                        } else {
-                                            append("http://")
-                                        }
-
-                                        append(domain)
-
-                                        if (port != null) {
-                                            append(":$port")
-                                        }
-                                    }
-                                },
-                                providerSpec.id,
-                                it
-                            )
-                        }
-                )
-            }
-
-            JobsOpenInteractiveSessionResponse(sessions)
-        }
-         */
-        TODO()
-    }
-
-    suspend fun retrieveUtilization(
-        actorAndProject: ActorAndProject,
-        jobId: String,
-    ): JobsRetrieveUtilizationResponse {
-        /*
-        val (actor, project) = actorAndProject
-        val job = jobQueryService
-            .retrieve(
-                actor,
-                project,
-                jobId,
-                JobIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            )
-            .job
-
-        val providerId = job.specification.product.provider
-        val support = job.specification.resolvedSupport!!
-        val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-
-        val supported =
-            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.utilization == true) ||
-                (appBackend == ToolBackend.DOCKER && support.docker.utilization == true)
-
-        if (!supported) {
-            throw RPCException(
-                "Utilization is not supported by the provider",
-                HttpStatusCode.BadRequest,
-                FEATURE_NOT_SUPPORTED_BY_PROVIDER
-            )
-        }
-
-        val response = providers.proxyCall(
-            providerId,
-            null,
-            { it.api.retrieveUtilization },
-            Unit
-        ).orThrow()
-
-        return JobsRetrieveUtilizationResponse(
-            response.capacity,
-            response.usedCapacity,
-            response.queueStatus
         )
-         */
-        TODO()
     }
 
     companion object : Loggable {

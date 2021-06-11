@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -11,6 +12,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.subscribe
 import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
@@ -51,18 +53,157 @@ abstract class BulkProxyInstructions<Comms : ProviderComms, Support : ProductSup
         resources: List<RequestWithRefOrResource<ApiRequest, Res>>
     ): ProviderRequest
 
-    abstract suspend fun afterCall(
+    open suspend fun afterCall(
         provider: String,
         resources: List<RequestWithRefOrResource<ApiRequest, Res>>,
         response: BulkResponse<ProviderResponse?>
-    )
+    ) {}
 
-    abstract suspend fun onFailure(
+    open suspend fun onFailure(
         provider: String,
         resources: List<RequestWithRefOrResource<ApiRequest, Res>>,
         cause: Throwable,
         mappedRequestIfAny: ProviderRequest?
+    ) {}
+
+    companion object {
+        fun <Comms : ProviderComms, Support : ProductSupport, Res : Resource<*, Support>,
+            ApiRequest : Any, ProviderRequest : Any, ProviderResponse : Any> pureProcedure(
+            service: ResourceService<Res, *, *, *, *, *, Support, Comms>,
+            retrieveCall: (comms: Comms) -> CallDescription<BulkRequest<ProviderRequest>, BulkResponse<ProviderResponse?>, CommonErrorMessage>,
+            requestToId: (ApiRequest) -> String,
+            resourceToRequest: (request: ApiRequest, resource: Res) -> ProviderRequest,
+            verifyRequest: suspend (request: ApiRequest, res: ProductRefOrResource<Res>, support: Support) -> Unit = { _, _, _ -> },
+            isUserRequest: Boolean = true
+        ): BulkProxyInstructions<Comms, Support, Res, ApiRequest, BulkRequest<ProviderRequest>, ProviderResponse> {
+            return object :
+                BulkProxyInstructions<Comms, Support, Res, ApiRequest, BulkRequest<ProviderRequest>, ProviderResponse>() {
+                override val isUserRequest: Boolean = isUserRequest
+
+                override fun retrieveCall(comms: Comms) = retrieveCall(comms)
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<ApiRequest>
+                ): List<RequestWithRefOrResource<ApiRequest, Res>> {
+                    return request.items.zip(
+                        service.retrieveBulk(
+                            actorAndProject,
+                            request.items.map { requestToId(it) },
+                            listOf(Permission.Edit)
+                        ).map { ProductRefOrResource.SomeResource(it) }
+                    )
+                }
+
+                override suspend fun verifyRequest(
+                    request: ApiRequest,
+                    res: ProductRefOrResource<Res>,
+                    support: Support
+                ) = verifyRequest(request, res, support)
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<ApiRequest, Res>>
+                ): BulkRequest<ProviderRequest> {
+                    return BulkRequest(
+                        resources.map {
+                            resourceToRequest(
+                                it.first,
+                                (it.second as ProductRefOrResource.SomeResource).resource
+                            )
+                        }
+                    )
+                }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<ApiRequest, Res>>,
+                    response: BulkResponse<ProviderResponse?>
+                ) {
+                    // Do nothing
+                }
+
+                override suspend fun onFailure(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<ApiRequest, Res>>,
+                    cause: Throwable,
+                    mappedRequestIfAny: BulkRequest<ProviderRequest>?
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+    }
+}
+
+abstract class ProxyInstructions<Comms : ProviderComms, Support : ProductSupport, Res : Resource<*, *>,
+    ApiRequest : Any, ProviderRequest : Any, ProviderResponse : Any> {
+    abstract val isUserRequest: Boolean
+
+    abstract fun retrieveCall(comms: Comms): CallDescription<ProviderRequest, ProviderResponse, CommonErrorMessage>
+
+    abstract suspend fun verifyAndFetchResources(
+        actorAndProject: ActorAndProject,
+        request: ApiRequest
+    ): RequestWithRefOrResource<ApiRequest, Res>
+
+    open suspend fun verifyRequest(request: ApiRequest, res: ProductRefOrResource<Res>, support: Support) {}
+
+    abstract suspend fun beforeCall(
+        provider: String,
+        resource: RequestWithRefOrResource<ApiRequest, Res>
+    ): ProviderRequest
+
+    open suspend fun afterCall(
+        provider: String,
+        resource: RequestWithRefOrResource<ApiRequest, Res>,
+        response: ProviderResponse?
+    ) {}
+
+    open suspend fun onFailure(
+        provider: String,
+        resources: RequestWithRefOrResource<ApiRequest, Res>,
+        cause: Throwable,
+        mappedRequestIfAny: ProviderRequest?
+    ) {}
+}
+
+abstract class SubscriptionProxyInstructions<Comms : ProviderComms, Support : ProductSupport, Res : Resource<*, *>,
+    ApiRequest : Any, ProviderRequest : Any, ProviderResponse : Any> {
+    abstract val isUserRequest: Boolean
+
+    abstract fun retrieveCall(comms: Comms): CallDescription<ProviderRequest, ProviderResponse, CommonErrorMessage>
+
+    abstract suspend fun verifyAndFetchResources(
+        actorAndProject: ActorAndProject,
+        request: ApiRequest
+    ): RequestWithRefOrResource<ApiRequest, Res>
+
+    open suspend fun verifyRequest(request: ApiRequest, res: ProductRefOrResource<Res>, support: Support) {}
+
+    abstract suspend fun beforeCall(
+        provider: String,
+        resource: RequestWithRefOrResource<ApiRequest, Res>
+    ): ProviderRequest
+
+    abstract suspend fun onMessage(
+        provider: String,
+        resource: RequestWithRefOrResource<ApiRequest, Res>,
+        message: ProviderResponse
     )
+
+    open suspend fun afterCall(
+        provider: String,
+        resource: RequestWithRefOrResource<ApiRequest, Res>,
+        response: ProviderResponse?
+    ) {}
+
+    open suspend fun onFailure(
+        provider: String,
+        resources: RequestWithRefOrResource<ApiRequest, Res>,
+        cause: Throwable,
+        mappedRequestIfAny: ProviderRequest?
+    ) {}
 }
 
 class ProviderProxy<
@@ -167,114 +308,134 @@ class ProviderProxy<
         }
     }
 
-    /*
-    suspend fun <R : Any, S : Any, E : Any> proxy(
-        callFn: (Comms) -> CallDescription<R, S, E>,
+    suspend fun <R : Any, S : Any, R2 : Any> proxy(
         actorAndProject: ActorAndProject,
         request: R,
+        instructions: ProxyInstructions<Comms, Support, Res, R, R2, S>
     ): S {
-        val call = callFn(providers.placeholderCommunication)
+        var mappedRequest: R2? = null
+        with(instructions) {
+            val reqWithResource = verifyAndFetchResources(actorAndProject, request)
+            val (_, support) = support.retrieveProductSupport(reqWithResource.second.reference)
+            verifyRequest(reqWithResource.first, reqWithResource.second, support)
+            val provider = reqWithResource.second.reference.provider
 
-        @Suppress("UNCHECKED_CAST")
-        val proxy = proxies[call.fullName] as ProxyInstructions<R, S, E, Support, Res>?
-            ?: throw IllegalStateException("Unknown call: ${call.fullName}")
+            try {
+                val comms = providers.prepareCommunication(provider)
+                val providerCall = retrieveCall(comms)
+                val im = IntegrationProvider(provider)
+                val requestForProvider = beforeCall(provider, reqWithResource)
+                mappedRequest = requestForProvider
 
-        val resource = proxy.verifyAndFetchResources(actorAndProject, request)
-        val (product, support) = support.retrieveProductSupport(
-            resource.specification.product ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
-        )
+                for (attempt in 0 until 5) {
+                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                        afterCall(provider, reqWithResource, null)
+                        break
+                    }
 
-        proxy.verifyRequest(request, support)
+                    val response = providerCall.call(
+                        requestForProvider,
+                        if (isUserRequest) {
+                            comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
+                        } else {
+                            comms.client
+                        }
+                    )
 
-        val comms = providers.prepareCommunication(product.category.provider)
-        val im = IntegrationProvider(product.category.provider)
+                    if (response.statusCode == HttpStatusCode.RetryWith ||
+                        response.statusCode == HttpStatusCode.ServiceUnavailable
+                    ) {
+                        if (isUserRequest) {
+                            im.init.call(
+                                IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
+                                comms.client
+                            ).orThrow()
 
-        for (attempt in 0 until 5) {
-            val response = callFn(comms).call(
-                request,
-                if (proxy.isUserRequest) {
-                    comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
-                } else {
-                    comms.client
+                            delay(200)
+                            continue
+                        } else {
+                            response.throwError()
+                        }
+                    }
+
+                    val capturedResponse = response.orThrow()
+                    afterCall(provider, reqWithResource, capturedResponse)
+                    return capturedResponse
                 }
-            )
-
-            if (response.statusCode == HttpStatusCode.RetryWith ||
-                response.statusCode == HttpStatusCode.ServiceUnavailable
-            ) {
-                if (proxy.isUserRequest) {
-                    im.init.call(
-                        IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
-                        comms.client
-                    ).orThrow()
-
-                    delay(200)
-                    continue
-                } else {
-                    response.throwError()
-                }
+            } catch (ex: Throwable) {
+                onFailure(provider, reqWithResource, ex, mappedRequest)
+                throw ex
             }
-            return response.orThrow()
         }
 
         throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
     }
 
-    suspend fun <R : Any, S : Any, E : Any> proxySubscription(
-        callFn: (Comms) -> CallDescription<R, S, E>,
+    suspend fun <R : Any, S : Any, R2 : Any> proxySubscription(
         actorAndProject: ActorAndProject,
         request: R,
-        handler: suspend (S) -> Unit
+        instructions: SubscriptionProxyInstructions<Comms, Support, Res, R, R2, S>
     ): S {
-        val call = callFn(providers.placeholderCommunication)
+        var mappedRequest: R2? = null
+        with(instructions) {
+            val reqWithResource = verifyAndFetchResources(actorAndProject, request)
+            val (_, support) = support.retrieveProductSupport(reqWithResource.second.reference)
+            verifyRequest(reqWithResource.first, reqWithResource.second, support)
+            val provider = reqWithResource.second.reference.provider
 
-        @Suppress("UNCHECKED_CAST")
-        val proxy = proxies[call.fullName] as ProxyInstructions<R, S, E, Support, Res>?
-            ?: throw IllegalStateException("Unknown call: ${call.fullName}")
+            try {
+                val comms = providers.prepareCommunication(provider)
+                val providerCall = retrieveCall(comms)
+                val im = IntegrationProvider(provider)
+                val requestForProvider = beforeCall(provider, reqWithResource)
+                mappedRequest = requestForProvider
 
-        val resource = proxy.verifyAndFetchResources(actorAndProject, request)
-        val (product, support) = support.retrieveProductSupport(
-            resource.specification.product ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
-        )
+                for (attempt in 0 until 5) {
+                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                        afterCall(provider, reqWithResource, null)
+                        break
+                    }
 
-        proxy.verifyRequest(request, support)
+                    val response = providerCall.subscribe(
+                        requestForProvider,
+                        if (isUserRequest) {
+                            comms.wsClient.withProxyInfo(actorAndProject.actor.safeUsername())
+                        } else {
+                            comms.wsClient
+                        },
+                        handler = { message ->
+                            onMessage(provider, reqWithResource, message)
+                        }
+                    )
 
-        val comms = providers.prepareCommunication(product.category.provider)
-        val im = IntegrationProvider(product.category.provider)
+                    if (response.statusCode == HttpStatusCode.RetryWith ||
+                        response.statusCode == HttpStatusCode.ServiceUnavailable
+                    ) {
+                        if (isUserRequest) {
+                            im.init.call(
+                                IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
+                                comms.client
+                            ).orThrow()
 
-        for (attempt in 0 until 5) {
-            val response = callFn(comms).subscribe(
-                request,
-                if (proxy.isUserRequest) {
-                    comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
-                } else {
-                    comms.client
-                },
-                handler
-            )
+                            delay(200)
+                            continue
+                        } else {
+                            response.throwError()
+                        }
+                    }
 
-            if (response.statusCode == HttpStatusCode.RetryWith ||
-                response.statusCode == HttpStatusCode.ServiceUnavailable
-            ) {
-                if (proxy.isUserRequest) {
-                    im.init.call(
-                        IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
-                        comms.client
-                    ).orThrow()
-
-                    delay(200)
-                    continue
-                } else {
-                    response.throwError()
+                    val capturedResponse = response.orThrow()
+                    afterCall(provider, reqWithResource, capturedResponse)
+                    return capturedResponse
                 }
+            } catch (ex: Throwable) {
+                onFailure(provider, reqWithResource, ex, mappedRequest)
+                throw ex
             }
-            return response.orThrow()
         }
 
         throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
     }
-
-     */
 }
 
 private val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")

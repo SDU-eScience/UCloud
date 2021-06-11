@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
 import kotlin.reflect.KProperty
 
 typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
-typealias JobsProviderExtendResponse = Unit
+typealias JobsProviderExtendResponse = BulkResponse<Unit?>
 
 @Serializable
 data class JobsProviderExtendRequestItem(
@@ -59,17 +59,11 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
     val sessionType: InteractiveSessionType,
 )
 
-@Serializable
-data class JobsProviderOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
+typealias JobsProviderOpenInteractiveSessionResponse = BulkResponse<OpenSession?>
 
 typealias JobsProviderUtilizationRequest = Unit
 
-@Serializable
-data class JobsProviderUtilizationResponse(
-    val capacity: CpuAndMemory,
-    val usedCapacity: CpuAndMemory,
-    val queueStatus: QueueStatus,
-)
+typealias JobsProviderUtilizationResponse = JobsRetrieveUtilizationResponse
 
 @Serializable
 data class CpuAndMemory(
