@@ -113,7 +113,7 @@ abstract class ResourceService<
         return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, request.normalize(), ctx)
     }
 
-    protected open suspend fun browseQuery(flags: Flags?, ): PartialQuery {
+    protected open suspend fun browseQuery(flags: Flags?): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery({}, "select * from $tableName")
     }
@@ -170,16 +170,18 @@ abstract class ResourceService<
         }
     }
 
-    protected open suspend fun retrieveBulk(
+    open suspend fun retrieveBulk(
         actorAndProject: ActorAndProject,
         ids: Collection<String>,
-        flags: Flags?,
-        vararg permissionOneOf: Permission,
+        permissionOneOf: Collection<Permission>,
+        flags: Flags? = null,
         simpleFlags: SimpleResourceIncludeFlags? = null,
         includeUnconfirmed: Boolean = false,
         requireAll: Boolean = true,
         ctx: DBContext? = null,
     ): List<Res> {
+        if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
+
         val (params, query) = browseQuery(flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
@@ -264,7 +266,7 @@ abstract class ResourceService<
         }
     }
 
-    protected open fun verifyProviderSupportsCreate(
+    protected open suspend fun verifyProviderSupportsCreate(
         spec: Spec,
         res: ProductRefOrResource<Res>,
         support: Support
@@ -272,6 +274,7 @@ abstract class ResourceService<
     }
 
     protected abstract suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, Spec>>,
         session: AsyncDBConnection,
         allowDuplicates: Boolean
@@ -341,7 +344,12 @@ abstract class ResourceService<
 
                         check(generatedIds.size == resources.size)
 
-                        createSpecifications(generatedIds.zip(resources.map { it.first }), session, false)
+                        createSpecifications(
+                            actorAndProject,
+                            generatedIds.zip(resources.map { it.first }),
+                            session,
+                            false
+                        )
 
                         lastBatchOfIds = generatedIds
                         db.commit(session)
@@ -350,8 +358,7 @@ abstract class ResourceService<
                             retrieveBulk(
                                 actorAndProject,
                                 generatedIds.map { it.toString() },
-                                null,
-                                Permission.Edit,
+                                listOf(Permission.Edit),
                                 ctx = session,
                                 includeUnconfirmed = true
                             )
@@ -441,7 +448,7 @@ abstract class ResourceService<
                         request: BulkRequest<UpdatedAcl>
                     ): List<RequestWithRefOrResource<UpdatedAcl, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, null, Permission.Admin)
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Admin))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -616,7 +623,7 @@ abstract class ResourceService<
                         request: BulkRequest<FindByStringId>
                     ): List<RequestWithRefOrResource<FindByStringId, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, null, Permission.Edit)
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Edit))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -682,7 +689,7 @@ abstract class ResourceService<
     ) {
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
-            val resources = retrieveBulk(actorAndProject, ids, null, Permission.Provider, includeUnconfirmed = true)
+            val resources = retrieveBulk(actorAndProject, ids, listOf(Permission.Provider), includeUnconfirmed = true)
 
             session
                 .sendPreparedStatement(
@@ -771,7 +778,12 @@ abstract class ResourceService<
 
             check(generatedIds.size == request.items.size)
 
-            createSpecifications(generatedIds.zip(request.items.map { it.spec }), session, allowDuplicates = true)
+            createSpecifications(
+                actorAndProject,
+                generatedIds.zip(request.items.map { it.spec }),
+                session,
+                allowDuplicates = true
+            )
 
             generatedIds.map { FindByStringId(it.toString()) }
         })
@@ -836,8 +848,7 @@ abstract class ResourceService<
         val allResources = retrieveBulk(
             actorAndProject,
             ids,
-            null,
-            Permission.Provider,
+            listOf(Permission.Provider),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
         ).associateBy { it.id }
 
@@ -877,13 +888,16 @@ abstract class ResourceService<
         ctx: DBContext?,
     ): PageV2<Res> {
         val search = searchQuery(request.query, request.flags)
-        return paginatedQuery(search, actorAndProject, listOf(Permission.Read), request.flags,
-            request.normalize(), ctx)
+        return paginatedQuery(
+            search, actorAndProject, listOf(Permission.Read), request.flags,
+            request.normalize(), ctx
+        )
     }
 
     open fun searchQuery(query: String, flags: Flags?): PartialQuery {
         throw IllegalStateException(
-            "Feature not support. Remember to override searchQuery if search is defined in the API")
+            "Feature not support. Remember to override searchQuery if search is defined in the API"
+        )
     }
 
     private fun accessibleResources(

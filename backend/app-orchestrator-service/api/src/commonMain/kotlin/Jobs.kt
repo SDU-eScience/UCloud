@@ -9,6 +9,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Time
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -135,6 +136,23 @@ data class Job(
 
     @Suppress("OverridingDeprecatedMember")
     override val billing = ResourceBilling.Free
+
+    companion object {
+        fun fromSpecification(
+            id: String,
+            actorAndProject: ActorAndProject,
+            specification: JobSpecification
+        ): Job {
+            return Job(
+                id,
+                ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project),
+                emptyList(),
+                specification,
+                JobStatus(JobState.IN_QUEUE),
+                Time.now()
+            )
+        }
+    }
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

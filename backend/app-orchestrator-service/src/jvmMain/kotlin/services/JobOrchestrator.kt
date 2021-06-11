@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
@@ -15,7 +16,9 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
 
 interface JobListener {
@@ -37,16 +40,14 @@ class JobOrchestrator(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
     serviceClient: AuthenticatedClient,
+    private val appService: AppStoreCache,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
     Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
+    private val verificationService = JobVerificationService(appService, this)
     private val listeners = ArrayList<JobListener>()
 
     fun addListener(listener: JobListener) {
         listeners.add(listener)
-    }
-
-    fun removeListener(listener: JobListener) {
-        listeners.remove(listener)
     }
 
     override val productArea: ProductArea = ProductArea.COMPUTE
@@ -59,26 +60,115 @@ class JobOrchestrator(
     override fun userApi() = Jobs
     override fun providerApi(comms: ProviderComms) = JobsProvider(comms.provider.id)
 
+    override suspend fun verifyProviderSupportsCreate(
+        spec: JobSpecification,
+        res: ProductRefOrResource<Job>,
+        support: ComputeSupport
+    ) {
+        val application = appService.resolveApplication(spec.application) ?:
+            throw JobException.VerificationError("Application does not exist")
+
+        when (application.invocation.tool.tool!!.description.backend) {
+            ToolBackend.SINGULARITY -> {
+                throw JobException.VerificationError("Unsupported application")
+            }
+
+            ToolBackend.DOCKER -> {
+                if (support.docker.enabled != true) {
+                    throw JobException.VerificationError("Application is not supported by provider")
+                }
+            }
+
+            ToolBackend.VIRTUAL_MACHINE -> {
+                if (support.virtualMachine.enabled != null) {
+                    throw JobException.VerificationError("Application is not supported by provider")
+                }
+            }
+        }
+    }
+
     override suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, JobSpecification>>,
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
-        /*
-        // NOTE(Dan): Cannot convert due to suspension
-        @Suppress("ConvertCallChainIntoSequence")
-        val verifiedJobs = req.items
-            // Verify parameters
-            .map { jobRequest ->
-                jobVerificationService.verifyOrThrow(
-                    UnverifiedJob(jobRequest, principal.username, project),
-                    listeners
-                )
-            }
-            .toMutableList()
+        idWithSpec.forEach { (id, spec) ->
+            verificationService.verifyOrThrow(actorAndProject, spec)
 
-         */
-        // TODO Insert into the database
+            val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
+            listeners.forEach { it.onVerified(db, preliminaryJob) }
+        }
+
+        session.sendPreparedStatement(
+            {
+                val applicationNames = ArrayList<String>().also { setParameter("application_names", it) }
+                val applicationVersions = ArrayList<String>().also { setParameter("application_versions", it) }
+                val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
+                val names = ArrayList<String?>().also { setParameter("names", it) }
+                val outputFolders = ArrayList<String>().also { setParameter("output_folders", it) }
+                val resources = ArrayList<Long>().also { setParameter("resources", it) }
+
+                for ((id, spec) in idWithSpec) {
+                    applicationNames.add(spec.application.name)
+                    applicationVersions.add(spec.application.version)
+                    timeAllocationMillis.add(spec.timeAllocation?.toMillis())
+                    names.add(spec.name)
+                    outputFolders.add("/TODO")
+                    resources.add(id)
+                }
+            },
+            """
+                with bulk_data as (
+                    select unnest(:application_names) app_name, unnest(:application_versions) app_ver,
+                           unnest(:time_allocation) time_alloc, unnest(:names) name, 
+                           unnest(:output_folders) output, unnest(:resources) resource
+                )
+                insert into app_orchestrator.jobs
+                    (application_name, application_version, time_allocation_millis, name, 
+                     output_folder, current_state, started_at, resource) 
+                select app_name, app_ver, time_alloc, name, output, 'IN_QUEUE', null, resource
+                from bulk_data
+            """
+            )
+
+        session.sendPreparedStatement(
+            {
+                val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
+                val resources = ArrayList<String>().also { setParameter("resources", it) }
+
+                for ((id, spec) in idWithSpec) {
+                    for (resource in (spec.resources ?: emptyList())) {
+                        jobIds.add(id)
+                        resources.add(defaultMapper.encodeToString(resource))
+                    }
+                }
+            },
+            """
+                insert into app_orchestrator.job_resources (resource, job_id) 
+                select unnest(:resources), unnest(:job_ids)
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
+                val values = ArrayList<String>().also { setParameter("values", it) }
+                val names = ArrayList<String>().also { setParameter("names", it) }
+
+                for ((id, spec) in idWithSpec) {
+                    for ((name, value) in (spec.parameters ?: emptyMap())) {
+                        jobIds.add(id)
+                        values.add(defaultMapper.encodeToString(value))
+                        names.add(name)
+                    }
+                }
+            },
+            """
+                insert into app_orchestrator.job_input_parameters (name, value, job_id)  
+                select unnest(:names), unnest(:values), unnest(:job_ids)
+            """
+        )
     }
 
     override suspend fun onUpdate(
@@ -103,11 +193,25 @@ class JobOrchestrator(
                     currentState = newState
 
                     if (newState.isFinal()) {
-                        handleFinalState(job)
                         listeners.forEach { it.onTermination(session, job) }
                     }
 
-                    // TODO Update status
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("new_state", newState.name)
+                            setParameter("job_id", jobId)
+                        },
+                        """
+                            update app_orchestrator.jobs
+                            set
+                                current_state = :new_state,
+                                started_at = case
+                                    when :new_state = 'RUNNING' then coalesce(started_at, now())
+                                    else started_at
+                                end
+                            where resource = :job_id
+                        """
+                    )
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
                         "Ignoring job update for $jobId by ${job.specification.product.provider} " +
@@ -120,18 +224,17 @@ class JobOrchestrator(
     }
 
     override suspend fun browseQuery(flags: JobIncludeFlags?): PartialQuery {
+        @Suppress("SqlResolve")
         return PartialQuery(
             {
                 setParameter("filter_state", flags?.filterState?.name)
             },
             """
                 select
-                    job.resource,
-                    job,
+                    job.resource, job,
                     array_remove(array_agg(distinct res), null),
                     array_remove(array_agg(distinct param), null),
-                    app,
-                    t
+                    app, t
 
                 from
                     app_orchestrator.jobs job join
@@ -147,21 +250,6 @@ class JobOrchestrator(
                 group by job.resource, job.*, app.*, t.*
             """
         )
-    }
-
-    private suspend fun handleFinalState(job: Job) {
-        // jobFileService.cleanupAfterMounts(jobWithToken)
-
-        /*
-        val resp = MetadataDescriptions.verify.call(
-            VerifyRequest(jobWithToken.job.files.map { it.path }),
-            serviceClient
-        )
-
-        if (resp is IngoingCallResponse.Error) {
-            log.warn("Failed to verify metadata for job: ${jobWithToken.job.id} (${resp.statusCode} ${resp.error})")
-        }
-         */
     }
 
     suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {

@@ -54,8 +54,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             )
         }
 
-        val jobVerificationService = JobVerificationService()
-
         val jobSupport = ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>(
             altProviders,
             serviceClient,
@@ -69,7 +67,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 db,
                 altProviders,
                 jobSupport,
-                serviceClient
+                serviceClient,
+                appStoreCache,
             )
 
         val jobMonitoring = JobMonitoringService(micro.backgroundScope, distributedLocks)

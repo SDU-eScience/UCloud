@@ -49,8 +49,7 @@ class IngressService(
                 val allIngresses = retrieveBulk(
                     actorAndProject,
                     ingressPoints.map { it.id },
-                    null,
-                    Permission.Edit,
+                    listOf(Permission.Edit),
                     simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                 )
 
@@ -131,9 +130,10 @@ class IngressService(
     override fun providerApi(comms: ProviderComms): IngressProvider = IngressProvider(comms.provider.id)
 
     override suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, IngressSpecification>>,
         session: AsyncDBConnection,
-        allowConflicts: Boolean
+        allowDuplicates: Boolean
     ) {
         for ((id, spec) in idWithSpec) {
             session
