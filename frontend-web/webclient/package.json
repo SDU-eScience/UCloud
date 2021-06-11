@@ -52,7 +52,7 @@
         "@types/history": "^4.7.8",
         "@types/jest": "26.0.23",
         "@types/json-schema": "^7.0.7",
-        "@types/react": "17.0.10",
+        "@types/react": "17.0.11",
         "@types/react-datepicker": "3.1.8",
         "@types/react-dom": "^17.0.7",
         "@types/react-dropzone": "^5.1.0",
