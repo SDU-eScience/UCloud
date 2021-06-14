@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.SynchronizationType
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.SynchronizationConfiguration
 import dk.sdu.cloud.service.db.async.DBContext
@@ -187,7 +188,7 @@ data class SyncthingFolder(
     val pullerPauseS: Int = 0,
     val rescanIntervalS: Int = 3600,
     val scanProgressIntervalS: Int = 0,
-    val type: String = "receiveonly",
+    val type: String = SynchronizationType.SEND_RECEIVE.syncthingValue,
     val versioning: Versioning = Versioning(),
     val weakHashThresholdPct: Int = 25
 )

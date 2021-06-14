@@ -5,9 +5,9 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
-enum class SynchronizationType {
-    SEND_RECEIVE,
-    SEND_ONLY
+enum class SynchronizationType(val syncthingValue: String) {
+    SEND_RECEIVE("sendreceive"),
+    SEND_ONLY("sendonly")
 }
 
 @Serializable
