@@ -56,7 +56,12 @@ class ProviderSupportService(
                     } else {
                         ComputeProductSupportResolved(product, it.support)
                     }
-                }
+                }?.sortedWith(
+                    Comparator
+                        .comparing<ComputeProductSupportResolved?, String?> { it.product.category.provider }
+                        .thenComparing(Comparator.comparing { it.product.category.id })
+                        .thenComparing(Comparator.comparing { it.product.priority })
+                )
             }.getOrElse {
                 log.debug(it.stackTraceToString())
                 null

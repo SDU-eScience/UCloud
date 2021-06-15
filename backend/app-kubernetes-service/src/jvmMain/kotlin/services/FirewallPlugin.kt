@@ -3,9 +3,13 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.networks
 import dk.sdu.cloud.app.orchestrator.api.peers
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 import kotlinx.serialization.encodeToString
@@ -13,7 +17,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
-object ConnectToJobPlugin : JobManagementPlugin, Loggable {
+class FirewallPlugin(
+    private val db: DBContext,
+    private val gatewayCidr: String?,
+) : JobManagementPlugin, Loggable {
     override val log = logger()
 
     @OptIn(ExperimentalStdlibApi::class)
@@ -81,6 +88,43 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
                             podSelector = peerSelector
                         })
                     })
+                }
+
+                if (job.networks.isNotEmpty()) {
+                    val internalIps = db.withSession { session ->
+                        session
+                            .sendPreparedStatement(
+                                { setParameter("job_id", job.id) },
+                                """
+                                    select internal_ip_address
+                                      from bound_network_ips join 
+                                           network_ips on bound_network_ips.network_ip_id = network_ips.id
+                                     where job_id = :job_id
+                                """
+                            )
+                            .rows
+                            .map { it.getString(0)!! }
+                    }
+
+                    for (internalIp in internalIps) {
+                        ingress.add(NetworkPolicy.IngressRule().apply {
+                            from = listOf(NetworkPolicy.Peer().apply {
+                                ipBlock = NetworkPolicy.IPBlock().apply {
+                                    cidr = "${internalIp}/32"
+                                }
+                            })
+                        })
+                    }
+
+                    if (gatewayCidr != null) {
+                        ingress.add(NetworkPolicy.IngressRule().apply {
+                            from = listOf(NetworkPolicy.Peer().apply {
+                                ipBlock = NetworkPolicy.IPBlock().apply {
+                                    cidr = gatewayCidr
+                                }
+                            })
+                        })
+                    }
                 }
 
                 if (job.peers.isEmpty()) {
@@ -198,6 +242,8 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
         }
     }
 
-    const val POLICY_PREFIX = "policy-"
-    private const val INVALID_SUBNET = "192.0.2.100/32"
+    companion object {
+        const val POLICY_PREFIX = "policy-"
+        private const val INVALID_SUBNET = "192.0.2.100/32"
+    }
 }

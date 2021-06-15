@@ -48,7 +48,7 @@ class NetworkIPService(
                         val retrievedNetwork = dao.retrieve(
                             session,
                             NetworkIPId(network.id),
-                            NetworkIPDataIncludeFlags(includeProduct = true)
+                            NetworkIPDataIncludeFlags(includeProduct = true, includeAcl = true)
                         ) ?: throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         val product = retrievedNetwork.resolvedProduct!!
 
@@ -413,7 +413,7 @@ class NetworkIPService(
     ) {
         if (actor != Actor.System) {
             val project = network.owner.project
-            if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+            if (project != null && projectCache.retrieveRole(actor.safeUsername(), project)?.isAdmin() != true) {
                 throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
             }
 

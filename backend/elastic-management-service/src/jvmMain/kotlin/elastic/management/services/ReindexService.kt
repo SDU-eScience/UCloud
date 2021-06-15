@@ -17,7 +17,6 @@ import org.elasticsearch.index.reindex.ReindexRequest
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class ReindexService(
     private val elastic: RestHighLevelClient
@@ -173,15 +172,17 @@ class ReindexService(
                 LocalDate.now().minusDays(minusDays).toString().dropLast(3).replace("-",".")
             reindex(listOf(fromIndex), toIndex, lowLevelClient)
         }
-        runBlocking {
-            SlackDescriptions.sendAlert.call(
-                SendAlertRequest(
-                    "Following indices have been attempted merged, but due to issues have stopped. " +
-                        "Original indices have been left intact for follow up." +
-                        "${reindexErrors.joinToString()}"
-                ),
-                serviceClient
-            )
+        if (reindexErrors.isNotEmpty()) {
+            runBlocking {
+                SlackDescriptions.sendAlert.call(
+                    SendAlertRequest(
+                        "Following indices have been attempted merged, but due to issues have stopped. " +
+                            "Original indices have been left intact for follow up." +
+                            "${reindexErrors.joinToString()}"
+                    ),
+                    serviceClient
+                )
+            }
         }
     }
 

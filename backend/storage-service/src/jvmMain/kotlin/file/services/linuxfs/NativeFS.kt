@@ -38,7 +38,8 @@ object NativeFS : Loggable {
     const val DEFAULT_DIR_MODE = 488 // 0750
     const val DEFAULT_FILE_MODE = 416 // 0640
     private const val AT_REMOVEDIR = 0x200
-    private const val S_ISREG = 0x8000
+    private const val S_IFREG = 0x8000
+    private const val S_IFDIR = 0x4000
 
     var disableChown = false
 
@@ -409,7 +410,11 @@ object NativeFS : Loggable {
             return NativeStat(
                 st.st_size,
                 (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
-                if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
+                when {
+                    st.st_mode and S_IFREG != 0 -> FileType.FILE
+                    st.st_mode and S_IFDIR != 0 -> FileType.DIRECTORY
+                    else -> throw FSException.NotFound()
+                },
                 ownSensitivityLevel,
                 st.st_uid
             )

@@ -9,8 +9,6 @@ import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import mbuhot.eskotlin.query.QueryData
-import mbuhot.eskotlin.query.initQuery
 import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.search.ClearScrollRequest
 import org.elasticsearch.action.search.ClearScrollResponse
@@ -21,7 +19,6 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
-import org.elasticsearch.index.query.TermQueryBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
@@ -146,32 +143,4 @@ fun SearchRequest.source(
 fun SearchSourceBuilder.paginated(paging: NormalizedPaginationRequest) {
     from(paging.itemsPerPage * paging.page)
     size(paging.itemsPerPage)
-}
-
-/**
- * Fixes an issue in the term DSL that didn't allow non-string values
- */
-class FixedTermBlock {
-    /**
-     * Data container for elasticsearch
-     */
-    class TermData(
-        var name: String? = null,
-        var value: Any? = null
-    ) : QueryData()
-
-    infix fun String.to(value: Any): TermData {
-        return TermData(name = this, value = value)
-    }
-
-    infix fun String.to(init: TermData.() -> Unit): TermData {
-        return TermData(name = this).apply(init)
-    }
-}
-
-fun term(init: FixedTermBlock.() -> FixedTermBlock.TermData): TermQueryBuilder {
-    val params = FixedTermBlock().init()
-    return TermQueryBuilder(params.name, params.value).apply {
-        initQuery(params)
-    }
 }

@@ -48,8 +48,7 @@ different ways. Supported values:
   input.
 - `WEB`: An interactive application with a web interface. Requires the `web`
   block to be defined.
-- `VNC`: An interactive application accessed via VNC. Requires the `vnc` block
-   to be defined.
+- `VNC`: An interactive application accessed via VNC. Requires the `vnc` block to be defined.
 
 ### `allowAdditionalMounts`
 

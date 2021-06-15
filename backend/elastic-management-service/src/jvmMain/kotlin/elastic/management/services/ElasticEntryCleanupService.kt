@@ -1,7 +1,6 @@
 package elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders

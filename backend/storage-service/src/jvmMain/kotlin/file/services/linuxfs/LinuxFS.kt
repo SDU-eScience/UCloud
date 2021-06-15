@@ -208,13 +208,6 @@ class LinuxFS(
                 }
         }.filter { !Files.isSymbolicLink(it.toPath()) }
 
-        val min =
-            if (paginationRequest == null) 0
-            else min(systemFiles.size, paginationRequest.itemsPerPage * paginationRequest.page)
-        val max =
-            if (paginationRequest == null) systemFiles.size
-            else min(systemFiles.size, min + paginationRequest.itemsPerPage)
-
         val page = if (sortBy != null && order != null) {
             // We must sort our files. We do this in two lookups!
 
@@ -240,6 +233,13 @@ class LinuxFS(
                 setOf(StorageFileAttribute.path, sortingAttribute),
                 hasPerformedPermissionCheck = true
             ).filterNotNull()
+
+            val min =
+                if (paginationRequest == null) 0
+                else min(statsForSorting.size, paginationRequest.itemsPerPage * paginationRequest.page)
+            val max =
+                if (paginationRequest == null) statsForSorting.size
+                else min(statsForSorting.size, min + paginationRequest.itemsPerPage)
 
             val comparator = comparatorForFileRows(sortBy, order)
 
@@ -270,12 +270,21 @@ class LinuxFS(
                 items
             )
         } else {
-            val items = stat(
+            val allItems = stat(
                 ctx,
                 systemFiles,
                 mode,
                 hasPerformedPermissionCheck = true
-            ).filterNotNull().subList(min, max)
+            ).filterNotNull()
+
+            val min =
+                if (paginationRequest == null) 0
+                else min(allItems.size, paginationRequest.itemsPerPage * paginationRequest.page)
+            val max =
+                if (paginationRequest == null) allItems.size
+                else min(allItems.size, min + paginationRequest.itemsPerPage)
+
+            val items = allItems.subList(min, max)
 
             Page(
                 items.size,
@@ -395,7 +404,7 @@ class LinuxFS(
                     stat.ownSensitivityLevel,
                     stat.ownerUid != LINUX_FS_USER_UID
                 )
-            } catch (ex: NoSuchFileException) {
+            } catch (ex: Throwable) {
                 null
             }
         }

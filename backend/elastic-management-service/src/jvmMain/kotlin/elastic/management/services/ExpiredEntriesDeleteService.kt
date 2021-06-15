@@ -8,10 +8,8 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
 import java.time.LocalDate
-import java.util.*
 
 class ExpiredEntriesDeleteService(
     private val elastic: RestHighLevelClient

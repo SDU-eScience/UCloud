@@ -18,7 +18,7 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension, isAUserPersonalFolder, isMembersFiles, isPartOfProject, isPersonalRootFolder,
+    isArchiveExtension, isAUserPersonalFolder, isDirectory, isMembersFiles, isPartOfProject, isPersonalRootFolder,
     isTrashFolder,
     moveToTrash,
     pathComponents,
@@ -111,6 +111,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: files => downloadFiles(files, Client),
         disabled: (files, cb) => {
             if (!UF.downloadAllowed(files)) return true;
+            else if (files.find(f => isDirectory(f))) return true;
             else if (isAnyMockFile(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.READ);
         },

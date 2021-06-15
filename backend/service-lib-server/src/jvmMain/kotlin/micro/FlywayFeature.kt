@@ -140,8 +140,22 @@ fun DatabaseConfig.migrateAll() {
                             .map { migration ->
                                 // Trying really hard to trick flyway into running our code
                                 object : ResolvedMigration {
+                                    override fun checksumMatches(checksum: Int?): Boolean {
+                                        return Objects.equals(checksum, this.checksum) ||
+                                            (Objects.equals(checksum, this.equivalentChecksum) && this.equivalentChecksum != null);
+                                    }
+
+                                    override fun checksumMatchesWithoutBeingIdentical(checksum: Int?): Boolean {
+                                        return Objects.equals(checksum, this.equivalentChecksum) && !Objects.equals(checksum, this.checksum);
+                                    }
+
                                     override fun getExecutor(): MigrationExecutor {
                                         return object : MigrationExecutor {
+                                            override fun shouldExecute(): Boolean {
+                                                // TODO Not quite sure what is needed, but it seems to be the possibility make conditional migrations
+                                                return true
+                                            }
+
                                             override fun canExecuteInTransaction(): Boolean =
                                                 migration.canExecuteInTransaction()
 
@@ -176,6 +190,8 @@ fun DatabaseConfig.migrateAll() {
                                     override fun getChecksum(): Int {
                                         return 1337
                                     }
+
+                                    val equivalentChecksum = 1337
 
                                     override fun getScript(): String {
                                         return "" // I have no idea

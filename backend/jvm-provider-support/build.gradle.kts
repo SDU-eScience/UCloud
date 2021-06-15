@@ -31,7 +31,7 @@ kotlin {
     sourceSets {
         val jvmMain by getting {
             dependencies {
-                val jacksonVersion = "2.11.4"
+                val jacksonVersion = "2.12.2"
                 api(project(":integration-module-support"))
                 implementation("org.springframework.boot:spring-boot-starter-websocket")
                 implementation("org.springframework:spring-web:5.3.4")

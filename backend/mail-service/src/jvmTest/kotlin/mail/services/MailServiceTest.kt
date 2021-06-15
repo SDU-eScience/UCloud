@@ -26,7 +26,6 @@ import io.mockk.coVerify
 import io.mockk.just
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
-import java.sql.Timestamp
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull

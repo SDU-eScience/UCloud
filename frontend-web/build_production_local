@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 echo "This script requires the JSON cli (npm install -g json)"
 echo "Using Gradle passwords from ~/.gradle/esci.properties"
-version=`cat webclient/package.json | json version`
+version=`cat webclient/package.json | jq -r .version`
 
 name="webclient"
 echo "Tagging as ${name}:${version}"

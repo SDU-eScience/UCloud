@@ -12,8 +12,8 @@ storage, from multiple different providers using the same interface. This allows
 resources from different providers, allowing researchers to focus on their work as opposed to the specifics of any given
 provider.
 
-This document covers UCloud from a developer's perspective. __The end-user guide for UCloud can be
-found [here](https://docs.cloud.sdu.dk/user/)__.
+This document covers UCloud from a developer's perspective. The end-user guide for UCloud can be
+found [here](https://docs.cloud.sdu.dk/user/).
 
 ## Storage
 
@@ -70,8 +70,8 @@ necessary parameters. For more details on the tool and app format see:
 
 - [End-user Documentation](https://docs.cloud.sdu.dk/user/)
 - [UCloud Application Development](/backend/app-store-service/README.md)
-- [Getting Started Guide for Developers](/backend/service-common/wiki/getting_started.md)
+- [Getting Started Guide for Developers](/backend/service-lib/wiki/getting_started.md)
 - [Procedures](/infrastructure/wiki/README.md)
-    - [Deployment Checklist]((/backend/service-common/wiki/deployment.md))
+    - [Deployment Checklist]((/backend/service-lib/wiki/deployment.md))
     - [CI/CD](/infrastructure/wiki/Jenkins.md)
     - [Internal Release Notes](/wiki/release-notes.md)

@@ -50,7 +50,8 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Natural Science",
         "Development",
         "Virtual Machines",
-        "Bioinformatics"
+        "Bioinformatics",
+        "Digital Humanities"
     ];
 
     const [refreshId, setRefreshId] = useState<number>(0);

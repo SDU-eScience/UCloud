@@ -1,4 +1,4 @@
-version = "0.4.2"
+version = "0.4.6"
 
 application {
     mainClassName = "dk.sdu.cloud.redis.cleaner.MainKt"

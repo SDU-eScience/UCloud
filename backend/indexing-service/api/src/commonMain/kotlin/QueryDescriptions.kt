@@ -144,7 +144,7 @@ data class FileQuery(
     /**
      * Predicate for [StorageFile.size]. Only exact matches are considered.
      */
-    val size: PredicateCollection<Comparison<Long>>? = null
+    val fileSize: PredicateCollection<Comparison<Long>>? = null
 ) {
     init {
         if (roots.isEmpty()) throw IllegalArgumentException("roots cannot be empty")

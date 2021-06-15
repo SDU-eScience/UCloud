@@ -152,6 +152,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "doc":
         case "docx":
         case "log":
+        case "out":
         case "csv":
         case "plist":
             return "text";
@@ -247,6 +248,7 @@ export function isExtPreviewSupported(ext: string): boolean {
         case "for":
         case "f90":
         case "f95":
+        case "out":
         case "ini":
             return true;
         default:
@@ -620,7 +622,7 @@ export function onNotificationAction(
 
 function b64DecodeUnicode(str) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
-    return decodeURIComponent(atob(str).split('').map(function(c) {
+    return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }

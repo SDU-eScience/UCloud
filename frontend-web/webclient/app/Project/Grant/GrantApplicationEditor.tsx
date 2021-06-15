@@ -1249,7 +1249,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
                                 {target !== RequestTarget.VIEW_APPLICATION ? (
-                                    <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
+                                    <Button disabled={grantFinalized || loading} fullWidth onClick={submitRequest}>
                                         Submit Application
                                     </Button>
                                 ) : null

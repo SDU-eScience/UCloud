@@ -56,9 +56,6 @@ class UCloudAuthInterceptor(
         response: HttpServletResponse,
         handler: Any,
     ): Boolean {
-        val isRelevant = (request.requestURI ?: "/").startsWith("/ucloud/")
-        if (!isRelevant) return false
-
         if (request.getHeader("Upgrade").equals("websocket", ignoreCase = true) &&
             request.getHeader("Connection").equals("upgrade", ignoreCase = true)) {
             return true

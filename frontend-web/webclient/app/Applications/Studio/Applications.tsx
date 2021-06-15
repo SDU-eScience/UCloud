@@ -324,7 +324,7 @@ export const App: React.FunctionComponent = () => {
                                                     width={180}
                                                     type="text"
                                                     ref={projectEntityField}
-                                                    placeholder="Project name"
+                                                    placeholder="Project Name (ancestors/.../project)"
                                                 />
                                                 <Input
                                                     leftLabel

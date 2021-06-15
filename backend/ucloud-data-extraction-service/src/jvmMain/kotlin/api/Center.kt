@@ -42,11 +42,11 @@ data class Center (
     /*
      * Network usage in MB for the period
      */
-    val netWorkUsageInMB: Long,
+    //val netWorkUsageInMB: Long,
     /*
      * Network avg in Mbps for the period
      */
-    val netWorkAvgUsage: Double,
+    //val netWorkAvgUsage: Double,
     /*
      * Max node time. For Type 4 only as they do not have CPU/GPU core times.
      */
