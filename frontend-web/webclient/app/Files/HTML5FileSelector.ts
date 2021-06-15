@@ -54,7 +54,7 @@ interface FileSystemDirectoryReader {
 type FileListFetcher = () => Promise<PackagedFile[]>;
 
 export interface FileUploadEvent {
-    rootEntry: { name: string, isDirectory: boolean };
+    rootEntry: {name: string, isDirectory: boolean};
     fetcher: FileListFetcher;
 }
 
@@ -120,7 +120,7 @@ interface PackagedFile {
 }
 
 function packageFile(file: File, entry?: FileSystemEntry): PackagedFile {
-    let fileTypeOverride = '';
+    const fileTypeOverride = '';
 
     return {
         fileObject: file, // provide access to the raw File object (required for uploading)
@@ -152,7 +152,7 @@ const DEFAULT_FILES_TO_IGNORE = [
     'Thumbs.db'  // Windows indexing file
 ];
 
-function shouldIgnoreFile(file) {
+function shouldIgnoreFile(file: PackagedFile) {
     return DEFAULT_FILES_TO_IGNORE.indexOf(file.name) >= 0;
 }
 
@@ -213,7 +213,7 @@ export function fetcherFromDropOrSelectEvent(event): FileUploadEvent[] {
 
     return files.map(it => {
         return {
-            rootEntry: { isDirectory: false, name: it.name },
+            rootEntry: {isDirectory: false, name: it.name},
             fetcher: once(() => Promise.resolve([it]), Promise.resolve([]))
         }
     });

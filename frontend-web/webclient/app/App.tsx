@@ -11,7 +11,7 @@ import {theme, UIGlobalStyle} from "ui-components";
 import {invertedColors} from "ui-components/theme";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {store} from "Utilities/ReduxUtilities";
-import {isLightThemeStored, setSiteTheme, toggleCssColors} from "UtilityFunctions";
+import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "UtilityFunctions";
 import {injectFonts} from "ui-components/GlobalStyle";
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
@@ -28,6 +28,7 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 Client.initializeStore(store);
+removeExpiredFileUploads();
 
 function App({children}: {children?: React.ReactNode}): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {
