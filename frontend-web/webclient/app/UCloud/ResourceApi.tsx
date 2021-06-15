@@ -17,9 +17,9 @@ export interface ProductSupport {
     product: ProductReference;
 }
 
-export interface ResolvedSupport {
-    product: UCloud.accounting.Product;
-    support: ProductSupport;
+export interface ResolvedSupport<P extends UCloud.accounting.Product = UCloud.accounting.Product, S extends ProductSupport = ProductSupport> {
+    product: P;
+    support: S;
 }
 
 export type ResourceStatus = UCloud.provider.ResourceStatus;
@@ -61,8 +61,8 @@ export interface Resource<Update extends ResourceUpdate = ResourceUpdate,
     id: string;
     createdAt: number;
     specification: Spec;
-    status: ResourceStatus;
-    updates: ResourceUpdate[];
+    status: Status;
+    updates: Update[];
     owner: ResourceOwner;
     permissions: ResourcePermissions;
 }

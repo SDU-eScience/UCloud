@@ -4,7 +4,7 @@ import {
     Resource,
     ResourceApi,
     ResourceIncludeFlags,
-    ResourceSpecification,
+    ResourceSpecification, ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {accounting, compute} from "UCloud/index";
@@ -12,10 +12,10 @@ import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
 import ProductNS = accounting.ProductNS;
-import JobStatus = compute.JobStatus;
 import {SidebarPages} from "ui-components/Sidebar";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {EnumFilter} from "Resource/Filter";
+import Application = compute.Application;
 
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
@@ -53,6 +53,13 @@ export interface JobFlags extends ResourceIncludeFlags {
     filterApplication?: string;
     filterState?: JobState;
     includeApplication?: boolean;
+}
+
+export interface JobStatus extends ResourceStatus {
+    state: JobState;
+    startedAt?: number;
+    expiresAt?: number;
+    resolvedApplication?: Application;
 }
 
 export interface Job extends Resource<JobUpdate, JobStatus, JobSpecification> {

@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as UCloud from "UCloud";
-import {accounting, compute, PageV2} from "UCloud";
+import {accounting, compute, PageV2, provider} from "UCloud";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useProjectId} from "Project";
 import {emptyPageV2} from "DefaultObjects";
@@ -34,6 +34,7 @@ import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import {ResourcePage} from "ui-components/ResourcePage";
+import ResourceDoc = provider.ResourceDoc;
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -253,7 +254,7 @@ export const Browse: React.FunctionComponent<{
             <ResourcePage
                 entityName={entityName}
                 aclOptions={[{icon: "search", name: "USE", title: "Use"}]}
-                entity={inspecting.license}
+                entity={inspecting.license as ResourceDoc}
                 reload={reload}
                 updateAclEndpoint={licenseApi.updateAcl}
                 showProduct={true}

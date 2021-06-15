@@ -5,7 +5,7 @@ import {useHistory} from "react-router";
 import {getQueryParam} from "Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useCallback, useEffect} from "react";
-import {file} from "UCloud";
+import {file, provider} from "UCloud";
 import FileMetadataTemplate = file.orchestrator.FileMetadataTemplate;
 import {aclOptions, entityName} from "Files/Metadata/Templates/Browse";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
@@ -18,6 +18,7 @@ import HexSpin from "LoadingIcon/LoadingIcon";
 import {ResourcePage} from "ui-components/ResourcePage";
 import {prettierString} from "UtilityFunctions";
 import { JsonSchemaForm } from "../JsonSchemaForm";
+import ResourceDoc = provider.ResourceDoc;
 
 const Properties: React.FunctionComponent = props => {
     const history = useHistory();
@@ -89,7 +90,7 @@ const Properties: React.FunctionComponent = props => {
                     render: () => t.specification.inheritable.toString()
                 }
             ]}
-            entity={t}
+            entity={t as ResourceDoc}
             reload={reload}
             updateAclEndpoint={() => ({noop: true})}
             beforeEnd={

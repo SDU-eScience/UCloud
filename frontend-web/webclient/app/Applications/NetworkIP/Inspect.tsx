@@ -2,7 +2,7 @@ import * as React from "react";
 import {Box, Button, Icon, Input, Select} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {blankOrUndefined, prettierString, shortUUID} from "UtilityFunctions";
-import {compute} from "UCloud";
+import {compute, provider} from "UCloud";
 import NetworkIP = compute.NetworkIP;
 import {useCloudCommand} from "Authentication/DataHook";
 import {useCallback, useRef, useState} from "react";
@@ -13,6 +13,7 @@ import networkApi = UCloud.compute.networkips;
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {ResourcePage} from "ui-components/ResourcePage";
+import ResourceDoc = provider.ResourceDoc;
 
 const Inspect: React.FunctionComponent<{
     inspecting: NetworkIP,
@@ -84,12 +85,12 @@ const Inspect: React.FunctionComponent<{
 
     return <ResourcePage
         entityName={entityName}
-        entity={inspecting}
+        entity={inspecting as ResourceDoc}
         aclOptions={[{icon: "search", name: "USE", title: "Use"}]}
         reload={reload}
         updateAclEndpoint={networkApi.updateAcl}
         stats={[
-            {title: "IP Address", render: t => t.status.ipAddress ?? "No address assigned"}
+            {title: "IP Address", render: t => (t as any).status.ipAddress ?? "No address assigned"}
         ]}
         showBilling={true}
         showProduct={true}

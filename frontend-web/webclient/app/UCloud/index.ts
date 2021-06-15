@@ -6,12 +6,12 @@ import {buildQueryString} from "Utilities/URIUtilities";
 
 /**
  * A generic error message
- * 
+ *
  * UCloud uses HTTP status code for all error messages In addition and if possible, UCloud will include a message using a
  * common format Note that this is not guaranteed to be included in case of a failure somewhere else in the network stack
  * For example, UCloud's load balancer might not be able to contact the backend at all In such a case UCloud will
  * _not_ include a more detailed error message
- * 
+ *
  */
 export interface CommonErrorMessage {
     /**
@@ -31,7 +31,7 @@ export interface Page<T = unknown> {
 }
 /**
  * Represents a single 'page' of results
-    
+
  * Every page contains the items from the current result set, along with information which allows the client to fetch
  * additional information
  */
@@ -42,7 +42,7 @@ export interface PageV2<T = unknown> {
     itemsPerPage: number /* int32 */,
     /**
      * The items returned in this page
-     * 
+     *
      * NOTE: The amount of items might differ from `itemsPerPage`, even if there are more results The only reliable way to
      * check if the end of results has been reached is by checking i `next == null`
      */
@@ -54,61 +54,61 @@ export interface PageV2<T = unknown> {
 }
 /**
  * A base type for requesting a bulk operation
-    
+
  * ---
- * 
+ *
  * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction This means
  * that either the entire request succeeds, or the entire request fails
- * 
+ *
  * There are two exceptions to this rule:
- * 
+ *
  * 1 Certain calls may choose to only guarantee this at the provider level That is if a single call contain request
  * for multiple providers, then in rare occasions (ie crash) changes might not be rolled back immediately on all
  * providers A service _MUST_ attempt to rollback already committed changes at other providers
- * 
+ *
  * 2 The underlying system does not provide such guarantees In this case the service/provider _MUST_ support the
  * verification API to cleanup these resources later
- * 
+ *
  * ---
-    
- * 
- * 
+
+ *
+ *
  */
 
 export type BulkRequest<T> = { type: "bulk", items: T[] }
 /**
  * The base type for requesting paginated content
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required An inconsistent snapshot might be returned |
  * | `REQUIRE` | Consistency is required A request will fail if consistency is no longer guaranteed |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_ We consider the
  * results to be consistent if it contains a complete view at some point in time In practice this means that the results
  * must contain all the items, in the correct order and without duplicates
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items UCloud will still attempt to serve a snapshot which appears mostly consistent This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results UCloud attempts to keep each `next` token alive for at least one minute before invalidating it
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page If this is not feasible and consistency is not required then `PREFER` should be used
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied This is
  * needed in order to provide a consistent view of the results Clients _should_ provide the same criterion as they
  * paginate through the results
- * 
+ *
  * ---
- * 
+ *
  */
 export interface PaginationRequestV2 {
     /**
@@ -165,7 +165,7 @@ export interface FileMetadataAttached {
 export interface FileMetadataDocument {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -174,7 +174,7 @@ export interface FileMetadataDocument {
     status: FileMetadataDocumentNS.Status,
     /**
      * Contains a list of updates from the provider as well as UCloud
-     * 
+     *
      * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
      * resource.
      */
@@ -198,74 +198,74 @@ export interface FileMetadataMoveRequestItem {
 }
 /**
  * A `UFile` is a resource for storing, retrieving and organizing data in UCloud
-    
+
  * A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
  * functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
  * types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain more directories, which leads to a
  * natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
  * of bytes.
- * 
+ *
  * All files in UCloud have a name associated with them. This name uniquely identifies them within their directory. All
  * files in UCloud belong to exactly one directory.
- * 
+ *
  * File operations must be able to reference the files on which they operate. In UCloud, these references are made through
  * the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
  * directories to go through, starting at the top, to reach the file we are referencing. This information is serialized
  * as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with
  * a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
  * systems use.
- * 
+ *
  * All files in UCloud additionally have metadata associated with them. For this we differentiate between system-level
  * metadata and user-defined metadata.
- * 
+ *
  * We have just covered two examples of system-level metadata, the `path` and `type`. UCloud additionally supports
  * metadata such as general `stats` about the files, such as file sizes. All files have a set of `permissions` associated
  * with them, providers may optionally expose this information to UCloud and the users.
- * 
+ *
  * User-defined metadata describe the contents of a  All metadata is described by a template (`FileMetadataTemplate`),
  * this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
  * purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
  * metadata formats.
- * 
+ *
  */
 export interface UFile {
     /**
      * A unique reference to a file
-     * 
+     *
      * All files in UCloud have a `name` associated with them. This name uniquely identifies them within their directory. All
      * files in UCloud belong to exactly one directory. A `name` can be any textual string, for example: `thesis-42.docx`.
      * However, certain restrictions apply to file `name`s, see below for a concrete list of rules and recommendations.
-     * 
+     *
      * The `extension` of a file is typically used as a hint to clients how to treat a specific  For example, an extension
      * might indicate that the file contains a video of a specific format. In UCloud, the file's `extension` is derived from
      * its `name`. In UCloud, it is simply defined as the text immediately following, and not including, the last
      * period `.` (`U+002E`). The table below shows some examples of how UCloud determines the extension of a file:
-     * 
+     *
      * | File `name` | Derived `extension` | Comment |
      * |-------------|---------------------|---------|
      * | `thesis-42.docx` | `docx` | - |
      * | `thesis-43-final.tar` | `tar` | - |
      * | `thesis-43-FINAL2.tar.gz` | `gz` | Note that UCloud does not recognize `tar` as being part of the extension |
      * | `thesis` |  | Empty string |
-     * | `.ssh` | `ssh` | 'Hidden' files also have a surprising extension in UCloud | 
-     * 
+     * | `.ssh` | `ssh` | 'Hidden' files also have a surprising extension in UCloud |
+     *
      * File operations must be able to reference the files on which they operate. In UCloud, these references are made through
      * the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
      * directories to go through, starting at the top, to reach the file we are referencing. This information is serialized as
      * a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with a
      * single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
      * systems use.
-     * 
+     *
      * A path in UCloud is structured in such a way that they are unique across all providers and file systems. The figure
      * below shows how a UCloud path is structured, and how it can be mapped to an internal file-system path.
-     * 
+     *
      * ![](/backend/file-orchestrator-service/wiki/path.png)
-     * 
+     *
      * __Figure:__ At the top, a UCloud path along with the components of it. At the bottom, an example of an internal,
      * provider specific, file-system path.
-     * 
+     *
      * The figure shows how a UCloud path consists of four components:
-     * 
+     *
      * 1. The ['Provider ID'](/backend/provider-service/README.md) references the provider who owns and hosts the file
      * 2. The product reference, this references the product that is hosting the `FileCollection`
      * 3. The `FileCollection` ID references the ID of the internal file collection. These are controlled by the provider and
@@ -273,22 +273,22 @@ export interface UFile {
      *    folder on the provider's file-system.
      * 4. The internal path, which tells the provider how to find the file within the collection. Providers can typically pass
      *    this as a one-to-one mapping.
-     * 
+     *
      * __Rules of a file `name`:__
-     * 
+     *
      * 1. The `name` cannot be equal to `.` (commonly interpreted to mean the current directory)
      * 2. The `name` cannot be equal to `..` (commonly interpreted to mean the parent directory)
      * 3. The `name` cannot contain a forward-slash `/` (`U+002F`)
      * 4. Names are strictly unicode
-     * 
+     *
      * UCloud will normalize a path which contain `.` or `..` in a path's step. It is normalized according to the comments
      * mentioned in rule 1 and 2.
-     * 
+     *
      * Note that all paths in unicode are strictly unicode (rule 4). __This is different from the unix standard.__ Unix file
      * names can contain _arbitrary_ binary data. (TODO determine how providers should handle this edge-case)
-     * 
+     *
      * __Additionally regarding file `name`s, UCloud recommends to users the following:__
-     * 
+     *
      * - Avoid the following file names:
      *     - Containing Windows reserved characters: `<`, `>`, `:`, `"`, `/`, `|`, `?`, `*`, `\`
      *     - Any of the reserved file names in Windows:
@@ -304,23 +304,23 @@ export interface UFile {
      *     - Avoid line breaks, paragraph separators and other unicode separators which is typically interpreted as a
      *       line-break
      *     - Avoid binary names
-     * 
+     *
      * UCloud will attempt to reject these for file operations initiated through the client, but it cannot ensure that these
      * files do not appear regardless. This is due to the fact that the file systems are typically mounted directly by
      * user-controlled jobs.
-     * 
+     *
      * __Rules of a file `path`:__
-     * 
+     *
      * 1. All paths must be absolute, that is they must start with `/`
      * 2. UCloud will normalize all path 'steps' containing either `.` or `..`
-     * 
+     *
      * __Additionally UCloud recommends to users the following regarding `path`s:__
-     * 
+     *
      * - Avoid long paths:
      *     - Older versions of Unixes report `PATH_MAX` as 1024
      *     - Newer versions of Unixes report `PATH_MAX` as 4096
      *     - Older versions of Windows start failing above 256 characters
-     * 
+     *
      */
     path: string,
     /**
@@ -354,7 +354,7 @@ export interface FileMetadataHistory {
 export interface FileMetadataTemplate {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -365,7 +365,7 @@ export interface FileMetadataTemplate {
     status: FileMetadataTemplateNS.Status,
     /**
      * Contains a list of updates from the provider as well as UCloud
-     * 
+     *
      * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
      * resource.
      */
@@ -386,7 +386,7 @@ export interface FileMetadataTemplate {
     public: boolean,
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: provider.ResourcePermissions,
@@ -396,37 +396,37 @@ export interface FileMetadataTemplate {
 export type FileMetadataOrDeleted = FileMetadataDocument | FileMetadataOrDeletedNS.Deleted
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface FilesBrowseRequest {
     path: string,
@@ -437,8 +437,8 @@ export interface FilesBrowseRequest {
     includeMetadata?: boolean,
     /**
      * Determines if the request should succeed if the underlying system does not support this data.
-     * 
-     * This value is `true` by default 
+     *
+     * This value is `true` by default
      */
     allowUnsupportedInclude?: boolean,
     /**
@@ -501,8 +501,8 @@ export interface FilesRetrieveRequest {
     includeMetadata?: boolean,
     /**
      * Determines if the request should succeed if the underlying system does not support this data.
-     * 
-     * This value is `true` by default 
+     *
+     * This value is `true` by default
      */
     allowUnsupportedInclude?: boolean,
 }
@@ -512,37 +512,37 @@ export interface FilesUpdateAclRequestItem {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface FileMetadataTemplatesBrowseRequest {
     /**
@@ -577,37 +577,37 @@ export interface SharesRetrieveRequest {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface SharesBrowseRequest {
     sharedByMe: boolean,
@@ -651,41 +651,41 @@ export namespace ucloud {
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
- * 
+ *
  * Uploads a new chunk to a file, specified by an upload session token. An upload session token can be
  * created using the [`files.createUpload`](#operation/files.createUpload) call.
- * 
+ *
  * A session MUST be live for at least 30 minutes after the last `uploadChunk`
  * call was active. That is, since the last byte was transferred to this session or processed by the
  * provider. It is recommended that a provider keep a session for up to 48 hours. A session SHOULD NOT be
  * kept alive for longer than 48 hours.
- * 
+ *
  * This call MUST add the HTTP request body to the file, backed by the session, at the specified offset.
- * Clients may use the special offset '-1' to indicate that the payload SHOULD be appended to the 
+ * Clients may use the special offset '-1' to indicate that the payload SHOULD be appended to the
  * Providers MUST NOT interpret the request body in any way, the payload is binary and SHOULD be written
  * to the file as is. Providers SHOULD reject offset values that don't fulfill one of the following
  * criteria:
- * 
+ *
  * - Is equal to -1
  * - Is a valid offset in the file
  * - Is equal to the file size + 1
- * 
+ *
  * Clients MUST send a chunk which is at most 32MB large (32,000,000 bytes). Clients MUST declare the size
  * of chunk by specifying the `Content-Length` header. Providers MUST reject values that are not valid or
  * are too large. Providers SHOULD assume that the `Content-Length` header is valid.
  * However, the providers MUST NOT wait indefinitely for all bytes to be delivered. A provider SHOULD
  * terminate a connection which has been idle for too long to avoid trivial DoS by specifying a large
  * `Content-Length` without sending any bytes.
- * 
+ *
  * If a chunk upload is terminated before it is finished then a provider SHOULD NOT delete the data
  * already written to the  Clients SHOULD assume that the entire chunk has failed and SHOULD re-upload
  * the entire chunk.
- * 
+ *
  * Providers SHOULD NOT cache a chunk before writing the data to the FS. Data SHOULD be streamed
- * directly into the 
- * 
+ * directly into the
+ *
  * Providers MUST NOT respond to this call before the data has been written to disk.
- * 
+ *
  * Clients SHOULD avoid sending multiple chunks at the same time. Providers are allowed to reject parallel
  * calls to this endpoint.
  */
@@ -764,15 +764,15 @@ export interface Spec {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface Status {
     approval: ApprovalStatus,
@@ -841,7 +841,7 @@ export interface Spec {
     changeLog: string,
     /**
      * Determines how this metadata template is namespaces
-     * 
+     *
      * NOTE: This is required to not change between versions
      */
     namespaceType: ("COLLABORATORS" | "PER_USER"),
@@ -850,15 +850,15 @@ export interface Spec {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface Status {
     oldVersions: string[],
@@ -866,17 +866,17 @@ export interface Status {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface Update {
     /**
@@ -916,9 +916,9 @@ export namespace files {
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Browses the contents of a directory.
- * 
+ *
  * The results will be returned using the standard pagination API of UCloud. Consistency is slightly
  * relaxed for this endpoint as it is typically hard to enforce for filesystems. Provider's are heavily
  * encouraged to try and find all files on the first request and return information about them in
@@ -942,18 +942,18 @@ export function browse(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Copies a file from one path to another.
- * 
+ *
  * The file can be of any type. If a directory is chosen then this will recursively copy all of its
  * children. This request might fail half-way through. This can potentially lead to a situation where
- * a partial file is left on the file-system. It is left to the user to clean up this 
- * 
+ * a partial file is left on the file-system. It is left to the user to clean up this
+ *
  * This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
- * 
+ *
  * This is a long running task. As a result, this operation might respond with a status code which indicate
  * that it will continue in the background. Progress of this job can be followed using the task API.
- * 
+ *
  * TODO What happens with metadata, acls and extended attributes?
  */
 export function copy(
@@ -973,9 +973,9 @@ export function copy(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Creates a download session between the user and the provider.
- * 
+ *
  * The returned endpoint will respond with a download to the user.
  */
 export function createDownload(
@@ -995,9 +995,9 @@ export function createDownload(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Creates an upload session between the user and the provider.
- * 
+ *
  * The returned endpoint will accept an upload from the user which will create a file at a location
  * specified in this request.
  */
@@ -1018,9 +1018,9 @@ export function createUpload(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Creates a folder at a specified location.
- * 
+ *
  * This folder will automatically create parent directories if needed. This request may fail half-way
  * through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
  */
@@ -1041,16 +1041,16 @@ export function createFolder(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Deletes a file permanently from the file-system.
- * 
+ *
  * This operation is permanent and cannot be undone. User interfaces should prefer using
  * [`trash`](#operation/trash) if it is supported by the provider.
- * 
+ *
  * If the referenced file is a directory then this will delete all files recursively. This operation may
  * fail half-way through which will leave the file-system in an inconsistent state. It is the user's
  * responsibility to clean up this state.
- * 
+ *
  * This is a long running task. As a result, this operation might respond with a status code which indicate
  * that it will continue in the background. Progress of this job can be followed using the task API.
  */
@@ -1071,13 +1071,13 @@ export function remove(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Moves a file from one path to another.
- * 
+ *
  * The file can be of any type. This request is also used for 'renames' of a  This is simply
  * considered a move within a single directory. This operation handles conflicts depending on the supplied
  * `WriteConflictPolicy`.
- * 
+ *
  * This is a long running task. As a result, this operation might respond with a status code which indicate
  * that it will continue in the background. Progress of this job can be followed using the task API.
  */
@@ -1098,12 +1098,12 @@ export function move(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * Retrieves information about a single 
- * 
+ *
+ * Retrieves information about a single
+ *
  * This file can be of any type. Clients can request additional information about the file using the
  * `include*` flags of the request. Note that not all providers support all information. Clients can query
- * this information using [`collections.browse`](#operation/collections.browse) or 
+ * this information using [`collections.browse`](#operation/collections.browse) or
  * [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
  */
 export function retrieve(
@@ -1122,16 +1122,16 @@ export function retrieve(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * Moves a file to the trash.
- * 
+ *
  * This operation acts as a non-permanent delete for users. Users will be able to restore the file from
  * trash later, if needed. It is up to the provider to determine if the trash should be automatically
  * deleted and where this trash should be stored.
- * 
+ *
  * Note that not all providers supports this endpoint. You can query [`collections.browse`](#operation/collections.browse)
  * or [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
- * 
+ *
  * This is a long running task. As a result, this operation might respond with a status code which indicate
  * that it will continue in the background. Progress of this job can be followed using the task API.
  */
@@ -1152,11 +1152,11 @@ export function trash(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * Updates the permissions of a 
- * 
+ *
+ * Updates the permissions of a
+ *
  * Note that not all providers supports this endpoint. You can query [`collections.browse`](#operation/collections.browse)
- * or [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag. 
+ * or [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
  */
 export function updateAcl(
     request: BulkRequest<FilesUpdateAclRequestItem>
@@ -1459,62 +1459,62 @@ export interface JobSpecification {
     product: accounting.ProductReference,
     /**
      * A name for this job assigned by the user.
-     * 
+     *
      * The name can help a user identify why and with which parameters a job was started. This value is suitable for display in user interfaces.
      */
     name?: string,
     /**
      * The number of replicas to start this job in
-     * 
+     *
      * The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`.
      */
     replicas: number /* int32 */,
     /**
      * Allows the job to be started even when a job is running in an identical configuration
-     * 
+     *
      * By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
      */
     allowDuplicateJob: boolean,
     /**
      * Parameters which are consumed by the job
-     * 
+     *
      * The available parameters are defined by the `application`. This attribute is not included by default unless `includeParameters` is specified.
      */
     parameters?: Record<string, AppParameterValue>,
     /**
      * Additional resources which are made available into the job
-     * 
+     *
      * This attribute is not included by default unless `includeParameters` is specified. Note: Not all resources can be attached to a job. UCloud supports the following parameter types as resources:
-     * 
+     *
      *  - `file`
      *  - `peer`
      *  - `network`
      *  - `block_storage`
      *  - `ingress`
-     * 
+     *
      */
     resources?: AppParameterValue[],
     /**
      * Time allocation for the job
-     * 
+     *
      * This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
      */
     timeAllocation?: SimpleDuration,
     /**
      * The resolved product referenced by `product`.
-     * 
+     *
      * This attribute is not included by default unless `includeProduct` is specified.
      */
     resolvedProduct?: accounting.ProductNS.Compute,
     /**
      * The resolved application referenced by `application`.
-     * 
+     *
      * This attribute is not included by default unless `includeApplication` is specified.
      */
     resolvedApplication?: Application,
     /**
      * The resolved compute suport by the provider.
-     * 
+     *
      * This attribute is not included by default unless `includeSupport` is defined.
      */
     resolvedSupport?: ComputeSupport,
@@ -1525,18 +1525,18 @@ export interface NameAndVersion {
 }
 /**
  * An `AppParameterValue` is value which is supplied to a parameter of an `Application`.
-    
+
  * Each value type can is type-compatible with one or more `ApplicationParameter`s. The effect of a specific value depends
  * on its use-site, and the type of its associated parameter.
- * 
- * `ApplicationParameter`s have the following usage sites (see [here](/backend/app-store-service/wiki/apps.md) for a 
+ *
+ * `ApplicationParameter`s have the following usage sites (see [here](/backend/app-store-service/wiki/apps.md) for a
  * comprehensive guide):
- * 
+ *
  * - Invocation: This affects the command line arguments passed to the software.
  * - Environment variables: This affects the environment variables passed to the software.
  * - Resources: This only affects the resources which are imported into the software environment. Not all values can be
  *   used as a resource.
- * 
+ *
  */
 export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
 export interface SimpleDuration {
@@ -1649,36 +1649,36 @@ export interface ComputeSupport {
 }
 /**
  * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
- * 
+ *
  * They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
  * much bigger and more machines. In a simplified view, a `Job` describes the following information:
- * 
+ *
  * - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
  * - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
  *   [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
  * - A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
  *   includes a reference to the _provider_
  * - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
- * 
+ *
  * A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
  * orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
  * information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
  * compute environment and how to launch the software
  * correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
- * 
+ *
  * At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
  * a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
  * the `Job`
  * is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
  * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
  * are available.
- * 
+ *
  * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
  * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
  * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
  * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
  * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
- * 
+ *
  * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
  * delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
  * any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
@@ -1686,7 +1686,7 @@ export interface ComputeSupport {
 export interface Job {
     /**
      * Unique identifier for this job.
-     * 
+     *
      * UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
      */
     id: string,
@@ -1696,7 +1696,7 @@ export interface Job {
     owner: provider.ResourceOwner,
     /**
      * A list of status updates from the compute backend.
-     * 
+     *
      * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
      */
     updates: JobUpdate[],
@@ -1707,7 +1707,7 @@ export interface Job {
     billing: JobBilling,
     /**
      * The specification used to launch this job.
-     * 
+     *
      * This property is always available but must be explicitly requested.
      */
     specification: JobSpecification,
@@ -1730,7 +1730,7 @@ export interface Job {
     acl?: provider.ResourceAclEntry[],
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: provider.ResourcePermissions,
@@ -1738,17 +1738,17 @@ export interface Job {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface JobUpdate {
     /**
@@ -1763,7 +1763,7 @@ export interface JobUpdate {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -1781,32 +1781,32 @@ export interface JobBilling {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface JobStatus {
     /**
      * The current of state of the `Job`.
-     * 
+     *
      * This will match the latest state set in the `updates`
      */
     state: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
-     * 
+     *
      * For `Job`s which suspend this might occur multiple times. This will always point to the latest pointin time it started running.
      */
     startedAt?: number /* int64 */,
     /**
      * Timestamp matching when the `Job` is set to expire.
-     * 
+     *
      * This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to beequal to the initial `RUNNING` state + `timeAllocation`.
      */
     expiresAt?: number /* int64 */,
@@ -1856,37 +1856,37 @@ export interface JobsRetrieveUtilizationRequest {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface JobsBrowseRequest {
     /**
@@ -1991,13 +1991,13 @@ export interface JobsControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the job, UCloud will reject charges which are not unique.
      */
     chargeId: string,
     /**
      * Amount of compute time to charge the user
-     * 
+     *
      * The wall duration should be for a single job replica and should only be for the time used since the lastupdate. UCloud will automatically multiply the amount with the number of job replicas.
      */
     wallDuration: SimpleDuration,
@@ -2031,7 +2031,7 @@ export interface JobsControlRetrieveRequest {
 export interface License {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -2065,7 +2065,7 @@ export interface License {
     acl?: provider.ResourceAclEntry<("USE")>[],
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: provider.ResourcePermissions,
@@ -2086,7 +2086,7 @@ export interface LicenseStatus {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -2103,17 +2103,17 @@ export interface LicenseBilling {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface LicenseUpdate {
     /**
@@ -2131,37 +2131,37 @@ export interface LicenseUpdate {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface LicensesBrowseRequest {
     /**
@@ -2245,7 +2245,7 @@ export interface LicenseControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the `License`, UCloud will reject charges which are not unique.
      */
     chargeId: string,
@@ -2260,7 +2260,7 @@ export interface LicenseControlChargeCreditsRequestItem {
 export interface NetworkIP {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -2294,7 +2294,7 @@ export interface NetworkIP {
     acl?: provider.ResourceAclEntry<("USE")>[],
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: provider.ResourcePermissions,
@@ -2329,7 +2329,7 @@ export interface NetworkIPStatus {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -2346,17 +2346,17 @@ export interface NetworkIPBilling {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface NetworkIPUpdate {
     /**
@@ -2378,37 +2378,37 @@ export interface NetworkIPUpdate {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface NetworkIPsBrowseRequest {
     /**
@@ -2498,7 +2498,7 @@ export interface NetworkIPControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the `NetworkIP`, UCloud will reject charges which are not unique.
      */
     chargeId: string,
@@ -2653,7 +2653,7 @@ export namespace ComputeSupportNS {
 export interface Docker {
     /**
      * Flag to enable/disable this feature
-     * 
+     *
      * All other flags are ignored if this is `false`.
      */
     enabled?: boolean,
@@ -2689,7 +2689,7 @@ export interface Docker {
 export interface VirtualMachine {
     /**
      * Flag to enable/disable this feature
-     * 
+     *
      * All other flags are ignored if this is `false`.
      */
     enabled?: boolean,
@@ -2722,14 +2722,14 @@ export interface VirtualMachine {
 export namespace AppParameterValueNS {
 /**
  * A reference to a UCloud file
-    
+
  * - __Compatible with:__ `ApplicationParameter.InputFile` and `ApplicationParameter.InputDirectory`
  * - __Mountable as a resource:__ ✅ Yes
  * - __Expands to:__ The absolute path to the file or directory in the software's environment
  * - __Side effects:__ Includes the file or directory in the `Job`'s temporary work directory
-    
+
  * The path of the file must be absolute and refers to either a UCloud directory or file.
- * 
+ *
  */
 export interface File {
     /**
@@ -2738,21 +2738,21 @@ export interface File {
     path: string,
     /**
      * Indicates if this file or directory should be mounted as read-only
-     * 
+     *
      * A provider must reject the request if it does not support read-only mounts when `readOnly = true`.
-     * 
+     *
      */
     readOnly: boolean,
     type: ("file"),
 }
 /**
  * A boolean value (true or false)
-    
+
  * - __Compatible with:__ `ApplicationParameter.Bool`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ `trueValue` of `ApplicationParameter.Bool` if value is `true` otherwise `falseValue`
  * - __Side effects:__ None
- * 
+ *
  */
 export interface Bool {
     value: boolean,
@@ -2760,14 +2760,14 @@ export interface Bool {
 }
 /**
  * A textual value
-    
+
  * - __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
  * - __Side effects:__ None
- * 
+ *
  * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
- * 
+ *
  */
 export interface Text {
     value: string,
@@ -2775,14 +2775,14 @@ export interface Text {
 }
 /**
  * An integral value
- * 
+ *
  * - __Compatible with:__ `ApplicationParameter.Integer`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The number
  * - __Side effects:__ None
- * 
+ *
  * Internally this uses a big integer type and there are no defined limits.
- * 
+ *
  */
 export interface Integer {
     value: number /* int64 */,
@@ -2790,14 +2790,14 @@ export interface Integer {
 }
 /**
  * A floating point value
-    
+
  * - __Compatible with:__ `ApplicationParameter.FloatingPoint`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The number
  * - __Side effects:__ None
- * 
+ *
  * Internally this uses a big decimal type and there are no defined limits.
- * 
+ *
  */
 export interface FloatingPoint {
     value: number /* float64 */,
@@ -2805,13 +2805,13 @@ export interface FloatingPoint {
 }
 /**
  * A reference to a separate UCloud `Job`
-    
+
  * - __Compatible with:__ `ApplicationParameter.Peer`
  * - __Mountable as a resource:__ ✅ Yes
  * - __Expands to:__ The `hostname`
- * - __Side effects:__ Configures the firewall to allow bidirectional communication between this `Job` and the peering 
+ * - __Side effects:__ Configures the firewall to allow bidirectional communication between this `Job` and the peering
  *   `Job`
- * 
+ *
  */
 export interface Peer {
     hostname: string,
@@ -2820,13 +2820,13 @@ export interface Peer {
 }
 /**
  * A reference to a software license, registered locally at the provider
-    
+
  * - __Compatible with:__ `ApplicationParameter.LicenseServer`
  * - __Mountable as a resource:__ ❌ No
- * - __Expands to:__ `${license.address}:${license.port}/${license.key}` or 
+ * - __Expands to:__ `${license.address}:${license.port}/${license.key}` or
  *   `${license.address}:${license.port}` if no key is provided
  * - __Side effects:__ None
- * 
+ *
  */
 export interface License {
     id: string,
@@ -2848,13 +2848,13 @@ export interface Network {
 }
 /**
  * A reference to an HTTP ingress, registered locally at the provider
-    
+
  * - __Compatible with:__ `ApplicationParameter.Ingress`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ `${id}`
  * - __Side effects:__ Configures an HTTP ingress for the application's interactive web interface. This interface should
  *   not perform any validation, that is, the application should be publicly accessible.
- * 
+ *
  */
 export interface Ingress {
     id: string,
@@ -3194,7 +3194,7 @@ export namespace control {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
  * transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
  * update may be rejected if it performs an invalid state transition, such as from a terminal state to
@@ -3217,8 +3217,8 @@ export function update(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function chargeCredits(
     request: BulkRequest<JobsControlChargeCreditsRequestItem>
@@ -3237,7 +3237,7 @@ export function chargeCredits(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Allows the compute backend to query the UCloud database for a job owned by the compute provider.
  */
 export function retrieve(
@@ -3256,10 +3256,10 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Submits an output file to UCloud which is not available to be put directly into the storage resources
  * mounted by the compute provider.
- * 
+ *
  * Note: We do not recommend using this endpoint for transferring large quantities of data/files.
  */
 export function submitFile(): APICallParameters<{}, any /* unknown */> {
@@ -3308,37 +3308,37 @@ export interface KubernetesLicense {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface KubernetesLicenseBrowseRequest {
     tag?: string,
@@ -3365,37 +3365,37 @@ export interface K8Subnet {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface KubernetesIPMaintenanceBrowseRequest {
     /**
@@ -3637,11 +3637,11 @@ export namespace jobs {
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Starts one or more compute  The jobs have already been verified by UCloud and it is assumed to be
  * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
  * 5XX status code. Note that the batch must be handled as a single transaction.
- * 
+ *
  * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
  * then switch to [`control.update`](#operation/control.update) in order to provide updates about the progress.
  */
@@ -3662,7 +3662,7 @@ export function create(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Deletes one or more compute  The provider should not only stop the compute job but also delete
  * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
  * should also be deleted. None of the resources attached to the job, however, should be deleted.
@@ -3684,8 +3684,8 @@ export function remove(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function extend(
     request: BulkRequest<JobsProviderExtendRequestItem>
@@ -3704,8 +3704,8 @@ export function extend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function suspend(
     request: BulkRequest<Job>
@@ -3724,12 +3724,12 @@ export function suspend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * This call is periodically executed by UCloud against all active providers. It is the job of the
  * provider to ensure that the jobs listed in the request are in its local database. If some of the
  * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
  * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
- * 
+ *
  * The backend should _not_ attempt to start the job.
  */
 export function verify(
@@ -3761,7 +3761,7 @@ export function openInteractiveSession(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * An API for retrieving the products and the support from a provider.
  */
 export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
@@ -3994,8 +3994,8 @@ export namespace jobs {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function create(
     request: BulkRequest<JobSpecification>
@@ -4014,12 +4014,12 @@ export function create(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This call will request the cancellation of the associated  This will make sure that the jobs
  * are eventually stopped and resources are released. If the job is running a virtual machine, then the
  * virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
  * deleted only temporary data from the job will be deleted.
- * 
+ *
  * This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
  * be followed using the [`retrieve`](#operation/retrieve), [`browse`](#operation/browse), [`follow`](#operation/follow) calls.
  */
@@ -4040,8 +4040,8 @@ export function remove(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieve(
     request: JobsRetrieveRequest
@@ -4059,8 +4059,8 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieveUtilization(
     request: JobsRetrieveUtilizationRequest
@@ -4078,8 +4078,8 @@ export function retrieveUtilization(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function browse(
     request: JobsBrowseRequest
@@ -4097,17 +4097,17 @@ export function browse(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
  * the current deadline of a job. Note that not all providers support this features. Providers which
  * do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
  * when not supported it will send back a 400 bad request.
- * 
+ *
  * This call makes no guarantee that all jobs are extended in a single transaction. If the provider
  * supports it, then all requests made against a single provider should be made in a single transaction.
  * Clients can determine if their extension request against a specific target was successful by checking
  * if the time remaining of the job has been updated.
- * 
+ *
  * This call will return 2XX if all jobs have successfully been extended. The job will fail with a
  * status code from the provider one the first extension which fails. UCloud will not attempt to extend
  * more jobs after the first failure.
@@ -4141,7 +4141,7 @@ export function openInteractiveSession(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * A temporary API for retrieving the products and the support from a provider.
  */
 export function retrieveProducts(
@@ -5008,7 +5008,7 @@ export function refresh(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * This RPC signs an access-token which will be used by authorized UCloud services to act as an
  * orchestrator of resources.
  */
@@ -5064,7 +5064,7 @@ export function retrievePublicKey(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
  * way by the authentication service.
  */
@@ -5145,27 +5145,27 @@ export interface ByPassword {
 export namespace provider {
 /**
  * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
- * 
+ *
  * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
  * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
  * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
  * the provider APIs for communicating the status of the `Job`.
- * 
+ *
  * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
  * with metadata, such as: ownership, billing and status.
- * 
+ *
  * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
  *  It is then up to the provider to implement the functionality of the `Resource`.
- * 
+ *
  * ![](/backend/provider-service/wiki/resource_create.svg)
- * 
+ *
  * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
- * 
+ *
  */
 export interface ResourceDoc {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -5179,7 +5179,7 @@ export interface ResourceDoc {
     status: ResourceStatus,
     /**
      * Contains a list of updates from the provider as well as UCloud
-     * 
+     *
      * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
      * resource.
      */
@@ -5201,7 +5201,7 @@ export interface ResourceDoc {
     acl?: ResourceAclEntry[],
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: ResourcePermissions,
@@ -5209,32 +5209,33 @@ export interface ResourceDoc {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface ResourceStatus {
-    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+    resolvedSupport?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+    resolvedProduct?: accounting.Product;
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface ResourceUpdate {
     /**
@@ -5254,7 +5255,7 @@ export interface ResourceSpecification {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -5288,17 +5289,17 @@ export interface ResourcePermissions {
     myself: Permission[],
     /**
      * The permissions that other users might have access to
-     * 
+     *
      * This value typically needs to be included through the `includeFullPermissions` flag
      */
     others?: ResourceAclEntry<Permission>[],
 }
 /**
  * Base type for all permissions of the UCloud authorization model
-    
+
  * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
  * permissions that can be applied to a resource and its associated operations.
- * 
+ *
  * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
  * resource. Typical examples include the `browse` and `retrieve*` endpoints.
  * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
@@ -5306,10 +5307,10 @@ export interface ResourcePermissions {
  * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
  * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
  * the permissions attached to a resource.
- * 
+ *
  * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
  * the resource and related operations.
- * 
+ *
  */
 export type Permission = PermissionNS.Read | PermissionNS.Edit | PermissionNS.Admin | PermissionNS.Provider
 export interface IntegrationControlApproveConnectionRequest {
@@ -5321,37 +5322,37 @@ export interface IntegrationBrowseResponseItem {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface IntegrationBrowseRequest {
     /**
@@ -5397,27 +5398,27 @@ export interface ProvidersRenewRefreshTokenRequestItem {
 }
 /**
  * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
- * 
+ *
  * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
  * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
  * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
  * the provider APIs for communicating the status of the `Job`.
- * 
+ *
  * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
  * with metadata, such as: ownership, billing and status.
- * 
+ *
  * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
  *  It is then up to the provider to implement the functionality of the `Resource`.
- * 
+ *
  * ![](/backend/provider-service/wiki/resource_create.svg)
- * 
+ *
  * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
- * 
+ *
  */
 export interface Provider {
     /**
      * A unique identifier referencing the `Resource`
-     * 
+     *
      * The ID is unique across a provider for a single resource type.
      */
     id: string,
@@ -5434,7 +5435,7 @@ export interface Provider {
     status: ProviderStatus,
     /**
      * Contains a list of updates from the provider as well as UCloud
-     * 
+     *
      * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
      * resource.
      */
@@ -5455,7 +5456,7 @@ export interface Provider {
     acl: ResourceAclEntry<("EDIT")>[],
     /**
      * Permissions assigned to this resource
-     * 
+     *
      * A null value indicates that permissions are not supported by this resource type.
      */
     permissions?: ResourcePermissions,
@@ -5463,32 +5464,32 @@ export interface Provider {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface ProviderStatus {
     support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface ProviderUpdate {
     /**
@@ -5502,7 +5503,7 @@ export interface ProviderUpdate {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -5519,37 +5520,37 @@ export interface ProviderBilling {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface ProvidersBrowseRequest {
     /**
@@ -5732,7 +5733,7 @@ export interface User {
 export namespace ResourceBillingNS {
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -5782,10 +5783,10 @@ export function connect(
 export namespace PermissionNS {
 /**
  * Base type for all permissions of the UCloud authorization model
-    
+
  * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
  * permissions that can be applied to a resource and its associated operations.
- * 
+ *
  * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
  * resource. Typical examples include the `browse` and `retrieve*` endpoints.
  * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
@@ -5793,10 +5794,10 @@ export namespace PermissionNS {
  * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
  * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
  * the permissions attached to a resource.
- * 
+ *
  * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
  * the resource and related operations.
- * 
+ *
  */
 export interface Read {
     canBeGranted: boolean,
@@ -5805,10 +5806,10 @@ export interface Read {
 }
 /**
  * Base type for all permissions of the UCloud authorization model
-    
+
  * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
  * permissions that can be applied to a resource and its associated operations.
- * 
+ *
  * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
  * resource. Typical examples include the `browse` and `retrieve*` endpoints.
  * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
@@ -5816,10 +5817,10 @@ export interface Read {
  * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
  * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
  * the permissions attached to a resource.
- * 
+ *
  * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
  * the resource and related operations.
- * 
+ *
  */
 export interface Edit {
     canBeGranted: boolean,
@@ -5828,10 +5829,10 @@ export interface Edit {
 }
 /**
  * Base type for all permissions of the UCloud authorization model
-    
+
  * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
  * permissions that can be applied to a resource and its associated operations.
- * 
+ *
  * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
  * resource. Typical examples include the `browse` and `retrieve*` endpoints.
  * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
@@ -5839,10 +5840,10 @@ export interface Edit {
  * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
  * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
  * the permissions attached to a resource.
- * 
+ *
  * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
  * the resource and related operations.
- * 
+ *
  */
 export interface Admin {
     canBeGranted: boolean,
@@ -5851,10 +5852,10 @@ export interface Admin {
 }
 /**
  * Base type for all permissions of the UCloud authorization model
-    
+
  * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
  * permissions that can be applied to a resource and its associated operations.
- * 
+ *
  * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
  * resource. Typical examples include the `browse` and `retrieve*` endpoints.
  * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
@@ -5862,10 +5863,10 @@ export interface Admin {
  * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
  * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
  * the permissions attached to a resource.
- * 
+ *
  * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
  * the resource and related operations.
- * 
+ *
  */
 export interface Provider {
     canBeGranted: boolean,
@@ -6487,37 +6488,37 @@ export interface FetchDataManagementPlanResponse {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface ProjectSearchByPathRequest {
     path: string,
@@ -6876,37 +6877,37 @@ export interface RetrieveAllFromProviderRequest {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface ProductsBrowseRequest {
     /**

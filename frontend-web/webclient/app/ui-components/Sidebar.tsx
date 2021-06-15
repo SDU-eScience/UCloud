@@ -189,7 +189,7 @@ export const sideBarMenuElements: {
             {icon: "projects", label: "Projects", to: "/projects", show: (): boolean => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
-            {icon: "results", label: "Runs", to: "/applications/results/"}
+            {icon: "results", label: "Runs", to: "/jobs"}
         ], predicate: (): boolean => Client.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
