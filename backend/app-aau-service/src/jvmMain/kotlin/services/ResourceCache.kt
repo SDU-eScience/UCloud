@@ -46,7 +46,7 @@ class ResourceCache(private val client: ClientHolder) {
         }
 
         val retrievedJob = JobsControl.retrieve.call(
-            ResourceRetrieveRequest(job.id, JobIncludeFlags(includeProduct = true, includeApplication = true)),
+            ResourceRetrieveRequest(JobIncludeFlags(includeProduct = true, includeApplication = true), job.id),
             client.client
         ).orThrow()
 

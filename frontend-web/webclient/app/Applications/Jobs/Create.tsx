@@ -32,6 +32,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import JobSpecification = compute.JobSpecification;
 import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "DefaultObjects";
+import {getQueryParam} from "Utilities/URIUtilities";
 
 interface InsufficientFunds {
     why?: string;
@@ -39,7 +40,14 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+    const history = useHistory();
+    const appName = getQueryParam(history.location.search, "app");
+    const appVersion = getQueryParam(history.location.search, "version");
+
+    if (!appName || !appVersion) {
+        history.push("/");
+        return null;
+    }
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
@@ -73,7 +81,6 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
-    const history = useHistory();
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;

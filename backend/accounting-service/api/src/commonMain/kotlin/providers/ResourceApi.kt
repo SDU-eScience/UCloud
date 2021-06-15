@@ -24,8 +24,8 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
-    val query: String,
     val flags: Flags,
+    val query: String,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
@@ -34,8 +34,8 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
-    val id: String,
     val flags: Flags,
+    val id: String,
 )
 
 @Serializable

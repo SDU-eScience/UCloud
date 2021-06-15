@@ -13,7 +13,7 @@ class VerifiedJobCache(private val k8: K8Dependencies) {
         maxAge = 1000 * 60 * 60,
         lookup = { id ->
             JobsControl.retrieve.call(
-                ResourceRetrieveRequest(id, JobIncludeFlags()),
+                ResourceRetrieveRequest(JobIncludeFlags(), id),
                 k8.serviceClient
             ).orNull()
         }

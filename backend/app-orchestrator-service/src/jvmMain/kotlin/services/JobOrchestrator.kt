@@ -10,14 +10,12 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -129,14 +127,14 @@ class JobOrchestrator(
             },
             """
                 with bulk_data as (
-                    select unnest(:application_names) app_name, unnest(:application_versions) app_ver,
-                           unnest(:time_allocation) time_alloc, unnest(:names) name, 
-                           unnest(:output_folders) output, unnest(:resources) resource
+                    select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
+                           unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
+                           unnest(:output_folders::text[]) output, unnest(:resources::bigint[]) resource
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
                      output_folder, current_state, started_at, resource) 
-                select app_name, app_ver, time_alloc, name, output, 'IN_QUEUE', null, resource
+                select app_name, app_ver, time_alloc, n, output, 'IN_QUEUE', null, resource
                 from bulk_data
             """
         )
@@ -155,7 +153,7 @@ class JobOrchestrator(
             },
             """
                 insert into app_orchestrator.job_resources (resource, job_id) 
-                select unnest(:resources), unnest(:job_ids)
+                select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
             """
         )
 
@@ -175,7 +173,7 @@ class JobOrchestrator(
             },
             """
                 insert into app_orchestrator.job_input_parameters (name, value, job_id)  
-                select unnest(:names), unnest(:values), unnest(:job_ids)
+                select unnest(:names::text[]), unnest(:values::jsonb[]), unnest(:job_ids::bigint[])
             """
         )
     }
@@ -315,7 +313,7 @@ class JobOrchestrator(
                 flags = JobIncludeFlags(includeUpdates = true, includeSupport = true)
             ).single()
 
-            val support = initialJob.status.support!!.support
+            val support = initialJob.status.resolvedSupport!!.support
             val app = appService.resolveApplication(initialJob.specification.application)!!
             val backend = app.invocation.tool.tool!!.description.backend
             val logsSupported =

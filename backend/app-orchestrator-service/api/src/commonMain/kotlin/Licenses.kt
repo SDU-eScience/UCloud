@@ -101,7 +101,8 @@ data class LicenseBilling(
 @Serializable
 data class LicenseStatus(
     val state: LicenseState,
-    override var support: ResolvedSupport<Product, ProductSupport>? = null
+    override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+    override var resolvedProduct: Product? = null,
 ) : ResourceStatus<Product, ProductSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

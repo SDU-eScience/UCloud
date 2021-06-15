@@ -180,18 +180,14 @@ data class JobStatus(
     val expiresAt: Long? = null,
 
     @UCloudApiDoc(
-        "The resolved product referenced by `product`.\n\n" +
-            "This attribute is not included by default unless `includeProduct` is specified."
-    )
-    val resolvedProduct: Product.Compute? = null,
-
-    @UCloudApiDoc(
         "The resolved application referenced by `application`.\n\n" +
             "This attribute is not included by default unless `includeApplication` is specified."
     )
     val resolvedApplication: Application? = null,
 
-    override var support: ResolvedSupport<Product.Compute, ComputeSupport>? = null,
+    override var resolvedSupport: ResolvedSupport<Product.Compute, ComputeSupport>? = null,
+
+    override var resolvedProduct: Product.Compute? = null
 ) : ResourceStatus<Product.Compute, ComputeSupport>
 
 @Serializable
@@ -313,7 +309,7 @@ data class JobIncludeFlags(
     val includeApplication: Boolean? = null,
 
     @UCloudApiDoc("Includes `specification.resolvedProduct`")
-    val includeProduct: Boolean? = null,
+    override val includeProduct: Boolean = false,
 
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,

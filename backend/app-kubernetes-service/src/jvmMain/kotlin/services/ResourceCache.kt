@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.SimpleCache
@@ -46,7 +45,7 @@ class ResourceCache(private val k8: K8Dependencies) {
         }
 
         val retrievedJob = JobsControl.retrieve.call(
-            ResourceRetrieveRequest(job.id, JobIncludeFlags(includeProduct = true, includeApplication = true)),
+            ResourceRetrieveRequest(JobIncludeFlags(includeProduct = true, includeApplication = true), job.id),
             k8.serviceClient
         ).orThrow()
 

@@ -320,7 +320,8 @@ data class FileMetadataDocument(
     @Serializable
     data class Status(
         val approval: ApprovalStatus,
-        override var support: ResolvedSupport<Product, ProductSupport>? = null
+        override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+        override var resolvedProduct: Product? = null,
     ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable
@@ -374,6 +375,7 @@ data class SimpleFileCollectionIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
     override val filterCreatedBy: String? = null,
     override val filterCreatedAfter: Long? = null,
     override val filterCreatedBefore: Long? = null,
@@ -442,7 +444,8 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        override var support: ResolvedSupport<Product, ProductSupport>? = null
+        override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+        override var resolvedProduct: Product? = null,
     ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable

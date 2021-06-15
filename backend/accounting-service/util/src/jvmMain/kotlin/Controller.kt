@@ -41,6 +41,10 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
                 ok(updateAcl(actorAndProject, request))
             }
 
+            implement(controlApi.retrieve) {
+                ok(retrieve(actorAndProject, request.id, request.flags, asProvider = true))
+            }
+
             implement(controlApi.update) {
                 ok(addUpdate(actorAndProject, request))
             }

@@ -4,8 +4,10 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.k8.Pod
 import io.ktor.http.*
+import kotlinx.serialization.encodeToString
 
 /**
  * A plugin which takes information from [ApplicationInvocationDescription.parameters] and makes the information

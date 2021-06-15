@@ -1,21 +1,42 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.PaymentModel
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.WalletOwnerType
+import dk.sdu.cloud.accounting.util.PartialQuery
+import dk.sdu.cloud.accounting.util.ProviderComms
+import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.accounting.util.ResourceService
+import dk.sdu.cloud.accounting.util.SqlObject
+import dk.sdu.cloud.app.orchestrator.api.Ingress
+import dk.sdu.cloud.app.orchestrator.api.IngressControl
+import dk.sdu.cloud.app.orchestrator.api.IngressIncludeFlags
+import dk.sdu.cloud.app.orchestrator.api.IngressProvider
+import dk.sdu.cloud.app.orchestrator.api.IngressSettings
+import dk.sdu.cloud.app.orchestrator.api.IngressSpecification
+import dk.sdu.cloud.app.orchestrator.api.IngressState
+import dk.sdu.cloud.app.orchestrator.api.IngressStatus
+import dk.sdu.cloud.app.orchestrator.api.IngressUpdate
+import dk.sdu.cloud.app.orchestrator.api.Ingresses
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.ingressPoints
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
-import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
-import kotlin.collections.ArrayList
 
 class IngressService(
     db: AsyncDBSessionFactory,
@@ -24,9 +45,9 @@ class IngressService(
     serviceClient: AuthenticatedClient,
     private val orchestrator: JobOrchestrator,
 ) : ResourceService<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
-    Product.Ingress, IngressSettings, ComputeCommunication>(db, providers, support, serviceClient) {
+        Product.Ingress, IngressSettings, ComputeCommunication>(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
-    override val sortColumn  = SqlObject.Column(table, "domain")
+    override val sortColumn = SqlObject.Column(table, "domain")
     override val serializer: KSerializer<Ingress> = serializer()
     override val productArea: ProductArea = ProductArea.INGRESS
     override val updateSerializer: KSerializer<IngressUpdate> = serializer()
@@ -70,7 +91,7 @@ class IngressService(
                         )
                     }
 
-                    val product = ingress.status.support!!.product as Product.Ingress
+                    val product = ingress.status.resolvedSupport!!.product as Product.Ingress
                     if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
                         payment.creditCheck(
                             product,
@@ -85,6 +106,7 @@ class IngressService(
                 if (job.ingressPoints.isEmpty()) return
 
                 val actorAndProject = ActorAndProject(
+                    // TODO This should probably be the provider?
                     Actor.SystemOnBehalfOfUser(job.owner.createdBy),
                     job.owner.project
                 )
@@ -158,27 +180,23 @@ class IngressService(
         session
             .sendPreparedStatement(
                 {
-                    val ids = ArrayList<Long>()
-                    val didBind = ArrayList<Boolean>()
-                    val newBinding = ArrayList<String?>()
-                    val newState = ArrayList<String?>()
+                    val ids = ArrayList<Long>().also { setParameter("ids", it) }
+                    val didBind = ArrayList<Boolean>().also { setParameter("did_bind", it) }
+                    val newBinding = ArrayList<Long?>().also { setParameter("new_binding", it) }
+                    val newState = ArrayList<String?>().also { setParameter("new_state", it) }
                     for (update in updates) {
                         ids.add(update.id.toLong())
                         didBind.add(update.update.didBind)
-                        newBinding.add(update.update.newBinding)
+                        newBinding.add(update.update.newBinding?.toLong())
                         newState.add(update.update.state?.name)
                     }
-                    setParameter("ids", ids)
-                    setParameter("did_bind", didBind)
-                    setParameter("new_binding", newBinding)
-                    setParameter("new_state", newState)
                 },
                 """
                     with new_updates as (
                         select
                             unnest(:ids::bigint[]) as id, 
                             unnest(:did_bind::boolean[]) as did_bind,
-                            unnest(:new_binding::text[]) as new_binding,
+                            unnest(:new_binding::bigint[]) as new_binding,
                             unnest(:new_state::text[]) as new_state
                     )
                     update app_orchestrator.ingresses i

@@ -4,7 +4,6 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
@@ -187,8 +186,8 @@ class ComputeController(
                 ok(
                     JobsControl.retrieve.call(
                         ResourceRetrieveRequest(
-                            request.id,
-                            JobIncludeFlags(includeProduct = true, includeApplication = true)
+                            JobIncludeFlags(includeProduct = true, includeApplication = true),
+                            request.id
                         ),
                         client.client
                     ).orThrow()
@@ -225,7 +224,7 @@ class ComputeController(
         }
 
         implement(AauCompute.extend) {
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(AauCompute.openInteractiveSession) {

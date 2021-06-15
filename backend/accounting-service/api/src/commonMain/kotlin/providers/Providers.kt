@@ -50,7 +50,8 @@ data class ProviderSupport(override val product: ProductReference) : ProductSupp
 
 @Serializable
 data class ProviderStatus(
-    override var support: ResolvedSupport<Product, ProductSupport>? = null
+    override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+    override var resolvedProduct: Product? = null
 ) : ResourceStatus<Product, ProductSupport>
 
 @Serializable

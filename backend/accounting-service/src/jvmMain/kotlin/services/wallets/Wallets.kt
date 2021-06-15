@@ -410,7 +410,7 @@ class BalanceService(
                                     accounting.wallets w join 
                                     accounting.product_categories pc on w.category = pc.id
                                 where 
-                                    t.wallet = w.id
+                                    t.wallet = w.id and
                                     account_id = :accountId and
                                     account_type = :accountType and
                                     pc.category = :productCategory and

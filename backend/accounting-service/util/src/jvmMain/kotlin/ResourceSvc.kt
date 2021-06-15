@@ -30,6 +30,7 @@ interface ResourceSvc<
         id: String,
         flags: F?,
         ctx: DBContext? = null,
+        asProvider: Boolean = false,
     ): R
 
     suspend fun create(

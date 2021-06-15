@@ -13,6 +13,9 @@ interface ResourceIncludeFlags {
     val includeOthers: Boolean
     val includeUpdates: Boolean
     val includeSupport: Boolean
+    @UCloudApiDoc("Includes `specification.resolvedProduct`")
+    val includeProduct: Boolean
+
     val filterCreatedBy: String?
     val filterCreatedAfter: Long?
     val filterCreatedBefore: Long?
@@ -26,6 +29,7 @@ data class SimpleResourceIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
     override val filterCreatedBy: String? = null,
     override val filterCreatedAfter: Long? = null,
     override val filterCreatedBefore: Long? = null,
@@ -132,7 +136,13 @@ this will contain information such as:
 """
 )
 interface ResourceStatus<P : Product, Support : ProductSupport> {
-    var support: ResolvedSupport<P, Support>?
+    var resolvedSupport: ResolvedSupport<P, Support>?
+
+    @UCloudApiDoc(
+        "The resolved product referenced by `product`.\n\n" +
+                "This attribute is not included by default unless `includeProduct` is specified."
+    )
+    var resolvedProduct: P?
 }
 
 @UCloudApiDoc(

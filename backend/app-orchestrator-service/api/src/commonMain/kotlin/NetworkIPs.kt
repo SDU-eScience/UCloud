@@ -166,7 +166,8 @@ data class NetworkIPStatus(
 
     @UCloudApiDoc("The externally accessible IP address allocated to this `NetworkIP`")
     val ipAddress: String? = null,
-    override var support: ResolvedSupport<Product, ProductSupport>? = null
+    override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+    override var resolvedProduct: Product? = null,
 ) : ResourceStatus<Product, ProductSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

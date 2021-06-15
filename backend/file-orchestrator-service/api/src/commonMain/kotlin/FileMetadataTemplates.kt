@@ -65,7 +65,8 @@ data class FileMetadataTemplate(
     @Serializable
     class Status(
         val oldVersions: List<String>,
-        override var support: ResolvedSupport<Product, ProductSupport>? = null,
+        override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+        override var resolvedProduct: Product? = null,
     ) : ResourceStatus<Product, ProductSupport>
 
     @Serializable

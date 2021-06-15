@@ -122,7 +122,8 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         id: String,
         flags: Flags?,
-        ctx: DBContext?
+        ctx: DBContext?,
+        asProvider: Boolean,
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val (params, query) = browseQuery(flags)
@@ -130,10 +131,11 @@ abstract class ResourceService<
 
         val (resourceParams, resourceQuery) = accessibleResources(
             actorAndProject.actor,
-            listOf(Permission.Read),
+            if (asProvider) listOf(Permission.Provider) else listOf(Permission.Read),
             resourceId = convertedId,
-            projectFilter = actorAndProject.project,
-            flags = flags
+            projectFilter = if (asProvider) "" else actorAndProject.project,
+            flags = flags,
+            includeUnconfirmed = asProvider,
         )
 
         @Suppress("SqlResolve")
@@ -165,7 +167,7 @@ abstract class ResourceService<
                         null
                     }
                 }
-                ?.attachSupport(flags)
+                ?.attachExtra(flags)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
@@ -231,19 +233,32 @@ abstract class ResourceService<
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result.attachSupport(flags, flags?.includeSupport ?: simpleFlags?.includeSupport ?: false)
+            result.attachExtra(flags, flags?.includeSupport ?: simpleFlags?.includeSupport ?: false)
         }
     }
 
-    private suspend fun List<Res>.attachSupport(flags: Flags?, includeSupport: Boolean = false): List<Res> {
-        if (!includeSupport && (flags == null || !flags.includeSupport)) return this
-        forEach { it.status.support = support.retrieveProductSupport(it.specification.product) }
+    private suspend fun List<Res>.attachExtra(flags: Flags?, includeSupport: Boolean = false): List<Res> {
+        forEach {
+            if (includeSupport || flags?.includeSupport == true) {
+                it.status.resolvedSupport = support.retrieveProductSupport(it.specification.product)
+            }
+
+            if (flags?.includeProduct == true) {
+                it.status.resolvedProduct = support.retrieveProductSupport(it.specification.product).product
+            }
+        }
+
         return this
     }
 
-    private suspend fun Res.attachSupport(flags: Flags?, includeSupport: Boolean = false): Res {
-        if (!includeSupport && (flags == null || !flags.includeSupport)) return this
-        status.support = support.retrieveProductSupport(specification.product)
+    private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
+        if (includeSupport || flags?.includeSupport == true) {
+            status.resolvedSupport = support.retrieveProductSupport(specification.product)
+        }
+
+        if (flags?.includeProduct == true) {
+            status.resolvedProduct = support.retrieveProductSupport(specification.product).product
+        }
         return this
     }
 
@@ -860,7 +875,7 @@ abstract class ResourceService<
                     Payment(
                         reqItem.chargeId,
                         reqItem.units,
-                        resource.status.support!!.product.pricePerUnit,
+                        resource.status.resolvedSupport!!.product.pricePerUnit,
                         reqItem.id,
                         resource.owner.createdBy,
                         resource.owner.project,
@@ -1087,7 +1102,7 @@ abstract class ResourceService<
                         log.warn(ex.stackTraceToString())
                         null
                     }
-                }.attachSupport(flags)
+                }.attachExtra(flags)
             }
         )
     }

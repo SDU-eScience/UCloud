@@ -1,8 +1,6 @@
 import * as React from "react";
 import {default as IngressApi, Ingress, IngressSupport} from "UCloud/IngressApi";
 import {ResourceBrowse} from "Resource/Browse";
-import {Icon} from "ui-components";
-import {doNothing} from "UtilityFunctions";
 
 const Browse: React.FunctionComponent<{
     computeProvider?: string;

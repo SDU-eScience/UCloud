@@ -67,7 +67,8 @@ data class IngressStatus(
     val boundTo: String? = null,
 
     val state: IngressState,
-    override var support: ResolvedSupport<Product.Ingress, IngressSettings>? = null
+    override var resolvedSupport: ResolvedSupport<Product.Ingress, IngressSettings>? = null,
+    override var resolvedProduct: Product.Ingress? = null,
 ) : ResourceStatus<Product.Ingress, IngressSettings>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -115,6 +116,7 @@ data class IngressIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
     override val filterCreatedBy: String? = null,
     override val filterCreatedAfter: Long? = null,
     override val filterCreatedBefore: Long? = null,

@@ -136,7 +136,8 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
                     */}
-                    <JobRouter/>
+                    <Route path={"/public-links"}><IngressRouter/></Route>
+                    <Route path={"/jobs"}><JobRouter/></Route>
                     <Route exact path="/applications/licenses" component={ApplicationLicense}/>
                     <Route exact path="/applications/publicips" component={NetworkIPs}/>
 
@@ -148,7 +149,6 @@ const Core = (): JSX.Element => (
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo}/>}
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest}/>}
 
-                    <IngressRouter/>
 
                     <Route exact path="/admin" component={requireAuth(AdminOverview)}/>
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>

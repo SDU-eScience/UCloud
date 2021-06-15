@@ -1070,6 +1070,7 @@ function jobStateToText(state: JobState) {
 }
 
 const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+    const app = job.specification.application;
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
@@ -1081,7 +1082,7 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
-            <Link to={`/applications/${job.specification.application.name}/${job.specification.application.version}`}>
+            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
                 <Button>Run application again</Button>
             </Link>
         </AltButtonGroup>
