@@ -170,14 +170,32 @@ subprocess.run(command)
 
 
 if slurm:
-	print(header("# Slurm cluster deployed"))
+	print(header("# Slurm Cluster"))
 	print()
-	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster")
+	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
 	print()
-	print(header("Instructions:"))
-	print("For variations see README.MD at the above github project")
 	print()
-	#register cluster
+
 	print("register cluster...")
 	sleep(15)
-	os.system("""/bin/bash -c "docker exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld " """)
+	os.system("docker exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld ")
+	print("registered...")
+	print()
+	print(header("Instructions:"))
+	print("Interact with " + code("docker-compose exec slurmctld bash") )
+	print()
+
+	# Make IM client node
+	if integrationModule:
+		print("register integration-module as slurm client node...")
+		print("mounting /etc/slurm...")
+		print("mounting /etc/munge...")
+		print("mounting /data...")
+		print("mounting /var/log/slurm...")
+		print("install slurm-client")
+		sleep(5)
+		# replaces string 'NodeName=c[1-2]' with 'NodeName=c[1-2], integration-module'
+		os.system("""docker-compose exec integration-module bash -c "apt update && dpkg --configure -a && DEBIAN_FRONTEND=noninteractive apt install -yq munge slurm-client && service munge start ; " """)
+
+
+
