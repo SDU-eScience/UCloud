@@ -39,6 +39,7 @@ services:
     - k3sData:/var/lib/rancher/k3s
     - k3sCni:/var/lib/cni
     - k3sKubelet:/var/lib/kubeley
+    - k3sEtc:/etc/rancher
     command:
       - server
     hostname: k3s

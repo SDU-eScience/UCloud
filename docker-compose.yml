@@ -38,6 +38,7 @@ volumes:
   k3sData: {}
   k3sCni: {}
   k3sKubelet: {}
+  k3sEtc: {}
   imData: {}
   imGradle: {}
   imKonan: {}
