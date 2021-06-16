@@ -230,10 +230,11 @@ class JobOrchestrator(
         }
     }
 
-    override suspend fun browseQuery(flags: JobIncludeFlags?): PartialQuery {
+    override suspend fun browseQuery(flags: JobIncludeFlags?, query: String?): PartialQuery {
         @Suppress("SqlResolve")
         return PartialQuery(
             {
+                setParameter("query", query)
                 setParameter("filter_state", flags?.filterState?.name)
             },
             """
@@ -252,7 +253,14 @@ class JobOrchestrator(
                     app_orchestrator.job_input_parameters param on job.resource = param.job_id
 
                 where
-                    (:filter_state::text is null or current_state = :filter_state::text)
+                    (:filter_state::text is null or current_state = :filter_state::text) and
+                    (
+                        :query::text is null or
+                        job.name ilike '%' || :query || '%' or
+                        job.resource::text ilike '%' || :query || '%' or
+                        app.title ilike '%' || :query || '%' or
+                        t.name ilike '%' || :query || '%'
+                    )
 
                 group by job.resource, job.*, app.*, t.*
             """

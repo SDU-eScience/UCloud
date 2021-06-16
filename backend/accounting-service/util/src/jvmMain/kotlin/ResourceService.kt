@@ -113,7 +113,7 @@ abstract class ResourceService<
         return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, request.normalize(), ctx)
     }
 
-    protected open suspend fun browseQuery(flags: Flags?): PartialQuery {
+    protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery({}, "select * from $tableName")
     }
@@ -902,16 +902,10 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = searchQuery(request.query, request.flags)
+        val search = browseQuery(request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.Read), request.flags,
             request.normalize(), ctx
-        )
-    }
-
-    open fun searchQuery(query: String, flags: Flags?): PartialQuery {
-        throw IllegalStateException(
-            "Feature not support. Remember to override searchQuery if search is defined in the API"
         )
     }
 

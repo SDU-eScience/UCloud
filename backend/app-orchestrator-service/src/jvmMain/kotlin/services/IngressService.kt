@@ -227,22 +227,7 @@ class IngressService(
         super.deleteSpecification(resourceIds, resources, session)
     }
 
-    override suspend fun browseQuery(
-        flags: IngressIncludeFlags?,
-    ): PartialQuery {
-        return PartialQuery(
-            {
-                setParameter("filter_state", flags?.filterState?.name)
-            },
-            """
-                select *
-                from app_orchestrator.ingresses
-                where :filter_state::text is null or :filter_state = current_state
-            """
-        )
-    }
-
-    override fun searchQuery(query: String, flags: IngressIncludeFlags?): PartialQuery {
+    override suspend fun browseQuery(flags: IngressIncludeFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)
@@ -252,7 +237,7 @@ class IngressService(
                 select *
                 from app_orchestrator.ingresses
                 where
-                    domain ilike ('%' || :query || '%') and
+                    (:query::text is null or domain ilike ('%' || :query || '%')) and
                     (:filter_state::text is null or :filter_state = current_state)
             """
         )
