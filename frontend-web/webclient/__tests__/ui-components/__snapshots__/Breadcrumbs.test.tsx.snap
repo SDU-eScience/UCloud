@@ -35,6 +35,7 @@ Array [
       test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
+      xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M0 63.5l10.583 10.583 63.5-52.916 63.5 52.916L148.167 63.5 74.083 0z"
@@ -165,6 +166,7 @@ Array [
       test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
+      xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M0 63.5l10.583 10.583 63.5-52.916 63.5 52.916L148.167 63.5 74.083 0z"

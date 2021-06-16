@@ -1,6 +1,6 @@
-const UPLOAD_LOCALSTORAGE_PREFIX = "file-upload"
+export const UPLOAD_LOCALSTORAGE_PREFIX = "file-upload"
 
-export function createLocalStorageUploadKey(path: string): string {
+export function createLocalStorageUploadKey(path: string): `${typeof UPLOAD_LOCALSTORAGE_PREFIX}:${string}` {
     return `${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
 }
 
