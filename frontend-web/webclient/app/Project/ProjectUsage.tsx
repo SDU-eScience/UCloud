@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useState} from "react";
-import {Box, Button, Flex, Icon, Input, Relative, Text} from "ui-components";
+import {Box, Flex, Icon, Input, Relative, Text} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -31,7 +31,7 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
-import {capitalized, inDevEnvironment} from "UtilityFunctions";
+import {capitalized} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
 import {HighlightedCard} from "Dashboard/Dashboard";
 import {Spacer} from "ui-components/Spacer";
@@ -42,10 +42,6 @@ import {emptyPage} from "DefaultObjects";
 import {computeUsageInPeriod} from "./ProjectDashboard";
 import {sizeToString} from "Utilities/FileUtilities";
 import {GroupWithSummary} from "./GroupList";
-import ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {GrantApplication} from "./Grant";
-import {dateToString} from "Utilities/DateUtilities";
 import {format} from "date-fns";
 
 function dateFormatter(timestamp: number): string {
