@@ -95,8 +95,8 @@ export abstract class ResourceApi<Res extends Resource,
     Flags extends ResourceIncludeFlags = ResourceIncludeFlags,
     Status extends ResourceStatus = ResourceStatus,
     Support extends ProductSupport = ProductSupport> {
-    private namespace: string;
-    private baseContext: string;
+    protected namespace: string;
+    protected baseContext: string;
 
     public abstract routingNamespace;
     public abstract title: string;

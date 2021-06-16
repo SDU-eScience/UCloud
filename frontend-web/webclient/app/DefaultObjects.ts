@@ -22,7 +22,7 @@ import {
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
 import * as UCloud from "UCloud";
-import {BulkRequest} from "UCloud";
+import {BulkRequest, BulkResponse} from "UCloud";
 import {useEffect} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {doNothing} from "UtilityFunctions";
@@ -38,6 +38,10 @@ export function placeholderProduct(): { "id": "", "category": "", "provider": "u
 
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
     return {"type": "bulk", items};
+}
+
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
 }
 
 export const emptyPage: Readonly<Page<any>> =

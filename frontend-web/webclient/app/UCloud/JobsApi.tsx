@@ -7,7 +7,7 @@ import {
     ResourceSpecification, ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting, compute} from "UCloud/index";
+import {accounting, BulkRequest, BulkResponse, compute, FindByStringId} from "UCloud/index";
 import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
@@ -16,6 +16,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {EnumFilter} from "Resource/Filter";
 import Application = compute.Application;
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
@@ -92,6 +93,64 @@ export interface VirtualMachineSupport {
     utilization?: boolean;
 }
 
+export interface CpuAndMemory {
+    cpu: number;
+    memory: number;
+}
+
+export interface QueueStatus {
+    running: number;
+    pending: number;
+}
+
+export interface ComputeUtilization {
+    capacity: CpuAndMemory;
+    usedCapacity: CpuAndMemory;
+    queueStatus: QueueStatus;
+}
+
+export interface ExtendRequest {
+    jobId: string;
+    requestedTime: SimpleDuration;
+}
+
+export type SuspendRequest = FindByStringId
+export interface OpenInteractiveSessionRequest {
+    id: string;
+    rank: number;
+    sessionType: "WEB" | "VNC" | "SHELL";
+}
+
+export interface InteractiveSession {
+    providerDomain: string;
+    providerId: string;
+    session: SessionData;
+}
+
+export type SessionData = SessionDataShell | SessionDataWeb | SessionDataVnc;
+
+export interface SessionDataShell {
+    type: "shell";
+    jobId: string;
+    rank: number;
+    sessionIdentifier: string;
+}
+
+export interface SessionDataWeb {
+    type: "web";
+    jobId: string;
+    rank: number;
+    redirectClientTo: string;
+}
+
+export interface SessionDataVnc {
+    type: "vnc";
+    jobId: string;
+    rank: number;
+    url: string;
+    password?: string;
+}
+
 class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUpdate, JobFlags,
     JobStatus, ComputeSupport>  {
     routingNamespace = "jobs";
@@ -117,6 +176,57 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
             ]
         ))
+    }
+
+    terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "terminate",
+            payload: request,
+            parameters: request
+        };
+    }
+
+    retrieveUtilization(request: { jobId: string }): APICallParameters<{jobId: string}, ComputeUtilization> {
+        return {
+            context: "",
+            method: "GET",
+            path: buildQueryString(this.baseContext + "retrieveUtilization", request),
+            parameters: request
+        };
+    }
+
+    extend(request: BulkRequest<ExtendRequest>): APICallParameters<BulkRequest<ExtendRequest>, BulkResponse<any | null>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "extend",
+            payload: request,
+            parameters: request
+        };
+    }
+
+    suspend(request: BulkRequest<SuspendRequest>): APICallParameters<BulkRequest<SuspendRequest>, BulkResponse<any | null>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "suspend",
+            payload: request,
+            parameters: request
+        };
+    }
+
+    openInteractiveSession(
+        request: BulkRequest<OpenInteractiveSessionRequest>
+    ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "interactiveSession",
+            payload: request,
+            parameters: request
+        };
     }
 }
 

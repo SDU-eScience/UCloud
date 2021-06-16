@@ -10,27 +10,6 @@ export function isJobStateTerminal(state: JobState): boolean {
     return state === "SUCCESS" || state === "FAILURE" || state === "EXPIRED";
 }
 
-export const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
-    switch (state) {
-        case "IN_QUEUE":
-            return 0;
-        case "RUNNING":
-            return 1;
-        /*
-        case JobState.READY:
-        return 2;
-        */
-        case "SUCCESS":
-            return 3;
-        case "FAILURE":
-            return 3;
-        case "EXPIRED":
-            return 3;
-        default:
-            return 0;
-    }
-};
-
 export const stateToTitle = (state: JobState): string => {
     switch (state) {
         case "FAILURE":

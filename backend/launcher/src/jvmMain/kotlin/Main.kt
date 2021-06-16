@@ -52,7 +52,7 @@ object Launcher : Loggable {
     override val log = logger()
 }
 
-val services = setOf(
+val services = setOf<Service>(
     AccountingService,
     ActivityService,
     AppOrchestratorService,

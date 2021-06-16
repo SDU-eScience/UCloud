@@ -28,7 +28,7 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {bulkRequestOf} from "DefaultObjects";
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
-import {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
+import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
 import {accounting, compute} from "UCloud";
 import {ResolvedSupport} from "UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -1187,7 +1187,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
+            await invokeCommand(JobsApi.terminate(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

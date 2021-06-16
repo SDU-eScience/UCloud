@@ -10,7 +10,6 @@ import {DropdownContent, Dropdown} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {Instructions} from "WebDav/Instructions";
 import CONF from "../../site.config.json";
 import {BG1} from "./BG1";
 import * as Heading from "ui-components/Heading";
@@ -32,7 +31,6 @@ const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
-    const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -49,16 +47,11 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
         }
     }, []);
 
-    const isWebDav = getQueryParamOrElse(props, "dav", "false") === "true";
     const isPasswordReset = getQueryParamOrElse(props, "password-reset", "false") === "true";
-    const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
+    const service = inDevEnvironment ? "dev-web" : "web";
     const resetToken = getQueryParam(props, "token");
 
-    if (webDavInstructionToken !== null) {
-        return <Instructions token={webDavInstructionToken} />;
-    }
-
-    if (Client.isLoggedIn && !isWebDav) {
+    if (Client.isLoggedIn) {
         props.history.push("/");
         return <div />;
     }
@@ -168,12 +161,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
 
     function handleCompleteLogin(result: any): void {
-        if (isWebDav) {
-            setWebDavToken(result.refreshToken);
-        } else {
-            Client.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginSuccess");
-        }
+        Client.setTokens(result.accessToken, result.csrfToken);
+        props.history.push("/loginSuccess");
     }
 
     function handleAuthState(result: any): void {
@@ -244,18 +233,10 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
         );
     }
 
-
-
     return (
         <LoginWrapper>
             <Flex mr="45px">
                 <LoginBox width="315px">
-
-                    {!isWebDav ? null : (
-                        <LoginBox mb={32}>
-                            You must re-authenticate with {CONF.PRODUCT_NAME} to use your files locally.
-                        </LoginBox>
-                    )}
                     {enabledWayf && !challengeId && !isPasswordReset ? (
                         <a href={`/auth/saml/login?service=${service}`}>
                             <Button mb="8px" disabled={loading} fullWidth color="wayfGreen">

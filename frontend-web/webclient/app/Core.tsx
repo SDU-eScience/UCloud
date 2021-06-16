@@ -19,10 +19,6 @@ const FileMetadataTemplatesProperties = React.lazy(() => import("Files/Metadata/
 const FilePreview = React.lazy(() => import("Files/Preview"));
 const Shares = React.lazy(() => import("Files/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
-const NewJobs = React.lazy(() => import("Applications/Jobs/NewApi"));
-const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
-const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
-const JobView = React.lazy(() => import("Applications/Jobs/View"));
 const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
@@ -132,10 +128,10 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/:appName/:appVersion" component={requireAuth(JobCreate)} />
                     <Route exact path="/applications/results" component={requireAuth(JobBrowse)} />
                     <Route exact path="/applications/results/:id" component={requireAuth(JobView)} />
+                    */}
                     <Route exact path="/applications/shell/:jobId/:rank" component={JobShell} />
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
-                    */}
                     <Route path={"/public-links"}><IngressRouter/></Route>
                     <Route path={"/jobs"}><JobRouter/></Route>
                     <Route exact path="/applications/licenses" component={ApplicationLicense}/>
