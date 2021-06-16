@@ -46,6 +46,7 @@ import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {GrantApplication} from "./Grant";
 import {dateToString} from "Utilities/DateUtilities";
+import {format} from "date-fns";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -511,7 +512,7 @@ function NoEntries() {
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];
 
 function DonutChart({area, data}: {area: string; data: ValueNamePair[]}): JSX.Element | null {
-    const isSubprojects = area === "Subprojects";
+    const isSubprojects = area === "Subprojects" && Client.hasActiveProject;
     const history = useHistory();
 
     const totalUsage = data.reduce((acc, it) => it.value + acc, 0);
@@ -591,7 +592,7 @@ function DetailedView({projects, wallets, toPage, durationOption, setDuration}: 
                     <>
                         {/* TODO */}
                         <BorderedFlex height="38px" width="36px">
-                            <Icon ml="2px" name="download" onClick={() => exportAsCSV()} />
+                            <Icon ml="2px" name="download" onClick={() => exportAsCSV(mappedData, durationOption.text, productArea, ";")} />
                         </BorderedFlex>
                         {/* TODO */}
                         <Input pl="32px" autoComplete="off" style={{height: "38px", border: "1px solid var(--usageGray)"}} placeholder="TODO" ref={searchRef} width="200px" />
@@ -701,8 +702,31 @@ function DetailedView({projects, wallets, toPage, durationOption, setDuration}: 
     );
 }
 
-function exportAsCSV() {
+function exportAsCSV(
+    mappedData: MappedUsage[],
+    timeRange: string,
+    area: string,
+    delimiter: "|" | ";" | ","
+): void {
+    const filename = `${capitalized(area)} ${timeRange} ${format(new Date().getTime(), "HH.mm-dd-MM-yy")}.csv`;
+    const fields = ["Project", "Most Used Product", "Balance used (DKK)", "Balance remaining (DKK)"];
+    let text = fields.join(delimiter) + "\n";
+    mappedData.forEach(data => {
+        const fieldData = [
+            data.name,
+            data.data.length === 0 ? "None" : data.data.reduce((a, b) => a.value > b.value ? a : b, {value: 0, name: "None"}).name,
+            creditFormatter(data.balanceUsed),
+            creditFormatter(data.balanceRemaining),
+        ];
+        text += fieldData.join(delimiter) + "\n";
+    });
 
+    const element = document.createElement("a");
+    element.href = `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`;
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
 }
 
 function SubprojectDetails({projectId}: {projectId: string}) {
@@ -716,10 +740,7 @@ function SubprojectDetails({projectId}: {projectId: string}) {
         emptyPage
     );
 
-    const [dmp] = useCloudAPI({...UCloud.project.fetchDataManagementPlan(), projectOverride: projectId}, {dmp: ""});
-    const [showDMP, setShowDMP] = useState<boolean>(false);
-
-    const [grants] = useCloudAPI<Page<GrantApplication>>({...UCloud.grant.grant.ingoingApplications({filter: "SHOW_ALL"}), projectOverride: projectId}, emptyPage);
+    if (!Client.hasActiveProject) {return null;}
 
     return (
         <>
@@ -731,33 +752,13 @@ function SubprojectDetails({projectId}: {projectId: string}) {
                     <Text pl="12px" m="auto" width="60%">Number of groups</Text> <Text m="auto" width="40%">{groups.data.itemsInTotal}</Text>
                 </FixedHeightFlex>
                 <FixedHeightFlex>
-                    <Text pl="12px" my="auto" width="60%">Grant Application(s)</Text> <Text m="auto" width="40%"><GrantsList grants={grants.data} /></Text>
                 </FixedHeightFlex>
                 <FixedHeightFlex>
-                    {!inDevEnvironment() ? null : <><Text pl="12px" m="auto" width="60%">Data management plan</Text> <Text m="auto" width="40%">{dmp.data.dmp ? <Button onClick={() => setShowDMP(true)}>Show</Button> : "No"}</Text></>}
                 </FixedHeightFlex>
                 <FixedHeightFlex>
-                    <Text m="auto" width="60%">Space for rent</Text>
                 </FixedHeightFlex>
             </Box>
-            <ReactModal style={defaultModalStyle} isOpen={showDMP} onRequestClose={() => setShowDMP(false)} shouldCloseOnEsc shouldCloseOnOverlayClick>
-                {dmp.data.dmp}
-            </ReactModal>
         </>
-    );
-}
-
-function GrantsList({grants}: {grants: Page<GrantApplication>}): JSX.Element {
-    const history = useHistory();
-    if (grants.items.length === 0) return <>None</>;
-    return (
-        <ClickableDropdown fullWidth trigger={"Grants"} chevron>
-            {grants.items.map(grant => (
-                <Box key={grant.id} onClick={() => history.push(`/project/grants/view/${grant.id}`)}>
-                    <b>{grant.id}</b> ({dateToString(grant.createdAt)})
-                </Box>
-            ))}
-        </ClickableDropdown>
     );
 }
 
