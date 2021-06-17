@@ -46,7 +46,7 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations {
 }
 
 const DevelopmentBadge = (): JSX.Element | null => [CONF.DEV_SITE, CONF.STAGING_SITE].includes(window.location.host) ||
-    inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
+    inDevEnvironment() ? <DevelopmentBadgeBase px={2} py={1}>{window.location.host}</DevelopmentBadgeBase> : null;
 
 export function NonAuthenticatedHeader(): JSX.Element {
     return (

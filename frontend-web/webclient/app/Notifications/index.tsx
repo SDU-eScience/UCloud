@@ -127,7 +127,7 @@ function Notifications(props: Notifications): JSX.Element {
                         {unreadLength > 0 ? (
                             <ThemeProvider theme={theme}>
                                 <Absolute top="-12px" left="28px">
-                                    <Badge bg="red">{unreadLength}</Badge>
+                                    <Badge px={2} py={1} bg="red">{unreadLength}</Badge>
                                 </Absolute>
                             </ThemeProvider>
                         ) : null}
