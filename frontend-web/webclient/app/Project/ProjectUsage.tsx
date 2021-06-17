@@ -31,7 +31,7 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
-import {capitalized} from "UtilityFunctions";
+import {capitalized, inDevEnvironment} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
 import {HighlightedCard} from "Dashboard/Dashboard";
 import {Spacer} from "ui-components/Spacer";
@@ -589,15 +589,17 @@ function DetailedView({projects, wallets, toPage, durationOption, setDuration}: 
                 }
                 right={
                     <>
-                        {/* TODO */}
-                        <BorderedFlex height="38px" width="36px">
+                        <BorderedFlex cursor="pointer" height="38px" width="36px">
                             <Icon ml="2px" name="download" onClick={() => exportAsCSV(mappedData, durationOption.text, productArea, ";")} />
                         </BorderedFlex>
-                        {/* TODO */}
-                        <Input pl="32px" autoComplete="off" style={{height: "38px", border: "1px solid var(--usageGray)"}} placeholder="TODO" ref={searchRef} width="200px" />
-                        <Relative left="-198px">
-                            <Icon size="32px" mt="4px" name="search" color="gray" />
-                        </Relative>
+                        {!inDevEnvironment() ? null :
+                            <>
+                                <Input pl="32px" autoComplete="off" style={{height: "38px", border: "1px solid var(--usageGray)"}} placeholder="TODO" ref={searchRef} width="200px" />
+                                <Relative left="-198px">
+                                    <Icon size="32px" mt="4px" name="search" color="gray" />
+                                </Relative>
+                            </>
+                        }
                     </>
                 }
             />
