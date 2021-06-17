@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useState} from "react";
-import {Box, Flex, Icon, Input, Relative, Text} from "ui-components";
+import {Box, Flex, Icon, Input, OutlineButton, Relative, Text} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -520,7 +520,10 @@ function DonutChart({area, data}: {area: string; data: ValueNamePair[]}): JSX.El
             color="green"
             cursor={isSubprojects ? "pointer" : undefined}
         >
-            <Flex mt="14px"><Box mr="auto" /><Text fontSize="26px">{capitalized(area)}</Text><Box ml="auto" /></Flex>
+            <Flex mt="14px">
+                <Box mr="auto" /><Text ml={isSubprojects ? "80px" : undefined} fontSize="26px">{capitalized(area)}</Text><Box ml="auto" />
+                {!isSubprojects ? null : (<OutlineButton>Details</OutlineButton>)}
+            </Flex>
             {data.length === 0 || totalUsage === 0 ? <NoEntries /> :
                 <>
                     <Flex style={isSubprojects ? {cursor: "pointer"} : undefined}>
