@@ -69,11 +69,6 @@ const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: BGColors}>`
 
 Badge.displayName = "Badge";
 
-Badge.defaultProps = {
-  px: 2,
-  py: 1
-};
-
 const DevelopmentBadgeBase = styled(Badge)`
   background-color: ${p => p.theme.colors.red};
   margin: 15px 25px 14px 5px;
