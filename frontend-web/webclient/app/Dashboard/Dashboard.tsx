@@ -91,7 +91,7 @@ export const HighlightedCard: React.FunctionComponent<{
         minHeight={minHeight}
     >
         <TopBorderBox color={color} />
-        <Box px={3} py={1} height={"calc(100% - 5px)"} >
+        <Box px={px} py={1} height={"calc(100% - 5px)"} >
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon

@@ -348,7 +348,7 @@ function UsageVisualization({duration}: {duration: [Duration, React.Dispatch<Rea
 
     return (
         <Grid px="auto" style={{gap: "30px 30px", justifyContent: "center", alignContent: "center"}} gridTemplateColumns="435px 435px">
-            <HighlightedCard px={0} height="437px" color="green">
+            <HighlightedCard px={-16} height="437px" color="green">
                 {/* Storage */}
                 <Spacer
                     left={
