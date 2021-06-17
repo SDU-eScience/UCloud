@@ -3,7 +3,7 @@ import {Action} from "redux";
 import {associateBy, takeLast} from "Utilities/CollectionUtilities";
 
 export interface TaskReduxState {
-    tasks?: Record<string ,TaskUpdate>;
+    tasks?: Record<string, TaskUpdate>;
 }
 
 interface TaskUpdateAction extends Action<"TASK_UPDATE"> {

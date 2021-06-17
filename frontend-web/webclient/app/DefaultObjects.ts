@@ -4,7 +4,6 @@ import {DashboardStateProps} from "Dashboard";
 import {DetailedFileSearchReduxState} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
-import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
@@ -121,16 +120,6 @@ export interface UploaderReduxObject {
     loading: boolean;
 }
 
-interface LegacyReducers {
-    dashboard?: Reducer<DashboardStateProps>;
-    uploader?: Reducer<UploaderReduxObject>;
-    status?: Reducer<StatusReduxObject>;
-    notifications?: Reducer<NotificationsReduxObject>;
-    header?: Reducer<HeaderSearchReduxObject>;
-    sidebar?: Reducer<SidebarReduxObject>;
-    activity?: Reducer<ActivityReduxObject>;
-}
-
 /**
  * Global state created via useGlobal() similar to ReduxObject
  */
@@ -146,7 +135,7 @@ export interface HookStore {
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
-    cloudApiCache?: Record<string, { expiresAt: number, cached: any }>;
+    cloudApiCache?: Record<string, {expiresAt: number, cached: any}>;
 }
 
 interface LegacyReduxObject {
@@ -217,7 +206,7 @@ export function initObject(): ReduxObject {
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
