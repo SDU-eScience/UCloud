@@ -500,6 +500,15 @@ sealed class ComputedType {
         }
     }
 
+    class TextArea() : ComputedType() {
+        override fun toString() = "textarea"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "string"
+            }
+        }
+    }
+
     class Bool() : ComputedType() {
         override fun toString() = "bool"
         override fun toOpenApiSchema(): Schema<*> {

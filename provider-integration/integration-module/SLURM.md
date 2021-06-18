@@ -14,7 +14,7 @@ Packages needed:
 * munge
 * slurm-client (ubuntu) / for centos make instructions at https://slurm.schedmd.com/quickstart_admin.html and https://github.com/SchedMD/slurm/blob/master/INSTALL 
 
-## Validate docker-compose setup
+## Validate setup
 
 1. Exec into IM  
 `docker-compose exec integration-module bash`
@@ -22,19 +22,17 @@ Packages needed:
 2. Chdir to /data and create a sample batch file job.sbatch
 
 ```
-#!/bin/bash
+#!/usr/bin/bash
 #
 #SBATCH --job-name=test
 #SBATCH --output=res.txt
+#SBATCH --error=error.txt
 #
-#SBATCH --ntasks=1
-#SBATCH --time=10:00
-#SBATCH --mem-per-cpu=100
+#SBATCH --nodes=1
+#SBATCH --time=00:01:00
 
-echo "hello world"
-
+srun echo "hellow_world"
 srun hostname
-srun sleep 60
 
 ```
 
@@ -43,3 +41,10 @@ srun sleep 60
 
 4. Check successful completion
 `saccnt`
+
+## Validate setup for testuser
+
+* Make sure testuser(1000):testuser(1001) exists on SLURM nodes  
+* Change owner of /data to testuser:testuser  
+* Create sample job through UCloud  
+* Observe job is successful  

@@ -11,7 +11,7 @@ import styled from "styled-components";
 import {EllipsedText, TextP, TextSpan} from "ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
-import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
+import {GenericTextParameter, GenericTextAreaAppParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
 import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
 import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
@@ -33,6 +33,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
         case "floating_point":
         case "integer":
             return <GenericTextParameter {...props} parameter={props.parameter} />;
+        case "textarea":
+            return <GenericTextAreaAppParameter {...props} parameter={props.parameter} />;
         case "enumeration":
             return <EnumParameter {...props} parameter={props.parameter} />;
         case "peer":

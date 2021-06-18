@@ -1,12 +1,14 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input} from "ui-components";
+import {Input, TextArea} from "ui-components";
 import {compute} from "UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
+import TextAreaApp from "ui-components/TextAreaApp";
 
 type GenericTextType =
     UCloud.compute.ApplicationParameterNS.Text |
+    UCloud.compute.ApplicationParameterNS.TextArea |
     UCloud.compute.ApplicationParameterNS.Integer |
     UCloud.compute.ApplicationParameterNS.FloatingPoint;
 
@@ -30,6 +32,19 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     />;
 };
 
+export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextProps> = props => {
+    let placeholder = "File content";
+    const error = props.errors[props.parameter.name] != null;
+    return <TextAreaApp
+        id={widgetId(props.parameter)}
+        placeholder={placeholder}
+        error={error}
+
+
+    />;
+};
+
+//TODO: romh double check
 export const GenericTextValidator: WidgetValidator = (param) => {
     const elem = findElement(param);
     if (elem === null) return {valid: true};
@@ -37,7 +52,14 @@ export const GenericTextValidator: WidgetValidator = (param) => {
     if (param.type === "text") {
         if (elem.value === "") return {valid: true};
         return {valid: true, value: {type: "text", value: elem.value}};
-    } else if (param.type === "integer") {
+    } 
+
+    else if (param.type === "textarea") {
+        if (elem.value === "") return {valid: true};
+        return {valid: true, value: {type: "text", value: elem.value}};
+    } 
+    
+    else if (param.type === "integer") {
         if (elem.value === "") return {valid: true};
         if (/^[+-]?\d+$/.test(elem.value)) {
             return {valid: true, value: {type: "integer", value: parseInt(elem.value, 10)}};
@@ -56,8 +78,9 @@ export const GenericTextValidator: WidgetValidator = (param) => {
     return {valid: true};
 };
 
+
 export const GenericTextSetter: WidgetSetter = (param, value) => {
-    if (param.type !== "text" && param.type != "integer" && param.type != "floating_point") return;
+    if (param.type !== "text" && param.type !== "textarea" && param.type != "integer" && param.type != "floating_point") return;
 
     const selector = findElement(param as GenericTextType);
     if (selector == null) throw "Missing element for " + param.name;

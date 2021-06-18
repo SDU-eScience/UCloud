@@ -55,6 +55,7 @@ private sealed class MarkdownReference {
                 }
             }
             is ComputedType.Text -> "String"
+            is ComputedType.TextArea -> "String"
             is ComputedType.Bool -> "Boolean"
             is ComputedType.Array -> "Array<${typename(type.itemType)}>"
             is ComputedType.Dictionary -> "Map<String, ${typename(type.itemType)}>"
