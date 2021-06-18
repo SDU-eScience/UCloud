@@ -8,6 +8,7 @@ import { TextArea } from "ui-components";
 export const TextAreaApp = styled(TextArea)`
     width: 100%;
     height:300px;
+    resize: vertical;
 `;
 
 TextAreaApp.displayName = "TextAreaApp";
