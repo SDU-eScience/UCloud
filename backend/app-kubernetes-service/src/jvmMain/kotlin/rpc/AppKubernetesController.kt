@@ -47,7 +47,7 @@ class AppKubernetesController(
 
         implement(KubernetesCompute.extend) {
             jobManagement.extend(request)
-            ok(Unit)
+            ok(JobsProviderExtendResponse(emptyList()))
         }
 
         implement(KubernetesCompute.suspend) {

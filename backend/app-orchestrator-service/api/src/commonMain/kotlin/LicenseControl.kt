@@ -3,6 +3,9 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
@@ -52,7 +55,7 @@ data class LicenseControlChargeCreditsResponse(
     val duplicateCharges: List<LicenseId>,
 )
 
-@TSNamespace("compute.licenses.control")
+/*@TSNamespace("compute.licenses.control")
 object LicenseControl : CallDescriptionContainer("licenses.control") {
     const val baseContext = "/api/licenses/control"
 
@@ -68,4 +71,18 @@ object LicenseControl : CallDescriptionContainer("licenses.control") {
         LicenseControlChargeCreditsResponse, CommonErrorMessage>("chargeCredits") {
         httpUpdate(baseContext, "chargeCredits", roles = Roles.PROVIDER)
     }
-}
+}*/
+
+@TSNamespace("compute.licenses.control")
+object LicenseControl : ResourceControlApi<
+    License,
+    LicenseSpecification,
+    LicenseUpdate,
+    LicenseIncludeFlags,
+    LicenseStatus,
+    Product.License,
+    LicenseSettings>("licenses") {
+        override val typeInfo =
+            ResourceTypeInfo<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus,
+                Product.License, LicenseSettings>()
+    }

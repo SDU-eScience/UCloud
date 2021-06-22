@@ -8,16 +8,22 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 // Data model
 interface LicenseId {
     val id: String
 }
+
+@Serializable
+data class LicenseSettings(
+    override val product: ProductReference
+) : ProductSupport
 
 fun LicenseId(id: String): LicenseId = LicenseRetrieve(id)
 @Serializable
@@ -30,6 +36,20 @@ data class LicenseRetrieveWithFlags(
     override val includeProduct: Boolean? = null,
     override val includeAcl: Boolean? = null,
 ) : LicenseDataIncludeFlags, LicenseId
+
+@Serializable
+data class LicenseIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    val filterState: LicenseState? = null
+) : ResourceIncludeFlags
 
 interface LicenseDataIncludeFlags {
     @UCloudApiDoc("Includes `updates`")
@@ -89,7 +109,7 @@ data class License(
     override val acl: List<ResourceAclEntry>? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product, ProductSupport>, LicenseId
+) : Resource<Product.License, LicenseSettings>
 
 @Serializable
 data class LicenseBilling(
@@ -101,8 +121,8 @@ data class LicenseBilling(
 @Serializable
 data class LicenseStatus(
     val state: LicenseState,
-    override var support: ResolvedSupport<Product, ProductSupport>? = null
-) : ResourceStatus<Product, ProductSupport>
+    override var support: ResolvedSupport<Product.License, LicenseSettings>? = null
+) : ResourceStatus<Product.License, LicenseSettings>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -192,7 +212,7 @@ data class LicensesUpdateAclRequestItem(
 
 typealias LicensesUpdateAclResponse = Unit
 
-@TSNamespace("compute.licenses")
+/*@TSNamespace("compute.licenses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Licenses : CallDescriptionContainer("licenses") {
     const val baseContext = "/api/licenses"
@@ -223,4 +243,19 @@ object Licenses : CallDescriptionContainer("licenses") {
     val updateAcl = call<LicensesUpdateAclRequest, LicensesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
         httpUpdate(baseContext, "acl")
     }
+}
+*/
+
+@TSNamespace("compute.licenses")
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+object Licenses : ResourceApi<
+    License,
+    LicenseSpecification,
+    LicenseUpdate,
+    LicenseIncludeFlags,
+    LicenseStatus,
+    Product.License,
+    LicenseSettings>("licenses") {
+        override val typeInfo = ResourceTypeInfo<License, LicenseSpecification, LicenseUpdate,
+        LicenseIncludeFlags, LicenseStatus, Product.License, LicenseSettings>()
 }

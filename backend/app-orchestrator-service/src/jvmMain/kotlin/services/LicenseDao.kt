@@ -63,7 +63,7 @@ class LicenseDao(
 
             insertUpdate(
                 session,
-                license,
+                LicenseId(license.id),
                 LicenseUpdate(
                     Time.now(),
                     state = license.status.state,

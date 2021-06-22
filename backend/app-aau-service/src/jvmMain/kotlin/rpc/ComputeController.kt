@@ -225,7 +225,7 @@ class ComputeController(
         }
 
         implement(AauCompute.extend) {
-            ok(Unit)
+            ok(JobsProviderExtendResponse(emptyList()))
         }
 
         implement(AauCompute.openInteractiveSession) {

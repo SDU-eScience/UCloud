@@ -1,38 +1,169 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.WalletOwnerType
+import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.throwError
-import dk.sdu.cloud.provider.api.AclEntity
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.serializer
 import java.util.*
 
 class LicenseService(
-    private val db: AsyncDBSessionFactory,
+    db: AsyncDBSessionFactory,
     private val dao: LicenseDao,
-    private val providers: Providers,
+    providers: Providers<ComputeCommunication>,
+    support: ProviderSupport<ComputeCommunication, Product.License, LicenseSettings>,
     private val projectCache: ProjectCache,
     private val productCache: ProductCache,
     orchestrator: JobOrchestrator,
     private val paymentService: PaymentService,
-) {
+    serviceClient: AuthenticatedClient
+) : ResourceService<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus,
+    Product.License, LicenseSettings, ComputeCommunication>(db, providers, support, serviceClient) {
+    override val table = SqlObject.Table("app_orchestrator.licenses")
+    override val sortColumn = SqlObject.Column(table, "id")
+    override val serializer: KSerializer<License> = serializer()
+    override val productArea = ProductArea.LICENSE
+    override val updateSerializer: KSerializer<LicenseUpdate> = serializer()
+
+    init {
+        orchestrator.addListener(object : JobListener {
+            override suspend fun onVerified(ctx: DBContext, job: Job) {
+                val licenses = job.specification.parameters?.values?.filterIsInstance<AppParameterValue.License>()
+                    ?: emptyList()
+                if (licenses.isEmpty()) return
+
+                val computeProvider = job.specification.product.provider
+                val jobProject = job.owner.project
+                val jobLauncher = job.owner.createdBy
+
+                ctx.withSession { session ->
+                    licenses.forEach { license ->
+                        val retrievedLicense = dao.retrieve(
+                            session,
+                            LicenseId(license.id),
+                            LicenseDataIncludeFlags(includeAcl = true, includeProduct = true)
+                        ) ?: throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
+                        val product = retrievedLicense.resolvedProduct!!
+
+                        if (jobProject != retrievedLicense.owner.project) {
+                            throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
+                        }
+
+                        if (jobProject == null && jobLauncher != retrievedLicense.owner.createdBy) {
+                            throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
+                        }
+
+                        if (retrievedLicense.specification.product.provider != computeProvider) {
+                            throw RPCException(
+                                "Cannot use license provided by " +
+                                    "${retrievedLicense.specification.product.provider} in job provided by " +
+                                    computeProvider,
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        if (jobProject != null &&
+                            projectCache.retrieveRole(jobLauncher, jobProject)?.isAdmin() != true
+                        ) {
+                            // We are not an admin. This means we must have an entry in the acl
+                            val projectStatus = projectCache.retrieveProjectStatus(jobLauncher)
+                            val groups = projectStatus.userStatus?.groups ?: emptyList()
+                            val hasAccess = retrievedLicense.acl!!.any { entry ->
+                                val entity = entry.entity
+                                if (!entry.permissions.any { it == Permission.Read }) return@any false
+                                if (entity !is AclEntity.ProjectGroup) return@any false
+
+                                groups.any { it.group == entity.group && it.project == entity.projectId }
+                            }
+
+                            if (!hasAccess) {
+                                throw RPCException(
+                                    "You do not have permissions to use this license. " +
+                                        "Contact your PI to get access",
+                                    HttpStatusCode.Forbidden
+                                )
+                            }
+                        }
+
+                        if (retrievedLicense.status.state != LicenseState.READY) {
+                            throw RPCException(
+                                "Ingress ${retrievedLicense.specification.product.id} is not ready",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
+                            paymentService.creditCheck(
+                                product,
+                                job.owner.project ?: job.owner.createdBy,
+                                if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
+                            )
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    override fun userApi() = Licenses
+    override fun controlApi() = LicenseControl
+    override fun providerApi(comms: ProviderComms): LicenseProvider = LicenseProvider(comms.provider.id)
+
+    override suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
+        idWithSpec: List<Pair<Long, LicenseSpecification>>,
+        session: AsyncDBConnection,
+        allowDuplicates: Boolean
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun onUpdate(
+        resources: List<License>,
+        updates: List<ResourceUpdateAndId<LicenseUpdate>>,
+        session: AsyncDBConnection
+    ) {
+        super.onUpdate(resources, updates, session)
+    }
+
+    override suspend fun deleteSpecification(
+        resourceIds: List<Long>,
+        resources: List<License>,
+        session: AsyncDBConnection
+    ) {
+        super.deleteSpecification(resourceIds, resources, session)
+    }
+
+    override suspend fun browseQuery(flags: LicenseIncludeFlags?): PartialQuery {
+        return super.browseQuery(flags)
+    }
+
+
+
+    /*
     init {
         orchestrator.addListener(object : JobListener {
             override suspend fun onVerified(ctx: DBContext, job: Job) {
@@ -331,5 +462,5 @@ class LicenseService(
         }
 
         return LicenseControlChargeCreditsResponse(insufficient, duplicates)
-    }
+    }*/
 }

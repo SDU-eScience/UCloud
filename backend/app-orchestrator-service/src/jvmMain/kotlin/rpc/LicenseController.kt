@@ -10,7 +10,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.toActor
 
-class LicenseController(
+/*class LicenseController(
     private val licenseService: LicenseService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -68,3 +68,4 @@ class LicenseController(
         return@with
     }
 }
+*/

@@ -91,9 +91,17 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         val ingressService = IngressService(db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
 
+        val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSettings>(
+            altProviders,
+            serviceClient,
+            fetchSupport = { comms ->
+                comms.licenseApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it }
+            }
+        )
+
         val licenseDao = LicenseDao(productCache)
-        val licenseService = LicenseService(db, licenseDao, providers, projectCache, productCache,
-            jobOrchestrator, paymentService)
+        val licenseService = LicenseService(db, licenseDao, altProviders, licenseSupport, projectCache, productCache,
+            jobOrchestrator, paymentService, serviceClient)
 
         val networkDao = NetworkIPDao(productCache)
         val networkService = NetworkIPService(db, networkDao, providers, projectCache, productCache, jobOrchestrator,
@@ -105,7 +113,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 ingressService.asController(),
 
-                LicenseController(licenseService),
+                //LicenseController(licenseService),
+                licenseService.asController(),
 
                 NetworkIPController(networkService),
             )
