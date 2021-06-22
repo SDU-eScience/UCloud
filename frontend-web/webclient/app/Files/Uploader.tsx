@@ -109,21 +109,8 @@ async function processUpload(upload: Upload) {
         }))
     }
 
-    while (!reader.isEof() && !upload.terminationRequested) {
-        await sendChunk(await reader.readChunk(maxChunkSize));
-
-        const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
-        localStorage.setItem(
-            createLocalStorageUploadKey(fullFilePath),
-            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
-        );
-    }
-
-    if (!upload.paused) {
-        localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
-    } else {
-        upload.resume = createResumeable(reader, upload, sendChunk, strategy, fullFilePath);
-    }
+    upload.resume = createResumeable(reader, upload, sendChunk, strategy, fullFilePath);
+    await upload.resume();
 }
 
 function createResumeable(
@@ -252,10 +239,11 @@ const Uploader: React.FunctionComponent = () => {
     }, []);
 
     const resumeUploads = useCallback((batch: Upload[]) => {
-        batch.forEach(it => {
+        batch.forEach(async it => {
             it.terminationRequested = undefined;
             it.paused = undefined;
-            it.resume?.()
+            it.state = UploadState.UPLOADING;
+            await it.resume?.()
         });
     }, [uploads]);
 

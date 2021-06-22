@@ -24,7 +24,7 @@ export interface Upload {
     uploadResponse?: FileApi.FilesCreateUploadResponseItem;
     terminationRequested?: true;
     paused?: true;
-    resume?: () => void;
+    resume?: () => Promise<void>;
 }
 
 export const supportedProtocols: UploadProtocol[] = ["CHUNKED"];
