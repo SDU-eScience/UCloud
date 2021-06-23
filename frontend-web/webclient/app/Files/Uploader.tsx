@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import styled from "styled-components";
 import ReactModal from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text, Tooltip, Relative} from "ui-components";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import {
     errorMessageOrDefault,
