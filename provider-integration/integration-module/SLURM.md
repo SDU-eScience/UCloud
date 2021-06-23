@@ -31,8 +31,8 @@ Packages needed:
 #SBATCH --nodes=1
 #SBATCH --time=00:01:00
 
-srun echo "hellow_world"
-srun hostname
+srun /usr/bin/echo "hellow_world"
+srun /usr/bin/hostname
 
 ```
 

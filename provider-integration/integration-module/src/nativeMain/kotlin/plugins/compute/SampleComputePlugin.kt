@@ -11,6 +11,7 @@ import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.PluginContext
 import kotlinx.coroutines.runBlocking
 import platform.posix.*
+import kotlinx.cinterop.*
 import dk.sdu.cloud.utils.*
 
 class SampleComputePlugin : ComputePlugin {
@@ -36,25 +37,31 @@ class SampleComputePlugin : ComputePlugin {
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
 
+
         val content = job.specification?.parameters!!.getOrElse("file_content") {"file_content is empty"} as Text
-        //val content="#!/usr/bin/bash \n#SBATCH --job-name=test \n#SBATCH --output=res.txt \n#SBATCH --error=error.txt \n#SBATCH --nodes=1 \n#SBATCH --time=00:01:00 \nsrun echo 'hellow_world' \nsrun hostname \n"
+        val timeLimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}"
+        val mPartition = "normal"
+
+        
+
+        createFile("/data/job.sbatch", content.value)
+
+        //--exclusive? ask martin later
+        //popen("sleep 10s; SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch --chdir=/data --time=${timeLimit} --partition={mPartition} job.sbatch", "r")
 
 
-        val fpath = "/data/job.sbatch"
-        val file = fopen(fpath, "w+")
-
-        fputs(content.value.replace("nl", "\n"), file )
-        fclose(file)
-
-        popen("sleep 10s; cd /data; SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch /data/job.sbatch", "r")
-
-
-        // startProcessAndCollectToString(
-        //     listOf(
-        //         "/usr/bin/sbatch",
-        //         "/data/job.sbatch"
-        //     )
-        // )
+        startProcessAndCollectToString(
+            listOf(
+                "/usr/bin/sbatch",
+                "--chdir",
+                "/data",
+                // "--time",
+                // timeLimit,
+                // "--partition",
+                // mPartition,
+                "job.sbatch"
+            )
+        )
 
 
 
@@ -156,4 +163,19 @@ class SampleComputePlugin : ComputePlugin {
                 sleep(1)
             }
         }
+}
+
+
+// data class Cmd( val binary: String, val timeLimit: String?, val partition: String?, val chDir: String?, val file: String? ) {
+//     val commandString:String = "sleep 10s; SLURM_CONF=/etc/slurm/slurm.conf ${binary} ${timeLimit} ${partition} ${chDir} ${file}"
+
+// }
+
+fun createFile(filePath: String, fileContent: String) {
+    val file = fopen(filePath, "w+") ?: throw Error("IO Exception")
+    try {
+        fputs(fileContent, file)
+    } finally {
+        fclose(file)
+    }
 }

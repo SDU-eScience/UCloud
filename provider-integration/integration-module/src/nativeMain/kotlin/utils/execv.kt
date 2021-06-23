@@ -6,6 +6,7 @@ import io.ktor.util.*
 import kotlinx.cinterop.*
 import platform.posix.*
 import kotlin.system.exitProcess
+import kotlinx.cinterop.ByteVar as KotlinxCinteropByteVar
 
 data class ProcessStreams(
     val stdin: Int? = null,
@@ -14,7 +15,7 @@ data class ProcessStreams(
 )
 
 fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing {
-    val nativeArgs = nativeHeap.allocArray<CPointerVar<ByteVar>>(args.size + 1)
+    val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
     for (i in args.indices) {
         nativeArgs[i] = strdup(args[i])
     }
@@ -35,7 +36,11 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing 
         dup2(newStreams.stderr, 2)
     }
 
-    execv(args[0], nativeArgs)
+
+    println(args)
+    var env = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(1)
+    env[0] = strdup("SLURM_CONF=/etc/slurm/slurm.conf")
+    execve(args[0], nativeArgs, env)
     exitProcess(255)
 }
 
@@ -44,11 +49,16 @@ fun startProcess(
     createStreams: () -> ProcessStreams,
 ): Int {
     val forkResult = fork()
+
+    println(forkResult)
+
+
     if (forkResult == -1) {
         throw IllegalStateException("Could not start new process")
     } else if (forkResult == 0) {
         replaceThisProcess(args, createStreams())
     }
+
 
     return forkResult
 }
@@ -71,10 +81,11 @@ class Process(
         memScoped {
             val wstatus = alloc<IntVar>()
             val result = waitpid(pid, wstatus.ptr, if (waitForExit) 0 else WNOHANG)
+            println("result is ${result}")
             return when {
-                result == 0 -> ProcessStatus(-1)
+                result == 0 -> ProcessStatus(0) // TODO: was ProcessStatus(-1)
                 result < 0 -> {
-                    if (waitForExit && errno == ECHILD) {
+                    if (!waitForExit && errno == ECHILD) {
                         ProcessStatus(-1)
                     } else {
                         throw IllegalStateException(getNativeErrorMessage(errno))
@@ -170,6 +181,11 @@ fun startProcessAndCollectToMemory(
         nonBlockingStdout = true,
         nonBlockingStderr = true,
     )
+
+
+    println(process.pid)
+
+
 
     if (stdin != null && process.stdin != null) {
         stdin.copyTo(process.stdin)
