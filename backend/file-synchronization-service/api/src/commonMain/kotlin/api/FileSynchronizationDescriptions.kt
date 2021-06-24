@@ -69,13 +69,13 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
 
     val retrieveFolder = call<SynchronizationRetrieveFolderRequest, SynchronizationRetrieveFolderResponse,
         CommonErrorMessage>("retrieveFolder") {
-        httpRetrieve(baseContext)
+        httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
     }
 
     val addFolder = call<SynchronizationAddFolderRequest, SynchronizationAddFolderResponse,
         CommonErrorMessage>("addFolder") {
         auth {
-            roles = Roles.END_USER
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -94,7 +94,7 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
     val removeFolder = call<SynchronizationRemoveFolderRequest, SynchronizationRemoveFolderResponse,
         CommonErrorMessage>("removeFolder") {
         auth {
-            roles = Roles.END_USER
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -113,7 +113,7 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
     val addDevice = call<SynchronizationAddDeviceRequest, SynchronizationAddDeviceResponse,
         CommonErrorMessage>("addDevice") {
         auth {
-            roles = Roles.END_USER
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -132,7 +132,7 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
     val removeDevice = call<SynchronizationRemoveDeviceRequest, SynchronizationRemoveDeviceResponse,
         CommonErrorMessage>("removeDevice") {
         auth {
-            roles = Roles.END_USER
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -150,7 +150,7 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
 
     val browseDevices = call<SynchronizationBrowseDevicesRequest, SynchronizationBrowseDevicesResponse,
         CommonErrorMessage>("browseDevices") {
-        httpBrowse(baseContext)
+        httpBrowse(baseContext, Roles.PRIVILEGED)
     }
 }
 
