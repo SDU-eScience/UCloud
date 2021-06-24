@@ -14,8 +14,9 @@ data class ProcessStreams(
     val stderr: Int? = null,
 )
 
-fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing {
+fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf() ): Nothing {
     val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
+
     for (i in args.indices) {
         nativeArgs[i] = strdup(args[i])
     }
@@ -36,27 +37,29 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing 
         dup2(newStreams.stderr, 2)
     }
 
+    var nativeEnv =  nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size)
+    for (i in envs.indices) {
+        nativeEnv[i] = strdup(envs[i])
+    }
 
-    println(args)
-    var env = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(1)
-    env[0] = strdup("SLURM_CONF=/etc/slurm/slurm.conf")
-    execve(args[0], nativeArgs, env)
+
+    execve(args[0], nativeArgs, nativeEnv)
     exitProcess(255)
 }
 
 fun startProcess(
     args: List<String>,
-    createStreams: () -> ProcessStreams,
+    envs: List<String> = listOf(),
+    createStreams: () -> ProcessStreams
 ): Int {
     val forkResult = fork()
 
     println(forkResult)
 
-
     if (forkResult == -1) {
         throw IllegalStateException("Could not start new process")
     } else if (forkResult == 0) {
-        replaceThisProcess(args, createStreams())
+        replaceThisProcess(args, createStreams(), envs = envs)
     }
 
 
@@ -81,7 +84,6 @@ class Process(
         memScoped {
             val wstatus = alloc<IntVar>()
             val result = waitpid(pid, wstatus.ptr, if (waitForExit) 0 else WNOHANG)
-            println("result is ${result}")
             return when {
                 result == 0 -> ProcessStatus(0) // TODO: was ProcessStatus(-1)
                 result < 0 -> {
@@ -102,6 +104,7 @@ class Process(
 
 fun startProcess(
     args: List<String>,
+    envs: List<String> = listOf(),
     attachStdin: Boolean = false,
     attachStdout: Boolean = true,
     attachStderr: Boolean = true,
@@ -153,7 +156,9 @@ fun startProcess(
             stderrForChild = pipes[1]
         }
 
-        val pid = startProcess(args) {
+        
+
+        val pid = startProcess(args, envs = envs) {
             ProcessStreams(stdinForChild, stdoutForChild, stderrForChild)
         }
 
@@ -169,21 +174,20 @@ class ProcessResult(
 
 fun startProcessAndCollectToMemory(
     args: List<String>,
+    envs: List<String> = listOf(),
     stdin: NativeInputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResult {
     val process = startProcess(
         args,
+        envs = envs,
         attachStdin = stdin != null,
         attachStdout = stdoutMaxSizeInBytes > 0,
         attachStderr = stdoutMaxSizeInBytes > 0,
         nonBlockingStdout = true,
         nonBlockingStderr = true,
     )
-
-
-    println(process.pid)
 
 
 
@@ -252,10 +256,30 @@ data class ProcessResultText(
 
 fun startProcessAndCollectToString(
     args: List<String>,
+    envs: List<String> = listOf(),
     stdin: NativeInputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResultText {
-    val res = startProcessAndCollectToMemory(args, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
+    val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
     return ProcessResultText(res.statusCode, res.stdout.decodeToString(), res.stderr.decodeToString())
+}
+
+
+data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableListOf(), val envs: MutableList<String> = mutableListOf() ) {
+    
+    init {
+        args.add(bin)
+    }
+    
+    fun addArg( arg:String, argValue: String = ""): CmdBuilder {
+        args.addAll(listOf(arg, argValue))
+        return this
+    }
+    
+    fun addEnv( env:String, envValue: String): CmdBuilder {
+        envs.add("${env}=${envValue}")
+        return this
+    }
+    
 }
