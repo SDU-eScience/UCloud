@@ -31,8 +31,6 @@ class SampleComputePlugin : ComputePlugin {
         )
     }
 
-    // using the following sample file
-    // pushd /data; echo -e '#!/bin/bash \n#SBATCH --time=00:01:00 \n#SBATCH --nodes=2 \n#SBATCH --ntasks-per-node=1 \necho "hello world" \n' > job.sbatch
 
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
@@ -44,23 +42,24 @@ class SampleComputePlugin : ComputePlugin {
 
         
 
-        createFile("/data/job.sbatch", content.value)
+        //createFile("/data/job.sbatch", content.value)
+        NativeFile.open(path="/data/job.sbatch", readOnly = false).writeText(content.value)
 
-        //--exclusive? ask martin later
-        //popen("sleep 10s; SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch --chdir=/data --time=${timeLimit} --partition={mPartition} job.sbatch", "r")
+
+        val cmd = CmdBuilder("/usr/bin/sbatch")
+                    .addArg("--chdir", "/data")
+                    .addArg("--time", timeLimit)
+                    .addArg("--partition", mPartition)
+                    .addArg("job.sbatch")
+                    .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
+
+
+        //popen("sleep 10s; SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch --chdir=/data --time=${timeLimit} --partition=${mPartition} job.sbatch", "r")
 
 
         startProcessAndCollectToString(
-            listOf(
-                "/usr/bin/sbatch",
-                "--chdir",
-                "/data",
-                // "--time",
-                // timeLimit,
-                // "--partition",
-                // mPartition,
-                "job.sbatch"
-            )
+            args= cmd.args,
+            envs= cmd.envs
         )
 
 
@@ -163,19 +162,4 @@ class SampleComputePlugin : ComputePlugin {
                 sleep(1)
             }
         }
-}
-
-
-// data class Cmd( val binary: String, val timeLimit: String?, val partition: String?, val chDir: String?, val file: String? ) {
-//     val commandString:String = "sleep 10s; SLURM_CONF=/etc/slurm/slurm.conf ${binary} ${timeLimit} ${partition} ${chDir} ${file}"
-
-// }
-
-fun createFile(filePath: String, fileContent: String) {
-    val file = fopen(filePath, "w+") ?: throw Error("IO Exception")
-    try {
-        fputs(fileContent, file)
-    } finally {
-        fclose(file)
-    }
 }
