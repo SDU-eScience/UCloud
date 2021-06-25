@@ -47,7 +47,7 @@ import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
 import {MOCK_REPO_CREATE_TAG} from "Utilities/FileUtilities";
-import {fakeProjectListPath} from "Files/FileSelector";
+import FileSelector, {fakeProjectListPath, FileSelectorModalStyle} from "Files/FileSelector";
 import ReactModal from "react-modal";
 import { defaultModalStyle } from "Utilities/ModalUtilities";
 import { accounting, compute, PageV2 } from "UCloud";
@@ -55,6 +55,7 @@ import { snackbarStore } from "Snackbar/SnackbarStore";
 import { Machines } from "Applications/Jobs/Widgets/Machines";
 import { productCategoryEquals } from "Accounting";
 import { joinToString } from "UtilityFunctions";
+import { SynchronizationSettings } from "./Synchronization";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -259,6 +260,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [selectProduct, setSelectProduct] = useState<boolean>(false);
+    const [synchronization, setSynchronization] = useState<File | null>(null);
     const [selectedQuickLaunchApp, setSelectedQuickLaunchApp] = useState<QuickLaunchApp | null>(null);
     const [availableProducts, setAvailableProducts] = useState<accounting.ProductNS.Compute[]>([]);
     const [selectedMachine, setSelectedMachine] = useState<accounting.ProductNS.Compute | null>(null);
@@ -358,6 +360,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             if (!isEmbedded) window.scrollTo({top: 0});
         },
         startRenaming: file => setFileBeingRenamed(file.path),
+        startSynchronization: file => setSynchronization(file),
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
             if (props.requestFileSelector) return await props.requestFileSelector(allowFolders, canOnlySelectFolders);
             return null;
@@ -491,6 +494,14 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             }
         }
     }, [availableProducts]);
+
+    const startSynchronization = React.useCallback((file: File) => {
+        setSynchronization(file);
+    }, []);
+
+    const closeSynchronization = React.useCallback(() => {
+        setSynchronization(null);
+    }, []);
 
     const onQuickLaunch = React.useCallback((app: QuickLaunchApp) => {
         fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
@@ -705,6 +716,14 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                             <Button color="red" mr="5px" onClick={() => setSelectProduct(false)}>Cancel</Button>
                             <Button color="green" onClick={() => quickLaunchOnSelectedMachine()}>Launch</Button>
                         </Box>
+                    </ReactModal>
+                    <ReactModal
+                        isOpen={synchronization != null}
+                        style={FileSelectorModalStyle}
+                        onRequestClose={closeSynchronization}
+                        ariaHideApp={false}
+                    >
+                        {!synchronization ? null : <SynchronizationSettings path={synchronization.path}/>}
                     </ReactModal>
 
                     <Pagination.List
@@ -1304,7 +1323,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     return (props.inDropdown ?
         <Box>
             <ClickableDropdown
-                width="175px"
+                width="200px"
                 left="-160px"
                 trigger={(
                     <Icon
