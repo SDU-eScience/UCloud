@@ -55,34 +55,12 @@ typealias UpdateProductRequest = Product
 typealias UpdateProductResponse = Unit
 
 @Serializable
-sealed class ProductAvailability {
-    @Serializable
-    @SerialName("available")
-    class Available : ProductAvailability() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other == null || this::class != other::class) return false
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return this::class.hashCode()
-        }
-    }
-
-    @Serializable
-    @SerialName("unavailable")
-    data class Unavailable(val reason: String) : ProductAvailability()
-}
-
-@Serializable
 sealed class Product {
     abstract val category: ProductCategoryId
     abstract val pricePerUnit: Long
     abstract val name: String
     abstract val description: String
     abstract val hiddenInGrantApplications: Boolean
-    abstract val availability: ProductAvailability
     abstract val priority: Int
     abstract val version: Int
     abstract val freeToUse: Boolean
@@ -102,7 +80,6 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         override val freeToUse: Boolean = false,
     ) : Product() {
@@ -126,7 +103,6 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         override val freeToUse: Boolean = false,
         val cpu: Int? = null,
@@ -157,7 +133,6 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         override val freeToUse: Boolean,
     ) : Product() {
@@ -181,7 +156,6 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         override val freeToUse: Boolean = true,
         val tags: List<String> = emptyList(),
@@ -206,7 +180,6 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         override val freeToUse: Boolean = false
     ) : Product() {

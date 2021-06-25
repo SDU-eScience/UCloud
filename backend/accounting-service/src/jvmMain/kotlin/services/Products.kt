@@ -19,21 +19,20 @@ import kotlinx.serialization.encodeToString
 object ProductCategoryTable : SQLTable("product_categories") {
     val provider = text("provider", notNull = true)
     val name = text("name", notNull = true)
-    val area = text("area", notNull = true)
+    val productType = text("product_type", notNull = true)
     val chargeType = text("charge_type", notNull = true)
 }
 
 object ProductTable : SQLTable("products") {
-    val provider = text("provider", notNull = true)
-    val category = text("category", notNull = true)
-    val area = text("area", notNull = true)
-
+    val id = long("id", notNull = true)
+    val productCategoryId = long("product_category_id", notNull = true)
+    val name = text("name", notNull = true)
     val pricePerUnit = long("price_per_unit", notNull = true)
-    val id = text("id", notNull = true)
+    val unitOfPrice = text("unit_of_price", notNull = true)
+    val productType = text("product_type", notNull = true)
     val description = text("description", notNull = true)
-    val availability = text("availability", notNull = false)
+    val version = long("version", notNull = true)
     val priority = int("priority", notNull = true)
-    val hiddenInGrantApplications = bool("hidden_in_grant_applications", notNull = true)
 
     val cpu = int("cpu", notNull = false)
     val gpu = int("gpu", notNull = false)
@@ -41,7 +40,7 @@ object ProductTable : SQLTable("products") {
 
     val licenseTags = jsonb("license_tags", notNull = false)
 
-    val paymentModel = text("payment_model", notNull = false)
+    val freeToUse = bool("free_to_use", notNull = false)
 }
 
 class ProductService(
@@ -57,23 +56,10 @@ class ProductService(
             createProductCategoryIfNotExists(session, product.category.provider, product.category.id, product.area)
             try {
                 session.insert(ProductTable) {
-                    set(ProductTable.provider, product.category.provider)
-                    set(ProductTable.category, product.category.id)
-                    set(ProductTable.area, product.area.name)
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
                     set(ProductTable.id, product.id)
                     set(ProductTable.description, product.description)
-                    set(ProductTable.hiddenInGrantApplications, product.hiddenInGrantApplications)
                     set(ProductTable.priority, product.priority)
-                    when (val availability = product.availability) {
-                        is ProductAvailability.Available -> {
-                            set(ProductTable.availability, null)
-                        }
-
-                        is ProductAvailability.Unavailable -> {
-                            set(ProductTable.availability, availability.reason)
-                        }
-                    }
 
                     when (product) {
                         is Product.Storage -> {
@@ -88,15 +74,15 @@ class ProductService(
 
                         is Product.License -> {
                             set(ProductTable.licenseTags, defaultMapper.encodeToString(product.tags))
-                            set(ProductTable.paymentModel, product.paymentModel.name)
+                            set(ProductTable.unitOfPrice, product.unitOfPrice.name)
                         }
 
                         is Product.Ingress -> {
-                            set(ProductTable.paymentModel, product.paymentModel.name)
+                            set(ProductTable.unitOfPrice, product.unitOfPrice.name)
                         }
 
                         is Product.NetworkIP -> {
-                            set(ProductTable.paymentModel, product.paymentModel.name)
+                            set(ProductTable.unitOfPrice, product.unitOfPrice.name)
                         }
                     }
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
