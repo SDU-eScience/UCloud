@@ -14,6 +14,7 @@ import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.favorite.FileFavoriteService
 import dk.sdu.cloud.file.stats.FileStatsService
+import dk.sdu.cloud.file.synchronization.FileSynchronizationService
 import dk.sdu.cloud.file.trash.FileTrashService
 import dk.sdu.cloud.filesearch.FileSearchService
 import dk.sdu.cloud.grant.GrantService
@@ -53,6 +54,7 @@ val services = setOf(
     FileFavoriteService,
     FileStatsService,
     FileTrashService,
+    FileSynchronizationService,
     FileSearchService,
     GrantService,
     IndexingService,
@@ -79,7 +81,6 @@ suspend fun main(args: Array<String>) {
                 override val version: String = "1"
             }, args)
         }
-
         micro.databaseConfig.migrateAll()
         exitProcess(0)
     }
