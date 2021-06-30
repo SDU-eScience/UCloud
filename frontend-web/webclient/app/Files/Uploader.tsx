@@ -80,6 +80,36 @@ async function processUpload(upload: Upload) {
     upload.initialProgress = reader.offset;
     upload.fileSizeInBytes = reader.fileSize();
 
+    upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+    await upload.resume();
+}
+
+function createResumeable(
+    reader: ChunkedFileReader,
+    upload: Upload,
+    strategy: FileApi.FilesCreateUploadResponseItem,
+    fullFilePath: string
+) {
+    return async () => {
+        while (!reader.isEof() && !upload.terminationRequested) {
+            await sendChunk(await reader.readChunk(maxChunkSize));
+
+            const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
+            localStorage.setItem(
+                createLocalStorageUploadKey(fullFilePath),
+                JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
+            );
+        }
+
+        console.log(upload);
+
+        if (!upload.paused) {
+            localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+        } else {
+            upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+        }
+    };
+
     function sendChunk(chunk: ArrayBuffer): Promise<void> {
         return new Promise(((resolve, reject) => {
             const progressStart = upload.progressInBytes;
@@ -108,35 +138,6 @@ async function processUpload(upload: Upload) {
             request.send(chunk);
         }))
     }
-
-    upload.resume = createResumeable(reader, upload, sendChunk, strategy, fullFilePath);
-    await upload.resume();
-}
-
-function createResumeable(
-    reader: ChunkedFileReader,
-    upload: Upload,
-    sendChunk: (chunk: ArrayBuffer) => Promise<void>,
-    strategy: FileApi.FilesCreateUploadResponseItem,
-    fullFilePath: string
-) {
-    return async () => {
-        while (!reader.isEof() && !upload.terminationRequested) {
-            await sendChunk(await reader.readChunk(maxChunkSize));
-
-            const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
-            localStorage.setItem(
-                createLocalStorageUploadKey(fullFilePath),
-                JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
-            );
-        }
-
-        if (!upload.paused) {
-            localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
-        } else {
-            upload.resume = createResumeable(reader, upload, sendChunk, strategy, fullFilePath);
-        }
-    };
 }
 
 const Uploader: React.FunctionComponent = () => {
