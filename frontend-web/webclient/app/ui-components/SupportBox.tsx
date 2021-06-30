@@ -30,7 +30,7 @@ const enum ReducedFeatureSupportType {
     OTHER
 }
 
-export default function ReducedFeatureSupport(): JSX.Element {
+function ReducedFeatureSupport(): JSX.Element {
     const [state, setState] = useState(ReducedFeatureSupportType.SELECTION);
 
     return <ClickableDropdown
@@ -73,7 +73,7 @@ export default function ReducedFeatureSupport(): JSX.Element {
     </ClickableDropdown>
 }
 
-export function Support(): JSX.Element {
+export default function Support(): JSX.Element {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const titleArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
