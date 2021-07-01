@@ -134,7 +134,7 @@ class MailService(
     }
 
     suspend fun sendSupportTicket(
-        fromEmail: String,
+        userEmail: String,
         subject: String,
         text: String
     ) {
@@ -142,9 +142,9 @@ class MailService(
 
         try {
             val message = MimeMessage(session)
-            message.setFrom(InternetAddress(fromEmail))
+            message.setFrom("ticketsystem@escience.sdu.dk")
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = subject
+            message.subject = "$userEmail-|-"+subject
 
             val multipart = MimeMultipart()
 
