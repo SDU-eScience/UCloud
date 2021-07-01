@@ -144,7 +144,7 @@ class MailService(
             val message = MimeMessage(session)
             message.setFrom("ticketsystem@escience.sdu.dk")
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = "$userEmail-|-"+subject
+            message.subject = "$userEmail-|-$subject"
 
             val multipart = MimeMultipart()
 
