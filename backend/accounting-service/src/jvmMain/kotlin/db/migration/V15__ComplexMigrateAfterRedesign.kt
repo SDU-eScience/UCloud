@@ -1,9 +1,6 @@
 package dk.sdu.cloud.accounting.db.migration
 
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.TransactionType
-import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.service.Cache
 import io.ktor.network.sockets.*
 import kotlinx.serialization.decodeFromString
@@ -11,6 +8,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
+import org.joda.time.DateTime
 import java.sql.Connection
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -89,10 +87,10 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                         //Credits
                         products.add(
                             OldProduct(
-                                productProvider = row.getString(0)+"_credits",
+                                productProvider = row.getString(0) + "_credits",
                                 productCategory = row.getString(1),
                                 area = area,
-                                name = row.getString(3)+"_credits",
+                                name = row.getString(3) + "_credits",
                                 price_per_unit = row.getLong(4),
                                 description = row.getString(5),
                                 availability = row.getString(6),
@@ -108,10 +106,10 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                         //Quota
                         products.add(
                             OldProduct(
-                                productProvider = row.getString(0)+"_quota",
+                                productProvider = row.getString(0) + "_quota",
                                 productCategory = row.getString(1),
                                 area = area,
-                                name = row.getString(3)+"_quota",
+                                name = row.getString(3) + "_quota",
                                 price_per_unit = row.getLong(4),
                                 description = row.getString(5),
                                 availability = row.getString(6),
@@ -187,7 +185,7 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
         val productType: String
     )
 
-    private fun migrateAcceptedGrants(connection: Connection, acceptedGrant: AcceptedGrant ) {
+    private fun migrateAcceptedGrants(connection: Connection, acceptedGrant: AcceptedGrant) {
         connection.createStatement().use { statement ->
             var productCategory = if (acceptedGrant.productType == ProductType.STORAGE.name) {
                 acceptedGrant.productCategory + "_credits"
@@ -199,7 +197,7 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
             val description = "Granted in application: ${acceptedGrant.applicationId}"
             var targetWalletId = getWalletId(connection, acceptedGrant.requestedByWorkspace, categoryId)
             var sourceWalletId = getWalletId(connection, acceptedGrant.resourcesOwnedBy, categoryId)
-            val transactionId = statement.execute(
+            val transactionId = statement.executeQuery(
                 """
                         INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, 
                         action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) 
@@ -207,11 +205,12 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                         ${acceptedGrant.approvedBy}, null, $productId, $sourceWalletId, $description)
                         RETURNING id
                     """.trimIndent()
-            )
+            ).getLong(0)
             statement.execute(
                 """
-                        INSERT INTO wallet_allocation (balance, initial_balance, start_date, end_date, parent_wallet_id,
-                        transaction_id)  values (${acceptedGrant.creditsRequested}, ${acceptedGrant.creditsRequested}, 
+                        INSERT INTO wallet_allocation (associated_wallet, balance, initial_balance, start_date, 
+                        end_date, parent_wallet_id, transaction_id)  
+                        values ($targetWalletId, ${acceptedGrant.creditsRequested}, ${acceptedGrant.creditsRequested}, 
                         ${acceptedGrant.createdAt}::timestamp, null, $sourceWalletId, $transactionId)
                     """.trimIndent()
             )
@@ -221,7 +220,7 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                 productId = getProductId(connection, categoryId)
                 targetWalletId = getWalletId(connection, acceptedGrant.requestedByWorkspace, categoryId)
                 sourceWalletId = getWalletId(connection, acceptedGrant.resourcesOwnedBy, categoryId)
-                statement.execute(
+                statement.executeQuery(
                     """
                         INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, 
                         action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) 
@@ -229,11 +228,12 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                         ${acceptedGrant.approvedBy}, null, $productId, $sourceWalletId, $description)
                         RETURNING id
                     """.trimIndent()
-                )
+                ).getLong(0)
                 statement.execute(
                     """
-                        INSERT INTO wallet_allocation (balance, initial_balance, start_date, end_date, parent_wallet_id,
-                        transaction_id)  values (${acceptedGrant.creditsRequested}, ${acceptedGrant.creditsRequested}, 
+                        INSERT INTO wallet_allocation (associated_wallet, balance, initial_balance, start_date, 
+                        end_date, parent_wallet_id, transaction_id)  
+                        values ($targetWalletId, ${acceptedGrant.creditsRequested}, ${acceptedGrant.creditsRequested}, 
                         ${acceptedGrant.createdAt}::timestamp, null, $sourceWalletId, $transactionId)
                     """.trimIndent()
                 )
@@ -248,9 +248,9 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
 
     private fun getCategoryId(connection: Connection, productProvider: String, productCategory: String): Long {
         val id = categoryIdCache[Pair(productProvider, productCategory)]
-        if (id == null ) {
+        if (id == null) {
             connection.createStatement().use { statement ->
-                val categoryId =  statement.executeQuery(
+                val categoryId = statement.executeQuery(
                     "SELECT id FROM accounting2.product_category WHERE provider_id = '${productProvider}' " +
                         "and product_category = ${productCategory}"
                 ).use { row ->
@@ -410,14 +410,18 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                 val categoryId = getCategoryId(connection, it.productProvider, it.productCategory)
                 val productId = getProductId(connection, categoryId)
                 val targetWalletId = getWalletId(connection, it.projectId, categoryId)
-                val sourceWalletId = if (it.parent == null ) { null } else {getWalletId(connection, it.parent, categoryId)}
-                val transactionId = statement.execute(
+                val sourceWalletId = if (it.parent == null) {
+                    null
+                } else {
+                    getWalletId(connection, it.parent, categoryId)
+                }
+                val transactionId = statement.executeQuery(
                     "INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, " +
                         "action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) " +
                         "values (${TransactionType.DEPOSIT.name}, $targetWalletId, ${it.allocated}, 1, " +
                         "$SERVICE_ID, null , $productId, $sourceWalletId, $TRANSACTION_DESCRIPTION )" +
                         "RETURNING id"
-                )
+                ).getLong(0)
                 statement.execute(
                     "INSERT INTO wallet_allocation (associated_wallet, balance, initial_balance, start_date, end_date, " +
                         "parent_wallet_id, transaction_id) " +
@@ -445,10 +449,10 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                     acceptedProjectGrants.add(
                         AcceptedGrant(
                             resourcesOwnedBy = row.getString(0),
-                            requestedByWorkspace = row.getString(1) ,
-                            productProvider = row.getString(2) ,
-                            productCategory = row.getString(3) ,
-                            creditsRequested = row.getLong(4) ,
+                            requestedByWorkspace = row.getString(1),
+                            productProvider = row.getString(2),
+                            productCategory = row.getString(3),
+                            creditsRequested = row.getLong(4),
                             quotaRequestedInBytes = row.getLong(5),
                             createdAt = row.getTimestamp(6).time,
                             applicationId = row.getLong(7),
@@ -480,10 +484,10 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                     acceptedUserGrants.add(
                         AcceptedGrant(
                             resourcesOwnedBy = row.getString(0),
-                            requestedByWorkspace = row.getString(1) ,
-                            productProvider = row.getString(2) ,
-                            productCategory = row.getString(3) ,
-                            creditsRequested = row.getLong(4) ,
+                            requestedByWorkspace = row.getString(1),
+                            productProvider = row.getString(2),
+                            productCategory = row.getString(3),
+                            creditsRequested = row.getLong(4),
                             quotaRequestedInBytes = row.getLong(5),
                             createdAt = row.getTimestamp(6).time,
                             applicationId = row.getLong(7),
@@ -499,44 +503,107 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
         acceptedProjectGrants.forEach { projectGranted ->
             migrateAcceptedGrants(connection, projectGranted)
 
-        acceptedUserGrants.forEach { userGranted ->
-            migrateAcceptedGrants(connection, userGranted)
-        }
+            acceptedUserGrants.forEach { userGranted ->
+                migrateAcceptedGrants(connection, userGranted)
+            }
 
 
-        //Get claimed gifts which should correspond to new deposit transactions.
-        val giftsGranted = mutableListOf<GiftGranted>()
-        connection.createStatement().use { statement ->
-            statement.executeQuery(
-                """
-                    SELECT resources_owned_by, product_category, product_provider, credits, quota, user_id 
-                    FROM "grant".gifts INNER JOIN "grant".gift_resources gr on gifts.id = gr.gift_id 
-                    INNER JOIN "grant".gifts_claimed gc on gifts.id = gc.gift_id 
-                    ORDER BY  user_id
-                """.trimMargin()
-            ).use { row ->
-
-                while (row.next()) {
-                    giftsGranted.add(
-                        GiftGranted(
-                            resourcesOwnedBy = row.getString(0),
-                            productCategory = row.getString(1),
-                            productProvider = row.getString(2),
-                            credits = row.getLong(3),
-                            quota = row.getLong(4),
-                            userGrantedToId = row.getString(5),
-                            productType = row.getString(6)
-                        )
+            //Get claimed gifts which should correspond to new deposit transactions.
+            val giftsGranted = mutableListOf<GiftGranted>()
+            connection.createStatement().use { statement ->
+                statement.executeQuery(
+                    """
+                    WITH productCat AS (
+                        SELECT DISTINCT category, area
+                        FROM accounting.products
                     )
+                    SELECT resources_owned_by, product_category, product_provider, credits, quota, user_id, area
+                    FROM "grant".gifts INNER JOIN "grant".gift_resources gr on gifts.id = gr.gift_id
+                    INNER JOIN "grant".gifts_claimed gc on gifts.id = gc.gift_id
+                    INNER JOIN productCat pro on pro.category = gr.product_category
+                    ORDER BY  user_id;
+                    """.trimMargin()
+                ).use { row ->
+
+                    while (row.next()) {
+                        giftsGranted.add(
+                            GiftGranted(
+                                resourcesOwnedBy = row.getString(0),
+                                productCategory = row.getString(1),
+                                productProvider = row.getString(2),
+                                credits = row.getLong(3),
+                                quota = row.getLong(4),
+                                userGrantedToId = row.getString(5),
+                                productType = row.getString(6)
+                            )
+                        )
+                    }
                 }
             }
-        }
 
 
-        val payedTransactions = mutableListOf<OldTransaction>()
-        connection.createStatement().use { statement ->
-            statement.executeQuery(
-                """
+            connection.createStatement().use { statement ->
+                giftsGranted.forEach { gift ->
+                    val approvedBy = "_grant"
+                    var productCategory = if (gift.productType == ProductType.STORAGE.name) {
+                        gift.productCategory + "_credits"
+                    } else {
+                        gift.productCategory
+                    }
+                    var categoryId = getCategoryId(connection, gift.productProvider, productCategory)
+                    var productId = getProductId(connection, categoryId)
+                    val description = "Gifted"
+                    var targetWalletId = getWalletId(connection, gift.userGrantedToId, categoryId)
+                    var sourceWalletId = getWalletId(connection, gift.resourcesOwnedBy, categoryId)
+                    val transactionId = statement.executeQuery(
+                        """
+                            INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, 
+                            action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) 
+                            values (${TransactionType.DEPOSIT.name}, $targetWalletId, ${gift.credits}, 1,
+                            $approvedBy, null, $productId, $sourceWalletId, $description)
+                            RETURNING id
+                        """.trimIndent()
+                    ).getLong(0)
+                    statement.execute(
+                        """
+                            INSERT INTO wallet_allocation (associated_wallet, balance, initial_balance, start_date, 
+                            end_date, parent_wallet_id, transaction_id)  
+                            values ($targetWalletId, ${gift.credits}, ${gift.credits}, 
+                            (SELECT NOW()), null, $sourceWalletId, $transactionId)
+                        """.trimIndent()
+                    )
+                    if (gift.productType == ProductType.STORAGE.name) {
+                        productCategory = gift.productCategory + "_quota"
+                        categoryId = getCategoryId(connection, gift.productProvider, productCategory)
+                        productId = getProductId(connection, categoryId)
+                        targetWalletId = getWalletId(connection, gift.userGrantedToId, categoryId)
+                        sourceWalletId = getWalletId(connection, gift.resourcesOwnedBy, categoryId)
+                        statement.executeQuery(
+                            """
+                                INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, 
+                                action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) 
+                                values (${TransactionType.DEPOSIT.name}, $targetWalletId, ${gift.quota}, 1,
+                                $approvedBy, null, $productId, $sourceWalletId, $description)
+                                RETURNING id
+                            """.trimIndent()
+                        ).getLong(0)
+                        statement.execute(
+                            """
+                                INSERT INTO wallet_allocation (associated_wallet, balance, initial_balance, start_date, 
+                                end_date, parent_wallet_id, transaction_id)   
+                                values ($targetWalletId, ${gift.quota}, ${gift.quota}, 
+                                (SELECT NOW()), null, $sourceWalletId, $transactionId) 
+                            """.trimIndent()
+                        )
+                    }
+                }
+            }
+
+            //Old job payments to new transactions and withdrawal
+            val payedTransactions = mutableListOf<OldTransaction>()
+            connection.createStatement().use { statement ->
+                statement.executeQuery(
+                    """
                     WITH productCat AS (
                         SELECT DISTINCT category, area
                         FROM accounting.products
@@ -547,27 +614,146 @@ class V15__ComplexMigrateAfterRedesign : BaseJavaMigration() {
                     FROM accounting.transactions INNER JOIN productCat pc on product_category = pc.category
                     WHERE transaction_comment not like 'Trans%'
                 """
-            ).use { row ->
-                while (row.next()) {
-                    payedTransactions.add(OldTransaction(
-                        id = row.getString(0),
-                        account_id = row.getString(1),
-                        original_account_id = row.getString(2),
-                        productCategory = row.getString(3),
-                        productProvider = row.getString(4),
-                        productName = row.getString(5),
-                        initiatedBy = row.getString(6),
-                        completedAt = LocalDateTime.parse(row.getString(7)).toEpochSecond(ZoneOffset.UTC),
-                        units = row.getLong(8),
-                        amount = row.getLong(9),
-                        isReserved = row.getBoolean(10),
-                        expiresAt = LocalDateTime.parse(row.getString(11)).toEpochSecond(ZoneOffset.UTC),
-                        productType = row.getString(12)
-                    ))
+                ).use { row ->
+                    while (row.next()) {
+                        payedTransactions.add(
+                            OldTransaction(
+                                id = row.getString(0),
+                                account_id = row.getString(1),
+                                original_account_id = row.getString(2),
+                                productCategory = row.getString(3),
+                                productProvider = row.getString(4),
+                                productName = row.getString(5),
+                                initiatedBy = row.getString(6),
+                                completedAt = LocalDateTime.parse(row.getString(7)).toEpochSecond(ZoneOffset.UTC),
+                                units = row.getLong(8),
+                                amount = row.getLong(9),
+                                isReserved = row.getBoolean(10),
+                                expiresAt = LocalDateTime.parse(row.getString(11)).toEpochSecond(ZoneOffset.UTC),
+                                productType = row.getString(12)
+                            )
+                        )
+                    }
+                }
+            }
+
+            connection.createStatement().use { statement ->
+                payedTransactions.forEach { payed ->
+                    var productCategory = if (payed.productType == ProductType.STORAGE.name) {
+                        payed.productCategory + "_credits"
+                    } else {
+                        payed.productCategory
+                    }
+                    var categoryId = getCategoryId(connection, payed.productProvider, productCategory)
+                    var productId = getProductId(connection, categoryId)
+                    val description = "Payment for ${payed.productCategory}"
+                    var targetWalletId = getWalletId(connection, payed.account_id, categoryId)
+                    val transactionId = statement.executeQuery(
+                        """
+                            INSERT INTO transaction (transaction_type, target_wallet_id, units, number_of_products, 
+                            action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description) 
+                            values (${TransactionType.CHARGE.name}, $targetWalletId, ${payed.units}, 1,
+                            ${payed.initiatedBy}, null, $productId, null, $description)
+                            RETURNING id
+                        """.trimIndent()
+                    ).getLong(0)
+
+                    data class SimpleAllocation(
+                        val allocation_id: Long,
+                        val associatedWalletId: Long,
+                        val currentBalance: Long,
+                        val parentWalletId: Long?
+                    )
+
+                    val walletsToCharge = mutableListOf<Long>()
+                    val allocations = mutableListOf<SimpleAllocation>()
+                    statement.executeQuery(
+                        """
+                            SELECT id, associated_wallet, balance, parent_wallet_id 
+                            FROM accounting2.wallets INNER JOIN wallet_allocation wa on wallets.id = wa.associated_wallet 
+                            WHERE id = $targetWalletId and category_id = $productCategory
+                        """.trimIndent()
+                    ).use { results ->
+                        allocations.add(
+                            SimpleAllocation(
+                                results.getLong(0),
+                                results.getLong(1),
+                                results.getLong(2),
+                                results.getLong(3)
+                            )
+                        )
+                    }
+
+                    allocations.sortByDescending { it.currentBalance }
+                    val allocation = allocations.find { it.currentBalance >= payed.amount }
+                        ?: throw NullPointerException("no allocation big enough")
+
+                    statement.executeUpdate(
+                        """
+                            UPDATE wallet_allocation
+                            SET balance = balance - ${payed.amount}
+                            WHERE id = ${allocation.allocation_id}
+                        """.trimIndent()
+                    )
+                    statement.execute(
+                        """
+                                INSERT INTO internal_transactions (transaction_id, transaction_type, units, 
+                                number_of_products, description, product_id, source_wallet, target_wallet, current_wallet) 
+                                values ($transactionId, ${TransactionType.CHARGE.name}, ${payed.units}, 1,
+                                $description, $productId, null, ${targetWalletId}, ${allocation.associatedWalletId})
+                            """.trimIndent()
+                    )
+                    if (allocation.parentWalletId != null) {
+                        walletsToCharge.add(allocation.parentWalletId)
+                    }
+
+                    while (walletsToCharge.isNotEmpty()) {
+                        val walletId = walletsToCharge.removeFirst()
+                        allocations.clear()
+                        statement.executeQuery(
+                            """
+                            SELECT id, associated_wallet, balance, parent_wallet_id 
+                            FROM accounting2.wallets INNER JOIN wallet_allocation wa on wallets.id = wa.associated_wallet 
+                            WHERE id = $walletId and category_id = $productCategory
+                        """.trimIndent()
+                        ).use { results ->
+                            allocations.add(
+                                SimpleAllocation(
+                                    results.getLong(0),
+                                    results.getLong(1),
+                                    results.getLong(2),
+                                    results.getLong(3)
+                                )
+                            )
+                        }
+
+                        allocations.sortByDescending { it.currentBalance }
+                        val allocation = allocations.find { it.currentBalance >= payed.amount }
+                            ?: throw NullPointerException("no allocation big enough")
+
+                        statement.executeUpdate(
+                            """
+                                UPDATE wallet_allocation
+                                SET balance = balance - ${payed.amount}
+                                WHERE id = ${allocation.allocation_id}
+                            """.trimIndent()
+                        )
+                        statement.execute(
+                            """
+                                INSERT INTO internal_transactions (transaction_id, transaction_type, units, 
+                                number_of_products, description, product_id, source_wallet, target_wallet, current_wallet) 
+                                values ($transactionId, ${TransactionType.CHARGE.name}, ${payed.units}, 1,
+                                $description, $productId, null, ${targetWalletId}, ${allocation.associatedWalletId})
+                            """.trimIndent()
+                        )
+                        if (allocation.parentWalletId != null) {
+                            walletsToCharge.add(allocation.parentWalletId)
+                        }
+                    }
+
                 }
             }
         }
-
     }
 }
 

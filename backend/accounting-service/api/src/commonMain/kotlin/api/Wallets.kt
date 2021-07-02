@@ -41,6 +41,7 @@ enum class AllocationSelectorPolicy{
 @Serializable
 data class WalletAllocation(
     val id: String,
+    val associatedWallet: Wallet,
     val parent: Wallet,
     val balance: Long,
     val initialBalance: Long,
