@@ -141,6 +141,7 @@ export abstract class ResourceApi<Res extends Resource,
     public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
     public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public ImportantStatsRenderer?: React.FunctionComponent<{ resource: Res }>;
 
     protected constructor(namespace: string) {
         this.namespace = namespace;

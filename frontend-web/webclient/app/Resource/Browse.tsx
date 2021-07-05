@@ -97,11 +97,15 @@ export const ResourceBrowse = <Res extends Resource>(
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
         if (props.isSearch) {
-            fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                sortDirection, sortBy: sortColumn}));
+            fetchResources(api.search({
+                itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                sortDirection, sortBy: sortColumn
+            }));
         } else {
-            fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters, sortBy: sortColumn,
-                sortDirection}));
+            fetchResources(api.browse({
+                itemsPerPage: 50, includeOthers, ...filters, sortBy: sortColumn,
+                sortDirection
+            }));
         }
         toggleSet.uncheckAll();
     }, [projectId, filters, query, props.isSearch, sortColumn, sortDirection]);
@@ -109,11 +113,15 @@ export const ResourceBrowse = <Res extends Resource>(
     const loadMore = useCallback(() => {
         if (resources.data.next) {
             if (props.isSearch) {
-                fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                    next: resources.data.next, sortDirection, sortBy: sortColumn}));
+                fetchResources(api.search({
+                    itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                    next: resources.data.next, sortDirection, sortBy: sortColumn
+                }));
             } else {
-                fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers,
-                    ...filters, sortBy: sortColumn, sortDirection}));
+                fetchResources(api.browse({
+                    next: resources.data.next, itemsPerPage: 50, includeOthers,
+                    ...filters, sortBy: sortColumn, sortDirection
+                }));
             }
         }
     }, [resources.data.next, filters, query, props.isSearch, sortColumn, sortDirection]);
@@ -161,7 +169,10 @@ export const ResourceBrowse = <Res extends Resource>(
         return api.retrieveOperations();
     }, [callbacks, api]);
 
-    const onSortUpdated = useCallback((dir, column) => { setSortColumn(column); setSortDirection(dir) }, []);
+    const onSortUpdated = useCallback((dir, column) => {
+        setSortColumn(column);
+        setSortDirection(dir)
+    }, []);
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false}>
             {!isCreating ? null :
@@ -209,7 +220,8 @@ export const ResourceBrowse = <Res extends Resource>(
                 <ListRow
                     key={it.id}
                     icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"36px"}/> : null}
-                    left={api.InlineTitleRenderer ? <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
+                    left={api.InlineTitleRenderer ?
+                        <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     leftSub={
@@ -227,15 +239,18 @@ export const ResourceBrowse = <Res extends Resource>(
                         </ListStatContainer>
                     }
                     right={
-                        <Operations
-                            selected={toggleSet.checked.items}
-                            location={"IN_ROW"}
-                            entityNameSingular={api.title}
-                            entityNamePlural={api.titlePlural}
-                            extra={callbacks}
-                            operations={operations}
-                            row={it}
-                        />
+                        <>
+                            {api.ImportantStatsRenderer ? <api.ImportantStatsRenderer resource={it}/> : null}
+                            <Operations
+                                selected={toggleSet.checked.items}
+                                location={"IN_ROW"}
+                                entityNameSingular={api.title}
+                                entityNamePlural={api.titlePlural}
+                                extra={callbacks}
+                                operations={operations}
+                                row={it}
+                            />
+                        </>
                     }
                 />
             )}

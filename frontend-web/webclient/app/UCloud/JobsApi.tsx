@@ -17,6 +17,9 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {EnumFilter} from "Resource/Filter";
 import Application = compute.Application;
 import {buildQueryString} from "Utilities/URIUtilities";
+import {isJobStateTerminal, stateToTitle} from "Applications/Jobs";
+import {Box, Flex, Icon, Text} from "ui-components";
+import {IconName} from "ui-components/Icon";
 
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
@@ -151,6 +154,35 @@ export interface SessionDataVnc {
     password?: string;
 }
 
+function jobStateToIconAndColor(state: JobState): [IconName, string] {
+    let color = "iconColor";
+    let icon: IconName;
+    switch (state) {
+        case "IN_QUEUE":
+            icon = "calendar";
+            break;
+        case "RUNNING":
+            icon = "chrono";
+            break;
+        case "SUCCESS":
+            icon = "check";
+            color = "green";
+            break;
+        case "FAILURE":
+            icon = "close";
+            color = "red";
+            break;
+        case "EXPIRED":
+            icon = "chrono";
+            color = "orange";
+            break;
+        default:
+            icon = "ellipsis";
+            break;
+    }
+    return [icon, color];
+}
+
 class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUpdate, JobFlags,
     JobStatus, ComputeSupport>  {
     routingNamespace = "jobs";
@@ -160,6 +192,14 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
     InlineTitleRenderer = ({resource}) => resource.specification.name ?? resource.id;
     IconRenderer = ({resource, size}) =>
         <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}/>;
+    ImportantStatsRenderer = ({resource}) => {
+        const job = resource as Job;
+        const [icon, color] = jobStateToIconAndColor(job.status.state);
+        return <Flex width={"120px"} height={"27px"}>
+            <Icon name={icon} color={color} mr={"8px"}/>
+            <Box mt={"-3px"}>{stateToTitle(job.status.state)}</Box>
+        </Flex>
+    }
 
     constructor() {
         super("jobs");
