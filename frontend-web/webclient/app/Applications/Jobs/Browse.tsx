@@ -89,12 +89,11 @@ export const Browse: React.FunctionComponent = () => {
     useRefreshFunction(refresh);
 
     useLoading(jobs.loading);
-    const projectId = useProjectId();
 
     useEffect(() => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, ...flags, ...filters, sortBy}));
         setInfScrollId(id => id + 1);
-    }, [projectId, filters, sortBy]);
+    }, [filters, sortBy]);
 
     const loadMore = useCallback(() => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
