@@ -34,7 +34,7 @@ function mergeProperties(
     properties: Record<string, string>,
     newProperties: Record<string, string | undefined>,
     setProperties: (p: Record<string, string>) => void
-) {
+): Record<string, string> {
     const result: Record<string, string> = {...(properties)};
     for (const [key, value] of Object.entries(newProperties)) {
         if (value === undefined) {
@@ -44,6 +44,7 @@ function mergeProperties(
         }
     }
     setProperties(result);
+    return result;
 }
 
 export const ResourceFilter: React.FunctionComponent<{
@@ -89,9 +90,10 @@ export const ResourceFilter: React.FunctionComponent<{
     }, [setProperties, properties, setIsDirty]);
 
     const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        mergeProperties(sortProperties, updatedProperties, setSortProperties);
+        const newProps = mergeProperties(sortProperties, updatedProperties, setSortProperties);
+        props.onSortUpdated(newProps["direction"] as "ascending" | "descending", newProps["column"]);
         setIsDirty(true);
-    }, [setSortProperties, sortProperties, setIsDirty]);
+    }, [setSortProperties, sortProperties, setIsDirty, props.onSortUpdated]);
 
     const sortOptions = useMemo(() => {
         return props.sortEntries.map(it => ({
@@ -125,7 +127,7 @@ export const ResourceFilter: React.FunctionComponent<{
     const applyFilters = useCallback(() => {
         props.onApplyFilters();
         setIsDirty(false);
-    }, [props.onApplyFilters, setIsDirty]);
+    }, [props.onApplyFilters, setIsDirty, sortProperties]);
 
     return <>
         <Heading.h4 mt={"32px"} mb={"16px"}>

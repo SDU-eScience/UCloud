@@ -97,23 +97,26 @@ export const ResourceBrowse = <Res extends Resource>(
         setInfScroll(prev => prev + 1);
         fetchProductsWithSupport(api.retrieveProducts());
         if (props.isSearch) {
-            fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query}));
+            fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                sortDirection, sortBy: sortColumn}));
         } else {
-            fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters}));
+            fetchResources(api.browse({itemsPerPage: 50, includeOthers, ...filters, sortBy: sortColumn,
+                sortDirection}));
         }
         toggleSet.uncheckAll();
-    }, [projectId, filters, query, props.isSearch]);
+    }, [projectId, filters, query, props.isSearch, sortColumn, sortDirection]);
 
     const loadMore = useCallback(() => {
         if (resources.data.next) {
             if (props.isSearch) {
                 fetchResources(api.search({itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                    next: resources.data.next}));
+                    next: resources.data.next, sortDirection, sortBy: sortColumn}));
             } else {
-                fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers, ...filters}));
+                fetchResources(api.browse({next: resources.data.next, itemsPerPage: 50, includeOthers,
+                    ...filters, sortBy: sortColumn, sortDirection}));
             }
         }
-    }, [resources.data.next, filters, query, props.isSearch]);
+    }, [resources.data.next, filters, query, props.isSearch, sortColumn, sortDirection]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
