@@ -305,6 +305,7 @@ export namespace compute {
         environment?: Record<string, InvocationParameter>,
         allowAdditionalMounts?: boolean,
         allowAdditionalPeers?: boolean,
+        allowPublicIp?: boolean,
         allowMultiNode: boolean,
         fileExtensions: string[],
         licenseServers: string[],

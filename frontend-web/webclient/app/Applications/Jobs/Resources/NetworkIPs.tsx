@@ -12,7 +12,6 @@ import {compute} from "UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
-import {inDevEnvironment, onDevSite} from "UtilityFunctions";
 
 export const NetworkIPResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -22,7 +21,7 @@ export const NetworkIPResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (!inDevEnvironment() && !onDevSite() && localStorage.getItem("enablepublicip") == null) return null;
+    if (application.invocation.allowPublicIp !== true) return null;
 
     return <Box>
         <Flex alignItems="center">
