@@ -7,16 +7,16 @@ import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {inDevEnvironment} from "UtilityFunctions";
-const CONF = require("../../site.config.json");
+import CONF from "../../site.config.json";
 
-const win1 = require("Assets/Images/webdav/win_dav_1.png");
-const win2 = require("Assets/Images/webdav/win_dav_2.png");
-const win3 = require("Assets/Images/webdav/win_dav_3.png");
+import win1 from "Assets/Images/webdav/win_dav_1.png";
+import win2 from "Assets/Images/webdav/win_dav_2.png";
+import win3 from "Assets/Images/webdav/win_dav_3.png";
 
-const macos1 = require("Assets/Images/webdav/macos_dav_1.png");
-const macos2 = require("Assets/Images/webdav/macos_dav_2.png");
+import macos1 from "Assets/Images/webdav/macos_dav_1.png";
+import macos2 from "Assets/Images/webdav/macos_dav_2.png";
 
-const nautilus1 = require("Assets/Images/webdav/nautilus_dav_1.png");
+import nautilus1 from "Assets/Images/webdav/nautilus_dav_1.png";
 
 export const Instructions: React.FunctionComponent<{token: string}> = props => {
     const server = inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
@@ -35,7 +35,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             <Heading.h5>Step 1</Heading.h5>
                             <p>
                                 Open up Explorer and right-click <i>"This PC"</i> -&gt; select <i>"Map network
-                                drive..."</i>
+                                    drive..."</i>
                             </p>
                             <Screenshot src={win1} alt={"Right click 'This PC' and select 'Map network drive...'"} />
                         </Step>

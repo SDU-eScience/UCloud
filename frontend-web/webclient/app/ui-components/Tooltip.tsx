@@ -1,7 +1,8 @@
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Flex, Relative} from "ui-components";
+import Relative from "./Relative";
+import Flex from "./Flex";
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
 
@@ -111,15 +112,15 @@ const Tooltip = ({
     tooltipContentWidth,
     ...props
 }: Tooltip): JSX.Element => (
-        <VisibleOnHover>
-            <Flex>{props.trigger}</Flex>
-            <Relative left={wrapperOffsetLeft} top={wrapperOffsetTop} zIndex={zIndex}>
-                <TooltipContent width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}>
-                    {children}
-                </TooltipContent>
-            </Relative>
-        </VisibleOnHover>
-    );
+    <VisibleOnHover>
+        <Flex>{props.trigger}</Flex>
+        <Relative left={wrapperOffsetLeft} top={wrapperOffsetTop} zIndex={zIndex}>
+            <TooltipContent width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}>
+                {children}
+            </TooltipContent>
+        </Relative>
+    </VisibleOnHover>
+);
 
 const VisibleOnHover = styled(Box)`
   & > ${Flex}:hover + ${Relative} > ${TooltipContent} {

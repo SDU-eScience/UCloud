@@ -41,7 +41,7 @@ const Search = React.lazy(() => import("Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("Applications/Studio/Page"));
 const Subprojects = React.lazy(() => import("Project/Subprojects"));
-const Tool = React.lazy(() => import ("Applications/Studio/Tool"));
+const Tool = React.lazy(() => import("Applications/Studio/Tool"));
 const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
@@ -66,10 +66,63 @@ import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "UtilityFunctions";
 import {History} from "history";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
-import {dispatchUserAction, onLogin} from "App";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Client} from "Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
+
+import Header from "Navigation/Header";
+import {CONTEXT_SWITCH, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
+import {BrowserRouter} from "react-router-dom";
+import {createGlobalStyle, ThemeProvider} from "styled-components";
+import {theme, UIGlobalStyle} from "ui-components";
+import {invertedColors} from "ui-components/theme";
+import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import {store} from "Utilities/ReduxUtilities";
+import {isLightThemeStored, setSiteTheme, toggleCssColors} from "UtilityFunctions";
+import {injectFonts} from "ui-components/GlobalStyle";
+import {Provider} from "react-redux";
+
+export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+    store.dispatch({type});
+}
+
+export async function onLogin(): Promise<void> {
+    const action = await findAvatar();
+    if (action !== null) store.dispatch(action);
+}
+
+const GlobalStyle = createGlobalStyle`
+  ${UIGlobalStyle}
+`;
+
+Client.initializeStore(store);
+
+function MasterApp({children}: {children?: React.ReactNode}): JSX.Element {
+    const [isLightTheme, setTheme] = React.useState(() => {
+        const isLight = isLightThemeStored();
+        toggleCssColors(isLight);
+        return isLight;
+    });
+    const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
+
+    function toggle(): void {
+        toggleCssColors(isLightTheme);
+        setAndStoreTheme(!isLightTheme);
+    }
+
+    return (
+        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
+            <GlobalStyle />
+            <BrowserRouter basename="app">
+                <Header toggleTheme={toggle} />
+                {children}
+            </BrowserRouter>
+        </ThemeProvider>
+    );
+}
+
+
+injectFonts();
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -240,4 +293,10 @@ const LoginSuccess = (props: {history: History}): null => {
     return null;
 };
 
-export default Core;
+export default function MainApp(): JSX.Element {
+    return <Provider store={store}>
+        <MasterApp>
+            <Core />
+        </MasterApp>
+    </Provider>;
+}

@@ -13,8 +13,9 @@
         "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
         "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components && rm -f components/index.tsx",
         "icons-index": "node scripts/create-icons-index.js",
-        "vite-dev": "vite",
-        "vite-build": "tsc && vite build",
+        "vite-dev": "vite --mode development",
+        "vite-dev:local": "vite --mode local-dev",
+        "vite-build": "tsc && vite build --mode production",
         "vite-serve": "vite preview"
     },
     "dependencies": {
@@ -74,7 +75,7 @@
         "copy-webpack-plugin": "9.0.0",
         "css-loader": "^5.2.6",
         "empty-module": "~0.0.2",
-        "eslint": "^7.29.0",
+        "eslint": "^7.30.0",
         "eslint-plugin-react": "^7.24.0",
         "file-loader": "6.2.0",
         "html-webpack-plugin": "^5.3.1",

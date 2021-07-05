@@ -1,6 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Sensitivity} from "DefaultObjects";
-import {STATUS_CODES} from "http";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
@@ -102,7 +102,7 @@ export const bulkUpload = async ({
 };
 
 function statusToError(status: number): string {
-    switch (STATUS_CODES[status]) {
+    switch (HTTP_STATUS_CODES[status]) {
         case "Expectation Failed": {
             return "Expectation Failed";
         }
