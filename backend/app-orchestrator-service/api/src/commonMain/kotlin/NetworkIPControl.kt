@@ -46,13 +46,13 @@ data class NetworkIPControlChargeCreditsResponse(
         "A list of jobs which could not be charged due to lack of funds. " +
             "If all jobs were charged successfully then this will empty."
     )
-    val insufficientFunds: List<NetworkIPId>,
+    val insufficientFunds: List<NetworkIPRetrieve>,
 
     @UCloudApiDoc(
         "A list of ingresses which could not be charged due to it being a duplicate charge. " +
             "If all ingresses were charged successfully this will be empty."
     )
-    val duplicateCharges: List<NetworkIPId>,
+    val duplicateCharges: List<NetworkIPRetrieve>,
 )
 
 @TSNamespace("compute.networkips.control")

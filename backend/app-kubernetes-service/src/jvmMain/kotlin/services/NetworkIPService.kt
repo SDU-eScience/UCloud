@@ -62,10 +62,17 @@ class NetworkIPService(
             }
 
             // Immediately charge the user before we do any IP allocation
-            NetworkIPControl.chargeCredits.call(
+            val resp = NetworkIPControl.chargeCredits.call(
                 bulkRequestOf(networks.items.map { NetworkIPControlChargeCreditsRequestItem(it.id, it.id, 1) }),
                 k8.serviceClient
             ).orThrow()
+
+            if (resp.insufficientFunds.isNotEmpty()) {
+                throw RPCException(
+                    "Not enough credits available to allocate an IP address",
+                    HttpStatusCode.PaymentRequired
+                )
+            }
 
             for (network in networks.items) {
                 val ipAddress: Address = findAddressFromPool(session)
