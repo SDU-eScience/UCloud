@@ -96,8 +96,15 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 id: selectedProduct.id,
                 provider: props.computeProvider ?? selectedProvider!
             }
-        })));
+        })), {defaultErrorHandler: false});
 
+        if (!resp) {
+            snackbarStore.addFailure(
+                "Unable to allocate an IP address. Please make sure you have enough credits allocated to your project.",
+                false
+            );
+            return;
+        }
 
         if (resp?.ids?.length) {
             snackbarStore.addSuccess(`Allocated a public IP.`, false);
