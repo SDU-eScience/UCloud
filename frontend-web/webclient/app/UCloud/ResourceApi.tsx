@@ -12,6 +12,7 @@ import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {doNothing} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
 import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resource/Filter";
+import {IconName} from "ui-components/Icon";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -88,6 +89,18 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     embedded: boolean;
 }
 
+export interface SortFlags {
+    sortBy?: string;
+    sortDirection?: "ascending" | "descending";
+}
+
+export interface SortEntry {
+    icon: IconName;
+    title: string;
+    column: string;
+    helpText?: string;
+}
+
 export abstract class ResourceApi<Res extends Resource,
     Prod extends Product,
     Spec extends ResourceSpecification = ResourceSpecification,
@@ -104,16 +117,30 @@ export abstract class ResourceApi<Res extends Resource,
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
     public filterPills: React.FunctionComponent<PillProps>[] = [];
+    public sortEntries: SortEntry[] = [
+        {
+            icon: "calendar",
+            title: "Date created",
+            column: "createdAt",
+            helpText: "Date and time of initial creation"
+        },
+        {
+            icon: "user",
+            title: "Created by",
+            column: "createdBy",
+            helpText: "The user who initially created the resource"
+        }
+    ];
 
     public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]) {
         this.filterWidgets.push(w);
         this.filterPills.push(p);
     }
 
-    public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public NameRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
@@ -201,7 +228,7 @@ export abstract class ResourceApi<Res extends Resource,
         return this.title + "s";
     }
 
-    browse(req: PaginationRequestV2 & Flags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {
+    browse(req: PaginationRequestV2 & Flags & SortFlags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {
         return {
             context: "",
             method: "GET",
@@ -258,7 +285,7 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     search(
-        req: {query: string; flags: Flags; } & PaginationRequestV2
+        req: {query: string; flags: Flags; } & PaginationRequestV2 & SortFlags
     ): APICallParameters<{query: string; flags: Flags; } & PaginationRequestV2, PageV2<Res>> {
         return {
             context: "",

@@ -47,9 +47,9 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
     title = "Public Link";
     page = SidebarPages.Runs;
 
-    TitleRenderer = ({resource}) => resource.specification.domain
+    InlineTitleRenderer = ({resource}) => resource.specification.domain
     IconRenderer = ({resource, size}) => <Icon name={"globeEuropeSolid"} size={size}/>
-    NameRenderer = this.TitleRenderer;
+    TitleRenderer = this.InlineTitleRenderer;
 
     constructor() {
         super("ingresses");
@@ -76,6 +76,12 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
                 }
             ]
         ));
+
+        this.sortEntries.push({
+            icon: "globeEuropeSolid",
+            title: "Domain",
+            column: "domain"
+        });
     }
 }
 

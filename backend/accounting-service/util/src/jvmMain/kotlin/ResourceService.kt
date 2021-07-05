@@ -68,7 +68,8 @@ abstract class ResourceService<
     protected val serviceClient: AuthenticatedClient,
 ) : ResourceSvc<Res, Flags, Spec, Update, Prod, Support> {
     protected abstract val table: SqlObject.Table
-    protected abstract val sortColumn: SqlObject.Column
+    protected abstract val sortColumns: Map<String, SqlObject.Column>
+    protected abstract val defaultSortColumn: SqlObject.Column
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String by lazy {
         runBlocking {
@@ -107,10 +108,11 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
         flags: Flags?,
+        sortFlags: SortFlags?,
         ctx: DBContext?
     ): PageV2<Res> {
         val browseQuery = browseQuery(flags)
-        return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, request.normalize(), ctx)
+        return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, sortFlags, request.normalize(), ctx)
     }
 
     protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
@@ -237,19 +239,8 @@ abstract class ResourceService<
         }
     }
 
-    private suspend fun List<Res>.attachExtra(flags: Flags?, includeSupport: Boolean = false): List<Res> {
-        forEach {
-            if (includeSupport || flags?.includeSupport == true) {
-                it.status.resolvedSupport = support.retrieveProductSupport(it.specification.product)
-            }
-
-            if (flags?.includeProduct == true) {
-                it.status.resolvedProduct = support.retrieveProductSupport(it.specification.product).product
-            }
-        }
-
-        return this
-    }
+    private suspend fun List<Res>.attachExtra(flags: Flags?, includeSupport: Boolean = false): List<Res> =
+        onEach { it.attachExtra(flags, includeSupport) }
 
     private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
         if (includeSupport || flags?.includeSupport == true) {
@@ -286,6 +277,7 @@ abstract class ResourceService<
         res: ProductRefOrResource<Res>,
         support: Support
     ) {
+        // Empty by default
     }
 
     protected abstract suspend fun createSpecifications(
@@ -416,7 +408,7 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
-                    if (mappedRequestIfAny != null && false) {
+                    if (mappedRequestIfAny != null) {
                         db.withTransaction { session ->
                             deleteInternal(
                                 mappedRequestIfAny.items.map { it.id.toLong() },
@@ -441,6 +433,7 @@ abstract class ResourceService<
         res: ProductRefOrResource<Res>,
         support: Support
     ) {
+        // Empty by default
     }
 
     override suspend fun updateAcl(
@@ -579,6 +572,7 @@ abstract class ResourceService<
         res: ProductRefOrResource<Res>,
         support: Support
     ) {
+        // Empty by default
     }
 
     protected open suspend fun deleteSpecification(
@@ -696,6 +690,7 @@ abstract class ResourceService<
         updates: List<ResourceUpdateAndId<Update>>,
         session: AsyncDBConnection
     ) {
+        // Empty by default
     }
 
     override suspend fun addUpdate(
@@ -905,7 +900,7 @@ abstract class ResourceService<
         val search = browseQuery(request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.Read), request.flags,
-            request.normalize(), ctx
+            request, request.normalize(), ctx
         )
     }
 
@@ -1049,12 +1044,19 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         permissionsOneOf: Collection<Permission>,
         flags: Flags?,
+        sortFlags: SortFlags?,
         pagination: NormalizedPaginationRequestV2,
         ctx: DBContext?
     ): PageV2<Res> {
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-        val sortBy = sortColumn.verify({ db.openSession() }, { db.closeSession(it) })
+        val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
+        val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortDirection = when (sortFlags?.sortDirection) {
+            SortDirection.ascending -> "asc"
+            SortDirection.descending -> "desc"
+            null -> "asc"
+        }
 
         val (resourceParams, resourceQuery) = accessibleResources(
             actorAndProject.actor,
@@ -1083,7 +1085,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            spec.$sortBy
+                            spec.$sortBy $sortDirection
                     """,
                 )
             },

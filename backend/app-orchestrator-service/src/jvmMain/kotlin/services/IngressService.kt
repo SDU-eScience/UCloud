@@ -47,7 +47,10 @@ class IngressService(
 ) : ResourceService<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
         Product.Ingress, IngressSettings, ComputeCommunication>(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
-    override val sortColumn = SqlObject.Column(table, "domain")
+    override val sortColumns: Map<String, SqlObject.Column> = mapOf(
+        "domain" to SqlObject.Column(table, "domain")
+    )
+    override val defaultSortColumn = SqlObject.Column(table, "domain")
     override val serializer: KSerializer<Ingress> = serializer()
     override val productArea: ProductArea = ProductArea.INGRESS
     override val updateSerializer: KSerializer<IngressUpdate> = serializer()

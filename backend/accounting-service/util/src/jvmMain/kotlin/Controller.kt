@@ -24,7 +24,7 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
             }
 
             implement(userApi.browse) {
-                ok(browse(actorAndProject, request, request.flags))
+                ok(browse(actorAndProject, request, request.flags, request))
             }
 
             implement(userApi.retrieve) {

@@ -157,9 +157,9 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
     title = "Run";
     page = SidebarPages.Runs;
 
-    TitleRenderer = ({resource}) => resource.specification.name ?? resource.id;
+    InlineTitleRenderer = ({resource}) => resource.specification.name ?? resource.id;
     IconRenderer = ({resource, size}) =>
-        <AppToolLogo name={resource.specification.application.name} type={"APPLICATION"} size={size}/>;
+        <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}/>;
 
     constructor() {
         super("jobs");
@@ -175,7 +175,21 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
                 {title: "Failure", value: "FAILURE", icon: "close"},
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
             ]
-        ))
+        ));
+
+        this.sortEntries.push({
+            icon: "apps",
+            title: "Application",
+            column: "application",
+            helpText: "The name of the application, e.g. 'Terminal'"
+        });
+
+        this.sortEntries.push({
+            icon: "radioEmpty",
+            title: "Status",
+            column: "state",
+            helpText: "The current status of the job, e.g. 'Running'"
+        });
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {

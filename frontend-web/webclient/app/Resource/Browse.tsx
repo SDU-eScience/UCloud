@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import {ResolvedSupport, Resource, ResourceApi, ResourceBrowseCallbacks, SupportByProvider} from "UCloud/ResourceApi";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {accounting, PageV2} from "UCloud";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
@@ -20,10 +20,8 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, timestampUnixMs} from "UtilityFunctions";
+import {timestampUnixMs} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
-import {dialogStore} from "Dialog/DialogStore";
-import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {useSidebarPage} from "ui-components/Sidebar";
 import {ResourceProperties} from "Resource/Properties";
 import * as Heading from "ui-components/Heading";
@@ -63,6 +61,8 @@ export const ResourceBrowse = <Res extends Resource>(
     const [commandLoading, invokeCommand] = useCloudCommand();
     const projectId = useProjectId();
     const [filters, setFilters] = useState<Record<string, string>>({});
+    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("ascending");
+    const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
     const history = useHistory();
     const query = getQueryParamOrElse(history.location.search, "q", "");
 
@@ -158,11 +158,12 @@ export const ResourceBrowse = <Res extends Resource>(
         return api.retrieveOperations();
     }, [callbacks, api]);
 
+    const onSortUpdated = useCallback((dir, column) => { setSortColumn(column); setSortDirection(dir) }, []);
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false}>
             {!isCreating ? null :
                 <ListRow
-                    icon={api.IconRenderer ? <api.IconRenderer resource={null} size={"24px"}/> : null}
+                    icon={api.IconRenderer ? <api.IconRenderer resource={null} size={"36px"}/> : null}
                     left={
                         !selectedProduct ?
                             <ProductSelector products={products} onProductSelected={setSelectedProduct}/>
@@ -197,15 +198,15 @@ export const ResourceBrowse = <Res extends Resource>(
             }
             {items.length > 0 || isCreating ? null :
                 <>
-                    No {api.titlePlural.toLowerCase()} available. Click "Create {api.title.toLowerCase()}"
+                    No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
                     to create a new one.
                 </>
             }
             {items.map(it =>
                 <ListRow
                     key={it.id}
-                    icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"24px"}/> : null}
-                    left={api.TitleRenderer ? <api.TitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
+                    icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"36px"}/> : null}
+                    left={api.InlineTitleRenderer ? <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     leftSub={
@@ -285,7 +286,9 @@ export const ResourceBrowse = <Res extends Resource>(
                                     extra={callbacks} operations={operations}/>
 
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
-                                        properties={filters} setProperties={setFilters} onApplyFilters={reload}/>
+                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
+                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                                        onApplyFilters={reload}/>
                     </>
             }
         />

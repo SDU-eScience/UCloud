@@ -1,7 +1,7 @@
 import * as React from "react";
-import {useCallback, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {IconName} from "ui-components/Icon";
-import {Box, Button, Flex, Grid, Icon, Input, Stamp} from "ui-components";
+import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import * as Text from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -15,6 +15,7 @@ import {Toggle} from "ui-components/Toggle";
 import {doNothing, timestampUnixMs} from "UtilityFunctions";
 import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Activity/Page";
 import {dateToStringNoTime} from "Utilities/DateUtilities";
+import {SortEntry} from "UCloud/ResourceApi";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
@@ -29,15 +30,47 @@ export interface PillProps {
     onDelete: (keys: string[]) => void;
 }
 
+function mergeProperties(
+    properties: Record<string, string>,
+    newProperties: Record<string, string | undefined>,
+    setProperties: (p: Record<string, string>) => void
+) {
+    const result: Record<string, string> = {...(properties)};
+    for (const [key, value] of Object.entries(newProperties)) {
+        if (value === undefined) {
+            delete result[key];
+        } else {
+            result[key] = value;
+        }
+    }
+    setProperties(result);
+}
+
 export const ResourceFilter: React.FunctionComponent<{
     pills: React.FunctionComponent<PillProps>[];
     filterWidgets: React.FunctionComponent<FilterWidgetProps>[];
+    sortEntries: SortEntry[];
     properties: Record<string, string>;
     setProperties: (props: Record<string, string>) => void;
+    sortDirection: "ascending" | "descending";
+    sortColumn?: string;
+    onSortUpdated: (direction: "ascending" | "descending", column: string) => void;
     onApplyFilters: () => void;
 }> = props => {
     const {properties, setProperties} = props;
     const [expanded, setExpanded] = useState<number | null>(null);
+    const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
+    const [isDirty, setIsDirty] = useState(false);
+
+    const onSortDeleted = useCallback((keys: string[]) => {
+        const result: Record<string, string> = {...(sortProperties)};
+        for (const key of keys) {
+            delete result[key];
+        }
+
+        setSortProperties(result);
+        setIsDirty(true);
+    }, [setSortProperties, sortProperties, setIsDirty]);
 
     const onPillDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(properties)};
@@ -47,19 +80,27 @@ export const ResourceFilter: React.FunctionComponent<{
 
         setProperties(result);
         setExpanded(null);
-    }, [setProperties, setExpanded, properties]);
+        setIsDirty(true);
+    }, [setProperties, setExpanded, properties, setIsDirty]);
 
     const onPropertiesUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        const result: Record<string, string> = {...(properties)};
-        for (const [key, value] of Object.entries(updatedProperties)) {
-            if (value === undefined) {
-                delete result[key];
-            } else {
-                result[key] = value;
-            }
-        }
-        setProperties(result);
-    }, [setProperties, properties]);
+        mergeProperties(properties, updatedProperties, setProperties);
+        setIsDirty(true);
+    }, [setProperties, properties, setIsDirty]);
+
+    const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
+        mergeProperties(sortProperties, updatedProperties, setSortProperties);
+        setIsDirty(true);
+    }, [setSortProperties, sortProperties, setIsDirty]);
+
+    const sortOptions = useMemo(() => {
+        return props.sortEntries.map(it => ({
+            icon: it.icon,
+            title: it.title,
+            value: it.column,
+            helpText: it.helpText
+        }));
+    }, [props.sortEntries])
 
     const expand = useCallback((id: number) => {
         if (expanded === id) {
@@ -69,20 +110,57 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
+    const sortDirections: EnumOption[] = useMemo(() => [{
+        icon: "sortAscending",
+        title: "Ascending",
+        value: "ascending",
+        helpText: "Increasing in value, e.g. 1, 2, 3..."
+    }, {
+        icon: "sortDescending",
+        title: "Descending",
+        value: "descending",
+        helpText: "Decreasing in value, e.g. 3, 2, 1..."
+    }], []);
+
+    const applyFilters = useCallback(() => {
+        props.onApplyFilters();
+        setIsDirty(false);
+    }, [props.onApplyFilters, setIsDirty]);
+
     return <>
-        <Heading.h4 mt={"32px"} mb={"16px"}><Icon name={"filterSolid"} size={"16px"} mr={"8px"}/> Filters</Heading.h4>
+        <Heading.h4 mt={"32px"} mb={"16px"}>
+            <Icon name={"filterSolid"} size={"16px"} mr={"8px"}/>
+            Sort and filter
+        </Heading.h4>
         <Grid gridGap={"8px"}>
+            <EnumPill propertyName={"direction"} properties={sortProperties} onDelete={onSortDeleted}
+                      icon={"sortDescending"} title={"Sort direction"} options={sortDirections} />
+            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+                      icon={"properties"} title={"Sort by"} options={sortOptions} />
             {props.pills.map((Pill, idx) =>
                 <Pill key={Pill.displayName + "_" + idx} properties={properties} onDelete={onPillDeleted}/>
             )}
-            {Object.keys(properties).length === 0 ? null :
-                <Button color={"green"} size={"small"} onClick={props.onApplyFilters} mb={"30px"}>
+            {!isDirty ? null :
+                <Button color={"green"} size={"small"} onClick={applyFilters} mb={"10px"}>
                     <Icon name={"check"} mr={"8px"} size={"14px"}/>
-                    <Text.TextSpan fontSize={"14px"}>Apply filters</Text.TextSpan>
+                    <Text.TextSpan fontSize={"14px"}>Apply</Text.TextSpan>
                 </Button>
             }
         </Grid>
-        <Grid gridGap={"20px"}>
+        <Grid gridGap={"20px"}
+              mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
+            <EnumFilterWidget
+                propertyName={"direction"} icon={"sortDescending"} title={"Sort direction"} expanded={false}
+                id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                options={sortDirections}
+            />
+            <EnumFilterWidget
+                propertyName={"column"} icon={"properties"} title={"Sort by"} expanded={false}
+                id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                options={sortOptions}
+            />
+            <Divider/>
+
             {props.filterWidgets.map((Widget, idx) =>
                 <Widget id={idx} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx}/>
@@ -361,6 +439,7 @@ interface EnumOption {
     icon?: IconName;
     value: string;
     title: string;
+    helpText?: string;
 }
 
 interface EnumOptions {
@@ -406,6 +485,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
                             <Icon name={opt.icon} color={"iconColor"} color2={"iconColor2"} size={"16px"} ml={"16px"}/>
                         }
                         left={opt.title}
+                        leftSub={opt.helpText ? <ListRowStat>{opt.helpText}</ListRowStat> : null}
                         right={null}
                         fontSize={"16px"}
                         select={() => onChange(opt.value)}

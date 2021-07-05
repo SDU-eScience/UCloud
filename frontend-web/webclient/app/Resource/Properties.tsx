@@ -223,8 +223,8 @@ export function ResourceProperties<Res extends Resource>(
                     <div className={"header-text"}>
                         <div>
                             <Heading.h2>
-                                {!api.NameRenderer ? null : <>
-                                    <api.NameRenderer resource={resource}/>
+                                {!api.TitleRenderer ? null : <>
+                                    <api.TitleRenderer resource={resource}/>
                                 </>}
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>

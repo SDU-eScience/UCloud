@@ -13,6 +13,17 @@ import kotlinx.serialization.serializer
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
+@Suppress("EnumEntryName")
+enum class SortDirection {
+    ascending,
+    descending
+}
+
+interface SortFlags {
+    val sortBy: String?
+    val sortDirection: SortDirection?
+}
+
 @Serializable
 data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
@@ -20,7 +31,9 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
+    override val sortBy: String? = null,
+    override val sortDirection: SortDirection? = SortDirection.ascending,
+) : WithPaginationRequestV2, SortFlags
 
 @Serializable
 data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
@@ -30,7 +43,9 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
+    override val sortBy: String? = null,
+    override val sortDirection: SortDirection? = SortDirection.ascending,
+) : WithPaginationRequestV2, SortFlags
 
 @Serializable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(

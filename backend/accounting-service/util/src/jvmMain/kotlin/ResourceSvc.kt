@@ -22,6 +22,7 @@ interface ResourceSvc<
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
         flags: F?,
+        sortFlags: SortFlags?,
         ctx: DBContext? = null,
     ): PageV2<R>
 
