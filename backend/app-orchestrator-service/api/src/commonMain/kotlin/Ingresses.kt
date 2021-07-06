@@ -64,12 +64,12 @@ data class Ingress(
 @Serializable
 data class IngressStatus(
     @UCloudApiDoc("The ID of the `Job` that this `Ingress` is currently bound to")
-    val boundTo: String? = null,
+    override val boundTo: String? = null,
 
     val state: IngressState,
     override var resolvedSupport: ResolvedSupport<Product.Ingress, IngressSettings>? = null,
     override var resolvedProduct: Product.Ingress? = null,
-) : ResourceStatus<Product.Ingress, IngressSettings>
+) : JobBoundStatus<Product.Ingress, IngressSettings>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -93,18 +93,18 @@ enum class IngressState {
 @Serializable
 data class IngressUpdate(
     @UCloudApiDoc("The new state that the `Ingress` transitioned to (if any)")
-    val state: IngressState? = null,
+    override val state: IngressState? = null,
 
     @UCloudApiDoc("A new status message for the `Ingress` (if any)")
     override val status: String? = null,
 
-    val didBind: Boolean = false,
+    override val didBind: Boolean = false,
 
-    val newBinding: String? = null,
+    override val newBinding: String? = null,
 
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
     override val timestamp: Long = 0,
-) : ResourceUpdate
+) : JobBoundUpdate<IngressState>
 
 interface IngressFilters {
     val domain: String?

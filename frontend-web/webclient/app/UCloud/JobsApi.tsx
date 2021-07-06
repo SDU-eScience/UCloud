@@ -17,8 +17,8 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {EnumFilter} from "Resource/Filter";
 import Application = compute.Application;
 import {buildQueryString} from "Utilities/URIUtilities";
-import {isJobStateTerminal, stateToTitle} from "Applications/Jobs";
-import {Box, Flex, Icon, Text} from "ui-components";
+import {stateToTitle} from "Applications/Jobs";
+import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
 
 export interface JobSpecification extends ResourceSpecification {

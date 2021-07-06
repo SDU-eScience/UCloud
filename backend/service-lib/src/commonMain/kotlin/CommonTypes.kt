@@ -23,7 +23,11 @@ data class CommonErrorMessage(
 )
 
 @Serializable
-data class FindByStringId(val id: String)
+data class FindByStringId(override val id: String) : WithStringId
+
+interface WithStringId {
+    val id: String
+}
 
 @Serializable
 data class FindByLongId(val id: Long)
