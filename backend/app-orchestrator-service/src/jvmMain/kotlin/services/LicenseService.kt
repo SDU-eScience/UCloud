@@ -16,6 +16,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SqlObject
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.parameterList
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
@@ -34,6 +36,7 @@ class LicenseService(
     override val currentStateColumn: SqlObject.Column = SqlObject.Column(table, "current_state")
     override val statusBoundToColumn: SqlObject.Column = SqlObject.Column(table, "status_bound_to")
     override val serializer = serializer<License>()
+    override val updateSerializer = serializer<LicenseUpdate>()
     override val productArea = ProductArea.LICENSE
 
     override fun bindsExclusively(): Boolean = false
@@ -50,19 +53,22 @@ class LicenseService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
-        TODO("Not yet implemented")
+        session
+            .sendPreparedStatement(
+                {
+                    val ids by parameterList<Long>()
+                    for ((id, spec) in idWithSpec) ids.add(id)
+                },
+                """
+                    insert into app_orchestrator.licenses (resource)
+                    select unnest(:ids)::bigint[]
+                """
+            )
     }
 
-    override val updateSerializer: KSerializer<LicenseUpdate>
-        get() = TODO("Not yet implemented")
+    override fun resourcesFromJob(job: Job): List<AppParameterValue.License> =
+        job.specification.parameters?.values?.filterIsInstance<AppParameterValue.License>() ?: emptyList()
 
-    override fun resourcesFromJob(job: Job): List<AppParameterValue.License> {
-        TODO("Not yet implemented")
-    }
-
-    override fun isReady(res: License): Boolean {
-        TODO("Not yet implemented")
-    }
-
+    override fun isReady(res: License): Boolean = res.status.state == LicenseState.READY
     override fun boundUpdate(binding: JobBinding): LicenseUpdate = LicenseUpdate(binding = binding)
 }
