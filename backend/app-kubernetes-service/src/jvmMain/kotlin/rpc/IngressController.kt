@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.kubernetes.rpc
 import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
 import dk.sdu.cloud.app.kubernetes.services.IngressService
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
@@ -23,7 +22,7 @@ class IngressController(
         }
 
         implement(KubernetesIngresses.retrieveProducts) {
-            ok(bulkResponseOf(ingressService.settings))
+            ok(bulkResponseOf(ingressService.support))
         }
 
         implement(KubernetesIngresses.verify) {

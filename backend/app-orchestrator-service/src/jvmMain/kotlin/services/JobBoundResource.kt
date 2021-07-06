@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.WithStringId
-import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -15,10 +14,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 
 abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support, Comms, Val>(
@@ -31,9 +27,14 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
         where Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : JobBoundUpdate<*>,
               Flags : ResourceIncludeFlags, Status : JobBoundStatus<Prod, Support>, Prod : Product,
               Support : ProductSupport, Comms : ProviderComms, Val : WithStringId {
+    protected abstract val currentStateColumn: SqlObject.Column
+    protected abstract val statusBoundToColumn: SqlObject.Column
+
     protected abstract fun resourcesFromJob(job: Job): List<Val>
     protected abstract fun isReady(res: Res): Boolean
-    protected abstract fun boundUpdate(res: Val, job: Job?): Update
+    protected abstract fun boundUpdate(binding: JobBinding): Update
+    protected abstract fun requireCreditCheck(res: Res, product: Prod): Boolean
+    protected open fun bindsExclusively(): Boolean = true
 
     init {
         orchestrator.addListener(object : JobListener {
@@ -59,7 +60,8 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
 
                 for (resource in allResources) {
                     @Suppress("UNCHECKED_CAST")
-                    if (!isReady(resource) || (resource.status as Status).boundTo != null) {
+                    if (!isReady(resource) ||
+                        ((resource.status as Status).boundTo.isNotEmpty() && bindsExclusively())) {
                         throw RPCException("Not all resources are ready", HttpStatusCode.BadRequest)
                     }
 
@@ -72,11 +74,11 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         )
                     }
 
-                    val product = resource.status.resolvedSupport!!.product as Product.Ingress
-                    if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
+                    val product = resource.status.resolvedSupport!!.product
+                    if (requireCreditCheck(resource, product)) {
                         payment.creditCheck(
                             product,
-                            if (jobProject != null) jobProject else jobLauncher,
+                            jobProject ?: jobLauncher,
                             if (jobProject != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                         )
                     }
@@ -99,7 +101,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         resources.map { resource ->
                             ResourceUpdateAndId(
                                 resource.id,
-                                boundUpdate(resource, job)
+                                boundUpdate(JobBinding(JobBindKind.BIND, job.id))
                             )
                         }
                     )
@@ -121,7 +123,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         resources.map { resource ->
                             ResourceUpdateAndId(
                                 resource.id,
-                                boundUpdate(resource, null)
+                                boundUpdate(JobBinding(JobBindKind.UNBIND, job.id))
                             )
                         }
                     )
@@ -129,9 +131,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
             }
         })
     }
-
-    protected abstract val currentStateColumn: SqlObject.Column
-    protected abstract val statusBoundToColumn: SqlObject.Column
 
     override suspend fun onUpdate(
         resources: List<Res>,
@@ -144,14 +143,15 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
         session
             .sendPreparedStatement(
                 {
-                    val ids = ArrayList<Long>().also { setParameter("ids", it) }
-                    val didBind = ArrayList<Boolean>().also { setParameter("did_bind", it) }
-                    val newBinding = ArrayList<Long?>().also { setParameter("new_binding", it) }
-                    val newState = ArrayList<String?>().also { setParameter("new_state", it) }
+                    val ids by parameterList<Long>()
+                    val bindMode by parameterList<String?>()
+                    val binding by parameterList<Long?>()
+                    val newState by parameterList<String?>()
+
                     for (update in updates) {
                         ids.add(update.id.toLong())
-                        didBind.add(update.update.didBind)
-                        newBinding.add(update.update.newBinding?.toLong())
+                        bindMode.add(update.update.binding?.kind?.name)
+                        binding.add(update.update.binding?.job?.toLong())
                         newState.add(update.update.state?.name)
                     }
                 },
@@ -159,15 +159,16 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     with new_updates as (
                         select
                             unnest(:ids::bigint[]) as id, 
-                            unnest(:did_bind::boolean[]) as did_bind,
-                            unnest(:new_binding::bigint[]) as new_binding,
+                            unnest(:bind_mode::boolean[]) as bind_mode,
+                            unnest(:binding::bigint[]) as binding,
                             unnest(:new_state::text[]) as new_state
                     )
                     update $tableName i
                     set
                         $currentStateColumn = coalesce(u.new_state, $currentStateColumn),
                         $statusBoundToColumn = case
-                            when u.did_bind = true then u.new_binding
+                            when u.bind_mode = 'BIND' then $statusBoundToColumn || u.binding
+                            when u.bind_mode = 'UNBIND' then array_remove($statusBoundToColumn, u.binding)
                             else $statusBoundToColumn
                         end
                     from new_updates u

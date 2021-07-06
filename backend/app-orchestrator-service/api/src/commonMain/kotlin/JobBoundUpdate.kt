@@ -5,14 +5,22 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.provider.api.ResourceStatus
 import dk.sdu.cloud.provider.api.ResourceUpdate
+import kotlinx.serialization.Serializable
+
+enum class JobBindKind {
+    BIND,
+    UNBIND
+}
+
+@Serializable
+data class JobBinding(val kind: JobBindKind, val job: String)
 
 interface JobBoundUpdate<State : Enum<State>> : ResourceUpdate {
-    val didBind: Boolean
-    val newBinding: String?
+    val binding: JobBinding?
     val state: State?
 }
 
 interface JobBoundStatus<P : Product, Support : ProductSupport> : ResourceStatus<P, Support> {
-    @UCloudApiDoc("The ID of the `Job` that this `Resource` is currently bound to")
-    val boundTo: String?
+    @UCloudApiDoc("The IDs of the `Job`s that this `Resource` is currently bound to")
+    val boundTo: List<String>
 }

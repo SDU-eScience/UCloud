@@ -11,7 +11,7 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.EnvoyConfigurationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
-import dk.sdu.cloud.app.orchestrator.api.IngressSettings
+import dk.sdu.cloud.app.orchestrator.api.IngressSupport
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
@@ -99,7 +99,7 @@ class Server(
         val resourceCache = ResourceCache(k8Dependencies)
         val sessions = SessionDao()
         val ingressService = IngressService(
-            IngressSettings(
+            IngressSupport(
                 configuration.prefix,
                 "." + configuration.domain,
                 ProductReference("u1-publiclink", "u1-publiclink", "ucloud")

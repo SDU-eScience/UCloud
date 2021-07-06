@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.util.*
@@ -17,11 +18,11 @@ import kotlinx.serialization.serializer
 class IngressService(
     db: AsyncDBSessionFactory,
     providers: Providers<ComputeCommunication>,
-    support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSettings>,
+    support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>,
     serviceClient: AuthenticatedClient,
     orchestrator: JobOrchestrator,
 ) : JobBoundResource<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
-        Product.Ingress, IngressSettings, ComputeCommunication, AppParameterValue.Ingress>(db, providers, support, serviceClient, orchestrator) {
+        Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf(
         "domain" to SqlObject.Column(table, "domain")
@@ -33,11 +34,12 @@ class IngressService(
     override val serializer: KSerializer<Ingress> = serializer()
     override val updateSerializer: KSerializer<IngressUpdate> = serializer()
 
-    override fun boundUpdate(res: AppParameterValue.Ingress, job: Job?): IngressUpdate =
-        IngressUpdate(didBind = true, newBinding = job?.id)
+    override fun boundUpdate(binding: JobBinding): IngressUpdate = IngressUpdate(binding = binding)
 
     override fun isReady(res: Ingress): Boolean = res.status.state == IngressState.READY
     override fun resourcesFromJob(job: Job): List<AppParameterValue.Ingress> = job.ingressPoints
+    override fun requireCreditCheck(res: Ingress, product: Product.Ingress): Boolean =
+        product.paymentModel != PaymentModel.FREE_BUT_REQUIRE_BALANCE
 
     override fun userApi() = Ingresses
     override fun controlApi() = IngressControl

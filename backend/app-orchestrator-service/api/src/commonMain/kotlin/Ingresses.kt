@@ -9,11 +9,10 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class IngressSettings(
+data class IngressSupport(
     val domainPrefix: String,
     val domainSuffix: String,
     override val product: ProductReference,
@@ -55,7 +54,7 @@ data class Ingress(
     override val updates: List<IngressUpdate> = emptyList(),
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.Ingress, IngressSettings> {
+) : Resource<Product.Ingress, IngressSupport> {
     override val billing = ResourceBilling.Free
     override val acl: List<ResourceAclEntry>? = null
 }
@@ -64,12 +63,12 @@ data class Ingress(
 @Serializable
 data class IngressStatus(
     @UCloudApiDoc("The ID of the `Job` that this `Ingress` is currently bound to")
-    override val boundTo: String? = null,
+    override val boundTo: List<String> = emptyList(),
 
     val state: IngressState,
-    override var resolvedSupport: ResolvedSupport<Product.Ingress, IngressSettings>? = null,
+    override var resolvedSupport: ResolvedSupport<Product.Ingress, IngressSupport>? = null,
     override var resolvedProduct: Product.Ingress? = null,
-) : JobBoundStatus<Product.Ingress, IngressSettings>
+) : JobBoundStatus<Product.Ingress, IngressSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -98,18 +97,11 @@ data class IngressUpdate(
     @UCloudApiDoc("A new status message for the `Ingress` (if any)")
     override val status: String? = null,
 
-    override val didBind: Boolean = false,
-
-    override val newBinding: String? = null,
-
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
     override val timestamp: Long = 0,
-) : JobBoundUpdate<IngressState>
 
-interface IngressFilters {
-    val domain: String?
-    val provider: String?
-}
+    override val binding: JobBinding? = null,
+) : JobBoundUpdate<IngressState>
 
 @Serializable
 data class IngressIncludeFlags(
@@ -135,13 +127,32 @@ object Ingresses : ResourceApi<
     IngressIncludeFlags,
     IngressStatus,
     Product.Ingress,
-    IngressSettings>("ingresses") {
+    IngressSupport>("ingresses") {
     override val typeInfo = ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate,
-        IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSettings>()
+        IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>()
 
     override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
         get() = super.delete!!
 
     override val search: CallDescription<ResourceSearchRequest<IngressIncludeFlags>, PageV2<Ingress>, CommonErrorMessage>
         get() = super.search!!
+}
+
+@TSNamespace("compute.ingresses.control")
+object IngressControl : ResourceControlApi<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags,
+        IngressStatus, Product.Ingress, IngressSupport>("ingresses") {
+
+    override val typeInfo =
+        ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
+                Product.Ingress, IngressSupport>()
+}
+
+open class IngressProvider(provider: String) : ResourceProviderApi<Ingress, IngressSpecification, IngressUpdate,
+        IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>("ingresses", provider) {
+    override val typeInfo =
+        ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
+                Product.Ingress, IngressSupport>()
+
+    override val delete: CallDescription<BulkRequest<Ingress>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
 }

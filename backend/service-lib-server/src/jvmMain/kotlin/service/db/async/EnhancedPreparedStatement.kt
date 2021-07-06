@@ -4,6 +4,8 @@ import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.service.Loggable
 import org.intellij.lang.annotations.Language
 import org.joda.time.LocalDateTime
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
 /**
  * Provides an enhanced prepared statement adding support for named parameters.
@@ -152,4 +154,33 @@ suspend inline fun AsyncDBConnection.sendPreparedStatement(
     release: Boolean = false
 ): QueryResult {
     return EnhancedPreparedStatement(query).also(block).sendPreparedStatement(this, release)
+}
+
+private val camelToSnakeRegex = "([a-z])([A-Z]+)".toRegex()
+fun String.convertCamelToSnake(): String = replace(camelToSnakeRegex, "$1_$2").lowercase()
+
+fun <T> EnhancedPreparedStatement.parameterList(): SqlBoundDelegate<ArrayList<T>> =
+    SqlBoundDelegate(this, ArrayList<T>())
+fun <T> EnhancedPreparedStatement.parameter(): SqlBoundDelegate<T> = SqlBoundDelegate(this, null)
+
+class SqlBoundDelegate<T>(
+    private val statement: EnhancedPreparedStatement,
+    private val defaultValue: T?
+) {
+    private var value: T? = null
+
+    operator fun getValue(thisRef: Nothing?, property: KProperty<*>): T {
+        if (value == null) {
+            statement.setParameterUntyped(property.name.convertCamelToSnake(), defaultValue)
+            this.value = defaultValue
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return value as T
+    }
+
+    operator fun setValue(thisRef: Nothing?, property: KProperty<*>, value: T) {
+        this.value = value
+        statement.setParameterUntyped(property.name.convertCamelToSnake(), value)
+    }
 }
