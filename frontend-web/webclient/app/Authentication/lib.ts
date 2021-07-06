@@ -27,7 +27,7 @@ export default class HttpClient {
     private accessToken: string;
     private csrfToken: string;
     private decodedToken: any;
-    private forceRefresh: boolean = false;
+    private forceRefresh = false;
     private overridesPromise: Promise<void> | null = null;
 
     public projectId: string | undefined = undefined;

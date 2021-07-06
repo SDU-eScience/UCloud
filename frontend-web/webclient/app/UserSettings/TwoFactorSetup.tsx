@@ -8,8 +8,8 @@ import * as Heading from "ui-components/Heading";
 import {TwoFactorSetupState} from ".";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
-const googlePlay = require("Assets/Images/google-play-badge.png");
-const appStore = require("Assets/Images/app-store-badge.png");
+import googlePlay from "Assets/Images/google-play-badge.png";
+import appStore from "Assets/Images/app-store-badge.png";
 
 interface TwoFactorSetupProps {
     loading: boolean;

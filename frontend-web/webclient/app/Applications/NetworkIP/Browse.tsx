@@ -6,11 +6,10 @@ import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authenticati
 import {useProjectId} from "Project";
 import {emptyPageV2} from "DefaultObjects";
 import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {Box, Button, Text} from "ui-components";
+import {Box, Text} from "ui-components";
 import {doNothing, prettierString, shortUUID} from "UtilityFunctions";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import * as Heading from "ui-components/Heading";
-import {Link} from "react-router-dom";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import ProductNS = accounting.ProductNS;
@@ -177,11 +176,11 @@ export const Browse: React.FunctionComponent<{
                 setInspecting(ip);
                 setIsCreating(false);
                 reload();
-            }}/>
+            }} />
         </>
     } else if (inspecting === null) {
         main = <>
-            {loading && networkIps.data.items.length === 0 ? <HexSpin/> : null}
+            {loading && networkIps.data.items.length === 0 ? <HexSpin /> : null}
             {networkIps.data.items.length === 0 && !loading ?
                 <>
                     <NoResultsCardBody title={"You don't have any public IPs available"}>
@@ -218,7 +217,7 @@ export const Browse: React.FunctionComponent<{
                                     </ListRowStat>
                                     {(g.acl?.length ?? 0) === 0 ?
                                         <ListRowStat icon={"warning"} color={"red"} textColor={"red"}
-                                                     cursor={"pointer"} onClick={() => setInspecting(g)}>
+                                            cursor={"pointer"} onClick={() => setInspecting(g)}>
                                             Usable only by project admins
                                         </ListRowStat> :
                                         null
@@ -228,8 +227,8 @@ export const Browse: React.FunctionComponent<{
                             right={
                                 <>
                                     <Operations location={"IN_ROW"} operations={operations}
-                                                selected={toggleSet.checked.items} extra={callbacks}
-                                                entityNameSingular={entityName} row={g}/>
+                                        selected={toggleSet.checked.items} extra={callbacks}
+                                        entityNameSingular={entityName} row={g} />
                                 </>
                             }
                         />
@@ -238,7 +237,7 @@ export const Browse: React.FunctionComponent<{
             </List>
         </>;
     } else {
-        main = <Inspect inspecting={inspecting} close={() => setInspecting(null)} reload={reload}/>;
+        main = <Inspect inspecting={inspecting} close={() => setInspecting(null)} reload={reload} />;
     }
 
     if (standalone) {
@@ -261,7 +260,7 @@ export const Browse: React.FunctionComponent<{
         return <Box ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 <Operations selected={toggleSet.checked.items} location={"TOPBAR"} entityNameSingular={entityName}
-                            extra={callbacks} operations={operations}/>
+                    extra={callbacks} operations={operations} />
             </StickyBox>
 
             {main}
@@ -270,7 +269,7 @@ export const Browse: React.FunctionComponent<{
 };
 
 const BrowseStandalone: React.FunctionComponent = () => {
-    return <Browse standalone/>
+    return <Browse standalone />
 };
 
 interface OpCallback {

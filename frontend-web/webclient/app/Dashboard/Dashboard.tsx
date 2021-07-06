@@ -481,7 +481,7 @@ function DashboardResources({products, loading, quota}: {
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
-                            {applyLinkButton}
+                        {applyLinkButton}
                     </Text>
                 </NoResultsCardBody>
             ) :
