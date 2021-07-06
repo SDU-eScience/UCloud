@@ -29,9 +29,17 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
 
 interface JobListener {
-    suspend fun onVerified(ctx: DBContext, job: Job) {}
-    suspend fun onCreate(ctx: DBContext, job: Job) {}
-    suspend fun onTermination(ctx: DBContext, job: Job) {}
+    suspend fun onVerified(ctx: DBContext, job: Job) {
+        // Empty
+    }
+
+    suspend fun onCreate(ctx: DBContext, job: Job) {
+        // Empty
+    }
+
+    suspend fun onTermination(ctx: DBContext, job: Job) {
+        // Empty
+    }
 }
 
 /**
@@ -200,7 +208,6 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
-                val newStatus = update.status
 
                 if (newState != null && !currentState.isFinal()) {
                     @Suppress("SqlResolve")
@@ -557,6 +564,7 @@ class JobOrchestrator(
                     provider: String,
                     resource: RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job>
                 ) {
+                    // Empty
                 }
             }
         )

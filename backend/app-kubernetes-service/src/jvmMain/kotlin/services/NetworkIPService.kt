@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.kubernetes.api.K8Subnet
 import dk.sdu.cloud.app.kubernetes.api.K8NetworkStatus
 import dk.sdu.cloud.app.kubernetes.services.IpUtils.formatIpAddress
@@ -12,9 +14,9 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
@@ -63,7 +65,7 @@ class NetworkIPService(
 
             // Immediately charge the user before we do any IP allocation
             NetworkIPControl.chargeCredits.call(
-                bulkRequestOf(networks.items.map { NetworkIPControlChargeCreditsRequestItem(it.id, it.id, 1) }),
+                bulkRequestOf(networks.items.map { ResourceChargeCredits(it.id, it.id, 1) }),
                 k8.serviceClient
             ).orThrow()
 
@@ -87,11 +89,14 @@ class NetworkIPService(
         NetworkIPControl.update.call(
             bulkRequestOf(
                 allocatedAddresses.map {
-                    NetworkIPControlUpdateRequestItem(it.id,
-                        NetworkIPState.READY,
-                        "IP is now ready",
-                        changeIpAddress = true,
-                        newIpAddress = it.ipAddress
+                    ResourceUpdateAndId(
+                        it.id,
+                        NetworkIPUpdate(
+                            state = NetworkIPState.READY,
+                            status = "IP is now ready",
+                            changeIpAddress = true,
+                            newIpAddress = it.ipAddress
+                        )
                     )
                 }
             ),
@@ -182,7 +187,7 @@ class NetworkIPService(
                 }
 
             val retrievedNetwork = NetworkIPControl.retrieve.call(
-                NetworkIPRetrieveWithFlags(id),
+                ResourceRetrieveRequest(NetworkIPFlags(), id),
                 k8.serviceClient
             ).orThrow()
 

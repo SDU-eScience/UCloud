@@ -62,6 +62,7 @@ class LicenseService(
                 """
                     insert into app_orchestrator.licenses (resource)
                     select unnest(:ids)::bigint[]
+                    on conflict (resource) do nothing
                 """
             )
     }
