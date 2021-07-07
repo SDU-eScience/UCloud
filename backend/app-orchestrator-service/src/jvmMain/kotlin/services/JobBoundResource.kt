@@ -159,7 +159,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     with new_updates as (
                         select
                             unnest(:ids::bigint[]) as id, 
-                            unnest(:bind_mode::boolean[]) as bind_mode,
+                            unnest(:bind_mode::text[]) as bind_mode,
                             unnest(:binding::bigint[]) as binding,
                             unnest(:new_state::text[]) as new_state
                     )
@@ -173,7 +173,8 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         end
                     from new_updates u
                     where u.id = i.resource
-                """
+                """,
+                debug = true
             )
     }
 }

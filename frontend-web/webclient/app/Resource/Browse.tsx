@@ -36,6 +36,7 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
+    inlineCreationMode?: "TEXT" | "NONE";
 
     withDefaultStats?: boolean;
 }
@@ -149,6 +150,18 @@ export const ResourceBrowse = <Res extends Resource>(
         }
     }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history]);
 
+    const onProductSelected = useCallback(async (product: Product) => {
+        if (props.inlineCreationMode !== "NONE") {
+            setSelectedProduct(product);
+        } else {
+            if (!props.onInlineCreation) return;
+            const spec = props.onInlineCreation("", product, callbacks);
+            setIsCreating(false);
+            await callbacks.invokeCommand(api.create(bulkRequestOf(spec)));
+            callbacks.reload();
+        }
+    }, [setSelectedProduct, props.inlineCreationMode, props.onInlineCreation, callbacks]);
+
     const inlineInputRef = useRef<HTMLInputElement>(null);
     const onInlineCreate = useCallback(async () => {
         if (inlineInputRef.current && props.onInlineCreation) {
@@ -180,7 +193,7 @@ export const ResourceBrowse = <Res extends Resource>(
                     icon={api.IconRenderer ? <api.IconRenderer resource={null} size={"36px"}/> : null}
                     left={
                         !selectedProduct ?
-                            <ProductSelector products={products} onProductSelected={setSelectedProduct}/>
+                            <ProductSelector products={products} onProductSelected={onProductSelected}/>
                             :
                             <NamingField
                                 confirmText={"Create"}

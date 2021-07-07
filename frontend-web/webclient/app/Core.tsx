@@ -22,8 +22,6 @@ const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplic
 const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
-const ApplicationLicense = React.lazy(() => import("Applications/Licenses/Browse"));
-const NetworkIPs = React.lazy(() => import("Applications/NetworkIP/Browse"));
 const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
 const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("Login/Login"));
@@ -58,6 +56,8 @@ const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 
 const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
+const LicenseRouter = React.lazy(() => import("Applications/Licenses"));
+const NetworkIPsRouter = React.lazy(() => import("Applications/NetworkIP/Router"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -122,20 +122,13 @@ const Core = (): JSX.Element => (
                         component={requireAuth(ApplicationView)}
                     />
 
-                    {/*
-                    <Route exact path="/applications/jobs/:id" component={requireAuth(JobView)} />
-                    <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(JobCreate)} />
-                    <Route exact path="/applications/:appName/:appVersion" component={requireAuth(JobCreate)} />
-                    <Route exact path="/applications/results" component={requireAuth(JobBrowse)} />
-                    <Route exact path="/applications/results/:id" component={requireAuth(JobView)} />
-                    */}
                     <Route exact path="/applications/shell/:jobId/:rank" component={JobShell} />
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
                     <Route path={"/public-links"}><IngressRouter/></Route>
                     <Route path={"/jobs"}><JobRouter/></Route>
-                    <Route exact path="/applications/licenses" component={ApplicationLicense}/>
-                    <Route exact path="/applications/publicips" component={NetworkIPs}/>
+                    <Route path={"/licenses"}><LicenseRouter/></Route>
+                    <Route path={"/public-ips"}><NetworkIPsRouter/></Route>
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)}/>
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)}/>
@@ -144,7 +137,6 @@ const Core = (): JSX.Element => (
                     {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground}/>}
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo}/>}
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest}/>}
-
 
                     <Route exact path="/admin" component={requireAuth(AdminOverview)}/>
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>

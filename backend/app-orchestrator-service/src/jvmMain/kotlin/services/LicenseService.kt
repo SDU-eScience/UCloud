@@ -31,6 +31,9 @@ class LicenseService(
         LicenseSupport, ComputeCommunication,
         AppParameterValue.License>(db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.licenses")
+    override val sqlJsonConverter = SqlObject.Function("license_to_json")
+    override val resourceType: String = "license"
+
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to SqlObject.Column(table, "resource"))
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
     override val currentStateColumn: SqlObject.Column = SqlObject.Column(table, "current_state")
@@ -61,7 +64,7 @@ class LicenseService(
                 },
                 """
                     insert into app_orchestrator.licenses (resource)
-                    select unnest(:ids)::bigint[]
+                    select unnest(:ids::bigint[])
                     on conflict (resource) do nothing
                 """
             )

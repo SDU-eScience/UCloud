@@ -34,7 +34,7 @@ class NetworkIPService(
     orchestrator: JobOrchestrator,
 ) : Super(db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.network_ips")
-    override val defaultSortColumn = SqlObject.Column(table, "ip")
+    override val defaultSortColumn = SqlObject.Column(table, "ip_address")
     override val currentStateColumn = SqlObject.Column(table, "current_state")
     override val statusBoundToColumn = SqlObject.Column(table, "status_bound_to")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf(
@@ -72,7 +72,7 @@ class NetworkIPService(
                 },
                 """
                     insert into app_orchestrator.network_ips (ip_address, resource)
-                    select null, unnest(:ids)::bigint[]
+                    select null, unnest(:ids::bigint[])
                     on conflict (resource) do nothing
                 """
             )
@@ -175,7 +175,7 @@ class NetworkIPService(
                 },
                 """
                     with entries as (
-                        select unnest(:ids)::bigint[] id, unnest(:ip_addresses)::text[] ip
+                        select unnest(:ids::bigint[]) id, unnest(:ip_addresses::text[]) ip
                     )
                     update app_orchestrator.network_ips ip
                     set ip_address = e.ip
@@ -183,5 +183,18 @@ class NetworkIPService(
                     where e.id = ip.resource
                 """
             )
+    }
+
+    override suspend fun browseQuery(flags: NetworkIPFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+            },
+            """
+                select * from app_orchestrator.network_ips
+                where
+                    (:query::text is null or ip_address ilike '%' || :query || '%')
+            """
+        )
     }
 }

@@ -4,7 +4,6 @@ import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.service.Loggable
 import org.intellij.lang.annotations.Language
 import org.joda.time.LocalDateTime
-import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
@@ -46,18 +45,19 @@ import kotlin.reflect.KProperty
  */
 class EnhancedPreparedStatement(
     @Language("sql")
-    statement: String
+    private val rawStatement: String
 ) {
     private val parameterNamesToIndex: Map<String, List<Int>>
     private val boundValues = HashSet<String>()
     private val preparedStatement: String
     private val parameters: Array<Any?>
+    private val rawParameters = HashMap<String, Any?>()
 
     init {
         val parameterNamesToIndex = HashMap<String, List<Int>>()
 
         var parameterIndex = 0
-        statementInputRegex.findAll(statement).forEach {
+        statementInputRegex.findAll(rawStatement).forEach {
             val parameterName = it.groups[2]!!.value
             parameterNamesToIndex[parameterName] =
                 (parameterNamesToIndex[parameterName] ?: emptyList()) + listOf(parameterIndex)
@@ -65,7 +65,7 @@ class EnhancedPreparedStatement(
             parameterIndex++
         }
 
-        preparedStatement = statementInputRegex.replace(statement) { it.groups[1]!!.value + "?" }
+        preparedStatement = statementInputRegex.replace(rawStatement) { it.groups[1]!!.value + "?" }
         this.parameterNamesToIndex = parameterNamesToIndex
         parameters = Array(parameterIndex) { null }
     }
@@ -126,6 +126,7 @@ class EnhancedPreparedStatement(
             parameters[index] = value
         }
         boundValues.add(name)
+        rawParameters[name] = value
     }
 
     suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
@@ -138,7 +139,16 @@ class EnhancedPreparedStatement(
     }
 
     override fun toString(): String {
-        return "EnhancedPreparedStatement(parameterNamesToIndex=$parameterNamesToIndex, boundValues=$boundValues, preparedStatement='$preparedStatement', parameters=${parameters.contentToString()})"
+        return buildString {
+            appendLine(rawStatement)
+            appendLine()
+            for ((param, value) in rawParameters) {
+                append(param)
+                append(" = ")
+                append(value.toString())
+                appendLine()
+            }
+        }
     }
 
     companion object : Loggable {
@@ -151,9 +161,13 @@ suspend inline fun AsyncDBConnection.sendPreparedStatement(
     block: EnhancedPreparedStatement.() -> Unit,
     @Language("sql")
     query: String,
-    release: Boolean = false
+    release: Boolean = false,
+    debug: Boolean = false,
 ): QueryResult {
-    return EnhancedPreparedStatement(query).also(block).sendPreparedStatement(this, release)
+    val statement = EnhancedPreparedStatement(query)
+    statement.block()
+    if (debug) EnhancedPreparedStatement.log.debug(statement.toString())
+    return statement.sendPreparedStatement(this, release)
 }
 
 private val camelToSnakeRegex = "([a-z])([A-Z]+)".toRegex()

@@ -156,7 +156,7 @@ abstract class ResourceService<
                         from
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
-                    """
+                    """,
                 )
                 .rows
                 .singleOrNull()
@@ -215,7 +215,7 @@ abstract class ResourceService<
                             spec on (resc.r).id = spec.resource
                         where
                             spec.resource = some(:ids::bigint[])
-                    """
+                    """,
                 )
                 .rows
                 .asSequence()
@@ -855,11 +855,14 @@ abstract class ResourceService<
     ): ResourceChargeCreditsResponse {
         val ids = request.items.asSequence().map { it.id }.toSet()
 
+        println(actorAndProject)
+
         val allResources = retrieveBulk(
             actorAndProject,
             ids,
             listOf(Permission.Provider),
-            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true),
+            includeUnconfirmed = true,
         ).associateBy { it.id }
 
         val chargeResults = ArrayList<Pair<Res, PaymentService.ChargeResult>>()

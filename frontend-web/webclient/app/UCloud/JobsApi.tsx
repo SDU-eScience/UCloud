@@ -21,6 +21,11 @@ import {stateToTitle} from "Applications/Jobs";
 import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
 
+export interface JobBinding {
+    kind: "BIND" | "UNBIND";
+    job: string;
+}
+
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
     name?: string;
