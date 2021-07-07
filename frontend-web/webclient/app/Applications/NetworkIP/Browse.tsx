@@ -6,6 +6,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
     provider?: string;
     onSelect?: (selection: NetworkIP) => void;
     isSearch?: boolean;
+    embedded?: boolean;
 }> = props => {
     return <ResourceBrowse
         api={NetworkIPApi}
@@ -15,6 +16,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
             })
         )}
         inlineCreationMode={"NONE"}
+        embedded={props.embedded}
         isSearch={props.isSearch}
     />;
 };

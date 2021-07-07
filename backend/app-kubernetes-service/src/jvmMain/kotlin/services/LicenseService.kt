@@ -97,19 +97,14 @@ class LicenseService(
 
     private val supportedProductCache = SimpleCache<Unit, List<Product.License>>(
         lookup = { _ ->
-            try {
-                db.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {},
-                            "select * from app_kubernetes.license_servers"
-                        )
-                        .let { mapRows(it.rows) }
-                        .map { it.toProduct() }
-                }.also { println("All good!") }
-            } catch (ex: Throwable) {
-                println(ex.stackTraceToString())
-                throw ex
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {},
+                        "select * from app_kubernetes.license_servers"
+                    )
+                    .let { mapRows(it.rows) }
+                    .map { it.toProduct() }
             }
         }
     )

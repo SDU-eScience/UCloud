@@ -76,7 +76,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <NetworkIPBrowse provider={props.provider} onSelect={onUse}/>
+            <NetworkIPBrowse provider={props.provider} onSelect={onUse} embedded={true}/>
         </ReactModal>
     </Flex>);
 }
