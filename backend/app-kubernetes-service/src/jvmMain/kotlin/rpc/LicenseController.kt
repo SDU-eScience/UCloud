@@ -1,8 +1,10 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseMaintenance
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenses
 import dk.sdu.cloud.app.kubernetes.services.LicenseService
+import dk.sdu.cloud.app.orchestrator.api.LicenseSupport
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
@@ -26,7 +28,11 @@ class LicenseController(
         }
 
         implement(KubernetesLicenses.retrieveProducts) {
-            ok(BulkResponse(emptyList())) // TODO
+            ok(BulkResponse(
+                service.fetchAllSupportedProducts().map {
+                    LicenseSupport(ProductReference(it.id, it.category.id, it.category.provider))
+                }
+            ))
         }
 
         implement(KubernetesLicenses.updateAcl) {

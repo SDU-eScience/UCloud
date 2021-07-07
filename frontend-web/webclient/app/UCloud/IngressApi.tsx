@@ -20,7 +20,7 @@ export interface IngressSpecification extends ResourceSpecification {
 export type IngressState = "READY" | "PREPARING" | "UNAVAILABLE";
 
 export interface IngressStatus extends ResourceStatus {
-    boundTo?: string;
+    boundTo: string[];
     state: IngressState;
 }
 

@@ -18,6 +18,7 @@ export const LicenseBrowse: React.FunctionComponent<{
                 domain: text
             })
         )}
+        inlineCreationMode={"NONE"}
         isSearch={props.isSearch}
     />;
 };

@@ -43,10 +43,11 @@ export interface License extends Resource<LicenseUpdate, LicenseStatus, LicenseS
 class LicenseApi extends ResourceApi<License, ProductNS.License, LicenseSpecification, LicenseUpdate,
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
-    title = "Software Licenses";
+    title = "Software License";
     page = SidebarPages.Runs;
 
-    InlineTitleRenderer = ({resource}) => <>{(resource as License).id}</>
+    InlineTitleRenderer = ({resource}) =>
+        <>{(resource as License).specification.product.id} ({(resource as License).id})</>
     IconRenderer = ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
     TitleRenderer = this.InlineTitleRenderer;
 

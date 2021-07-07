@@ -31,7 +31,7 @@ class LicenseService(
         LicenseSupport, ComputeCommunication,
         AppParameterValue.License>(db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.licenses")
-    override val sqlJsonConverter = SqlObject.Function("license_to_json")
+    override val sqlJsonConverter = SqlObject.Function("app_orchestrator.license_to_json")
     override val resourceType: String = "license"
 
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to SqlObject.Column(table, "resource"))

@@ -226,6 +226,7 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     public get titlePlural(): string {
+        if (this.title.endsWith("s")) return this.title + "es";
         return this.title + "s";
     }
 

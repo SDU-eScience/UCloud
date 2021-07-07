@@ -20,6 +20,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
@@ -92,6 +93,29 @@ class LicenseService(
                 }
             }
         }
+    }
+
+    private val supportedProductCache = SimpleCache<Unit, List<Product.License>>(
+        lookup = { _ ->
+            try {
+                db.withSession { session ->
+                    session
+                        .sendPreparedStatement(
+                            {},
+                            "select * from app_kubernetes.license_servers"
+                        )
+                        .let { mapRows(it.rows) }
+                        .map { it.toProduct() }
+                }.also { println("All good!") }
+            } catch (ex: Throwable) {
+                println(ex.stackTraceToString())
+                throw ex
+            }
+        }
+    )
+    suspend fun fetchAllSupportedProducts(): List<Product.License> {
+        return supportedProductCache.get(Unit)
+            ?: throw RPCException("Could not fetch supported products", HttpStatusCode.InternalServerError)
     }
 
     suspend fun browseServers(request: KubernetesLicenseBrowseRequest): PageV2<KubernetesLicense> {
