@@ -331,11 +331,13 @@ const _Search = (props: SearchProps): JSX.Element => {
                     placeholder={searchPlaceholder}
                     noBorder
                     onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER && props.search) {
+                        if (e.keyCode === KeyCode.ENTER) {
                             if (hasSearch) {
                                 onSearch(props.search);
                             } else {
-                                fetchAll();
+                                if (props.search) {
+                                    fetchAll();
+                                }
                             }
                         }
                     }}

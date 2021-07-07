@@ -8,7 +8,11 @@ import {buildQueryString} from "Utilities/URIUtilities";
 export function useResourceSearch<Res extends Resource>(api: ResourceApi<Res, never>) {
     const history = useHistory();
     const onSearch = useCallback((q) => {
-        history.push(buildQueryString(`/${api.routingNamespace}/search`, {q}));
+        if (q === "") {
+            history.push(`/${api.routingNamespace}`);
+        } else {
+            history.push(buildQueryString(`/${api.routingNamespace}/search`, {q}));
+        }
     }, [api]);
 
     useSearch(onSearch);

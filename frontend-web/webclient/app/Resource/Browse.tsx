@@ -25,7 +25,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
 import {ResourceProperties} from "Resource/Properties";
 import * as Heading from "ui-components/Heading";
-import {useHistory} from "react-router";
+import {useHistory, useLocation} from "react-router";
 import {ResourceFilter} from "Resource/Filter";
 import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
@@ -65,7 +65,8 @@ export const ResourceBrowse = <Res extends Resource>(
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("ascending");
     const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
     const history = useHistory();
-    const query = getQueryParamOrElse(history.location.search, "q", "");
+    const location = useLocation();
+    const query = getQueryParamOrElse(location.search, "q", "");
 
     const toggleSet = useToggleSet(resources.data.items);
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
