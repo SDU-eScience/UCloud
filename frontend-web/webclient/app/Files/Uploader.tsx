@@ -31,9 +31,9 @@ const maxChunkSize = 32 * 1000 * 1000;
 const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {
-    chunk: number;
+    offset: number;
     size: number;
-    response: FileApi.FilesCreateUploadResponseItem;
+    strategy: FileApi.FilesCreateUploadResponseItem;
     expiration: number;
 }
 
@@ -75,7 +75,7 @@ async function processUpload(upload: Upload) {
     const reader = new ChunkedFileReader(theFile.fileObject);
 
     const uploadInfo = fetchValidUploadFromLocalStorage(fullFilePath);
-    if (uploadInfo !== null) reader.offset = uploadInfo.chunk;
+    if (uploadInfo !== null) reader.offset = uploadInfo.offset;
 
     upload.initialProgress = reader.offset;
     upload.fileSizeInBytes = reader.fileSize();
@@ -97,11 +97,9 @@ function createResumeable(
             const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
             localStorage.setItem(
                 createLocalStorageUploadKey(fullFilePath),
-                JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
+                JSON.stringify({offset: reader.offset, size: upload.fileSizeInBytes, strategy: strategy!, expiration} as LocalStorageFileUploadInfo)
             );
         }
-
-        console.log(upload);
 
         if (!upload.paused) {
             localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
@@ -172,7 +170,7 @@ const Uploader: React.FunctionComponent = () => {
 
                 const item = fetchValidUploadFromLocalStorage(fullFilePath);
                 if (item !== null) {
-                    upload.uploadResponse = item.response;
+                    upload.uploadResponse = item.strategy;
                     resumingUploads.push(upload);
                     upload.state = UploadState.UPLOADING;
                     continue;
@@ -333,9 +331,9 @@ const Uploader: React.FunctionComponent = () => {
             ariaHideApp={false}
             onRequestClose={closeModal}
         >
-            <div data-tag={"uploadModal"}>
+            <div data-tag="uploadModal">
                 <Operations
-                    location={"TOPBAR"}
+                    location="TOPBAR"
                     operations={operations}
                     selected={toggleSet.checked.items}
                     extra={callbacks}
