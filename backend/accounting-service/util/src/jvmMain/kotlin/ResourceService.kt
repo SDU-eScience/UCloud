@@ -26,33 +26,6 @@ data class PartialQuery(
     val query: String,
 )
 
-suspend fun <T : Resource<*, *>> DBContext.paginateResource(
-    actorAndProject: ActorAndProject,
-    request: NormalizedPaginationRequestV2,
-    serializer: KSerializer<T>,
-    mapper: suspend (T) -> T = { it },
-    extraArgs: (EnhancedPreparedStatement.() -> Unit)? = null,
-    query: () -> String,
-): PageV2<T> {
-    return paginateV2(
-        actorAndProject.actor,
-        request,
-        create = { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                    extraArgs?.invoke(this)
-                },
-                query()
-            )
-        },
-        mapper = { _, rows ->
-            rows.map { mapper(defaultMapper.decodeFromString(serializer, it.getString(0)!!)) }
-        }
-    )
-}
-
 abstract class ResourceService<
     Res : Resource<Prod, Support>,
     Spec : ResourceSpecification,
@@ -280,6 +253,12 @@ abstract class ResourceService<
         // Empty by default
     }
 
+    protected open suspend fun isResourcePublicRead(
+        actorAndProject: ActorAndProject,
+        specs: List<Spec>,
+        session: AsyncDBConnection,
+    ): List<Boolean> = specs.map { false }
+
     protected abstract suspend fun createSpecifications(
         actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, Spec>>,
@@ -322,6 +301,7 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
                     return db.withTransaction { session ->
+                        val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(
                                 {
@@ -331,13 +311,15 @@ abstract class ResourceService<
                                     setParameter("project", actorAndProject.project)
                                     setParameter("product_ids", resources.map { it.second.reference.id })
                                     setParameter("product_categories", resources.map { it.second.reference.category })
+                                    setParameter("is_public_read", isPublicRead)
                                 },
                                 """
                                 with product_tuples as (
-                                    select unnest(:product_ids::text[]) id, unnest(:product_categories::text[]) cat
+                                    select unnest(:product_ids::text[]) id, unnest(:product_categories::text[]) cat,
+                                           unnest(:is_public_read::boolean[]) public_read
                                 )
-                                insert into provider.resource(type, provider, created_by, project, product) 
-                                select :type, :provider, :created_by, :project, p.id
+                                insert into provider.resource(type, provider, created_by, project, product, public_read) 
+                                select :type, :provider, :created_by, :project, p.id, t.public_read
                                 from
                                     product_tuples t join 
                                     accounting.product_categories pc on 
@@ -951,6 +933,7 @@ abstract class ResourceService<
                                     when pm.role = 'ADMIN' then 'ADMIN'
                                     when r.created_by = :username and r.project is null then 'ADMIN'
                                     when :username = '#P_' || r.provider then 'PROVIDER'
+                                    when r.public_read and acl.permission is null then 'READ'
                                     else acl.permission
                                 end
                             ) as permissions,
@@ -1005,7 +988,8 @@ abstract class ResourceService<
                                (r.created_by = :username and r.project is null) or
                                (acl.username = :username) or
                                (pm.role = 'PI' or pm.role = 'ADMIN') or
-                               (gm.username is not null)
+                               (gm.username is not null) or
+                               (r.public_read = true)
                           ) and
                           (:filter_created_by::text is null or :filter_created_by = r.created_by) and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
@@ -1033,6 +1017,7 @@ abstract class ResourceService<
                                     when pm.role = 'ADMIN' then 'ADMIN'
                                     when r.created_by = :username and r.project is null then 'ADMIN'
                                     when :username = '#P_' || r.provider then 'PROVIDER'
+                                    when r.public_read and acl.permission is null then 'READ'
                                     else acl.permission
                                 end
                             )
