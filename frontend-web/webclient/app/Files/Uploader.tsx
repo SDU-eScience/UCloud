@@ -244,7 +244,15 @@ const Uploader: React.FunctionComponent = () => {
             it.terminationRequested = undefined;
             it.paused = undefined;
             it.state = UploadState.UPLOADING;
-            await it.resume?.()
+            it.resume?.().then(() => {
+                it.state = UploadState.DONE;
+                setLookForNewUploads(true);
+            }).catch(e => {
+                if (typeof e === "string") {
+                    it.error = e;
+                    it.state = UploadState.DONE;
+                }
+            });
         });
     }, [uploads]);
 
