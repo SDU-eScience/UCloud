@@ -876,11 +876,16 @@ abstract class ResourceService<
                 )
             )
         }
+        val insufficient = chargeResults
+            .filter { (_, result) -> result is PaymentService.ChargeResult.InsufficientFunds }
+            .map { FindByStringId(it.first.id) }
+
+        if (insufficient.size == request.items.size) {
+            throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+        }
 
         return ResourceChargeCreditsResponse(
-            insufficientFunds = chargeResults
-                .filter { (_, result) -> result is PaymentService.ChargeResult.InsufficientFunds }
-                .map { FindByStringId(it.first.id) },
+            insufficientFunds = insufficient,
 
             duplicateCharges = chargeResults
                 .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
