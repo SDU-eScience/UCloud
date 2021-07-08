@@ -9,10 +9,11 @@ import {
 } from "UCloud/ResourceApi";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
-import {EnumFilter} from "Resource/Filter";
 import * as React from "react";
 import {accounting} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
+import * as H from "history";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface FileCollection extends Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification> {
 
@@ -58,7 +59,7 @@ export interface FileCollectionSupport extends ProductSupport {
     }
 }
 
-class IngressApi extends ResourceApi<FileCollection, ProductNS.Storage, FileCollectionSpecification,
+class FileCollectionsApi extends ResourceApi<FileCollection, ProductNS.Storage, FileCollectionSpecification,
     FileCollectionUpdate, FileCollectionFlags, FileCollectionStatus, FileCollectionSupport> {
     routingNamespace = "drives";
     title = "Drive";
@@ -78,6 +79,10 @@ class IngressApi extends ResourceApi<FileCollection, ProductNS.Storage, FileColl
             helpText: "Name of the drive, for example: Research data"
         });
     }
+
+    navigateToChildren(history: H.History, resource: FileCollection) {
+        history.push(buildQueryString("/files", {path: `/${resource.id}`}))
+    }
 }
 
-export default new IngressApi();
+export default new FileCollectionsApi();

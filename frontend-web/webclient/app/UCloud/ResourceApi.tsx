@@ -13,6 +13,7 @@ import {doNothing} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
 import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resource/Filter";
 import {IconName} from "ui-components/Icon";
+import * as H from "history";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -151,6 +152,8 @@ export abstract class ResourceApi<Res extends Resource,
         this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
         // TODO We need to add a pill for provider and product
     }
+
+    public navigateToChildren(history: H.History, resource: Res) {}
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
         return [

@@ -101,9 +101,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)}/>
 
                     <Route path={"/drives"}><FileCollectionsRouter/></Route>
-                    <Route exact path="/files">
-                        <Redirect to={"/drives"}/>
-                    </Route>
                     <Route exact path="/files/properties" component={requireAuth(FileProperties)}/>
                     <Route exact path="/files/metadata/templates/"
                            component={requireAuth(FileMetadataTemplatesBrowse)}/>

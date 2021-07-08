@@ -238,6 +238,7 @@ export const ResourceBrowse = <Res extends Resource>(
                         <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
+                    navigate={() => api.navigateToChildren?.(history, it)}
                     leftSub={
                         <ListStatContainer>
                             {props.withDefaultStats !== false ?
