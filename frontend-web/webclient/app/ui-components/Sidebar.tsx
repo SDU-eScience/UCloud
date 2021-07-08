@@ -185,7 +185,7 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/files/"},
+            {icon: "files", label: "Files", to: "/drives"},
             {icon: "projects", label: "Projects", to: "/projects", show: (): boolean => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},

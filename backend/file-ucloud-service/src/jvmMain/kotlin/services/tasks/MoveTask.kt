@@ -1,12 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -21,14 +17,13 @@ private data class FileToMove(
 ) : WithPathMoving
 
 class MoveTask : TaskHandler {
-    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+    override fun TaskContext.canHandle(name: String, request: JsonObject): Boolean {
         return name == Files.move.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         }.isSuccess
     }
 
     override suspend fun TaskContext.collectRequirements(
-        actor: Actor,
         name: String,
         request: JsonObject,
         maxTime: Long?,
@@ -47,7 +42,7 @@ class MoveTask : TaskHandler {
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1

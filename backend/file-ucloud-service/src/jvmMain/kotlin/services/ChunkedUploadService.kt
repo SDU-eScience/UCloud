@@ -3,8 +3,6 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -15,16 +13,13 @@ import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 import kotlin.math.max
-import kotlin.math.min
 
 class ChunkedUploadService(
     private val db: DBContext,
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val nativeFS: NativeFS,
 ) {
     suspend fun createSession(
-        actor: Actor,
         file: UCloudFile,
         conflictPolicy: WriteConflictPolicy,
     ): String {

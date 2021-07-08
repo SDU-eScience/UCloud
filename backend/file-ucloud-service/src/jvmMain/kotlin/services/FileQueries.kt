@@ -4,8 +4,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -15,14 +13,15 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 
+const val PERSONAL_REPOSITORY = "Members' Files"
+
 class FileQueries(
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
 ) {
-    suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
+    suspend fun retrieve(file: UCloudFile, flags: FilesIncludeFlags): UFile {
         /*
         val myself = aclService.fetchMyPermissions(actor, file)
         if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
@@ -70,14 +69,13 @@ class FileQueries(
             ),
             UFile.Permissions(
                 myself.toList(),
-                aclService.fetchOtherPermissions(pathConverter.internalToUCloud(file))
+                TODO()
             ),
             null
         )
     }
 
     suspend fun browseFiles(
-        actor: Actor,
         file: UCloudFile,
         flags: FilesIncludeFlags,
         pagination: NormalizedPaginationRequestV2,

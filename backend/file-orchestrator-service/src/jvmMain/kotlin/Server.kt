@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator
 
+import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
@@ -32,20 +33,19 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
         val providerSupport = StorageProviderSupport(providers, serviceClient) { comms ->
-            // comms.fileCollectionsApi.retrieveManifest.call(Unit, comms.client).orThrow().support
-            TODO()
+            comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
         }
         val projectCache = ProjectCache(serviceClient)
         val metadataTemplates = MetadataTemplates(db, projectCache)
         val metadataService = MetadataService(db, projectCache, metadataTemplates)
         val filesService = FilesService(providers, providerSupport, projectCache, metadataService)
-        // val fileCollections = FileCollectionService(providers, providerSupport, projectCache, db)
+        val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
 
         configureControllers(
             FileMetadataController(metadataService),
             FileController(filesService),
-            // FileCollectionController(fileCollections),
+            fileCollections.asController(),
             FileMetadataTemplateController(metadataTemplates),
             ShareController(shares)
         )

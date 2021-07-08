@@ -6,34 +6,34 @@ import dk.sdu.cloud.calls.*
 
 // ---
 
-typealias FilesProviderBrowseRequest = ProxiedRequest<FilesBrowseRequest>
+typealias FilesProviderBrowseRequest = FilesBrowseRequest
 typealias FilesProviderBrowseResponse = FilesBrowseResponse
 
-typealias FilesProviderRetrieveRequest = ProxiedRequest<FilesRetrieveRequest>
+typealias FilesProviderRetrieveRequest = FilesRetrieveRequest
 typealias FilesProviderRetrieveResponse = FilesRetrieveResponse
 
-typealias FilesProviderMoveRequest = ProxiedRequest<FilesMoveRequest>
+typealias FilesProviderMoveRequest = FilesMoveRequest
 typealias FilesProviderMoveResponse = FilesMoveResponse
 
-typealias FilesProviderCopyRequest = ProxiedRequest<FilesCopyRequest>
+typealias FilesProviderCopyRequest = FilesCopyRequest
 typealias FilesProviderCopyResponse = FilesCopyResponse
 
-typealias FilesProviderDeleteRequest = ProxiedRequest<FilesDeleteRequest>
+typealias FilesProviderDeleteRequest = FilesDeleteRequest
 typealias FilesProviderDeleteResponse = FilesDeleteResponse
 
-typealias FilesProviderCreateFolderRequest = ProxiedRequest<FilesCreateFolderRequest>
+typealias FilesProviderCreateFolderRequest = FilesCreateFolderRequest
 typealias FilesProviderCreateFolderResponse = FilesCreateFolderResponse
 
-typealias FilesProviderUpdateAclRequest = ProxiedRequest<FilesUpdateAclRequest>
+typealias FilesProviderUpdateAclRequest = FilesUpdateAclRequest
 typealias FilesProviderUpdateAclResponse = FilesUpdateAclResponse
 
-typealias FilesProviderTrashRequest = ProxiedRequest<FilesTrashRequest>
+typealias FilesProviderTrashRequest = FilesTrashRequest
 typealias FilesProviderTrashResponse = FilesTrashResponse
 
-typealias FilesProviderCreateDownloadRequest = ProxiedRequest<FilesCreateDownloadRequest>
+typealias FilesProviderCreateDownloadRequest = FilesCreateDownloadRequest
 typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 
-typealias FilesProviderCreateUploadRequest = ProxiedRequest<FilesCreateUploadRequest>
+typealias FilesProviderCreateUploadRequest = FilesCreateUploadRequest
 typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 // ---

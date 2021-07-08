@@ -16,7 +16,6 @@ import {buildQueryString, getQueryParam} from "Utilities/URIUtilities";
 import {UCLOUD_PROVIDER} from "Accounting";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useGlobal} from "Utilities/ReduxHooks";
-import {FileCollections} from "Files/FileCollections";
 import {Files} from "Files/Files";
 import {FileType} from "Files/index";
 import * as H from 'history';

@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
-import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode} from "DefaultObjects";
 import {HeaderStateToProps} from "Navigation";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
@@ -119,7 +118,6 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <DevelopmentBadge/>
             </ui.Hide>
             <VersionManager/>
-            <BackgroundTask/>
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading}/>
             </ui.Flex>

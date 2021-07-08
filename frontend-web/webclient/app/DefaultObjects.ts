@@ -1,5 +1,4 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
-import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
@@ -181,8 +180,7 @@ interface LegacyReduxObject {
 
 declare global {
     export type ReduxObject =
-        LegacyReduxObject &
-        TaskReduxState;
+        LegacyReduxObject;
 }
 
 export const initActivity = (): ActivityReduxObject => ({

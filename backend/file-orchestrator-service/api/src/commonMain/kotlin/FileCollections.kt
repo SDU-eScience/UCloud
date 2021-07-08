@@ -3,11 +3,11 @@ package dk.sdu.cloud.file.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
-
-// ---
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
@@ -18,9 +18,18 @@ data class FileCollectionsRenameRequestItem(
 )
 typealias FileCollectionsRenameResponse = Unit
 
+typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProviderRenameRequestItem>
+
+@Serializable
+data class FileCollectionsProviderRenameRequestItem(
+    val id: String,
+    val newTitle: String,
+)
+typealias FileCollectionsProviderRenameResponse = Unit
+
 // ---
 
-object FileCollections/* : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
@@ -32,50 +41,28 @@ object FileCollections/* : ResourceApi<FileCollection, FileCollection.Spec, File
     val rename = call<FileCollectionsRenameRequest, FileCollectionsRenameResponse, CommonErrorMessage>("rename") {
         httpUpdate(baseContext, "rename")
     }
-
-    /*
-    const val baseContext = "/api/files/collections"
-
-    TODO Need includeSupport to be compatible
-    val browse = call<FileCollectionsBrowseRequest, FileCollectionsBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-    }
-
-    This is identical
-    val create = call<FileCollectionsCreateRequest, FileCollectionsCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
-    }
-
-    The provider has been removed, otherwise identical
-    val delete = call<FileCollectionsDeleteRequest, FileCollectionsDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-    }
-
-    New API
-    val updateAcl = call<FileCollectionsUpdateAclRequest, FileCollectionsUpdateAclResponse,
-        CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
-    }
-
-    Provider has been removed
-    val retrieve = call<FileCollectionsRetrieveRequest, FileCollectionsRetrieveResponse,
-        CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-    }
-
-    New API
-    val retrieveManifest = call<FileCollectionsRetrieveManifestRequest, FileCollectionsRetrieveManifestResponse,
-        CommonErrorMessage>("retrieveManifest") {
-        httpRetrieve(baseContext, "manifest")
-    }
-
-     */
-
-    /*
-    // TODO Interface tbd
-    val search = call<FileCollectionsSearchRequest, FileCollectionsSearchResponse, CommonErrorMessage>("search") {
-    }
-     */
 }
 
-   */
+object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
+
+    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
+        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+}
+
+open class FileCollectionsProvider(
+    provider: String,
+) : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections", provider) {
+
+    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
+        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+
+    val rename = call<FileCollectionsProviderRenameRequest, FileCollectionsProviderRenameResponse,
+        CommonErrorMessage>("rename") {
+        httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
+    }
+
+    override val delete: CallDescription<BulkRequest<FileCollection>, BulkResponse<Unit?>, CommonErrorMessage>
+        get() = super.delete!!
+}

@@ -369,9 +369,8 @@ Note: This mode is not supported for all operations.
     MERGE_RENAME
 }
 
-interface FileCollectionIncludeFlags : ResourceIncludeFlags
-
-data class SimpleFileCollectionIncludeFlags(
+@Serializable
+data class FileCollectionIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
@@ -382,13 +381,7 @@ data class SimpleFileCollectionIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-) : FileCollectionIncludeFlags
-
-fun FileCollectionIncludeFlags(
-    includeOthers: Boolean = false,
-    includeUpdates: Boolean = false,
-    includeSupport: Boolean = false
-) = SimpleFileCollectionIncludeFlags(includeOthers, includeUpdates, includeSupport)
+) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -423,18 +416,23 @@ data class FileCollection(
     override val createdAt: Long,
     override val status: Status,
     override val updates: List<Update>,
-    override val billing: Billing,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry>?,
     override val permissions: ResourcePermissions? = null,
     override val providerGeneratedId: String? = null
-) : Resource<Product, ProductSupport> {
+) : Resource<Product.Storage, FSSupport> {
+    override val acl: List<ResourceAclEntry>? = null
+    override val billing = ResourceBilling.Free
+
     @Serializable
     data class Spec(
         val title: String,
         // TODO Define which type of product we are dealing with
         override val product: ProductReference,
-    ) : ResourceSpecification
+    ) : ResourceSpecification {
+        init {
+            require(title.isNotEmpty())
+        }
+    }
 
     @Serializable
     data class Update(
@@ -444,15 +442,9 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
-        override var resolvedProduct: Product? = null,
-    ) : ResourceStatus<Product, ProductSupport>
-
-    @Serializable
-    data class Billing(
-        override val pricePerUnit: Long,
-        override val creditsCharged: Long,
-    ) : ResourceBilling
+        override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
+        override var resolvedProduct: Product.Storage? = null,
+    ) : ResourceStatus<Product.Storage, FSSupport>
 }
 
 data class FSSupportResolved(

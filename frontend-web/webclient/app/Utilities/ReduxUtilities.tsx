@@ -1,5 +1,4 @@
 import activity from "Activity/Redux/ActivityReducer";
-import * as TaskRedux from "BackgroundTasks/redux";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject} from "DefaultObjects";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
@@ -46,7 +45,6 @@ export const store = configureStore(initObject(), {
     hookStore,
     avatar,
     loading,
-    tasks: TaskRedux.reducer,
     project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(
         responsiveBP,

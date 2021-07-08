@@ -18,24 +18,6 @@ import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-suspend fun <T> proxiedRequest(
-    projectCache: ProjectCache,
-    actorAndProject: ActorAndProject,
-    request: T,
-): ProxiedRequest<T> {
-    val project = actorAndProject.project
-    if (project != null) {
-        projectCache.retrieveRole(actorAndProject.actor.safeUsername(), project)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-    }
-
-    return ProxiedRequest.createIPromiseToHaveVerifiedTheProjectBeforeCreating(
-        actorAndProject.actor.safeUsername(),
-        project,
-        request
-    )
-}
-
 class FilesService(
     private val providers: StorageProviders,
     private val providerSupport: StorageProviderSupport,
@@ -57,7 +39,7 @@ class FilesService(
         return coroutineScope {
             val browseJob = async {
                 comms.filesApi.browse.call(
-                    proxiedRequest(projectCache, actorAndProject, request),
+                    request,
                     comms.client
                 ).orThrow()
             }
@@ -92,11 +74,7 @@ class FilesService(
         return coroutineScope {
             val retrieveJob = async {
                 comms.filesApi.retrieve.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        request
-                    ),
+                    request,
                     comms.client
                 ).orThrow()
             }
@@ -155,11 +133,7 @@ class FilesService(
             val comms = providers.prepareCommunication(provider)
             responses.addAll(
                 comms.filesApi.move.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow().responses
             )
@@ -177,11 +151,7 @@ class FilesService(
             val comms = providers.prepareCommunication(provider)
             responses.addAll(
                 comms.filesApi.copy.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow().responses
             )
@@ -228,11 +198,7 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.delete.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
             }
@@ -256,11 +222,7 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createUpload.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
             }
@@ -277,11 +239,7 @@ class FilesService(
             verifyRequest = { support, _ -> },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createDownload.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
             }
@@ -305,11 +263,7 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createFolder.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
             }
@@ -330,11 +284,7 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.trash.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
             }
@@ -352,11 +302,7 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.updateAcl.call(
-                    proxiedRequest(
-                        projectCache,
-                        actorAndProject,
-                        bulkRequestOf(requestItems)
-                    ),
+                    bulkRequestOf(requestItems),
                     comms.client
                 ).orThrow()
                 BulkResponse<Unit>(emptyList())

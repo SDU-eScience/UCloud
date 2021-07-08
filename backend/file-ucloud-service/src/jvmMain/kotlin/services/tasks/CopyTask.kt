@@ -1,12 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
@@ -34,14 +30,13 @@ const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
 const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
 class CopyTask : TaskHandler {
-    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+    override fun TaskContext.canHandle(name: String, request: JsonObject): Boolean {
         return name == Files.copy.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
         }.isSuccess
     }
 
     override suspend fun TaskContext.collectRequirements(
-        actor: Actor,
         name: String,
         request: JsonObject,
         maxTime: Long?,
@@ -92,7 +87,7 @@ class CopyTask : TaskHandler {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
