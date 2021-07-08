@@ -1,70 +1,35 @@
 package dk.sdu.cloud.file.orchestrator.service
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.*
+import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.provider.api.IntegrationProviderInitRequest
-import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 class FilesService(
+    private val fileCollections: FileCollectionService,
     private val providers: StorageProviders,
     private val providerSupport: StorageProviderSupport,
-    private val projectCache: ProjectCache,
     private val metadataService: MetadataService,
-) {
+) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
+    private val proxy =
+        ProviderProxy<StorageCommunication, Product.Storage, FSSupport, UFile>(providers, providerSupport)
     private val metadataCache = SimpleCache<Pair<ActorAndProject, String>, MetadataService.RetrieveWithHistory>(
         lookup = { (actorAndProject, parentPath) ->
             metadataService.retrieveWithHistory(actorAndProject, parentPath)
         }
     )
 
-    suspend fun browse(actorAndProject: ActorAndProject, request: FilesBrowseRequest): FilesBrowseResponse {
-        val pathMetadata = extractPathMetadata(request.path)
-        val comms = providers.prepareCommunication(pathMetadata.productReference.provider)
-        val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
-        verifyReadRequest(request, support)
-
-        return coroutineScope {
-            val browseJob = async {
-                comms.filesApi.browse.call(
-                    request,
-                    comms.client
-                ).orThrow()
-            }
-
-            val metadataJob = async {
-                if (request.includeMetadata == true) {
-                    metadataCache.get(Pair(actorAndProject, request.path))
-                } else {
-                    null
-                }
-            }
-
-            val files = browseJob.await()
-            val metadata = metadataJob.await()
-
-            files.copy(
-                items = files.items.map { file ->
-                    val metadataForFile = metadata?.metadataByFile?.get(file.path) ?: emptyMap()
-                    val templates = metadata?.templates ?: emptyMap()
-                    file.copy(metadata = FileMetadataHistory(templates, metadataForFile))
-                }
-            )
-        }
-    }
-
+    /*
     suspend fun retrieve(actorAndProject: ActorAndProject, request: FilesRetrieveRequest): FilesRetrieveResponse {
         val pathMetadata = extractPathMetadata(request.path)
         val comms = providers.prepareCommunication(pathMetadata.productReference.provider)
@@ -97,6 +62,7 @@ class FilesService(
             retrieved.copy(metadata = metadata)
         }
     }
+     */
 
     private fun verifyReadRequest(request: FilesIncludeFlags, support: FSSupport) {
         if (request.allowUnsupportedInclude != true) {
@@ -125,42 +91,7 @@ class FilesService(
         }
     }
 
-    suspend fun move(actorAndProject: ActorAndProject, request: FilesMoveRequest): FilesMoveResponse {
-        val requestsByProvider = prepareCopyOrMove(request)
-
-        val responses = ArrayList<LongRunningTask>()
-        for ((provider, requestItems) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            responses.addAll(
-                comms.filesApi.move.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow().responses
-            )
-        }
-
-        // TODO Wrong order
-        return FilesMoveResponse(responses)
-    }
-
-    suspend fun copy(actorAndProject: ActorAndProject, request: FilesCopyRequest): FilesCopyResponse {
-        val requestsByProvider = prepareCopyOrMove(request)
-
-        val responses = ArrayList<LongRunningTask>()
-        for ((provider, requestItems) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            responses.addAll(
-                comms.filesApi.copy.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow().responses
-            )
-        }
-
-        // TODO Wrong order
-        return FilesCopyResponse(responses)
-    }
-
+    /*
     private suspend fun <T : WithPathMoving> prepareCopyOrMove(request: BulkRequest<T>): Map<String, List<T>> {
         val requestsByProvider = HashMap<String, List<T>>()
         for (requestItem in request.items) {
@@ -183,157 +114,96 @@ class FilesService(
         }
         return requestsByProvider
     }
+     */
 
-    suspend fun delete(actorAndProject: ActorAndProject, request: FilesDeleteRequest): FilesDeleteResponse {
-        return proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ ->
-                if (support.files.isReadOnly) {
-                    throw RPCException(
-                        "Cannot create files at this location (read-only system)",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.delete.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-            }
-        )
-    }
-
-    suspend fun createUpload(
+    private suspend fun collectionFromPath(
         actorAndProject: ActorAndProject,
-        request: FilesCreateUploadRequest,
-    ): FilesCreateUploadResponse {
-        return proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ ->
-                if (support.files.isReadOnly) {
-                    throw RPCException(
-                        "Cannot create files at this location (read-only system)",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.createUpload.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-            }
-        )
+        path: String?,
+        permission: Permission
+    ): FileCollection {
+        if (path == null) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val collection = extractPathMetadata(path).collection
+        return fileCollections.retrieveBulk(actorAndProject, listOf(collection), listOf(permission)).singleOrNull()
+            ?: throw RPCException("File not found", HttpStatusCode.NotFound)
     }
 
-    suspend fun createDownload(
+    override suspend fun browse(
         actorAndProject: ActorAndProject,
-        request: FilesCreateDownloadRequest,
-    ): FilesCreateDownloadResponse {
-        return proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ -> },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.createDownload.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-            }
+        request: ResourceBrowseRequest<UFileIncludeFlags>,
+        useProject: Boolean,
+        ctx: DBContext?
+    ): PageV2<UFile> {
+        val resolvedCollection = collectionFromPath(actorAndProject, request.flags.path, Permission.Read)
+        return proxy.pureProxy(
+            actorAndProject,
+            { it.filesApi.browse },
+            FilesProviderBrowseRequest(resolvedCollection, request)
         )
     }
 
-    suspend fun createFolder(
+    override suspend fun retrieve(
         actorAndProject: ActorAndProject,
-        request: FilesCreateFolderRequest,
-    ): FilesCreateFolderResponse {
-        return proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ ->
-                if (support.files.isReadOnly) {
-                    throw RPCException(
-                        "Cannot create files at this location (read-only system)",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.createFolder.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-            }
-        )
+        id: String,
+        flags: UFileIncludeFlags?,
+        ctx: DBContext?,
+        asProvider: Boolean
+    ): UFile {
+        val resolvedCollection = collectionFromPath(actorAndProject, flags?.path ?: id, Permission.Read)
+        return proxy.pureProxy(actorAndProject, { it.filesApi.retrieve },
+            FilesProviderRetrieveRequest(resolvedCollection, ResourceRetrieveRequest(flags ?: UFileIncludeFlags(), id)))
     }
 
-    suspend fun trash(actorAndProject: ActorAndProject, request: FilesTrashRequest): FilesTrashResponse {
-        return proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ ->
-                if (!support.files.trashSupported) {
-                    throw RPCException(
-                        "Trash not supported by this system",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.trash.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-            }
-        )
+    override suspend fun create(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UFileSpecification>
+    ): BulkResponse<FindByStringId?> {
+        throw RPCException("Files can only be created via uploads", HttpStatusCode.BadRequest)
     }
 
-    suspend fun updateAcl(actorAndProject: ActorAndProject, request: FilesUpdateAclRequest): FilesUpdateAclResponse {
-        proxyRequest(
-            actorAndProject.actor,
-            request,
-            verifyRequest = { support, _ ->
-                if (!support.files.aclSupported || !support.files.aclModifiable) {
-                    throw RPCException("Cannot update permissions on this system", HttpStatusCode.BadRequest)
-                }
-            },
-            proxyRequest = { comms, requestItems ->
-                comms.filesApi.updateAcl.call(
-                    bulkRequestOf(requestItems),
-                    comms.client
-                ).orThrow()
-                BulkResponse<Unit>(emptyList())
-            }
-        )
+    override suspend fun updateAcl(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>
+    ): BulkResponse<Unit?> {
+        TODO("Not yet implemented")
     }
 
-    private suspend inline fun <T : WithPath, R> proxyRequest(
-        actor: Actor,
-        request: BulkRequest<T>,
-        verifyRequest: (FSSupport, T) -> Unit,
-        proxyRequest: (comms: StorageCommunication, requestItems: List<T>) -> BulkResponse<R>,
-    ): BulkResponse<R> {
-        val requestsByProvider = HashMap<String, List<T>>()
-        for (requestItem in request.items) {
-            val metadata = extractPathMetadata(requestItem.path)
-            val (_, support) = providerSupport.retrieveProductSupport(metadata.productReference)
+    override suspend fun delete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ): BulkResponse<Unit?> {
+        TODO("Not yet implemented")
+    }
 
-            verifyRequest(support, requestItem)
+    override suspend fun addUpdate(
+        actorAndProject: ActorAndProject,
+        updates: BulkRequest<ResourceUpdateAndId<ResourceUpdate>>
+    ) {
+        TODO("Not yet implemented")
+    }
 
-            val provider = metadata.productReference.provider
-            requestsByProvider[provider] = (requestsByProvider[provider] ?: emptyList()) + requestItem
-        }
+    override suspend fun register(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProviderRegisteredResource<UFileSpecification>>
+    ): BulkResponse<FindByStringId> {
+        TODO("Not yet implemented")
+    }
 
-        val responses = ArrayList<R>()
-        for ((provider, requestItems) in requestsByProvider) {
-            val integration = IntegrationProvider(provider)
-            val comms = providers.prepareCommunication(provider)
-            integration.init.call(IntegrationProviderInitRequest(actor.safeUsername()), comms.client)
-            responses.addAll(proxyRequest(comms, requestItems).responses)
-        }
-        return BulkResponse(responses)
+    override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Product.Storage, FSSupport> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun chargeCredits(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ResourceChargeCredits>
+    ): ResourceChargeCreditsResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun search(
+        actorAndProject: ActorAndProject,
+        request: ResourceSearchRequest<UFileIncludeFlags>,
+        ctx: DBContext?
+    ): PageV2<UFile> {
+        TODO("Not yet implemented")
     }
 }

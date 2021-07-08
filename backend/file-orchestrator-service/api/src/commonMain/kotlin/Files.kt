@@ -4,55 +4,27 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceUpdate
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-
-interface FilesIncludeFlags {
-    val includePermissions: Boolean?
-    val includeTimestamps: Boolean?
-    val includeSizes: Boolean?
-    val includeUnixInfo: Boolean?
-    val includeMetadata: Boolean?
-
-    @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
-
-This value is `true` by default """)
-    val allowUnsupportedInclude: Boolean?
-}
-
-fun FilesIncludeFlags(
-    includePermissions: Boolean? = null,
-    includeTimestamps: Boolean? = null,
-    includeSizes: Boolean? = null,
-    includeUnixInfo: Boolean? = null,
-    includeMetadata: Boolean? = null,
-    allowUnsupportedInclude: Boolean? = null,
-) = FilesIncludeFlagsImpl(includePermissions, includeTimestamps, includeSizes, includeUnixInfo, includeMetadata,
-    allowUnsupportedInclude)
-
-data class FilesIncludeFlagsImpl(
-    override val includePermissions: Boolean?,
-    override val includeTimestamps: Boolean?,
-    override val includeSizes: Boolean?,
-    override val includeUnixInfo: Boolean?,
-    override val includeMetadata: Boolean?,
-    override val allowUnsupportedInclude: Boolean?
-) : FilesIncludeFlags
 
 interface WithConflictPolicy {
     val conflictPolicy: WriteConflictPolicy
 }
 
 interface WithPath {
-    val path: String
+    val path: String // TODO This should be renamed to id
 }
 
 interface WithPathMoving {
-    val oldPath: String
-    val newPath: String
+    val oldPath: String // TODO This should be renamed to oldId
+    val newPath: String // TODO This should be renamed to newId
 }
 
 @Serializable
@@ -70,34 +42,6 @@ sealed class LongRunningTask {
 
 // ---
 
-@Serializable
-data class FilesBrowseRequest(
-    override val path: String,
-    override val includePermissions: Boolean? = null,
-    override val includeTimestamps: Boolean? = null,
-    override val includeSizes: Boolean? = null,
-    override val includeUnixInfo: Boolean? = null,
-    override val includeMetadata: Boolean? = null,
-    override val allowUnsupportedInclude: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2, FilesIncludeFlags, WithPath
-typealias FilesBrowseResponse = PageV2<UFile>
-
-@Serializable
-data class FilesRetrieveRequest(
-    override val path: String,
-    override val includePermissions: Boolean? = null,
-    override val includeTimestamps: Boolean? = null,
-    override val includeSizes: Boolean? = null,
-    override val includeUnixInfo: Boolean? = null,
-    override val includeMetadata: Boolean? = null,
-    override val allowUnsupportedInclude: Boolean? = null,
-) : WithPath, FilesIncludeFlags
-typealias FilesRetrieveResponse = UFile
-
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
 @Serializable
 data class FilesMoveRequestItem(
@@ -110,7 +54,8 @@ typealias FilesMoveResponse = BulkResponse<LongRunningTask>
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 @Serializable
 data class FilesCopyRequestItem(
-    override val oldPath: String, override val newPath: String,
+    override val oldPath: String,
+    override val newPath: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
 typealias FilesCopyResponse = BulkResponse<LongRunningTask>
@@ -165,8 +110,10 @@ data class FilesCreateDownloadResponseItem(val endpoint: String)
 
 // ---
 
-object Files : CallDescriptionContainer("files") {
-    const val baseContext = "/api/files"
+object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
+    FSSupport>("files") {
+    override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
+        UFileStatus, Product.Storage, FSSupport>()
 
     init {
         title = "Files"
@@ -182,6 +129,7 @@ of bytes.
 """
     }
 
+    /*
     val browse = call<FilesBrowseRequest, FilesBrowseResponse, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
 
@@ -232,6 +180,7 @@ of bytes.
             }
         }
     }
+     */
 
     val move = call<FilesMoveRequest, FilesMoveResponse, CommonErrorMessage>("move") {
         httpUpdate(baseContext, "move")
@@ -303,6 +252,7 @@ of bytes.
         }
     }
 
+    /*
     val delete = call<FilesDeleteRequest, FilesDeleteResponse, CommonErrorMessage>("delete") {
         httpDelete(baseContext)
 
@@ -333,6 +283,7 @@ of bytes.
             }
         }
     }
+     */
 
     val createUpload = call<FilesCreateUploadRequest, FilesCreateUploadResponse, CommonErrorMessage>("createUpload") {
         httpCreate(baseContext, "upload")
@@ -406,6 +357,7 @@ of bytes.
         }
     }
 
+    /*
     val updateAcl = call<FilesUpdateAclRequest, FilesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
         httpUpdate(baseContext, "updateAcl")
 
@@ -432,13 +384,13 @@ of bytes.
             }
         }
     }
+     */
 
     val trash = call<FilesTrashRequest, FilesTrashResponse, CommonErrorMessage>("trash") {
         httpUpdate(baseContext, "trash")
 
         documentation {
             summary = "Moves a file to the trash"
-            /*
             description = """
                 Moves a file to the trash.
                 
@@ -452,8 +404,6 @@ of bytes.
                 This is a long running task. As a result, this operation might respond with a status code which indicate
                 that it will continue in the background. Progress of this job can be followed using the task API.
             """.trimIndent()
-
-             */
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -471,10 +421,4 @@ of bytes.
             }
         }
     }
-
-    /*
-    // TODO Interface tbd
-    val search = call<FilesSearchRequest, FilesSearchResponse, CommonErrorMessage>("search") {
-    }
-     */
 }

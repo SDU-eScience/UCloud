@@ -437,6 +437,34 @@ class ProviderProxy<
 
         throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
     }
+
+    suspend fun <R : Any, S : Any> pureProxy(
+        actorAndProject: ActorAndProject,
+        call: (comms: Comms) -> CallDescription<R, S, CommonErrorMessage>,
+        request: R,
+        isUserRequest: Boolean = true
+    ): S {
+        return proxy(
+            actorAndProject,
+            Unit,
+            object : ProxyInstructions<Comms, Support, Res, Unit, R, S>() {
+                override val isUserRequest: Boolean = isUserRequest
+
+                override suspend fun beforeCall(provider: String, resource: RequestWithRefOrResource<Unit, Res>): R {
+                    return request
+                }
+
+                override fun retrieveCall(comms: Comms): CallDescription<R, S, CommonErrorMessage> = call(comms)
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: Unit
+                ): RequestWithRefOrResource<Unit, Res> {
+                    return request to ProductRefOrResource.SomeRef(ProductReference("", "", ""))
+                }
+            }
+        )
+    }
 }
 
 private val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")

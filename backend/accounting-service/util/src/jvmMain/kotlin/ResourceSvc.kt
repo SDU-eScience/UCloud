@@ -20,9 +20,7 @@ interface ResourceSvc<
     Support : ProductSupport> {
     suspend fun browse(
         actorAndProject: ActorAndProject,
-        request: WithPaginationRequestV2,
-        flags: F? = null,
-        sortFlags: SortFlags? = null,
+        request: ResourceBrowseRequest<F>,
         useProject: Boolean = true,
         ctx: DBContext? = null,
     ): PageV2<R>

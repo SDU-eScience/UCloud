@@ -79,19 +79,17 @@ abstract class ResourceService<
     @Suppress("SqlResolve")
     override suspend fun browse(
         actorAndProject: ActorAndProject,
-        request: WithPaginationRequestV2,
-        flags: Flags?,
-        sortFlags: SortFlags?,
+        request: ResourceBrowseRequest<Flags>,
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        val browseQuery = browseQuery(flags)
+        val browseQuery = browseQuery(request.flags)
         return paginatedQuery(
             browseQuery,
             actorAndProject,
             listOf(Permission.Read),
-            flags,
-            sortFlags,
+            request.flags,
+            request,
             request.normalize(),
             useProject,
             ctx
