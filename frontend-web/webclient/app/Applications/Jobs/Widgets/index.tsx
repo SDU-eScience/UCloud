@@ -210,7 +210,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
         if (term === "") {
             setResults(pool);
         } else {
-            currentTimeout.current = setTimeout(() => {
+            currentTimeout.current = window.setTimeout(() => {
                 const newResults = fuse.search(term);
                 setResults(newResults.map(it => it.item));
             }, delay);
@@ -224,15 +224,15 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
 
 
     return <Box>
-        <Flex mb={16} alignItems={"center"}>
+        <Flex mb={16} alignItems="center">
             <Box flexGrow={1}>
                 <Heading.h4>Optional Parameters</Heading.h4>
             </Box>
             <Box flexShrink={0}>
                 <Input
                     ref={searchRef}
-                    placeholder={"Search"}
-                    onChange={(e) => search(e.target.value)}
+                    placeholder="Search"
+                    onChange={e => search(e.target.value)}
                 />
             </Box>
         </Flex>

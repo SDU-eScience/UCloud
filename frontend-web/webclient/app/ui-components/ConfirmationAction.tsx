@@ -221,12 +221,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         timer.current -= tickRate;
         if (timer.current <= 0) {
             button.classList.add("success");
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
             setTimeout(() => {
                 if (props.onAction) props.onAction();
             }, 1000);
         } else {
-            timeout.current = setTimeout(success, tickRate);
+            timeout.current = window.setTimeout(success, tickRate);
         }
     }, [buttonRef.current, props.onAction]);
 
@@ -237,7 +237,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         if (timer.current >= 1600) {
             timer.current = 1600;
         } else {
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
         }
     }, [buttonRef.current]);
 
@@ -256,7 +256,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
         button.classList.remove("success");
         button.classList.add("process");
-        timeout.current = setTimeout(success, tickRate);
+        timeout.current = window.setTimeout(success, tickRate);
     }, [buttonRef.current]);
 
     const end = useCallback(() => {
@@ -265,7 +265,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.classList.remove("process");
         if (timeout.current !== -1) {
             clearTimeout(timeout.current);
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
         }
 
         if (timer.current > 1500 && !wasReset.current) {

@@ -67,7 +67,7 @@ const BackgroundTasks = (props: BackgroundTaskProps): JSX.Element | null => {
 
     useEffect(() => {
         if (props.activeUploads > 0 && uploadInterval === -1) {
-            setUploadInterval(setInterval(() => setUploadTask(calculateUploadTask()), 500));
+            setUploadInterval(window.setInterval(() => setUploadTask(calculateUploadTask()), 500));
         } else if (props.activeUploads === 0 && uploadInterval !== -1) {
             clearInterval(uploadInterval);
             setUploadInterval(-1);

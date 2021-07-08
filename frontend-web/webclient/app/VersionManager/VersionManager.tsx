@@ -73,9 +73,9 @@ async function initialFetch(setInitial: (v: string) => void): Promise<void> {
             it.text().then(version => setInitial(version));
         } else {
             console.warn("Failed to fetch version from backend. Retrying.");
-            setTimeout(initialFetch(setInitial), TIMEOUT_DURATION);
+            window.setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION);
         }
-    }).catch(() => setTimeout(initialFetch(setInitial), TIMEOUT_DURATION));
+    }).catch(() => window.setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION));
 }
 
 function notifyModal(): void {

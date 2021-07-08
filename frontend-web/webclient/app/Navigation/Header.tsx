@@ -71,7 +71,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             props.fetchAvatar();
             fetchDowntimes();
         }
-        setIntervalId(setInterval(fetchDowntimes, 600_000));
+        setIntervalId(window.setInterval(fetchDowntimes, 600_000));
         return () => {if (intervalId !== -1) clearInterval(intervalId);};
     }, [Client.isLoggedIn]);
 
