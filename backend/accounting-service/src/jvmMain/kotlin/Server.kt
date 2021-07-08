@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.*
 import dk.sdu.cloud.accounting.services.grants.*
@@ -8,17 +9,18 @@ import dk.sdu.cloud.accounting.services.projects.FavoriteProjectService
 import dk.sdu.cloud.accounting.services.projects.ProjectGroupService
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
-import dk.sdu.cloud.accounting.services.providers.ProviderDao
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.wallets.*
 import dk.sdu.cloud.accounting.services.wallets.ProjectCache
+import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ProjectEvents
+import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -54,9 +56,11 @@ class Server(
         val templates = GrantTemplateService(projectsGrants, settings)
         val comments = GrantCommentService(grantApplicationService, notifications, projectsGrants)
 
-        val projectsProvider = dk.sdu.cloud.accounting.services.providers.ProjectCache(client)
-        val providerDao = ProviderDao(projectsProvider)
-        val providerService = ProviderService(db, providerDao, client)
+        val providerProviders =
+            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { throw IllegalArgumentException() }
+        val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
+            providerProviders, client, fetchSupport = { emptyList() })
+        val providerService = ProviderService(db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(db, providerService, client,
             micro.developmentModeEnabled)
 

@@ -13,7 +13,7 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
     return object : Controller {
         override fun configure(rpcServer: RpcServer) = with(rpcServer) {
             val userApi = userApi()
-            val controlApi = controlApi()
+            val controlApi = runCatching { controlApi() }.getOrNull()
 
             implement(userApi.create) {
                 ok(create(actorAndProject, request))
@@ -41,20 +41,22 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
                 ok(updateAcl(actorAndProject, request))
             }
 
-            implement(controlApi.retrieve) {
-                ok(retrieve(actorAndProject, request.id, request.flags, asProvider = true))
-            }
+            if (controlApi != null) {
+                implement(controlApi.retrieve) {
+                    ok(retrieve(actorAndProject, request.id, request.flags, asProvider = true))
+                }
 
-            implement(controlApi.update) {
-                ok(addUpdate(actorAndProject, request))
-            }
+                implement(controlApi.update) {
+                    ok(addUpdate(actorAndProject, request))
+                }
 
-            implement(controlApi.chargeCredits) {
-                ok(chargeCredits(actorAndProject, request))
-            }
+                implement(controlApi.chargeCredits) {
+                    ok(chargeCredits(actorAndProject, request))
+                }
 
-            implement(controlApi.register) {
-                ok(register(actorAndProject, request))
+                implement(controlApi.register) {
+                    ok(register(actorAndProject, request))
+                }
             }
 
             userApi.search?.let {

@@ -5,6 +5,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -18,11 +20,12 @@ data class Provider(
     override val createdAt: Long,
     override val status: ProviderStatus,
     override val updates: List<ProviderUpdate>,
-    override val billing: ProviderBilling,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry>,
     override val permissions: ResourcePermissions? = null
-) : Resource<Product, ProductSupport> {
+) : Resource<Product, ProviderSupport> {
+    override val billing = ResourceBilling.Free
+    override val acl: List<ResourceAclEntry>? = null
+
     override fun toString(): String {
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
             "billing=$billing, owner=$owner)"
@@ -50,12 +53,9 @@ data class ProviderSupport(override val product: ProductReference) : ProductSupp
 
 @Serializable
 data class ProviderStatus(
-    override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
+    override var resolvedSupport: ResolvedSupport<Product, ProviderSupport>? = null,
     override var resolvedProduct: Product? = null
-) : ResourceStatus<Product, ProductSupport>
-
-@Serializable
-class ProviderBilling(override val pricePerUnit: Long, override val creditsCharged: Long) : ResourceBilling
+) : ResourceStatus<Product, ProviderSupport>
 
 @Serializable
 data class ProviderUpdate(
@@ -90,6 +90,20 @@ typealias ProvidersRetrieveSpecificationRequest = FindByStringId
 typealias ProvidersRetrieveSpecificationResponse = ProviderSpecification
 
 @Serializable
+data class ProviderIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+) : ResourceIncludeFlags
+
+@Serializable
 sealed class ProvidersRequestApprovalRequest {
     @Serializable
     @SerialName("information")
@@ -115,9 +129,8 @@ sealed class ProvidersRequestApprovalResponse {
 data class ProvidersApproveRequest(val token: String)
 typealias ProvidersApproveResponse = FindByStringId
 
-object Providers : CallDescriptionContainer("providers") {
-    const val baseContext = "/api/providers"
-
+object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags, ProviderStatus,
+        Product, ProviderSupport>("providers") {
     init {
         serializerLookupTable = mapOf(
             serializerEntry(ProvidersRequestApprovalRequest.serializer()),
@@ -125,25 +138,12 @@ object Providers : CallDescriptionContainer("providers") {
         )
     }
 
-    val create = call<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>, CommonErrorMessage>("create") {
-        httpCreate(baseContext, roles = Roles.PRIVILEGED)
-    }
-
-    val updateAcl = call<BulkRequest<ProvidersUpdateAclRequestItem>, Unit, CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
-    }
+    override val typeInfo = ResourceTypeInfo<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
+            ProviderStatus, Product, ProviderSupport>()
 
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
         ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
         httpUpdate(baseContext, "renewToken")
-    }
-
-    val retrieve = call<ProvidersRetrieveRequest, ProvidersRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
-    }
-
-    val browse = call<ProvidersBrowseRequest, ProvidersBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
     }
 
     val retrieveSpecification = call<ProvidersRetrieveSpecificationRequest,

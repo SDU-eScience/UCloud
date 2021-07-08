@@ -1,7 +1,7 @@
 package dk.sdu.cloud.accounting.rpc
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.services.providers.ProviderService
+import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Controller
@@ -12,31 +12,14 @@ class ProviderController(
     private val devMode: Boolean
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Providers.create) {
-            ok(service.create(actorAndProject, request))
-        }
-
-        implement(Providers.updateAcl) {
-            service.updateAcl(actorAndProject.actor, request)
-            ok(Unit)
-        }
+        service.asController().configure(rpcServer)
 
         implement(Providers.renewToken) {
-            service.renewToken(actorAndProject.actor, request)
-            ok(Unit)
-        }
-
-        implement(Providers.retrieve) {
-            ok(service.retrieveProvider(actorAndProject.actor, request.id))
+            ok(service.renewToken(actorAndProject, request))
         }
 
         implement(Providers.retrieveSpecification) {
-            // Call is only privileged, hence the switch to Actor.System
-            ok(service.retrieveProvider(Actor.System, request.id).specification)
-        }
-
-        implement(Providers.browse) {
-            ok(service.browseProviders(actorAndProject, request.normalize()))
+            ok(service.retrieveSpecification(actorAndProject, request.id))
         }
 
         implement(Providers.requestApproval) {
@@ -48,7 +31,7 @@ class ProviderController(
             // anyone with ADMIN privileges to run this command. In a production environment these can be approved
             // directly through the database function.
             implement(Providers.approve) {
-                ok(service.approveRequest(actorAndProject.actor, request))
+                ok(service.approveRequest(request))
             }
         }
 

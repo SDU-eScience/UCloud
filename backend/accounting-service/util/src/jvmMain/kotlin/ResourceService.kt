@@ -837,8 +837,6 @@ abstract class ResourceService<
     ): ResourceChargeCreditsResponse {
         val ids = request.items.asSequence().map { it.id }.toSet()
 
-        println(actorAndProject)
-
         val allResources = retrieveBulk(
             actorAndProject,
             ids,
@@ -902,7 +900,7 @@ abstract class ResourceService<
         val includeUpdates = flags?.includeUpdates ?: simpleFlags?.includeUpdates ?: false
         return PartialQuery(
             {
-                setParameter("username", actor.safeUsername())
+                setParameter("username", actor.safeUsername("_ucloud"))
                 setParameter("project_filter", projectFilter)
                 setParameter("permissions", permissionsOneOf.map { it.name })
                 setParameter("resource_id", resourceId)
@@ -929,6 +927,7 @@ abstract class ResourceService<
                             array_agg(
                                 distinct
                                 case
+                                    when :username = '_ucloud' then 'ADMIN'
                                     when pm.role = 'PI' then 'ADMIN'
                                     when pm.role = 'ADMIN' then 'ADMIN'
                                     when r.created_by = :username and r.project is null then 'ADMIN'
@@ -984,6 +983,7 @@ abstract class ResourceService<
                            (:resource_id::bigint is null or r.id = :resource_id) and
                            r.type = :resource_type and
                            (
+                               (:username = '_ucloud') or
                                (:username = '#P_' || r.provider) or
                                (r.created_by = :username and r.project is null) or
                                (acl.username = :username) or
@@ -1013,6 +1013,7 @@ abstract class ResourceService<
                            (:permissions || array['ADMIN', 'PROVIDER']) && array_agg(
                                 distinct
                                 case
+                                    when :username = '_ucloud' then 'ADMIN'
                                     when pm.role = 'PI' then 'ADMIN'
                                     when pm.role = 'ADMIN' then 'ADMIN'
                                     when r.created_by = :username and r.project is null then 'ADMIN'
