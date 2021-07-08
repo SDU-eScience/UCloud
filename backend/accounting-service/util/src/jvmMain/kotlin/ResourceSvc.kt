@@ -21,8 +21,9 @@ interface ResourceSvc<
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2,
-        flags: F?,
-        sortFlags: SortFlags?,
+        flags: F? = null,
+        sortFlags: SortFlags? = null,
+        useProject: Boolean = true,
         ctx: DBContext? = null,
     ): PageV2<R>
 

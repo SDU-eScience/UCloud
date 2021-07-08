@@ -2,6 +2,7 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.aau.AppAauService
@@ -16,6 +17,7 @@ import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.AvatarService
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
@@ -167,7 +169,7 @@ suspend fun main(args: Array<String>) {
             ).orThrow().id
 
             val providerId = "ucloud"
-            Providers.create.call(
+            val createdId = Providers.create.call(
                 bulkRequestOf(
                     ProviderSpecification(
                         providerId,
@@ -177,10 +179,10 @@ suspend fun main(args: Array<String>) {
                     )
                 ),
                 userClient.withProject(project)
-            ).orThrow()
+            ).orThrow().responses.singleOrNull() ?: error("Bad response from Providers.create")
 
             val provider = Providers.retrieve.call(
-                ResourceRetrieveRequest(ProviderIncludeFlags(), providerId),
+                ResourceRetrieveRequest(ProviderIncludeFlags(), createdId.id),
                 userClient
             ).orThrow()
 

@@ -1,16 +1,11 @@
 package dk.sdu.cloud.accounting.services.providers
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.util.ProviderComms
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.ResourceService
-import dk.sdu.cloud.accounting.util.SqlObject
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRenewRequestItem
 import dk.sdu.cloud.calls.BulkRequest
@@ -18,6 +13,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.serializer
@@ -75,6 +71,22 @@ class ProviderService(
         }
     }
 
+    override suspend fun browseQuery(flags: ProviderIncludeFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("name", flags?.filterName)
+            },
+            """
+                select *
+                from provider.providers
+                where
+                    (:name::text is null or unique_name = :name) and
+                    (:query::text is null or unique_name ilike '%' || :query || '%')
+            """
+        )
+    }
+
     suspend fun renewToken(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
@@ -109,14 +121,19 @@ class ProviderService(
 
     suspend fun retrieveSpecification(
         actorAndProject: ActorAndProject,
-        id: String,
+        name: String,
     ): ProviderSpecification {
         val (actor) = actorAndProject
         if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        return retrieve(ActorAndProject(Actor.System, null), id, null).specification
+        return browse(
+            ActorAndProject(Actor.System, null),
+            PaginationRequestV2(10),
+            ProviderIncludeFlags(filterName = name),
+            useProject = false,
+        ).items.singleOrNull()?.specification ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     private suspend fun registerRequest(
@@ -146,7 +163,7 @@ class ProviderService(
                             (shared_secret, requested_id, domain, https, port)
                         values
                             (:shared_secret, :requested_id, :domain, :https, :port::int);
-                    """
+                    """,
                 )
         }
     }
@@ -171,7 +188,7 @@ class ProviderService(
                             shared_secret = :shared_secret and
                             signed_by is null and
                             created_at >= now() - '5 minutes'::interval
-                    """
+                    """,
                 )
                 .rowsAffected >= 1L
         }
@@ -224,9 +241,9 @@ class ProviderService(
                             setParameter("predefined_resource", predefinedResource)
                         },
                         """
-                        select unique_name, domain, https, port, refresh_token
-                        from provider.approve_request(:token, :public, :private, :predefined_resource)
-                    """
+                            select unique_name, domain, https, port, refresh_token, resource
+                            from provider.approve_request(:token, :public, :private, :predefined_resource)
+                        """,
                     )
                     .rows
                     .singleOrNull()

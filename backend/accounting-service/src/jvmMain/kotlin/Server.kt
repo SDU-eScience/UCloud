@@ -57,7 +57,7 @@ class Server(
         val comments = GrantCommentService(grantApplicationService, notifications, projectsGrants)
 
         val providerProviders =
-            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { throw IllegalArgumentException() }
+            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
         val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
             providerProviders, client, fetchSupport = { emptyList() })
         val providerService = ProviderService(db, providerProviders, providerSupport, client)

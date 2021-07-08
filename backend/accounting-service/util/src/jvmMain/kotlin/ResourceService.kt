@@ -82,10 +82,20 @@ abstract class ResourceService<
         request: WithPaginationRequestV2,
         flags: Flags?,
         sortFlags: SortFlags?,
+        useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
         val browseQuery = browseQuery(flags)
-        return paginatedQuery(browseQuery, actorAndProject, listOf(Permission.Read), flags, sortFlags, request.normalize(), ctx)
+        return paginatedQuery(
+            browseQuery,
+            actorAndProject,
+            listOf(Permission.Read),
+            flags,
+            sortFlags,
+            request.normalize(),
+            useProject,
+            ctx
+        )
     }
 
     protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
@@ -108,7 +118,7 @@ abstract class ResourceService<
             actorAndProject.actor,
             if (asProvider) listOf(Permission.Provider) else listOf(Permission.Read),
             resourceId = convertedId,
-            projectFilter = if (asProvider) "" else actorAndProject.project,
+            projectFilter = "",
             flags = flags,
             includeUnconfirmed = asProvider,
         )
@@ -306,27 +316,30 @@ abstract class ResourceService<
                             .sendPreparedStatement(
                                 {
                                     setParameter("type", resourceType)
-                                    setParameter("provider", provider)
+                                    setParameter("provider", provider.takeIf { it != Provider.UCLOUD_CORE_PROVIDER })
                                     setParameter("created_by", actorAndProject.actor.safeUsername())
                                     setParameter("project", actorAndProject.project)
                                     setParameter("product_ids", resources.map { it.second.reference.id })
                                     setParameter("product_categories", resources.map { it.second.reference.category })
                                     setParameter("is_public_read", isPublicRead)
+                                    setParameter("auto_confirm", provider == Provider.UCLOUD_CORE_PROVIDER)
                                 },
                                 """
-                                with product_tuples as (
-                                    select unnest(:product_ids::text[]) id, unnest(:product_categories::text[]) cat,
-                                           unnest(:is_public_read::boolean[]) public_read
-                                )
-                                insert into provider.resource(type, provider, created_by, project, product, public_read) 
-                                select :type, :provider, :created_by, :project, p.id, t.public_read
-                                from
-                                    product_tuples t join 
-                                    accounting.product_categories pc on 
-                                        pc.category = t.cat and pc.provider = :provider join
-                                    accounting.products p on pc.id = p.category and t.id = p.name
-                                returning id
-                            """
+                                    with product_tuples as (
+                                        select unnest(:product_ids::text[]) id, unnest(:product_categories::text[]) cat,
+                                               unnest(:is_public_read::boolean[]) public_read
+                                    )
+                                    insert into provider.resource
+                                        (type, provider, created_by, project, product, public_read, 
+                                         confirmed_by_provider) 
+                                    select :type, :provider, :created_by, :project, p.id, t.public_read, :auto_confirm
+                                    from
+                                        product_tuples t left join 
+                                        accounting.product_categories pc on 
+                                            pc.category = t.cat and pc.provider = :provider left join
+                                        accounting.products p on pc.id = p.category and t.id = p.name
+                                    returning id
+                                """,
                             )
                             .rows
                             .map { it.getLong(0)!! }
@@ -883,7 +896,7 @@ abstract class ResourceService<
         val search = browseQuery(request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.Read), request.flags,
-            request, request.normalize(), ctx
+            request, request.normalize(), true, ctx
         )
     }
 
@@ -955,8 +968,8 @@ abstract class ResourceService<
                 append(
                     """
                         from
-                           provider.resource r join
-                           accounting.products the_product on r.product = the_product.id join
+                           provider.resource r left join
+                           accounting.products the_product on r.product = the_product.id left join
                            accounting.product_categories p_cat on the_product.category = p_cat.id left join
                            provider.resource_acl_entry acl on r.id = acl.resource_id left join
                            project.projects p on r.project = p.id left join
@@ -1035,6 +1048,7 @@ abstract class ResourceService<
         flags: Flags?,
         sortFlags: SortFlags?,
         pagination: NormalizedPaginationRequestV2,
+        useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
         val (params, query) = partialQuery
@@ -1050,7 +1064,7 @@ abstract class ResourceService<
         val (resourceParams, resourceQuery) = accessibleResources(
             actorAndProject.actor,
             permissionsOneOf,
-            projectFilter = actorAndProject.project,
+            projectFilter = if (useProject) actorAndProject.project else "",
             flags = flags
         )
 

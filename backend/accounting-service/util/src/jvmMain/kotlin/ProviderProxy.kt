@@ -220,7 +220,6 @@ class ProviderProxy<
         instructions: BulkProxyInstructions<Comms, Support, Res, R, R2, S>
     ): BulkResponse<S?> {
         with(instructions) {
-            val call = retrieveCall(providers.placeholderCommunication)
             if (request.items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
             val allResources = verifyAndFetchResources(actorAndProject, request)
@@ -228,7 +227,8 @@ class ProviderProxy<
                 it.second.reference.provider
             }
 
-            for ((_, requestsAndResources) in groupedByProvider) {
+            for ((provider, requestsAndResources) in groupedByProvider) {
+                if (provider == Provider.UCLOUD_CORE_PROVIDER) continue
                 for (req in requestsAndResources) {
                     val (_, support) = support.retrieveProductSupport(req.second.reference)
                     verifyRequest(req.first, req.second, support)
@@ -242,20 +242,20 @@ class ProviderProxy<
 
             for ((provider, requestsAndResources) in groupedByProvider) {
                 var mappedRequest: R2? = null
+                val requestForProvider = beforeCall(provider, requestsAndResources)
                 try {
+                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                        anySuccess = true
+                        afterCall(provider, requestsAndResources, BulkResponse(requestsAndResources.map { null }))
+                        continue
+                    }
+
                     val comms = providers.prepareCommunication(provider)
                     val providerCall = retrieveCall(comms)
                     val im = IntegrationProvider(provider)
-                    val requestForProvider = beforeCall(provider, requestsAndResources)
                     mappedRequest = requestForProvider
 
                     for (attempt in 0 until 5) {
-                        if (provider == Provider.UCLOUD_CORE_PROVIDER) {
-                            anySuccess = true
-                            afterCall(provider, requestsAndResources, BulkResponse(requestsAndResources.map { null }))
-                            break
-                        }
-
                         val response = providerCall.call(
                             requestForProvider,
                             if (isUserRequest) {
@@ -300,6 +300,7 @@ class ProviderProxy<
                 if (lastError != null) {
                     throw lastError
                 } else {
+                    val call = retrieveCall(providers.placeholderCommunication)
                     throw IllegalStateException("No success but also no error: ${call.fullName}")
                 }
             }

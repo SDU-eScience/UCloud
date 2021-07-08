@@ -49,11 +49,13 @@ create or replace function provider.provider_to_json(
     );
 $$;
 
+drop function if exists provider.approve_request(text, text, text);
+
 create function provider.approve_request(
     shared_secret_in text,
     public_key_in text,
     private_key_in text,
-    predefined_resource_id text
+    predefined_resource_id bigint
 ) returns provider.providers language plpgsql as $$
 declare
     request provider.approval_request;
@@ -117,7 +119,8 @@ begin
         request.https,
         request.port,
         generated_refresh_token,
-        public_key_in
+        public_key_in,
+        resource_id
     ) returning * into result;
 
     insert into auth.providers(id, pub_key, priv_key, refresh_token, claim_token, did_claim)
@@ -133,3 +136,63 @@ begin
     return result;
 end;
 $$;
+
+create or replace function provider.resource_to_json(
+    r provider.accessible_resource,
+    additional jsonb
+) returns jsonb as $$
+    select provider.jsonb_merge(
+        jsonb_build_object(
+            'id', (r.resource).id::text,
+            'createdAt', (floor(extract(epoch from (r.resource).created_at) * 1000)),
+            'owner', jsonb_build_object(
+                'createdBy', (r.resource).created_by,
+                'project', (r.resource).project
+            ),
+            'status', jsonb_build_object(),
+            'permissions', jsonb_build_object(
+                'myself', r.my_permissions,
+                'others', (
+                    with transformed as (
+                        select p.group_id, p.username, p.resource_id, array_agg(p.permission) as permissions
+                        from unnest(r.other_permissions) p
+                        group by p.group_id, p.username, p.resource_id
+                    )
+                    select jsonb_agg(
+                        jsonb_build_object(
+                            'entity', jsonb_build_object(
+                                'type', case
+                                    when p.group_id is null then 'user'
+                                    else 'project_group'
+                                end,
+                                'group', p.group_id,
+                                'username', p.username,
+                                'projectId', (r.resource).project
+                            ),
+                            'permissions', p.permissions
+                        )
+                    )
+                    from transformed p
+                )
+            ),
+            'updates', (
+                select coalesce(jsonb_agg(
+                    jsonb_build_object(
+                        'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
+                        'status', u.status
+                    ) || u.extra
+                ), '[]'::jsonb)
+                from unnest(r.updates) u
+            ),
+            'specification', (
+                jsonb_build_object('product', jsonb_build_object(
+                    'id', coalesce(r.product_name, ''),
+                    'category', coalesce(r.product_category, ''),
+                    'provider', coalesce(r.product_provider, 'ucloud_core')
+                ))
+            ),
+            'providerGeneratedId', (r.resource).provider_generated_id
+        ),
+        additional
+    );
+$$ language sql;

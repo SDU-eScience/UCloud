@@ -101,6 +101,7 @@ data class ProviderIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    val filterName: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
