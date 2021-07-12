@@ -7,12 +7,11 @@ import {ResourceProperties} from "Resource/Properties";
 interface RouterProps<T extends Resource> {
     api: ResourceApi<T, never>;
     Browser: React.FunctionComponent<{ isSearch?: boolean }>;
-    Properties?: React.FunctionComponent;
     Create?: React.FunctionComponent;
 }
 
 export function ResourceRouter<T extends Resource>(props: PropsWithChildren<RouterProps<T>>): ReactElement | null {
-    const Properties = props.Properties ?? (() => <ResourceProperties api={props.api}/>);
+    const Properties = props.api.Properties;
     const basePath = "/" + props.api.routingNamespace;
     return <Switch>
         <Route exact path={basePath} component={props.Browser}/>

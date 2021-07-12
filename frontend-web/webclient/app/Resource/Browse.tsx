@@ -282,7 +282,7 @@ export const ResourceBrowse = <Res extends Resource>(
                     left={
                         renaming?.id === it.id ?
                             <NamingField onCancel={() => setRenaming(null)} confirmText={"Rename"}
-                                         inputRef={renameInputRef} onSubmit={onRename} defaultValue={renamingValue} />
+                                         inputRef={renameInputRef} onSubmit={onRename} defaultValue={renamingValue}/>
                             : api.InlineTitleRenderer ?
                             <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
@@ -341,8 +341,8 @@ export const ResourceBrowse = <Res extends Resource>(
             customEmptyPage={pageRenderer([])}
         />
     </> : <>
-        <ResourceProperties api={api} resource={inlineInspecting} reload={reload} embedded={true}
-                            closeProperties={closeProperties}/>
+        <api.Properties api={api} resource={inlineInspecting} reload={reload} embedded={true}
+                        closeProperties={closeProperties}/>
     </>;
 
     if (props.embedded) {

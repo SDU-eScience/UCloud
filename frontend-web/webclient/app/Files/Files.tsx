@@ -13,6 +13,7 @@ import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
 import {useCloudAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import * as H from "history";
+import {ResourceProperties} from "Resource/Properties";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -114,7 +115,10 @@ export const FilesBrowse: React.FunctionComponent<{
 };
 
 const Router: React.FunctionComponent = () => {
-    return <ResourceRouter api={FilesApi} Browser={FilesBrowse}/>;
+    return <ResourceRouter
+        api={FilesApi}
+        Browser={FilesBrowse}
+    />;
 };
 
 export default Router;

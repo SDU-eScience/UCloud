@@ -151,6 +151,12 @@ interface PropertiesProps<Res extends Resource> {
     resource?: Res | string;
     reload?: () => void;
     closeProperties?: () => void;
+
+    infoChildren?: JSX.Element;
+
+    showMessages?: boolean;
+    showPermissions?: boolean;
+    showProperties?: boolean;
 }
 
 export function ResourceProperties<Res extends Resource>(
@@ -248,26 +254,34 @@ export function ResourceProperties<Res extends Resource>(
                 </Flex>
 
                 <InfoWrapper>
-                    <DashboardCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
-                        <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                            <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
-                            <Box>
-                                <b>Product: </b>
-                                {resource.specification.product.id} / {resource.specification.product.category}
-                            </Box>
-                            <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
-                            <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
-                        </Flex>
-                    </DashboardCard>
-                    <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
-                        <Messages resource={resource}/>
-                    </DashboardCard>
+                    {props.showProperties === false ? null :
+                        <DashboardCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
+                            <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                                <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
+                                <Box>
+                                    <b>Product: </b>
+                                    {resource.specification.product.id} / {resource.specification.product.category}
+                                </Box>
+                                <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
+                                <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                            </Flex>
+                        </DashboardCard>
+                    }
+                    {props.showMessages === false ? null :
+                        <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+                            <Messages resource={resource}/>
+                        </DashboardCard>
+                    }
+                    {props.infoChildren}
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    <DashboardCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
-                        <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
-                    </DashboardCard>
+                    {props.showPermissions === false ? null :
+                        <DashboardCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
+                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
+                        </DashboardCard>
+                    }
+                    {props.children}
                 </ContentWrapper>
             </div>
         </Container>

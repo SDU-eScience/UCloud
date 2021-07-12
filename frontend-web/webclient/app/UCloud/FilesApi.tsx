@@ -25,6 +25,7 @@ import FilesCreateDownloadRequestItem = file.orchestrator.FilesCreateDownloadReq
 import {bulkRequestOf} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import Files, {FilesBrowse} from "Files/Files";
+import {ResourceProperties} from "Resource/Properties";
 
 export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
 
@@ -104,6 +105,12 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             fileIcon={{type: props.resource.status.type, ext: extensionFromPath(fileName(props.resource.id))}}
             size={props.size}
         />
+    };
+    Properties = (props) => {
+        return <ResourceProperties
+            {...props} api={this}
+            showMessages={false} showPermissions={false}
+        />;
     };
 
     constructor() {

@@ -15,6 +15,7 @@ import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resourc
 import {IconName} from "ui-components/Icon";
 import * as H from "history";
 import {Dispatch} from "redux";
+import {ResourceProperties} from "Resource/Properties";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -148,6 +149,13 @@ export abstract class ResourceApi<Res extends Resource,
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
     public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public ImportantStatsRenderer?: React.FunctionComponent<{ resource: Res }>;
+    public Properties: React.FunctionComponent<{
+        resource?: Res;
+        reload?: () => void;
+        closeProperties?: () => void;
+        api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
+        embedded?: boolean;
+    }> = (props) => <ResourceProperties {...props}/>
 
     protected constructor(namespace: string) {
         this.namespace = namespace;

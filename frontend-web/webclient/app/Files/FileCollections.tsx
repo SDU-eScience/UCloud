@@ -17,6 +17,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
                 title: text
             })
         )}
+        navigateToChildren={FileCollectionsApi.navigateToChildren}
         isSearch={props.isSearch}
     />;
 };

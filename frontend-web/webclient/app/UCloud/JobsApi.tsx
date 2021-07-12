@@ -20,6 +20,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {stateToTitle} from "Applications/Jobs";
 import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
+import View from "Applications/View";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -205,6 +206,7 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
             <Box mt={"-3px"}>{stateToTitle(job.status.state)}</Box>
         </Flex>
     }
+    Properties = View;
 
     constructor() {
         super("jobs");
