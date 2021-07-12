@@ -103,7 +103,7 @@ export function ResourcePermissionEditor<T extends Resource>(
             page
         }))}
         customEmptyPage={(
-            <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
+            <Flex width={"100%"} alignItems={"center"} justifyContent={"center"}
                   flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}

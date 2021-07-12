@@ -7,13 +7,15 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting, compute} from "UCloud/index";
+import {accounting, BulkRequest, compute} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
 import {EnumFilter} from "Resource/Filter";
 import {JobBinding} from "UCloud/JobsApi";
 import PortRangeAndProto = compute.PortRangeAndProto;
+import {ResourceProperties} from "Resource/Properties";
+import {FirewallEditor} from "Applications/NetworkIP/FirewallEditor";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -47,6 +49,11 @@ export interface NetworkIPFlags extends ResourceIncludeFlags {
 
 export interface NetworkIP extends Resource<NetworkIPUpdate, NetworkIPStatus, NetworkIPSpecification> {}
 
+export interface FirewallAndId {
+    id: string;
+    firewall: Firewall;
+}
+
 class NetworkIPApi extends ResourceApi<NetworkIP, ProductNS.NetworkIP, NetworkIPSpecification, NetworkIPUpdate,
     NetworkIPFlags, NetworkIPStatus, NetworkIPSupport> {
     routingNamespace = "public-ips";
@@ -55,8 +62,18 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNS.NetworkIP, NetworkIP
 
     InlineTitleRenderer = ({resource}) =>
         <>{(resource as NetworkIP).status.ipAddress ?? (resource as NetworkIP).id.toString()}</>
-    IconRenderer = ({resource, size}) => <Icon name={"networkWiredSolid"} size={size}/>
+    IconRenderer = ({size}) => <Icon name={"networkWiredSolid"} size={size}/>
     TitleRenderer = this.InlineTitleRenderer;
+    Properties = (props) => {
+        console.log(props);
+        return <ResourceProperties
+            api={this}
+            {...props}
+            ContentChildren={(p) => (
+                <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload} />
+            )}
+        />;
+    };
 
     constructor() {
         super("networkips");
@@ -83,6 +100,16 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNS.NetworkIP, NetworkIP
                 }
             ]
         ));
+    }
+
+    updateFirewall(request: BulkRequest<FirewallAndId>): APICallParameters<BulkRequest<FirewallAndId>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "/firewall",
+            parameters: request,
+            payload: request
+        };
     }
 }
 

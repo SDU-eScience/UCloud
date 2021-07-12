@@ -152,7 +152,8 @@ interface PropertiesProps<Res extends Resource> {
     reload?: () => void;
     closeProperties?: () => void;
 
-    infoChildren?: JSX.Element;
+    InfoChildren?: React.FunctionComponent<{ resource: Res, reload: () => void }>;
+    ContentChildren?: React.FunctionComponent<{ resource: Res, reload: () => void }>;
 
     showMessages?: boolean;
     showPermissions?: boolean;
@@ -191,6 +192,22 @@ export function ResourceProperties<Res extends Resource>(
             includeSupport: true
         }));
     }, [props.resource, projectId, props.reload]);
+
+    const infoChildrenResolved = useMemo(() => {
+        if (props.InfoChildren && ownResource.data) {
+            return <props.InfoChildren resource={ownResource.data} reload={reload}/>;
+        } else {
+            return null;
+        }
+    }, [ownResource.data, reload, props.InfoChildren]);
+
+    const childrenResolved = useMemo(() => {
+        if (props.ContentChildren && ownResource.data) {
+            return <props.ContentChildren resource={ownResource.data} reload={reload}/>;
+        } else {
+            return null;
+        }
+    }, [ownResource.data, reload, props.ContentChildren]);
 
     useEffect(() => reload(), [reload]);
 
@@ -272,7 +289,7 @@ export function ResourceProperties<Res extends Resource>(
                             <Messages resource={resource}/>
                         </DashboardCard>
                     }
-                    {props.infoChildren}
+                    {infoChildrenResolved}
                 </InfoWrapper>
 
                 <ContentWrapper>
@@ -281,7 +298,7 @@ export function ResourceProperties<Res extends Resource>(
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
                         </DashboardCard>
                     }
-                    {props.children}
+                    {childrenResolved}
                 </ContentWrapper>
             </div>
         </Container>
