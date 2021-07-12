@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
 import dk.sdu.cloud.file.orchestrator.api.FilesDeleteRequest
@@ -41,7 +40,7 @@ class DeleteTask : TaskHandler {
             numberOfCoroutines,
             realRequest.items,
             doWork = doWork@{ nextItem ->
-                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
+                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
                 try {
                     nativeFs.delete(internalFile)
                 } catch (ex: FSException) {

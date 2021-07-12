@@ -40,7 +40,7 @@ class CreateFolderTask : TaskHandler {
             numberOfCoroutines,
             realRequest.items,
             doWork = doWork@{ nextItem ->
-                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
+                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
                 try {
                     nativeFs.createDirectories(internalFile)
                 } catch (ex: FSException) {

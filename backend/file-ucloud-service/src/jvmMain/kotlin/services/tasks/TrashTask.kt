@@ -40,7 +40,7 @@ class TrashTask(
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 try {
-                    val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
+                    val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
                     val targetDirectory: InternalFile = TODO("trashService.findTrashDirectory(actor.safeUsername(), internalFile)")
                     val targetFile = InternalFile(targetDirectory.path + "/" + internalFile.fileName())
 

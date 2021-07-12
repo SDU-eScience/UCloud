@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
@@ -107,8 +108,9 @@ object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, Lice
     override val typeInfo = ResourceTypeInfo<License, LicenseSpecification, LicenseUpdate,
             LicenseIncludeFlags, LicenseStatus, Product.License, LicenseSupport>()
 
-    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
+    override val create get() = super.create!!
+    override val delete get() = super.delete!!
+    override val search get() = super.search!!
 }
 
 @TSNamespace("compute.licenses.control")
@@ -125,6 +127,5 @@ open class LicenseProvider(provider: String) : ResourceProviderApi<License, Lice
         ResourceTypeInfo<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus,
                 Product.License, LicenseSupport>()
 
-    override val delete: CallDescription<BulkRequest<License>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
+    override val delete get() = super.delete!!
 }

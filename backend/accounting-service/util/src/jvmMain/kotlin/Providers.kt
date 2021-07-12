@@ -75,6 +75,7 @@ class Providers<Communication : ProviderComms>(
      * @throws RPCException (Internal Server Error) in case of unknown providers
      */
     suspend fun prepareCommunication(provider: String): Communication {
+        if (provider == "") throw IllegalArgumentException()
         return communicationCache.get(provider)
             ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
     }

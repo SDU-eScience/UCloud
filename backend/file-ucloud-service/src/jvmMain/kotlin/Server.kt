@@ -41,7 +41,7 @@ class Server(
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
-        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
+        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), authenticatedClient)
         val nativeFs = NativeFS(pathConverter)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
         val metadataDao = MetadataDao()

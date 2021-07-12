@@ -456,7 +456,9 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport>()
 
+    override val create get() = super.create!!
     override val delete: Nothing? = null
+    override val search get() = super.search!!
 
     val terminate = call<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>("delete") {
         httpUpdate(baseContext, "terminate")

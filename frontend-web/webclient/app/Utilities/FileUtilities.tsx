@@ -82,7 +82,7 @@ const goUpDirectory = (
     path: string
 ): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string): string => {
+export const fileName = (path: string): string => {
     const lastSlash = path.lastIndexOf("/");
     if (lastSlash !== -1 && path.length > lastSlash + 1) {
         return path.substring(lastSlash + 1);
@@ -92,7 +92,7 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string, projects: ProjectName[]): string {
-    const baseName: string = toFileName(path);
+    const baseName: string = fileName(path);
 
     if (baseName === "..") return `.. (${getFilenameFromPath(goUpDirectory(2, path), projects)})`;
     if (baseName === ".") return `. (Current folder)`;

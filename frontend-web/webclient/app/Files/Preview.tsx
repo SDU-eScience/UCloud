@@ -7,8 +7,8 @@ import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "U
 import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
 import {Markdown} from "ui-components";
-import {fileName} from "./Files";
 import * as Heading from "ui-components/Heading";
+import {fileName} from "Utilities/FileUtilities";
 
 function Preview(): JSX.Element {
     const params = useLocation();

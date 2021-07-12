@@ -163,7 +163,7 @@ abstract class ResourceApi<
             errorClass = typeOf<CommonErrorMessage>()
         )
 
-    val create: CallDescription<BulkRequest<Spec>, BulkResponse<FindByStringId?>, CommonErrorMessage>
+    open val create: CallDescription<BulkRequest<Spec>, BulkResponse<FindByStringId?>, CommonErrorMessage>?
         get() = call(
             name = "create",
             handler = {

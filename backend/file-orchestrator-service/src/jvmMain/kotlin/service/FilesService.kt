@@ -5,12 +5,12 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.mapItems
 import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -29,42 +29,7 @@ class FilesService(
         }
     )
 
-    /*
-    suspend fun retrieve(actorAndProject: ActorAndProject, request: FilesRetrieveRequest): FilesRetrieveResponse {
-        val pathMetadata = extractPathMetadata(request.path)
-        val comms = providers.prepareCommunication(pathMetadata.productReference.provider)
-        val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
-        verifyReadRequest(request, support)
-
-        return coroutineScope {
-            val retrieveJob = async {
-                comms.filesApi.retrieve.call(
-                    request,
-                    comms.client
-                ).orThrow()
-            }
-
-            val metadataJob = async {
-                if (request.includeMetadata == true) {
-                    val r = metadataService.retrieveWithHistory(actorAndProject,
-                        request.path.parent(),
-                        listOf(request.path.fileName())
-                    )
-                    FileMetadataHistory(r.templates, r.metadataByFile.values.singleOrNull() ?: emptyMap())
-                } else {
-                    null
-                }
-            }
-
-            val retrieved = retrieveJob.await()
-            val metadata = metadataJob.await()
-
-            retrieved.copy(metadata = metadata)
-        }
-    }
-     */
-
-    private fun verifyReadRequest(request: FilesIncludeFlags, support: FSSupport) {
+    private fun verifyReadRequest(request: UFileIncludeFlags, support: FSSupport) {
         if (request.allowUnsupportedInclude != true) {
             // Request verification is needed
             if (request.includePermissions == true && support.files.aclSupported != true) {
@@ -121,10 +86,16 @@ class FilesService(
         path: String?,
         permission: Permission
     ): FileCollection {
+        println("The path is $path")
         if (path == null) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val collection = extractPathMetadata(path).collection
-        return fileCollections.retrieveBulk(actorAndProject, listOf(collection), listOf(permission)).singleOrNull()
-            ?: throw RPCException("File not found", HttpStatusCode.NotFound)
+        println("We think it might be $collection")
+        return fileCollections.retrieveBulk(
+            actorAndProject,
+            listOf(collection),
+            listOf(permission),
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+        ).singleOrNull() ?: throw RPCException("File not found", HttpStatusCode.NotFound)
     }
 
     override suspend fun browse(
@@ -133,11 +104,50 @@ class FilesService(
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<UFile> {
-        val resolvedCollection = collectionFromPath(actorAndProject, request.flags.path, Permission.Read)
-        return proxy.pureProxy(
-            actorAndProject,
-            { it.filesApi.browse },
-            FilesProviderBrowseRequest(resolvedCollection, request)
+        val path = request.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.Read)
+        verifyReadRequest(request.flags, resolvedCollection.status.resolvedSupport!!.support)
+        return coroutineScope {
+            val browseJob = async {
+                proxy.pureProxy(
+                    actorAndProject,
+                    resolvedCollection.specification.product,
+                    { it.filesApi.browse },
+                    FilesProviderBrowseRequest(resolvedCollection, request)
+                )
+            }
+
+            val metadataJob = async {
+                if (request.flags.includeMetadata == true) {
+                    metadataCache.get(Pair(actorAndProject, path))
+                } else {
+                    null
+                }
+            }
+
+            val browse = browseJob.await()
+            val metadata = metadataJob.await()
+
+            browse.mapItems {
+                val metadataForFile = metadata?.metadataByFile?.get(it.id) ?: emptyMap()
+                val templates = metadata?.templates ?: emptyMap()
+
+                it.toUFile(resolvedCollection, FileMetadataHistory(templates, metadataForFile))
+            }
+        }
+    }
+
+    private fun PartialUFile.toUFile(resolvedCollection: FileCollection, metadata: FileMetadataHistory?): UFile {
+        return UFile(
+            id,
+            UFileSpecification(
+                resolvedCollection.id,
+                resolvedCollection.specification.product
+            ),
+            createdAt,
+            status.copy(metadata = metadata),
+            owner ?: resolvedCollection.owner,
+            permissions ?: resolvedCollection.permissions
         )
     }
 
@@ -148,55 +158,81 @@ class FilesService(
         ctx: DBContext?,
         asProvider: Boolean
     ): UFile {
-        val resolvedCollection = collectionFromPath(actorAndProject, flags?.path ?: id, Permission.Read)
-        return proxy.pureProxy(actorAndProject, { it.filesApi.retrieve },
-            FilesProviderRetrieveRequest(resolvedCollection, ResourceRetrieveRequest(flags ?: UFileIncludeFlags(), id)))
-    }
+        val path = flags?.path ?: id
+        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.Read)
+        verifyReadRequest(flags ?: UFileIncludeFlags(), resolvedCollection.status.resolvedSupport!!.support)
 
-    override suspend fun create(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<UFileSpecification>
-    ): BulkResponse<FindByStringId?> {
-        throw RPCException("Files can only be created via uploads", HttpStatusCode.BadRequest)
+        return coroutineScope {
+            val retrieveJob = async {
+                proxy.pureProxy(
+                    actorAndProject,
+                    resolvedCollection.specification.product,
+                    { it.filesApi.retrieve },
+                    FilesProviderRetrieveRequest(
+                        resolvedCollection,
+                        ResourceRetrieveRequest(flags ?: UFileIncludeFlags(), id)
+                    )
+                )
+            }
+
+            val metadataJob = async {
+                if (flags?.includeMetadata == true) {
+                    val r = metadataService.retrieveWithHistory(actorAndProject,
+                        path.parent(),
+                        listOf(path.fileName())
+                    )
+                    FileMetadataHistory(r.templates, r.metadataByFile.values.singleOrNull() ?: emptyMap())
+                } else {
+                    null
+                }
+            }
+
+            retrieveJob.await().toUFile(resolvedCollection, metadataJob.await())
+        }
     }
 
     override suspend fun updateAcl(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdatedAcl>
     ): BulkResponse<Unit?> {
-        TODO("Not yet implemented")
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Admin,
+            { it.filesApi.updateAcl },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> UpdatedAclWithResource(dummyResource(req.id, coll), req.added, req.deleted) },
+            dontTolerateReadOnly = false,
+            checkRequest = { _, fsSupport ->
+                if (!fsSupport.files.aclModifiable || !fsSupport.files.aclSupported) {
+                    throw RPCException(
+                        "You cannot change the ACL of this file. Try a different drive.",
+                        HttpStatusCode.BadRequest,
+                        FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                    )
+                }
+            }
+        )
     }
 
     override suspend fun delete(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
-        TODO("Not yet implemented")
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Edit,
+            { it.filesApi.delete },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> dummyResource(req.id, coll) }
+        )
     }
 
-    override suspend fun addUpdate(
-        actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<ResourceUpdate>>
-    ) {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun register(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<ProviderRegisteredResource<UFileSpecification>>
-    ): BulkResponse<FindByStringId> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Product.Storage, FSSupport> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun chargeCredits(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<ResourceChargeCredits>
-    ): ResourceChargeCreditsResponse {
-        TODO("Not yet implemented")
+    override suspend fun retrieveProducts(
+        actorAndProject: ActorAndProject
+    ): SupportByProvider<Product.Storage, FSSupport> {
+        return fileCollections.retrieveProducts(actorAndProject)
     }
 
     override suspend fun search(
@@ -204,6 +240,162 @@ class FilesService(
         request: ResourceSearchRequest<UFileIncludeFlags>,
         ctx: DBContext?
     ): PageV2<UFile> {
+        // TODO This one is a bit harder since we have to contact every provider that a user might have files on
         TODO("Not yet implemented")
+    }
+
+    suspend fun move(
+        actorAndProject: ActorAndProject,
+        request: FilesMoveRequest
+    ): FilesMoveResponse {
+        TODO()
+    }
+
+    suspend fun copy(
+        actorAndProject: ActorAndProject,
+        request: FilesCopyRequest
+    ): FilesCopyResponse {
+        TODO()
+    }
+
+    suspend fun createUpload(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateUploadRequest
+    ): FilesCreateUploadResponse {
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Edit,
+            { it.filesApi.createUpload },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> FilesProviderCreateUploadRequestItem(
+                coll,
+                req.id,
+                req.supportedProtocols,
+                req.conflictPolicy
+            )}
+        )
+    }
+
+    suspend fun createDownload(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateDownloadRequest
+    ): FilesCreateDownloadResponse {
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Read,
+            { it.filesApi.createDownload },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> FilesProviderCreateDownloadRequestItem(coll, req.id) }
+        )
+    }
+
+    suspend fun createFolder(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateFolderRequest
+    ): FilesCreateFolderResponse {
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Edit,
+            { it.filesApi.createFolder },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> FilesProviderCreateFolderRequestItem(coll, req.id, req.conflictPolicy) }
+        )
+    }
+
+    suspend fun trash(
+        actorAndProject: ActorAndProject,
+        request: FilesTrashRequest
+    ): FilesTrashResponse {
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.Edit,
+            { it.filesApi.trash },
+            { extractPathMetadata(it.id).collection },
+            { req, coll -> FilesProviderTrashRequestItem(coll, req.id) }
+        )
+    }
+
+    private suspend inline fun <R : Any> verifyAndFetchByIdable(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<R>,
+        permission: Permission,
+        idGetter: (R) -> String,
+    ): List<Pair<R, ProductRefOrResource.SomeResource<FileCollection>>> {
+        val collections = fileCollections.retrieveBulk(
+            actorAndProject,
+            request.items.map(idGetter),
+            listOf(permission)
+        )
+
+        return request.items.zip(collections).map { (req, coll) ->
+            req to ProductRefOrResource.SomeResource(coll)
+        }
+    }
+
+    private fun dummyResource(fileId: String, collection: FileCollection): UFile = UFile(
+        fileId,
+        UFileSpecification(collection.id, collection.specification.product),
+        0L,
+        UFileStatus(),
+        collection.owner,
+        null
+    )
+
+    private suspend fun <Req : Any, ReqProvider : Any, Res : Any> bulkProxyEdit(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<Req>,
+        permission: Permission,
+        call: (comms: StorageCommunication) ->
+            CallDescription<BulkRequest<ReqProvider>, BulkResponse<Res?>, CommonErrorMessage>,
+        idFetcher: (Req) -> String,
+        requestMapper: (Req, FileCollection) -> ReqProvider,
+        isUserRequest: Boolean = true,
+        dontTolerateReadOnly: Boolean = true,
+        checkRequest: (Req, FSSupport) -> Unit = { _, _ -> },
+    ): BulkResponse<Res?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, Req,
+                BulkRequest<ReqProvider>, Res>() {
+                override val isUserRequest = isUserRequest
+                override fun retrieveCall(comms: StorageCommunication) = call(comms)
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<Req>
+                ) = verifyAndFetchByIdable(actorAndProject, request, permission, idFetcher)
+
+                override suspend fun verifyRequest(
+                    request: Req,
+                    res: ProductRefOrResource<FileCollection>,
+                    support: FSSupport
+                ) {
+                    if (dontTolerateReadOnly && support.files.isReadOnly) {
+                        throw RPCException(
+                            "File-system is read only and cannot be modified",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+
+                    checkRequest(request, support)
+                }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<Req, FileCollection>>
+                ): BulkRequest<ReqProvider> {
+                    return BulkRequest(resources.map { (req, res) ->
+                        val collection = (res as ProductRefOrResource.SomeResource).resource
+                        requestMapper(req, collection)
+                    })
+                }
+            }
+        )
     }
 }

@@ -1,27 +1,10 @@
 import * as React from "react";
-import {useHistory, useLocation} from "react-router";
-import {useProjectId} from "Project";
-import {useCallback, useEffect, useMemo, useState} from "react";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {file, PageV2} from "UCloud";
 import UFile = file.orchestrator.UFile;
-import {emptyPageV2} from "DefaultObjects";
-// import FileCollection = file.orchestrator.FileCollection;
-import metadataApi = file.orchestrator.metadata;
-import filesApi = file.orchestrator.files;
-// import collectionsApi = file.orchestrator.collections;
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {buildQueryString, getQueryParam} from "Utilities/URIUtilities";
-import {UCLOUD_PROVIDER} from "Accounting";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useGlobal} from "Utilities/ReduxHooks";
-import {Files} from "Files/Files";
 import {FileType} from "Files/index";
 import * as H from 'history';
-import FileMetadataRetrieveAllResponse = file.orchestrator.FileMetadataRetrieveAllResponse;
 import FileMetadataAttached = file.orchestrator.FileMetadataAttached;
-import {associateBy, groupBy} from "Utilities/CollectionUtilities";
 
 interface FileBrowserProps {
     initialPath?: string;

@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -21,16 +23,12 @@ class FileQueries(
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
 ) {
-    suspend fun retrieve(file: UCloudFile, flags: FilesIncludeFlags): UFile {
-        /*
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
-
-         */
-
+    suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
         val internalFile = pathConverter.ucloudToInternal(file)
+        println(file)
+        println(internalFile)
         val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(internalFile, nativeStat, TODO())
+        return convertNativeStatToUFile(internalFile, nativeStat)
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
@@ -51,35 +49,27 @@ class FileQueries(
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
-        myself: Set<FilePermission>,
-    ): UFile {
-        return UFile(
+    ): PartialUFile {
+        return PartialUFile(
             pathConverter.internalToUCloud(file).path,
-            nativeStat.fileType,
-            findIcon(file),
-            UFile.Stats(
-                nativeStat.size,
-                null, // TODO
-                nativeStat.modifiedAt,
-                null, // TODO Not supported
-                nativeStat.modifiedAt,
-                nativeStat.mode,
-                nativeStat.ownerUid,
-                nativeStat.ownerGid
+            UFileStatus(
+                nativeStat.fileType,
+                findIcon(file),
+                sizeInBytes = nativeStat.size,
+                modifiedAt = nativeStat.modifiedAt,
+                unixMode = nativeStat.mode,
+                unixOwner = nativeStat.ownerUid,
+                unixGroup = nativeStat.ownerGid,
             ),
-            UFile.Permissions(
-                myself.toList(),
-                TODO()
-            ),
-            null
+            nativeStat.modifiedAt,
         )
     }
 
     suspend fun browseFiles(
         file: UCloudFile,
-        flags: FilesIncludeFlags,
+        flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
-    ): PageV2<UFile> {
+    ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
         // 1. The first part contains the current offset in the list. This allows a user to restart the search.
@@ -88,11 +78,6 @@ class FileQueries(
         // This token is used for storing state in Redis which contains a complete list of files found in this
         // directory. This allows the user to search a consistent snapshot of the files. If any files are removed
         // between calls then this endpoint will simply skip it.
-
-        /*
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
-         */
 
         val next = pagination.next
         var foundFiles: List<InternalFile>? = null
@@ -109,26 +94,35 @@ class FileQueries(
             }
         }
 
+        println(file)
+        println(pathConverter.ucloudToInternal(file))
+        println(foundFiles)
+
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
-        val items = ArrayList<UFile>()
+        val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+            println("Looking at $i")
             try {
                 val nextInternalFile = foundFiles[i++]
+                println(nextInternalFile)
                 items.add(
                     convertNativeStatToUFile(
                         nextInternalFile,
                         nativeFs.stat(nextInternalFile),
-                        TODO() // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
                 )
+                println("File done")
             } catch (ex: FSException.NotFound) {
                 // NOTE(Dan): File might have gone away between these two calls
                 didSkipFiles = true
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
             }
         }
+        println(1)
 
         if (items.isEmpty() && didSkipFiles) {
             // NOTE(Dan): The directory might not even exist anymore. We perform a check if we are about to return no
@@ -136,6 +130,7 @@ class FileQueries(
             val isDir = nativeFs.stat(pathConverter.ucloudToInternal(file)).fileType == FileType.DIRECTORY
             if (!isDir) throw FSException.IsDirectoryConflict()
         }
+        println(1)
 
         val didWeCoverEverything = i == foundFiles.size
         val newNext = if (!didWeCoverEverything) {
@@ -149,7 +144,9 @@ class FileQueries(
         } else {
             null
         }
+        println(1)
 
+        println("Got this far: $items")
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 

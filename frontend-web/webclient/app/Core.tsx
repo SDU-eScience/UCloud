@@ -10,9 +10,8 @@ const App = React.lazy(() => import("Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
-const Files = React.lazy(() => import("Files/FileBrowser"));
+const FilesRouter = React.lazy(() => import("Files/Files"));
 const FileCollectionsRouter = React.lazy(() => import("Files/FileCollections"));
-const FileProperties = React.lazy(() => import("Files/Properties"));
 const FileMetadataTemplatesBrowse = React.lazy(() => import("Files/Metadata/Templates/Browse"));
 const FileMetadataTemplatesCreate = React.lazy(() => import("Files/Metadata/Templates/Create"));
 const FileMetadataTemplatesProperties = React.lazy(() => import("Files/Metadata/Templates/Properties"));
@@ -101,7 +100,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)}/>
 
                     <Route path={"/drives"}><FileCollectionsRouter/></Route>
-                    <Route exact path="/files/properties" component={requireAuth(FileProperties)}/>
+                    <Route path={"/files"}><FilesRouter/></Route>
                     <Route exact path="/files/metadata/templates/"
                            component={requireAuth(FileMetadataTemplatesBrowse)}/>
                     <Route exact path="/files/metadata/templates/create/"

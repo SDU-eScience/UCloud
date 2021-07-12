@@ -3,10 +3,7 @@ package dk.sdu.cloud.provider.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ProductSupport
-import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.accounting.api.providers.ResourceApi
-import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -141,6 +138,10 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
 
     override val typeInfo = ResourceTypeInfo<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
             ProviderStatus, Product, ProviderSupport>()
+
+    override val create get() = super.create!!
+    override val delete: Nothing? = null
+    override val search get() = super.search!!
 
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
         ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {

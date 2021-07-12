@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.orchestrator.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
@@ -15,7 +14,6 @@ import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.LocalDateTime
 import java.util.*
 
 class MetadataService(
@@ -67,7 +65,7 @@ class MetadataService(
                     session
                         .sendPreparedStatement(
                             {
-                                setParameter("path", reqItem.path.normalize())
+                                setParameter("path", reqItem.id.normalize())
                                 setParameter("workspace", workspace)
                                 setParameter("is_workspace_project", isWorkspaceProject)
                             },
@@ -87,8 +85,8 @@ class MetadataService(
                     .sendPreparedStatement(
                         {
                             setParameter("id", UUID.randomUUID().toString())
-                            setParameter("path", reqItem.path.normalize())
-                            setParameter("parent_path", reqItem.path.parent().normalize())
+                            setParameter("path", reqItem.id.normalize())
+                            setParameter("parent_path", reqItem.id.parent().normalize())
                             setParameter("template_id", reqItem.metadata.templateId)
                             setParameter("template_version", template.specification.version)
                             setParameter("document", encodedDocument)

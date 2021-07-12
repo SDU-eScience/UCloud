@@ -14,6 +14,7 @@ import {bulkRequestOf} from "DefaultObjects";
 import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resource/Filter";
 import {IconName} from "ui-components/Icon";
 import * as H from "history";
+import {Dispatch} from "redux";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -88,6 +89,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
     embedded: boolean;
+    dispatch: Dispatch;
 }
 
 export interface SortFlags {
@@ -138,6 +140,8 @@ export abstract class ResourceApi<Res extends Resource,
         this.filterPills.push(p);
     }
 
+    public idIsUriEncoded: boolean = false;
+
     public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
@@ -186,7 +190,8 @@ export abstract class ResourceApi<Res extends Resource,
                     if (cb.isCreating) return "You are already creating a " + this.title.toLowerCase();
                     return true;
                 },
-                onClick: (selected, cb) => cb.startCreation!()
+                onClick: (selected, cb) => cb.startCreation!(),
+                tag: CREATE_TAG
             },
             {
                 text: "Permissions",
@@ -203,7 +208,8 @@ export abstract class ResourceApi<Res extends Resource,
                     } else {
                         cb.viewProperties!(selected[0]);
                     }
-                }
+                },
+                tag: PERMISSIONS_TAG
             },
             {
                 text: "Delete",
@@ -215,7 +221,8 @@ export abstract class ResourceApi<Res extends Resource,
                     await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
                     cb.reload();
                     cb.closeProperties?.();
-                }
+                },
+                tag: DELETE_TAG
             },
             {
                 text: "Properties",
@@ -223,7 +230,8 @@ export abstract class ResourceApi<Res extends Resource,
                 enabled: (selected, cb) => selected.length === 1 && cb.viewProperties != null,
                 onClick: (selected, cb) => {
                     cb.viewProperties!(selected[0]);
-                }
+                },
+                tag: PROPERTIES_TAG
             }
         ];
     }
@@ -301,3 +309,8 @@ export abstract class ResourceApi<Res extends Resource,
         };
     }
 }
+
+export const PERMISSIONS_TAG = "permissions";
+export const DELETE_TAG = "delete";
+export const PROPERTIES_TAG = "properties";
+export const CREATE_TAG = "create";

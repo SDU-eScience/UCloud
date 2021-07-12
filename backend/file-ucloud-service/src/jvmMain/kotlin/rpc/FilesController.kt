@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -30,18 +29,20 @@ class FilesController(
         implement(UCloudFiles.retrieve) {
             ok(
                 fileQueries.retrieve(
-                    UCloudFile.create(request.path),
-                    request
+                    UCloudFile.create(request.retrieve.id),
+                    request.retrieve.flags
                 )
             )
         }
 
         implement(UCloudFiles.browse) {
+            val path = request.browse.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             ok(
                 fileQueries.browseFiles(
-                    UCloudFile.create(request.path),
-                    request,
-                    request.normalize()
+                    UCloudFile.create(path),
+                    request.browse.flags,
+                    request.browse.normalize(),
                 )
             )
         }
@@ -69,7 +70,7 @@ class FilesController(
             val responses = ArrayList<FilesCreateUploadResponseItem>()
             for (reqItem in request.items) {
                 val id = chunkedUploadService.createSession(
-                    UCloudFile.create(reqItem.path),
+                    UCloudFile.create(reqItem.id),
                     reqItem.conflictPolicy
                 )
 
@@ -100,6 +101,8 @@ class FilesController(
                             Files.delete.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
+
+                        Unit // TODO This is kind of annoying. LongRunningTasks as natively supported maybe?
                     }
                 )
             )
@@ -132,7 +135,7 @@ class FilesController(
         }
 
         implement(UCloudFiles.updateAcl) {
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(chunkedProtocol.uploadChunk) {

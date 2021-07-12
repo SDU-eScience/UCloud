@@ -131,11 +131,9 @@ object Ingresses : ResourceApi<
     override val typeInfo = ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate,
         IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>()
 
-    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
-
-    override val search: CallDescription<ResourceSearchRequest<IngressIncludeFlags>, PageV2<Ingress>, CommonErrorMessage>
-        get() = super.search!!
+    override val create get() = super.create!!
+    override val delete get() = super.delete!!
+    override val search get() = super.search!!
 }
 
 @TSNamespace("compute.ingresses.control")

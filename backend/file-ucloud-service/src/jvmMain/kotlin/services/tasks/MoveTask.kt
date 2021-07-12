@@ -11,8 +11,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 // Note: These files are internal
 @Serializable
 private data class FileToMove(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldId: String,
+    override val newId: String,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving
 
@@ -51,28 +51,28 @@ class MoveTask : TaskHandler {
             numberOfCoroutines,
             realRequest.items.map {
                 FileToMove(
-                    pathConverter.ucloudToInternal(UCloudFile.create(it.oldPath)).path,
-                    pathConverter.ucloudToInternal(UCloudFile.create(it.newPath)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path,
                     it.conflictPolicy
                 )
             },
             doWork = doWork@{ nextItem ->
                 try {
                     val needsToRecurse = nativeFs.move(
-                        InternalFile(nextItem.oldPath),
-                        InternalFile(nextItem.newPath),
+                        InternalFile(nextItem.oldId),
+                        InternalFile(nextItem.newId),
                         nextItem.conflictPolicy
                     ).needsToRecurse
 
                     if (needsToRecurse) {
-                        val childrenFileNames = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldPath)) }
+                        val childrenFileNames = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }
                             .getOrDefault(emptyList())
 
                         for (childFileName in childrenFileNames) {
                             channel.send(
                                 FileToMove(
-                                    nextItem.oldPath + "/" + childFileName,
-                                    nextItem.newPath + "/" + childFileName,
+                                    nextItem.oldId + "/" + childFileName,
+                                    nextItem.newId + "/" + childFileName,
                                     nextItem.conflictPolicy
                                 )
                             )

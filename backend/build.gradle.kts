@@ -139,7 +139,6 @@ subprojects {
         tasks.withType<KotlinCompile>().configureEach {
             kotlinOptions.freeCompilerArgs += "-progressive"
             kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-            kotlinOptions.freeCompilerArgs += "-Xinline-classes"
 
             dependsOn(generateBuildConfig)
         }

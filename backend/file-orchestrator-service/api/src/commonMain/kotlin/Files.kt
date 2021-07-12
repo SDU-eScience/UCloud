@@ -1,11 +1,9 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
@@ -19,16 +17,16 @@ interface WithConflictPolicy {
 }
 
 interface WithPath {
-    val path: String // TODO This should be renamed to id
+    val id: String // TODO This should be renamed to id
 }
 
 interface WithPathMoving {
-    val oldPath: String // TODO This should be renamed to oldId
-    val newPath: String // TODO This should be renamed to newId
+    val oldId: String // TODO This should be renamed to oldId
+    val newId: String // TODO This should be renamed to newId
 }
 
 @Serializable
-data class FindByPath(override val path: String) : WithPath
+data class FindByPath(override val id: String) : WithPath
 
 @Serializable
 sealed class LongRunningTask {
@@ -45,8 +43,8 @@ sealed class LongRunningTask {
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
 @Serializable
 data class FilesMoveRequestItem(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldId: String,
+    override val newId: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving, WithConflictPolicy
 typealias FilesMoveResponse = BulkResponse<LongRunningTask>
@@ -54,8 +52,8 @@ typealias FilesMoveResponse = BulkResponse<LongRunningTask>
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 @Serializable
 data class FilesCopyRequestItem(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldId: String,
+    override val newId: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
 typealias FilesCopyResponse = BulkResponse<LongRunningTask>
@@ -66,30 +64,30 @@ typealias FilesDeleteResponse = BulkResponse<LongRunningTask>
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
 @Serializable
 data class FilesCreateFolderRequestItem(
-    override val path: String,
+    override val id: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
-typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask>
+typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask?>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 @Serializable
 data class FilesUpdateAclRequestItem(
-    override val path: String,
+    override val id: String,
     val newAcl: List<ResourceAclEntry>
 ) : WithPath
 typealias FilesUpdateAclResponse = Unit
 
 typealias FilesTrashRequest = BulkRequest<FindByPath>
-typealias FilesTrashResponse = BulkResponse<LongRunningTask>
+typealias FilesTrashResponse = BulkResponse<LongRunningTask?>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 @Serializable
 data class FilesCreateUploadRequestItem(
-    override val path: String,
+    override val id: String,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPath
-typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem>
+typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem?>
 @Serializable
 data class FilesCreateUploadResponseItem(
     val endpoint: String,
@@ -103,8 +101,8 @@ enum class UploadProtocol {
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>
 @Serializable
-data class FilesCreateDownloadRequestItem(override val path: String) : WithPath
-typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem>
+data class FilesCreateDownloadRequestItem(override val id: String) : WithPath
+typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem?>
 @Serializable
 data class FilesCreateDownloadResponseItem(val endpoint: String)
 
@@ -421,4 +419,8 @@ of bytes.
             }
         }
     }
+
+    override val create: Nothing? = null
+    override val search: Nothing? = null
+    override val delete get() = super.delete!!
 }

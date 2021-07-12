@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -130,8 +131,7 @@ class ProviderService(
 
         return browse(
             ActorAndProject(Actor.System, null),
-            PaginationRequestV2(10),
-            ProviderIncludeFlags(filterName = name),
+            ResourceBrowseRequest(ProviderIncludeFlags(filterName = name)),
             useProject = false,
         ).items.singleOrNull()?.specification ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }

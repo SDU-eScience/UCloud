@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Controller
@@ -10,13 +12,23 @@ import dk.sdu.cloud.service.actorAndProject
 fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : ResourceUpdate, Flags : ResourceIncludeFlags,
     Status : ResourceStatus<Prod, Support>, Prod : Product, Support : ProductSupport, Comms : ProviderComms>
     ResourceService<Res, Spec, Update, Flags, Status, Prod, Support, Comms>.asController(): Controller {
+    val userApi = userApi()
+    val controlApi = runCatching { controlApi() }.getOrNull()
+    return asController(userApi, controlApi)
+}
+
+fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : ResourceUpdate, Flags : ResourceIncludeFlags,
+    Status : ResourceStatus<Prod, Support>, Prod : Product, Support : ProductSupport>
+    ResourceSvc<Res, Flags, Spec, Update, Prod, Support>.asController(
+    userApi: ResourceApi<Res, Spec, Update, Flags, Status, Prod, Support>,
+    controlApi: ResourceControlApi<Res, Spec, Update, Flags, Status, Prod, Support>? = null
+): Controller {
     return object : Controller {
         override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-            val userApi = userApi()
-            val controlApi = runCatching { controlApi() }.getOrNull()
-
-            implement(userApi.create) {
-                ok(create(actorAndProject, request))
+            userApi.create?.let {
+                implement(it) {
+                    ok(create(actorAndProject, request))
+                }
             }
 
             implement(userApi.retrieveProducts) {

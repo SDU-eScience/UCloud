@@ -195,11 +195,9 @@ object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpda
     override val typeInfo = ResourceTypeInfo<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
             NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>()
 
-    override val search: CallDescription<ResourceSearchRequest<NetworkIPFlags>, PageV2<NetworkIP>, CommonErrorMessage>
-        get() = super.search!!
-
-    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
+    override val create get() = super.create!!
+    override val search get() = super.search!!
+    override val delete get() = super.delete!!
 
     val updateFirewall = call<NetworkIPsUpdateFirewallRequest, NetworkIPsUpdateFirewallResponse,
             CommonErrorMessage>("updateFirewall") {
@@ -219,9 +217,7 @@ open class NetworkIPProvider(provider: String) : ResourceProviderApi<NetworkIP, 
     override val typeInfo = ResourceTypeInfo<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
             NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>()
 
-    override val delete: CallDescription<BulkRequest<NetworkIP>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
-
+    override val delete get() = super.delete!!
 
     val updateFirewall = call<BulkRequest<FirewallAndIP>, BulkResponse<Unit?>, CommonErrorMessage>("updateFirewall") {
         httpUpdate(baseContext, "firewall", roles = Roles.PRIVILEGED)

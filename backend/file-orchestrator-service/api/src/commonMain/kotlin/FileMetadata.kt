@@ -10,7 +10,7 @@ typealias FileMetadataAddMetadataRequest = BulkRequest<FileMetadataAddRequestIte
 
 @Serializable
 data class FileMetadataAddRequestItem(
-    override val path: String,
+    override val id: String,
     val metadata: FileMetadataDocument.Spec,
 ) : WithPath
 typealias FileMetadataAddMetadataResponse = Unit
@@ -19,8 +19,8 @@ typealias FileMetadataMoveRequest = BulkRequest<FileMetadataMoveRequestItem>
 
 @Serializable
 data class FileMetadataMoveRequestItem(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldId: String,
+    override val newId: String,
 ) : WithPathMoving
 typealias FileMetadataMoveResponse = Unit
 
@@ -28,7 +28,7 @@ typealias FileMetadataDeleteRequest = BulkRequest<FileMetadataDeleteRequestItem>
 
 @Serializable
 data class FileMetadataDeleteRequestItem(
-    override val path: String,
+    override val id: String,
     val templateId: String,
 ) : WithPath
 typealias FileMetadataDeleteResponse = Unit

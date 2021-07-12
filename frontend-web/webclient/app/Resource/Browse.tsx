@@ -20,7 +20,7 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {timestampUnixMs} from "UtilityFunctions";
+import {timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
 import {ResourceProperties} from "Resource/Properties";
@@ -29,6 +29,7 @@ import {useHistory, useLocation} from "react-router";
 import {ResourceFilter} from "Resource/Filter";
 import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {useDispatch} from "react-redux";
 
 export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -39,6 +40,9 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
     inlineCreationMode?: "TEXT" | "NONE";
 
     withDefaultStats?: boolean;
+    additionalFilters?: Record<string, string>;
+    header?: JSX.Element;
+    headerSize?: number;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -72,6 +76,7 @@ export const ResourceBrowse = <Res extends Resource>(
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
+    const dispatch = useDispatch();
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
@@ -101,32 +106,36 @@ export const ResourceBrowse = <Res extends Resource>(
         if (props.isSearch) {
             fetchResources(api.search({
                 itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                sortDirection, sortBy: sortColumn
+                sortDirection, sortBy: sortColumn, ...props.additionalFilters
             }));
         } else {
             fetchResources(api.browse({
                 itemsPerPage: 50, includeOthers, ...filters, sortBy: sortColumn,
-                sortDirection
+                sortDirection, ...props.additionalFilters
             }));
         }
         toggleSet.uncheckAll();
-    }, [projectId, filters, query, props.isSearch, sortColumn, sortDirection]);
+    }, [projectId, filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
 
     const loadMore = useCallback(() => {
         if (resources.data.next) {
             if (props.isSearch) {
                 fetchResources(api.search({
                     itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                    next: resources.data.next, sortDirection, sortBy: sortColumn
+                    next: resources.data.next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
                 }));
             } else {
                 fetchResources(api.browse({
                     next: resources.data.next, itemsPerPage: 50, includeOthers,
-                    ...filters, sortBy: sortColumn, sortDirection
+                    ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
                 }));
             }
         }
-    }, [resources.data.next, filters, query, props.isSearch, sortColumn, sortDirection]);
+    }, [resources.data.next, filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
+
+    useEffectSkipMount(() => {
+        reload();
+    }, [reload, props.additionalFilters]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
@@ -136,6 +145,7 @@ export const ResourceBrowse = <Res extends Resource>(
         reload,
         embedded: props.embedded == true,
         onSelect,
+        dispatch,
         startCreation: () => {
             if (props.onInlineCreation != null) {
                 setSelectedProduct(null);
@@ -149,7 +159,7 @@ export const ResourceBrowse = <Res extends Resource>(
                 history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
             }
         }
-    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history]);
+    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history, dispatch]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
@@ -301,15 +311,20 @@ export const ResourceBrowse = <Res extends Resource>(
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 {inlineInspecting ?
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
-                    <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                                entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                extra={callbacks} operations={operations}/>
+                    <>
+                        <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations}/>
+                        {props.header}
+                    </>
                 }
             </StickyBox>
             {main}
         </Box>;
     } else {
         return <MainContainer
+            header={props.header}
+            headerSize={props.headerSize}
             main={main}
             sidebar={
                 inlineInspecting ? null :

@@ -35,8 +35,9 @@ object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCo
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
         FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
 
-    override val delete: CallDescription<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
+    override val create get() = super.create!!
+    override val delete get() = super.delete!!
+    override val search get() = super.search!!
 
     val rename = call<FileCollectionsRenameRequest, FileCollectionsRenameResponse, CommonErrorMessage>("rename") {
         httpUpdate(baseContext, "rename")
@@ -63,6 +64,5 @@ open class FileCollectionsProvider(
         httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
     }
 
-    override val delete: CallDescription<BulkRequest<FileCollection>, BulkResponse<Unit?>, CommonErrorMessage>
-        get() = super.delete!!
+    override val delete get() = super.delete!!
 }

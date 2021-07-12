@@ -38,6 +38,7 @@ export interface Operation<T, R = undefined> {
     primary?: boolean;
     canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
+    tag?: string;
 }
 
 export function defaultOperationType(

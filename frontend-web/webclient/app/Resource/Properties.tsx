@@ -19,6 +19,7 @@ import {Operations} from "ui-components/Operation";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
 import {useParams} from "react-router";
 import {useResourceSearch} from "Resource/Search";
+import {useDispatch} from "react-redux";
 
 const enterAnimation = keyframes`
   from {
@@ -155,14 +156,15 @@ interface PropertiesProps<Res extends Resource> {
 export function ResourceProperties<Res extends Resource>(
     props: PropsWithChildren<PropertiesProps<Res>>
 ): ReactElement | null {
-    console.log("Trying to render something!");
     const {api} = props;
 
     const projectId = useProjectId();
     const [ownResource, fetchOwnResource] = useCloudAPI<Res | null>({noop: true}, null);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const {id} = useParams<{ id?: string }>();
-    const requestedId = props.resource === undefined ? id :
+    const dispatch = useDispatch();
+    const requestedId = props.resource === undefined ?
+        (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :
         typeof props.resource === "string" ? props.resource : props.resource.id;
 
     if (!requestedId) {
@@ -194,7 +196,8 @@ export function ResourceProperties<Res extends Resource>(
         reload,
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
-    }), [api, invokeCommand, commandLoading, reload, props.closeProperties]);
+        dispatch
+    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 

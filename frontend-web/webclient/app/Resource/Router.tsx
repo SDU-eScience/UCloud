@@ -14,7 +14,6 @@ interface RouterProps<T extends Resource> {
 export function ResourceRouter<T extends Resource>(props: PropsWithChildren<RouterProps<T>>): ReactElement | null {
     const Properties = props.Properties ?? (() => <ResourceProperties api={props.api}/>);
     const basePath = "/" + props.api.routingNamespace;
-    console.log(basePath);
     return <Switch>
         <Route exact path={basePath} component={props.Browser}/>
         <Route exact path={`${basePath}/properties/:id`} component={Properties}/>

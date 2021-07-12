@@ -99,6 +99,12 @@ data class UFileIncludeFlags(
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
     override val includeProduct: Boolean = false,
+    val includePermissions: Boolean? = null,
+    val includeTimestamps: Boolean? = null,
+    val includeSizes: Boolean? = null,
+    val includeUnixInfo: Boolean? = null,
+    val includeMetadata: Boolean? = null,
+
     override val filterCreatedBy: String? = null,
     override val filterCreatedAfter: Long? = null,
     override val filterCreatedBefore: Long? = null,
@@ -108,6 +114,10 @@ data class UFileIncludeFlags(
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,
+
+    @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
+This value is `true` by default """)
+    val allowUnsupportedInclude: Boolean? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -209,7 +219,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     override val createdAt: Long,
     override val status: UFileStatus,
     override val owner: ResourceOwner,
-    override val permissions: ResourcePermissions?
+    override val permissions: ResourcePermissions? = null
 ) : Resource<Product.Storage, FSSupport> {
     override val billing = ResourceBilling.Free
     override val acl: List<ResourceAclEntry>? = null
@@ -243,7 +253,7 @@ data class UFileStatus(
     val unixGroup: Int? = null,
 
     @UCloudApiDoc("User-defined metadata for this file. See `FileMetadataTemplate` for details.")
-    val metadata: FileMetadataHistory?,
+    val metadata: FileMetadataHistory? = null,
 
     override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
     override var resolvedProduct: Product.Storage? = null,

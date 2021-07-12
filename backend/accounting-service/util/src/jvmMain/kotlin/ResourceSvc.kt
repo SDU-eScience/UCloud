@@ -8,8 +8,10 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.DBContext
+import io.ktor.http.*
 
 interface ResourceSvc<
     R : Resource<Prod, Support>,
@@ -36,7 +38,9 @@ interface ResourceSvc<
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Spec>,
-    ): BulkResponse<FindByStringId?>
+    ): BulkResponse<FindByStringId?> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 
     suspend fun updateAcl(
         actorAndProject: ActorAndProject,
@@ -46,17 +50,23 @@ interface ResourceSvc<
     suspend fun delete(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
-    ): BulkResponse<Unit?>
+    ): BulkResponse<Unit?> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 
     suspend fun addUpdate(
         actorAndProject: ActorAndProject,
         updates: BulkRequest<ResourceUpdateAndId<Update>>
-    )
+    ) {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 
     suspend fun register(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProviderRegisteredResource<Spec>>
-    ): BulkResponse<FindByStringId>
+    ): BulkResponse<FindByStringId> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
@@ -65,11 +75,15 @@ interface ResourceSvc<
     suspend fun chargeCredits(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ResourceChargeCredits>
-    ): ResourceChargeCreditsResponse
+    ): ResourceChargeCreditsResponse {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 
     suspend fun search(
         actorAndProject: ActorAndProject,
         request: ResourceSearchRequest<F>,
         ctx: DBContext? = null
-    ): PageV2<R>
+    ): PageV2<R> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
 }

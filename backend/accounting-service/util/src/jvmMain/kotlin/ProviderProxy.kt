@@ -214,10 +214,10 @@ class ProviderProxy<
     private val providers: Providers<Comms>,
     private val support: ProviderSupport<Comms, Prod, Support>
 ) {
-    suspend fun <R : Any, S : Any, R2 : Any> bulkProxy(
+    suspend fun <R : Any, S : Any, R2 : Any, Res2 : Resource<*, *>> bulkProxy(
         actorAndProject: ActorAndProject,
         request: BulkRequest<R>,
-        instructions: BulkProxyInstructions<Comms, Support, Res, R, R2, S>
+        instructions: BulkProxyInstructions<Comms, Support, Res2, R, R2, S>
     ): BulkResponse<S?> {
         with(instructions) {
             if (request.items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -440,6 +440,7 @@ class ProviderProxy<
 
     suspend fun <R : Any, S : Any> pureProxy(
         actorAndProject: ActorAndProject,
+        productRef: ProductReference,
         call: (comms: Comms) -> CallDescription<R, S, CommonErrorMessage>,
         request: R,
         isUserRequest: Boolean = true
@@ -460,7 +461,7 @@ class ProviderProxy<
                     actorAndProject: ActorAndProject,
                     request: Unit
                 ): RequestWithRefOrResource<Unit, Res> {
-                    return request to ProductRefOrResource.SomeRef(ProductReference("", "", ""))
+                    return request to ProductRefOrResource.SomeRef(productRef)
                 }
             }
         )
