@@ -1,13 +1,13 @@
-import {dialogStore} from "Dialog/DialogStore";
+import {dialogStore, Dialog as IDialog} from "Dialog/DialogStore";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 
 const Dialog: React.FunctionComponent = () => {
-    const [dialogs, setDialogs] = useState<JSX.Element[]>([]);
+    const [dialogs, setDialogs] = useState<IDialog[]>([]);
 
     useEffect(() => {
-        const subscription = (dialogs: JSX.Element[]): void => setDialogs(dialogs);
+        const subscription = (dialogs: IDialog[]): void => setDialogs(dialogs);
 
         dialogStore.subscribe(subscription);
         return () => dialogStore.unsubscribe(subscription);
@@ -21,7 +21,7 @@ const Dialog: React.FunctionComponent = () => {
             ariaHideApp={false}
             onRequestClose={() => dialogStore.failure()}
             onAfterOpen={() => undefined}
-            style={{
+            style={current?.style ?? {
                 content: {
                     top: "50%",
                     left: "50%",
@@ -34,7 +34,7 @@ const Dialog: React.FunctionComponent = () => {
                 }
             }}
         >
-            {current}
+            {current?.element}
         </ReactModal>
     );
 };

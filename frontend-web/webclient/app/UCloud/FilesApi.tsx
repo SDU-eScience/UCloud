@@ -18,11 +18,13 @@ import * as React from "react";
 import {fileName} from "Utilities/FileUtilities";
 import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {extensionFromPath} from "UtilityFunctions";
+import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
 import {Operation} from "ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
 import FilesCreateDownloadRequestItem = file.orchestrator.FilesCreateDownloadRequestItem;
 import {bulkRequestOf} from "DefaultObjects";
+import {dialogStore} from "Dialog/DialogStore";
+import Files, {FilesBrowse} from "Files/Files";
 
 export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
 
@@ -93,7 +95,10 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
 
     InlineTitleRenderer = ({resource}) => <>{fileName((resource as UFile).id)}</>;
     TitleRenderer = this.InlineTitleRenderer;
-    IconRenderer = (props: { resource: UFile, size: string }) => {
+    IconRenderer = (props: { resource: UFile | null, size: string }) => {
+        if (!props.resource) {
+            return <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size}/>;
+        }
         return <FtIcon
             iconHint={props.resource.status.icon}
             fileIcon={{type: props.resource.status.type, ext: extensionFromPath(fileName(props.resource.id))}}
@@ -105,19 +110,27 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         super("files");
     }
 
-    navigateToFile(history: H.History, path: string) {
-        console.log("Path", path);
-        history.push(buildQueryString("/files", {path: path}));
-    }
-
-    navigateToChildren(history: H.History, resource: UFile) {
-        this.navigateToFile(history, "/" + resource.id);
-    }
-
     retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile>>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
         const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile>>[] = [
+            {
+                text: "Use this folder",
+                primary: true,
+                canAppearInLocation: (loc) => loc === "TOPBAR",
+                enabled: (selected, cb) => selected.length === 0 && cb.onSelect !== undefined,
+                onClick: (selected, cb) => {
+                    cb.onSelect?.({
+                        id: "",
+                        status: {type: "DIRECTORY"},
+                        permissions: {myself: []},
+                        specification: {product: {id: "", provider: "", category: ""}, collection: ""},
+                        owner: {createdBy: ""},
+                        createdAt: 0,
+                        updates: []
+                    })
+                }
+            },
             {
                 text: "Upload files",
                 icon: "upload",
@@ -125,9 +138,24 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => selected.length === 0 && cb.onSelect === undefined,
                 onClick: (_, cb) => {
-                    cb.dispatch({type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
-                        defaultValue: false});
+                    cb.dispatch({
+                        type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
+                        defaultValue: false
+                    });
                 },
+            },
+            {
+                text: "Create folder",
+                icon: "uploadFolder",
+                color: "blue",
+                primary: true,
+                canAppearInLocation: loc => loc !== "IN_ROW",
+                enabled: (selected, cb) => {
+                    if (selected.length !== 0 || cb.startCreation == null) return false;
+                    if (cb.isCreating) return "You are already creating a folder";
+                    return true;
+                },
+                onClick: (selected, cb) => cb.startCreation!(),
             },
             {
                 icon: "rename",
@@ -156,17 +184,61 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
+                    cb.embedded !== true &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
-                onClick: (selected, cb) => {}
+                onClick: (selected, cb) => {
+                    const pathRef = {current: ""};
+                    dialogStore.addDialog(
+                        <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                            await cb.invokeCommand(
+                                this.copy({
+                                    type: "bulk",
+                                    items: selected.map(file => ({
+                                        oldId: file.id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(file.id)
+                                    }))
+                                })
+                            );
+                        }}/>,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle
+                    );
+                }
             },
             {
                 icon: "move",
                 text: "Move to...",
                 enabled: (selected, cb) =>
+                    cb.embedded !== true &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
-                onClick: (selected, cb) => {}
+                onClick: (selected, cb) => {
+                    const pathRef = {current: ""};
+                    dialogStore.addDialog(
+                        <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                            await cb.invokeCommand(
+                                this.move({
+                                    type: "bulk",
+                                    items: selected.map(file => ({
+                                        oldId: file.id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(file.id)
+                                    }))
+                                })
+                            );
+                        }}/>,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle
+                    );
+                }
             },
             {
                 icon: "trash",
@@ -255,6 +327,16 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             payload: request
         };
     }
+
+    private fileSelectorModalStyle = {
+        content: {
+            borderRadius: "6px",
+            top: "80px",
+            left: "25%",
+            right: "25%",
+            background: ""
+        }
+    };
 }
 
 export default new FilesApi();

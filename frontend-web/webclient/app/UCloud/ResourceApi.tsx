@@ -158,8 +158,6 @@ export abstract class ResourceApi<Res extends Resource,
         // TODO We need to add a pill for provider and product
     }
 
-    public navigateToChildren(history: H.History, resource: Res) {}
-
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
         return [
             {

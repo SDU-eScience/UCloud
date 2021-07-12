@@ -3,31 +3,48 @@ import {default as FilesApi, UFile} from "UCloud/FilesApi";
 import {ResourceBrowse} from "Resource/Browse";
 import {ResourceRouter} from "Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useGlobal} from "Utilities/ReduxHooks";
-import {useEffect, useMemo} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "Utilities/FileUtilities";
-import {joinToString} from "UtilityFunctions";
+import {joinToString, removeTrailingSlash} from "UtilityFunctions";
 import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
 import {useCloudAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
+import * as H from "history";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     isSearch?: boolean;
     embedded?: boolean;
+    pathRef?: React.MutableRefObject<string>;
 }> = props => {
     const [, setUploadPath] = useGlobal("uploadPath", "/");
     const location = useLocation();
-    const path = getQueryParamOrElse(location.search, "path", "/");
+    const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
+    const [pathFromState, setPathFromState] = useState(pathFromQuery);
+    const path = props.embedded === true ? pathFromState : pathFromQuery;
     const additionalFilters = useMemo((() => ({path})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
 
+    const navigateToPath = useCallback((history: H.History, path: string) => {
+        if (props.embedded === true) {
+            setPathFromState(path);
+        } else {
+            history.push(buildQueryString("/files", {path: path}));
+        }
+    }, [props.embedded]);
+
+    const navigateToFile = useCallback((history: H.History, file: UFile) => {
+        navigateToPath(history, file.id);
+    }, [navigateToPath]);
+
     useEffect(() => {
-        setUploadPath(path);
-    }, [path]);
+        if (props.embedded !== true) setUploadPath(path);
+        if (props.pathRef) props.pathRef.current = path;
+    }, [path, props.embedded, props.pathRef]);
 
     useEffect(() => {
         const components = pathComponents(path);
@@ -35,7 +52,7 @@ export const FilesBrowse: React.FunctionComponent<{
             const collectionId = components[0];
 
             if (collection.data?.id !== collectionId && !collection.loading) {
-                fetchCollection(FileCollectionsApi.retrieve({id: collectionId}));
+                fetchCollection(FileCollectionsApi.retrieve({id: collectionId, includeSupport: true}));
             }
         }
     }, [path]);
@@ -59,7 +76,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it} children={it}
                           onClick={() => {
-                              FilesApi.navigateToFile(
+                              navigateToPath(
                                   history,
                                   "/" + joinToString(components.slice(0, idx + 1), "/")
                               );
@@ -74,10 +91,13 @@ export const FilesBrowse: React.FunctionComponent<{
         api={FilesApi}
         onSelect={props.onSelect}
         embedded={props.embedded}
-        onInlineCreation={((text, product, cb) => ({
-                product: {id: product.id, category: product.category.id, provider: product.category.provider},
-            })
-        )}
+        inlineProduct={collection.data?.status.resolvedSupport?.product}
+        onInlineCreation={((text) => {
+            return FilesApi.createFolder(bulkRequestOf({
+                id: removeTrailingSlash(path) + "/" + text,
+                conflictPolicy: "RENAME"
+            }));
+        })}
         onRename={async (text, res, cb) => {
             await cb.invokeCommand(FilesApi.move(bulkRequestOf({
                 conflictPolicy: "REJECT",
@@ -89,6 +109,7 @@ export const FilesBrowse: React.FunctionComponent<{
         additionalFilters={additionalFilters}
         header={breadcrumbsComponent}
         headerSize={48}
+        navigateToChildren={navigateToFile}
     />;
 };
 

@@ -30,22 +30,25 @@ import {ResourceFilter} from "Resource/Filter";
 import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
-import {fileName} from "Utilities/FileUtilities";
-import {setDefaultLocale} from "react-datepicker";
+import * as H from "history";
+import ProductReference = accounting.ProductReference;
 
 export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
 
-    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"];
+    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"] | APICallParameters;
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
     inlineCreationMode?: "TEXT" | "NONE";
+    inlineProduct?: Product;
 
     withDefaultStats?: boolean;
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
     onRename?: (text: String, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
+
+    navigateToChildren?: (history: H.History, resource: Res) => void;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -63,7 +66,7 @@ export const ResourceBrowse = <Res extends Resource>(
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
         {productsByProvider: {}})
     const includeOthers = !props.embedded;
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [resources, fetchResources] = useCloudAPI<PageV2<Res>>({noop: true}, emptyPageV2);
     const [renaming, setRenaming] = useState<Res | null>(null);
     const [renamingValue, setRenamingValue] = useState("");
@@ -141,6 +144,9 @@ export const ResourceBrowse = <Res extends Resource>(
     useEffectSkipMount(() => {
         reload();
     }, [reload, props.additionalFilters]);
+    useEffectSkipMount(() => {
+        setSelectedProduct(props.inlineProduct ?? null);
+    }, [props.inlineProduct]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
@@ -157,7 +163,7 @@ export const ResourceBrowse = <Res extends Resource>(
         },
         startCreation: () => {
             if (props.onInlineCreation != null) {
-                setSelectedProduct(null);
+                setSelectedProduct(props.inlineProduct ?? null);
                 setIsCreating(true);
             }
         },
@@ -168,7 +174,8 @@ export const ResourceBrowse = <Res extends Resource>(
                 history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
             }
         }
-    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history, dispatch]);
+    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history, dispatch,
+        props.inlineProduct]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
@@ -177,7 +184,11 @@ export const ResourceBrowse = <Res extends Resource>(
             if (!props.onInlineCreation) return;
             const spec = props.onInlineCreation("", product, callbacks);
             setIsCreating(false);
-            await callbacks.invokeCommand(api.create(bulkRequestOf(spec)));
+            if ("path" in spec && "method" in spec) {
+                await callbacks.invokeCommand(spec);
+            } else {
+                await callbacks.invokeCommand(api.create(bulkRequestOf(spec as Res["specification"])));
+            }
             callbacks.reload();
         }
     }, [setSelectedProduct, props.inlineCreationMode, props.onInlineCreation, callbacks]);
@@ -192,7 +203,12 @@ export const ResourceBrowse = <Res extends Resource>(
                 selectedProduct!,
                 callbacks
             );
-            await callbacks.invokeCommand(api.create(bulkRequestOf(spec)));
+
+            if ("path" in spec && "method" in spec) {
+                await callbacks.invokeCommand(spec);
+            } else {
+                await callbacks.invokeCommand(api.create(bulkRequestOf(spec as Res["specification"])));
+            }
             callbacks.reload();
         }
         setIsCreating(false);
@@ -271,7 +287,7 @@ export const ResourceBrowse = <Res extends Resource>(
                             <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
-                    navigate={() => api.navigateToChildren?.(history, it)}
+                    navigate={() => props.navigateToChildren?.(history, it)}
                     leftSub={
                         <ListStatContainer>
                             {props.withDefaultStats !== false ?
