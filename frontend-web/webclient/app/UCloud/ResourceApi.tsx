@@ -90,6 +90,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     onSelect?: (resource: Res) => void;
     embedded: boolean;
     dispatch: Dispatch;
+    startRenaming?: (resource: Res, defaultValue: string) => void;
 }
 
 export interface SortFlags {

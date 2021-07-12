@@ -30,6 +30,8 @@ import {ResourceFilter} from "Resource/Filter";
 import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
+import {fileName} from "Utilities/FileUtilities";
+import {setDefaultLocale} from "react-datepicker";
 
 export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -43,6 +45,7 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
+    onRename?: (text: String, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -62,6 +65,8 @@ export const ResourceBrowse = <Res extends Resource>(
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [resources, fetchResources] = useCloudAPI<PageV2<Res>>({noop: true}, emptyPageV2);
+    const [renaming, setRenaming] = useState<Res | null>(null);
+    const [renamingValue, setRenamingValue] = useState("");
     const [infScroll, setInfScroll] = useState(0);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const projectId = useProjectId();
@@ -146,6 +151,10 @@ export const ResourceBrowse = <Res extends Resource>(
         embedded: props.embedded == true,
         onSelect,
         dispatch,
+        startRenaming: (res, value) => {
+            setRenaming(res);
+            setRenamingValue(value);
+        },
         startCreation: () => {
             if (props.onInlineCreation != null) {
                 setSelectedProduct(null);
@@ -188,6 +197,16 @@ export const ResourceBrowse = <Res extends Resource>(
         }
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
+
+    const renameInputRef = useRef<HTMLInputElement>(null);
+    const onRename = useCallback(async () => {
+        const text = renameInputRef.current?.value;
+        if (text && renaming) {
+            await props.onRename?.(text, renaming, callbacks);
+            callbacks.reload();
+            setRenaming(null);
+        }
+    }, [props.onRename, renaming, callbacks]);
 
     const operations: Operation<Res, ResourceBrowseCallbacks<Res>>[] = useMemo(() => {
         return api.retrieveOperations();
@@ -244,8 +263,12 @@ export const ResourceBrowse = <Res extends Resource>(
                 <ListRow
                     key={it.id}
                     icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"36px"}/> : null}
-                    left={api.InlineTitleRenderer ?
-                        <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
+                    left={
+                        renaming?.id === it.id ?
+                            <NamingField onCancel={() => setRenaming(null)} confirmText={"Rename"}
+                                         inputRef={renameInputRef} onSubmit={onRename} defaultValue={renamingValue} />
+                            : api.InlineTitleRenderer ?
+                            <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     navigate={() => api.navigateToChildren?.(history, it)}
@@ -280,7 +303,7 @@ export const ResourceBrowse = <Res extends Resource>(
                 />
             )}
         </List>
-    }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport]);
+    }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming]);
 
     useEffect(() => reload(), [projectId, query]);
 

@@ -7,11 +7,11 @@ import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {useEffect, useMemo} from "react";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {pathComponents} from "Utilities/FileUtilities";
-import HexSpin from "LoadingIcon/LoadingIcon";
+import {getParentPath, pathComponents} from "Utilities/FileUtilities";
 import {joinToString} from "UtilityFunctions";
 import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
 import {useCloudAPI} from "Authentication/DataHook";
+import {bulkRequestOf} from "DefaultObjects";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -78,6 +78,13 @@ export const FilesBrowse: React.FunctionComponent<{
                 product: {id: product.id, category: product.category.id, provider: product.category.provider},
             })
         )}
+        onRename={async (text, res, cb) => {
+            await cb.invokeCommand(FilesApi.move(bulkRequestOf({
+                conflictPolicy: "REJECT",
+                oldId: res.id,
+                newId: getParentPath(res.id) + text
+            })));
+        }}
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={breadcrumbsComponent}

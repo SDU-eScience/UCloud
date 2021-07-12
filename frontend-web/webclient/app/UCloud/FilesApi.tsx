@@ -133,10 +133,12 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 icon: "rename",
                 text: "Rename",
                 enabled: (selected, cb) =>
-                    selected.length > 0 &&
+                    cb.startRenaming !== undefined &&
+                    selected.length === 1 &&
                     selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-
+                    console.log(cb.startRenaming, selected[0]);
+                    cb.startRenaming?.(selected[0], fileName(selected[0].id));
                 }
             },
             {
