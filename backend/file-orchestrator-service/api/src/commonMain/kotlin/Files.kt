@@ -50,6 +50,16 @@ interface WithPath {
     val path: String
 }
 
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
+interface WithSorting<E : Enum<E>> {
+    val sortBy: E?
+    val sortOrder: SortOrder?
+}
+
 interface WithPathMoving {
     val oldPath: String
     val newPath: String
@@ -68,6 +78,14 @@ sealed class LongRunningTask {
     class ContinuesInBackground<V>(val taskId: String) : LongRunningTask()
 }
 
+@Serializable
+enum class FilesSortBy {
+    PATH,
+    SIZE,
+    CREATED_AT,
+    MODIFIED_AT
+}
+
 // ---
 
 @Serializable
@@ -83,7 +101,9 @@ data class FilesBrowseRequest(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2, FilesIncludeFlags, WithPath
+    override val sortBy: FilesSortBy? = null,
+    override val sortOrder: SortOrder? = null
+) : WithPaginationRequestV2, FilesIncludeFlags, WithPath, WithSorting<FilesSortBy>
 typealias FilesBrowseResponse = PageV2<UFile>
 
 @Serializable

@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.create
 import io.ktor.http.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.collections.ArrayList
 
 class FileQueries(
     private val aclService: AclService,
@@ -78,6 +77,8 @@ class FileQueries(
         file: UCloudFile,
         flags: FilesIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
+        sortBy: FilesSortBy?,
+        sortOrder: SortOrder?,
     ): PageV2<UFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
@@ -103,6 +104,14 @@ class FileQueries(
             val internalFile = pathConverter.ucloudToInternal(file)
             foundFiles = nativeFs.listFiles(internalFile).map {
                 InternalFile(internalFile.path + "/" + it)
+            }
+        }
+
+        if (sortBy == FilesSortBy.PATH) {
+            foundFiles = if (sortOrder == SortOrder.ASCENDING) {
+                foundFiles.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
+            } else {
+                foundFiles.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
             }
         }
 

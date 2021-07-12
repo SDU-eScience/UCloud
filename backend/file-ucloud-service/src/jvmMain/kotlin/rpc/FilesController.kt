@@ -46,7 +46,9 @@ class FilesController(
                     Actor.SystemOnBehalfOfUser(request.username),
                     UCloudFile.create(request.request.path),
                     request.request,
-                    request.request.normalize()
+                    request.request.normalize(),
+                    request.request.sortBy,
+                    request.request.sortOrder
                 )
             )
         }
