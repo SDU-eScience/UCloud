@@ -17,12 +17,12 @@ interface WithConflictPolicy {
 }
 
 interface WithPath {
-    val id: String // TODO This should be renamed to id
+    val id: String
 }
 
 interface WithPathMoving {
-    val oldId: String // TODO This should be renamed to oldId
-    val newId: String // TODO This should be renamed to newId
+    val oldId: String
+    val newId: String
 }
 
 @Serializable
@@ -47,7 +47,7 @@ data class FilesMoveRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesMoveResponse = BulkResponse<LongRunningTask>
+typealias FilesMoveResponse = BulkResponse<LongRunningTask?>
 
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 @Serializable
@@ -56,7 +56,7 @@ data class FilesCopyRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesCopyResponse = BulkResponse<LongRunningTask>
+typealias FilesCopyResponse = BulkResponse<LongRunningTask?>
 
 typealias FilesDeleteRequest = BulkRequest<FindByPath>
 typealias FilesDeleteResponse = BulkResponse<LongRunningTask>

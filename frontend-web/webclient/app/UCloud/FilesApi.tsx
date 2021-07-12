@@ -149,7 +149,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 icon: "uploadFolder",
                 color: "blue",
                 primary: true,
-                canAppearInLocation: loc => loc !== "IN_ROW",
+                canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
@@ -203,6 +203,8 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                                     }))
                                 })
                             );
+
+                            dialogStore.success();
                         }}/>,
                         doNothing,
                         true,
@@ -233,6 +235,8 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                                     }))
                                 })
                             );
+
+                            dialogStore.success();
                         }}/>,
                         doNothing,
                         true,

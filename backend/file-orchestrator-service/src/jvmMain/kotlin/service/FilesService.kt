@@ -17,8 +17,8 @@ import kotlinx.coroutines.coroutineScope
 
 class FilesService(
     private val fileCollections: FileCollectionService,
-    private val providers: StorageProviders,
-    private val providerSupport: StorageProviderSupport,
+    providers: StorageProviders,
+    providerSupport: StorageProviderSupport,
     private val metadataService: MetadataService,
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
     private val proxy =
@@ -248,14 +248,148 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesMoveRequest
     ): FilesMoveResponse {
-        TODO()
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesMoveRequestItem,
+                BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
+                val newCollectionsByRequest =
+                    HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
+                override val isUserRequest = true
+                override fun retrieveCall(comms: StorageCommunication) = comms.filesApi.move
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<FilesMoveRequestItem>
+                ): List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>> {
+                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                        extractPathMetadata(it.oldId).collection }
+                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                        extractPathMetadata(it.newId).collection }
+                    for (item in newCollections) newCollectionsByRequest[item.first] = item
+
+                    val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
+                    val newProviders = newCollections.map { it.second.resource.specification.product.provider }
+                    for ((old, new) in oldProviders.zip(newProviders)) {
+                        if (old != new) {
+                            throw RPCException(
+                                "Cannot move files between providers. Try a different target drive.",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+                    }
+
+                    return newCollections
+                }
+
+                override suspend fun verifyRequest(
+                    request: FilesMoveRequestItem,
+                    res: ProductRefOrResource<FileCollection>,
+                    support: FSSupport
+                ) {
+                    if (support.files.isReadOnly) {
+                        throw RPCException(
+                            "File-system is read only and cannot be modified",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+                }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>
+                ): BulkRequest<FilesProviderMoveRequestItem> {
+                    return BulkRequest(resources.map { (req, res) ->
+                        val oldCollection = (res as ProductRefOrResource.SomeResource).resource
+                        val newCollection =
+                            (newCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
+
+                        FilesProviderMoveRequestItem(
+                            oldCollection,
+                            newCollection,
+                            req.oldId,
+                            req.newId,
+                            req.conflictPolicy
+                        )
+                    })
+                }
+            }
+        )
     }
 
     suspend fun copy(
         actorAndProject: ActorAndProject,
         request: FilesCopyRequest
     ): FilesCopyResponse {
-        TODO()
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesCopyRequestItem,
+                BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
+                val newCollectionsByRequest =
+                    HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
+                override val isUserRequest = true
+                override fun retrieveCall(comms: StorageCommunication) = comms.filesApi.copy
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<FilesCopyRequestItem>
+                ): List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>> {
+                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Read) {
+                        extractPathMetadata(it.oldId).collection }
+                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                        extractPathMetadata(it.newId).collection }
+                    for (item in newCollections) newCollectionsByRequest[item.first] = item
+
+                    val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
+                    val newProviders = newCollections.map { it.second.resource.specification.product.provider }
+                    for ((old, new) in oldProviders.zip(newProviders)) {
+                        if (old != new) {
+                            throw RPCException(
+                                "Cannot move files between providers. Try a different target drive.",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+                    }
+
+                    return newCollections
+                }
+
+                override suspend fun verifyRequest(
+                    request: FilesCopyRequestItem,
+                    res: ProductRefOrResource<FileCollection>,
+                    support: FSSupport
+                ) {
+                    if (support.files.isReadOnly) {
+                        throw RPCException(
+                            "File-system is read only and cannot be modified",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+                }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>
+                ): BulkRequest<FilesProviderCopyRequestItem> {
+                    return BulkRequest(resources.map { (req, res) ->
+                        val oldCollection = (res as ProductRefOrResource.SomeResource).resource
+                        val newCollection =
+                            (newCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
+
+                        FilesProviderCopyRequestItem(
+                            oldCollection,
+                            newCollection,
+                            req.oldId,
+                            req.newId,
+                            req.conflictPolicy
+                        )
+                    })
+                }
+            }
+        )
     }
 
     suspend fun createUpload(
