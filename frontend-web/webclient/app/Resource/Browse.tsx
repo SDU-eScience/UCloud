@@ -49,6 +49,7 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
     onRename?: (text: String, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     navigateToChildren?: (history: H.History, resource: Res) => void;
+    emptyPage?: JSX.Element;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -269,7 +270,7 @@ export const ResourceBrowse = <Res extends Resource>(
                     right={null}
                 />
             }
-            {items.length > 0 || isCreating ? null :
+            {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
                 <>
                     No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
                     to create a new one.
