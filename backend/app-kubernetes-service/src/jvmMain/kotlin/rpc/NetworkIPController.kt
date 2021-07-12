@@ -31,7 +31,12 @@ class NetworkIPController(
 
         implement(KubernetesNetworkIP.retrieveProducts) {
             ok(bulkResponseOf(
-                NetworkIPSupport(ProductReference("u1-publicip", "u1-publicip", UCLOUD_PROVIDER))
+                NetworkIPSupport(
+                    ProductReference("u1-publicip", "u1-publicip", UCLOUD_PROVIDER),
+                    NetworkIPSupport.Firewall(
+                        enabled = true
+                    )
+                )
             ))
         }
 

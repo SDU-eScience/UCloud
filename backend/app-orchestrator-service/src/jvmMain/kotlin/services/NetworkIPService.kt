@@ -139,7 +139,7 @@ class NetworkIPService(
                                 },
                                 """
                                         with entries as (
-                                            select unnest(:ids)::bigint[] id, unnest(:firewalls)::jsonb[] new_firewall
+                                            select unnest(:ids::bigint[]) id, unnest(:firewalls::jsonb[]) new_firewall
                                         )
                                         update app_orchestrator.network_ips ip
                                         set firewall = e.new_firewall
