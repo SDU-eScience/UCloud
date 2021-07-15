@@ -107,12 +107,39 @@ class FileQueries(
             }
         }
 
-        if (sortBy == FilesSortBy.PATH) {
-            foundFiles = if (sortOrder == SortOrder.ASCENDING) {
-                foundFiles.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
-            } else {
-                foundFiles.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
+        // STUPID NAÏVE APPROACH
+        when (sortBy) {
+            FilesSortBy.CREATED_AT, FilesSortBy.MODIFIED_AT, FilesSortBy.SIZE -> {
+                foundFiles = if (sortOrder == SortOrder.ASCENDING) {
+                    foundFiles.sortedWith { a, b ->
+                        val statA = nativeFs.stat(a)
+                        val statB = nativeFs.stat(b)
+                        when (sortBy) {
+                            FilesSortBy.SIZE -> (statA.size - statB.size).toInt()
+                            FilesSortBy.CREATED_AT -> TODO()
+                            FilesSortBy.MODIFIED_AT -> (statA.modifiedAt - statB.modifiedAt).toInt()
+                            else -> 0
+                        }
+                    }
+                } else {
+                    foundFiles.sortedWith { b, a ->
+                        val statA = nativeFs.stat(a)
+                        val statB = nativeFs.stat(b)
+                        when (sortBy) {
+                            FilesSortBy.SIZE -> (statA.size - statB.size).toInt()
+                            FilesSortBy.CREATED_AT -> 0 // TODO(jonas)
+                            FilesSortBy.MODIFIED_AT -> (statA.modifiedAt - statB.modifiedAt).toInt()
+                            else -> 0
+                        }
+                    }
+                }
             }
+            FilesSortBy.PATH ->
+                foundFiles = if (sortOrder == SortOrder.ASCENDING) {
+                    foundFiles.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
+                } else {
+                    foundFiles.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
+                }
         }
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0

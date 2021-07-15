@@ -22,7 +22,8 @@ import {FileType} from "Files/index";
 import * as H from 'history';
 import FileMetadataRetrieveAllResponse = file.orchestrator.FileMetadataRetrieveAllResponse;
 import FileMetadataAttached = file.orchestrator.FileMetadataAttached;
-import {associateBy, groupBy} from "Utilities/CollectionUtilities";
+import {groupBy} from "Utilities/CollectionUtilities";
+import * as UCloud from "UCloud";
 
 interface FileBrowserProps {
     initialPath?: string;
@@ -43,6 +44,34 @@ export interface CommonFileProps {
     onSelect?: (file: UFile) => void;
     selectFileRequirement?: FileType;
     metadata: Record<string, FileMetadataAttached[]>;
+    sorting: UseSorting<UCloud.file.orchestrator.FilesSortBy>;
+}
+
+interface UseSorting<T extends string> {
+    sortBy: T;
+    setSortBy: (val: T) => void;
+    sortOrder: UCloud.file.orchestrator.SortOrder;
+    setSortOrder: (val: UCloud.file.orchestrator.SortOrder) => void;
+}
+
+function useSorting<T extends string>(key: "files" | "jobs", defaultSortBy: T): UseSorting<T> {
+    const sortByKey = `${key}-sortBy`;
+    const sortOrderKey = `${key}-sortOrder`
+
+    const [_sortBy, _setSortBy] = React.useState(localStorage.getItem(sortByKey) as T ?? defaultSortBy);
+    const [_sortOrder, _setSortOrder] = React.useState((localStorage.getItem(sortOrderKey) ?? UCloud.file.orchestrator.SortOrder.DESCENDING) as UCloud.file.orchestrator.SortOrder);
+
+    return {sortBy: _sortBy, setSortBy, sortOrder: _sortOrder, setSortOrder};
+
+    function setSortBy(sortBy: T): void {
+        localStorage.setItem(sortByKey, sortBy)
+        _setSortBy(sortBy);
+    }
+
+    function setSortOrder(sortOrder: UCloud.file.orchestrator.SortOrder): void {
+        localStorage.setItem(sortOrderKey, sortOrder)
+        _setSortOrder(sortOrder);
+    }
 }
 
 const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
@@ -54,6 +83,9 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
     const path = pathFromProps ?? pathFromQuery ?? "/";
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [uploadPath, setUploadPath] = useGlobal("uploadPath", "/");
+
+    const sorting = useSorting("files", UCloud.file.orchestrator.FilesSortBy.PATH);
+
 
     const [files, fetchFiles] = useCloudAPI<PageV2<UFile>>({noop: true}, emptyPageV2);
     const [collections, fetchCollections] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
@@ -69,10 +101,10 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
         if (path === "/") {
             fetchCollections(collectionsApi.browse({provider: UCLOUD_PROVIDER, itemsPerPage: 50}));
         } else {
-            fetchFiles(filesApi.browse({itemsPerPage: 50, path}));
+            fetchFiles(filesApi.browse({itemsPerPage: 50, path, sortBy: sorting.sortBy, sortOrder: sorting.sortOrder}));
         }
         setGeneration(gen => gen + 1);
-    }, [path]);
+    }, [path, sorting.sortBy, sorting.sortOrder]);
 
     const loadMore = useCallback(() => {
         if (path === "/") {
@@ -82,7 +114,7 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
                 next: collections.data.next
             }));
         } else {
-            fetchFiles(filesApi.browse({itemsPerPage: 50, next: files.data.next, path}));
+            fetchFiles(filesApi.browse({itemsPerPage: 50, next: files.data.next, path, sortBy: UCloud.file.orchestrator.FilesSortBy.PATH, sortOrder: UCloud.file.orchestrator.SortOrder.DESCENDING}));
         }
     }, [path, files, collections]);
 
@@ -94,13 +126,14 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
         }
     }, [props.initialPath]);
 
-    useEffect(() => reload(), [path, projectId]);
+    useEffect(() => reload(), [path, projectId, sorting.sortBy, sorting.sortOrder]);
 
     useEffect(() => {
         setUploadPath(path);
     }, [path]);
 
     if (props.embedded !== true) { // NOTE(Dan): I know, we are breaking rules of hooks
+        // NOTE(Jonas): Can't we just move this to a separate function called `useOnNotEmbedded(embedded?: boolean)`?
         useTitle("Files");
         useSidebarPage(SidebarPages.Files);
         useLoading(files.loading || collections.loading || commandLoading);
@@ -118,7 +151,8 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
         onSelect: props.onSelect,
         selectFileRequirement: props.selectFileRequirement,
         history,
-        metadata: groupedMetadata
+        metadata: groupedMetadata,
+        sorting
     };
 
     if (path === "/") {
