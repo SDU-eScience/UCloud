@@ -1,22 +1,23 @@
 import * as React from "react";
-import {file} from "UCloud";
-import {Box, Flex, List} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {Operation, Operations} from "ui-components/Operation";
+import {Operation} from "ui-components/Operation";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useToggleSet} from "Utilities/ToggleSet";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import FileMetadataHistory = file.orchestrator.FileMetadataHistory;
-import {AppLogo, hashF} from "Applications/Card";
+import {ListRowStat} from "ui-components/List";
 import {History as MetadataHistory} from "./History";
 import ReactModal from "react-modal";
-import {defaultModalStyle, largeModalStyle} from "Utilities/ModalUtilities";
-import {default as TemplateBrowse} from "../Templates/Browse";
-import FileMetadataTemplate = file.orchestrator.FileMetadataTemplate;
+import {largeModalStyle} from "Utilities/ModalUtilities";
+import {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "UCloud/MetadataDocumentApi";
+import {FileMetadataTemplate} from "UCloud/MetadataNamespaceApi";
+import {MetadataNamespacesBrowse} from "Files/Metadata/Templates/Namespaces";
+import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
+import {SvgFt} from "ui-components/FtIcon";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {noopCall} from "Authentication/DataHook";
+import {useTraceUpdate} from "UtilityComponents";
 
 export const entityName = "Metadata";
 
-export const Browse: React.FunctionComponent<{
+export const MetadataBrowse: React.FunctionComponent<{
     path: string;
     metadata: FileMetadataHistory;
     reload: () => void;
@@ -42,6 +43,22 @@ export const Browse: React.FunctionComponent<{
         toggleSet.uncheckAll();
     }, [metadata]);
 
+    const rows: MetadataRow[] = useMemo(() => {
+        const rows: MetadataRow[] = [];
+        Object.entries(metadata.metadata).forEach(([key, docs]) => {
+            rows.push({
+                key,
+                docs,
+                template: metadata.templates[key]
+            });
+        });
+        return rows;
+    }, [metadata]);
+
+    const onNavigate = useCallback((row: MetadataRow) => {
+        setInspecting(row.key);
+    }, []);
+
     if (inspecting) {
         return <MetadataHistory metadata={metadata} reload={reload} template={metadata.templates[inspecting]}
                                 path={path} close={() => setInspecting(null)}/>;
@@ -50,54 +67,12 @@ export const Browse: React.FunctionComponent<{
                                 close={() => setCreatingForTemplate(null)}/>;
     }
 
-    return <Box>
-        <Flex mb={16} height={40}>
-            <Box flexGrow={1}><Heading.h3>Metadata</Heading.h3></Box>
-            <Operations location={"TOPBAR"} operations={operations} selected={toggleSet.checked.items}
-                        extra={callbacks}
-                        entityNameSingular={entityName} displayTitle={false}/>
-        </Flex>
-
-        <List>
-            {Object.entries(metadata.metadata).map(([k, v]) => {
-                    const allApproved = v.every(it =>
-                        it.type === "deleted" ||
-                        (
-                            it.type === "metadata" &&
-                            (it.status.approval.type === "not_required" || it.status.approval.type === "approved")
-                        )
-                    );
-
-                    return <ListRow
-                        key={k}
-                        isSelected={toggleSet.checked.has(k)}
-                        select={() => toggleSet.toggle(k)}
-                        navigate={() => setInspecting(k)}
-                        icon={<AppLogo hash={hashF(k)} size={"42px"}/>}
-                        left={metadata.templates[k].specification.title}
-                        leftSub={
-                            <ListStatContainer>
-                                <ListRowStat icon={"hourglass"}
-                                             children={`${v.length} version` + (v.length > 1 ? "s" : "")}/>
-                                {allApproved ?
-                                    <ListRowStat textColor={"green"} color={"green"} icon={"verified"}
-                                                 children={"All entries approved"}/>
-                                    :
-                                    <ListRowStat textColor={"red"} color={"red"} icon={"verified"}
-                                                 children={"Updates are pending approval"}/>
-                                }
-                            </ListStatContainer>
-                        }
-                        right={
-                            <Operations location={"IN_ROW"} operations={operations}
-                                        selected={toggleSet.checked.items}
-                                        extra={callbacks} entityNameSingular={entityName} row={k}/>
-                        }
-                    />;
-                }
-            )}
-        </List>
-
+    return <div>
+        <StandardList
+            generateCall={noopCall} renderer={fileMetadataRenderer} operations={operations}
+            embedded={"inline"} preloadedResources={rows} title={entityName} titlePlural={entityName}
+            extraCallbacks={callbacks} navigate={onNavigate}
+        />
         <ReactModal
             isOpen={lookingForTemplate}
             ariaHideApp={false}
@@ -105,9 +80,43 @@ export const Browse: React.FunctionComponent<{
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <TemplateBrowse embedded={true} onSelect={selectTemplate}/>
+            <MetadataNamespacesBrowse embedded={true} onTemplateSelect={selectTemplate}/>
         </ReactModal>
-    </Box>;
+    </div>;
+};
+
+interface MetadataRow {
+    key: string;
+    docs: FileMetadataDocumentOrDeleted[];
+    template: FileMetadataTemplate;
+}
+
+const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
+    Icon: ({size}) => <SvgFt width={size} height={size} type={"text"} ext={"meta"}
+                          color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+                          hasExt={true}/>,
+    MainTitle: ({resource}) => !resource ? null : <>{resource.template.title}</>,
+    Stats: ({resource}) => {
+        if (!resource) return null;
+        const allApproved = resource.docs.every(it =>
+            it.type === "deleted" ||
+            (
+                it.type === "metadata" &&
+                (it.status.approval.type === "not_required" || it.status.approval.type === "approved")
+            )
+        );
+        return <>
+            <ListRowStat icon={"hourglass"}
+                         children={`${resource.docs.length} version` + (resource.docs.length > 1 ? "s" : "")}/>
+            {allApproved ?
+                <ListRowStat textColor={"green"} color={"green"} icon={"verified"}
+                             children={"All entries approved"}/>
+                :
+                <ListRowStat textColor={"red"} color={"red"} icon={"verified"}
+                             children={"Updates are pending approval"}/>
+            }
+        </>;
+    }
 };
 
 interface Callbacks {
@@ -117,9 +126,9 @@ interface Callbacks {
     setLookingForTemplate: (looking: boolean) => void;
 }
 
-const operations: Operation<string, Callbacks>[] = [
+const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callbacks>[] = [
     {
-        text: `New ${entityName.toLowerCase()}`,
+        text: `Add ${entityName.toLowerCase()}`,
         primary: true,
         icon: "docs",
         enabled: (selected, cb) => selected.length === 0 && cb.inspecting == null,
@@ -137,4 +146,12 @@ const operations: Operation<string, Callbacks>[] = [
 
         }
     },
+    {
+        text: "Properties",
+        icon: "properties",
+        enabled: (selected) => selected.length === 1,
+        onClick: (selected, cb) => {
+            cb.setInspecting(selected[0].key);
+        }
+    }
 ];

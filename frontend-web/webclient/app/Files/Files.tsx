@@ -13,7 +13,7 @@ import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
 import {useCloudAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import * as H from "history";
-import {ResourceProperties} from "Resource/Properties";
+import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -26,7 +26,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
     const [pathFromState, setPathFromState] = useState(pathFromQuery);
     const path = props.embedded === true ? pathFromState : pathFromQuery;
-    const additionalFilters = useMemo((() => ({path})), [path]);
+    const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
 
@@ -88,24 +88,28 @@ export const FilesBrowse: React.FunctionComponent<{
         </>;
     }, [path, props.embedded, collection.data]);
 
+    const onRename = useCallback(async (text: String, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
+        await cb.invokeCommand(FilesApi.move(bulkRequestOf({
+            conflictPolicy: "REJECT",
+            oldId: res.id,
+            newId: getParentPath(res.id) + text
+        })));
+    }, []);
+
+    const onInlineCreation = useCallback((text: string) => {
+        return FilesApi.createFolder(bulkRequestOf({
+            id: removeTrailingSlash(path) + "/" + text,
+            conflictPolicy: "RENAME"
+        }));
+    }, []);
+
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
         embedded={props.embedded}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
-        onInlineCreation={((text) => {
-            return FilesApi.createFolder(bulkRequestOf({
-                id: removeTrailingSlash(path) + "/" + text,
-                conflictPolicy: "RENAME"
-            }));
-        })}
-        onRename={async (text, res, cb) => {
-            await cb.invokeCommand(FilesApi.move(bulkRequestOf({
-                conflictPolicy: "REJECT",
-                oldId: res.id,
-                newId: getParentPath(res.id) + text
-            })));
-        }}
+        onInlineCreation={onInlineCreation}
+        onRename={onRename}
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={breadcrumbsComponent}

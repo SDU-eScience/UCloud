@@ -5,9 +5,7 @@ import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.ListSerializer
-import kotlin.native.concurrent.SharedImmutable
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.reflect.typeOf
 

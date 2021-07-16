@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {device, deviceBreakpoint} from "ui-components/Hide";
-import {Resource, ResourceApi, ResourceBrowseCallbacks, ResourceUpdate} from "UCloud/ResourceApi";
+import {Resource, ResourceApi, ResourceBrowseCallbacks, ResourceUpdate, UCLOUD_CORE} from "UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
@@ -17,7 +17,7 @@ import {dateToTimeOfDayString} from "Utilities/DateUtilities";
 import MainContainer from "MainContainer/MainContainer";
 import {Operations} from "ui-components/Operation";
 import {ResourcePermissionEditor} from "Resource/PermissionEditor";
-import {useParams} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "Resource/Search";
 import {useDispatch} from "react-redux";
 
@@ -158,6 +158,8 @@ interface PropertiesProps<Res extends Resource> {
     showMessages?: boolean;
     showPermissions?: boolean;
     showProperties?: boolean;
+
+    flagsForRetrieve?: Record<string, any>;
 }
 
 export function ResourceProperties<Res extends Resource>(
@@ -170,6 +172,7 @@ export function ResourceProperties<Res extends Resource>(
     const [commandLoading, invokeCommand] = useCloudCommand();
     const {id} = useParams<{ id?: string }>();
     const dispatch = useDispatch();
+    const history = useHistory();
     const requestedId = props.resource === undefined ?
         (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :
         typeof props.resource === "string" ? props.resource : props.resource.id;
@@ -189,9 +192,10 @@ export function ResourceProperties<Res extends Resource>(
             id: requestedId,
             includeUpdates: true,
             includeOthers: true,
-            includeSupport: true
+            includeSupport: true,
+            ...props.flagsForRetrieve
         }));
-    }, [props.resource, projectId, props.reload]);
+    }, [props.resource, projectId, props.reload, props.flagsForRetrieve]);
 
     const infoChildrenResolved = useMemo(() => {
         if (props.InfoChildren && ownResource.data) {
@@ -219,8 +223,9 @@ export function ResourceProperties<Res extends Resource>(
         reload,
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
-        dispatch
-    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch]);
+        dispatch,
+        history
+    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch, history]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 
@@ -232,12 +237,14 @@ export function ResourceProperties<Res extends Resource>(
         useResourceSearch(api);
     }
 
+    const renderer = api.renderer;
+
     const main = resource ? <>
         <Container className={"RUNNING active"}>
             <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
-                        {!api.IconRenderer ? null : <api.IconRenderer resource={resource} size={"200px"}/>}
+                        {!renderer.Icon ? null : <renderer.Icon resource={resource} size={"200px"}/>}
                     </div>
                 </div>
             </div>
@@ -249,8 +256,8 @@ export function ResourceProperties<Res extends Resource>(
                     <div className={"header-text"}>
                         <div>
                             <Heading.h2>
-                                {!api.TitleRenderer ? null : <>
-                                    <api.TitleRenderer resource={resource}/>
+                                {!renderer.MainTitle ? null : <>
+                                    <renderer.MainTitle resource={resource}/>
                                 </>}
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>
@@ -275,11 +282,13 @@ export function ResourceProperties<Res extends Resource>(
                         <DashboardCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
                             <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                                 <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
-                                <Box>
-                                    <b>Product: </b>
-                                    {resource.specification.product.id} / {resource.specification.product.category}
-                                </Box>
-                                <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
+                                {resource.specification.product.provider === UCLOUD_CORE ? null : <>
+                                    <Box>
+                                        <b>Product: </b>
+                                        {resource.specification.product.id} / {resource.specification.product.category}
+                                    </Box>
+                                    <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
+                                </>}
                                 <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
                             </Flex>
                         </DashboardCard>

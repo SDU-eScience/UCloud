@@ -302,6 +302,7 @@ data class UFileSpecification(
 sealed class FileMetadataOrDeleted {
     abstract val status: FileMetadataDocument.Status
     abstract val createdAt: Long
+    abstract val createdBy: String
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use")
@@ -313,7 +314,7 @@ sealed class FileMetadataOrDeleted {
         @UCloudApiDoc("Timestamp indicating when this change was made")
         override val createdAt: Long,
         @UCloudApiDoc("A reference to the user who made this change")
-        val createdBy: String,
+        override val createdBy: String,
         override val status: FileMetadataDocument.Status
     ) : FileMetadataOrDeleted()
 }
@@ -323,38 +324,28 @@ sealed class FileMetadataOrDeleted {
 @Serializable
 @SerialName("metadata")
 data class FileMetadataDocument(
-    override val id: String,
-    override val specification: Spec,
+    val id: String,
+    val specification: Spec,
     override val createdAt: Long,
     override val status: Status,
-    override val updates: List<ResourceUpdate>,
-    override val owner: ResourceOwner,
-) : FileMetadataOrDeleted(), Resource<Product, ProductSupport> {
-    @Contextual
-    override val acl: Nothing? = null
-    override val permissions: ResourcePermissions? = null
-
-    override val billing: ResourceBilling.Free = ResourceBilling.Free
-
+    override val createdBy: String
+) : FileMetadataOrDeleted(){
     @Serializable
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
+        @UCloudApiDoc("The version of the `FileMetadataTemplate` that this document conforms to")
+        val version: String,
         @UCloudApiDoc("The document which fills out the template")
         val document: JsonObject,
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
-    ) : ResourceSpecification {
-        @Contextual
-        override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
-    }
+    )
 
     @Serializable
     data class Status(
         val approval: ApprovalStatus,
-        override var resolvedSupport: ResolvedSupport<Product, ProductSupport>? = null,
-        override var resolvedProduct: Product? = null,
-    ) : ResourceStatus<Product, ProductSupport>
+    )
 
     @Serializable
     sealed class ApprovalStatus {
@@ -364,7 +355,7 @@ data class FileMetadataDocument(
 
         @Serializable
         @SerialName("pending")
-        class Pending() : ApprovalStatus()
+        object Pending : ApprovalStatus()
 
         @Serializable
         @SerialName("rejected")
@@ -372,7 +363,7 @@ data class FileMetadataDocument(
 
         @Serializable
         @SerialName("not_required")
-        class NotRequired : ApprovalStatus()
+        object NotRequired : ApprovalStatus()
     }
 }
 

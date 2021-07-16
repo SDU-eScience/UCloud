@@ -1,18 +1,22 @@
 import * as React from "react";
-import * as Pagination from "Pagination";
-import {ResolvedSupport, Resource, ResourceApi, ResourceBrowseCallbacks, SupportByProvider} from "UCloud/ResourceApi";
+import {
+    ResolvedSupport,
+    Resource,
+    ResourceApi,
+    ResourceBrowseCallbacks,
+    SupportByProvider,
+    UCLOUD_CORE
+} from "UCloud/ResourceApi";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {accounting, PageV2} from "UCloud";
+import {accounting} from "UCloud";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf} from "DefaultObjects";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useProjectId} from "Project";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import {PageRenderer} from "Pagination/PaginationV2";
 import {Box, List} from "ui-components";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
+import {ListRowStat} from "ui-components/List";
 import {Operation, Operations} from "ui-components/Operation";
 import {dateToString} from "Utilities/DateUtilities";
 import MainContainer from "MainContainer/MainContainer";
@@ -20,10 +24,9 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
-import {ResourceProperties} from "Resource/Properties";
 import * as Heading from "ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
 import {ResourceFilter} from "Resource/Filter";
@@ -31,7 +34,7 @@ import {useResourceSearch} from "Resource/Search";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
-import ProductReference = accounting.ProductReference;
+import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
 
 export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -50,6 +53,7 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
 
     navigateToChildren?: (history: H.History, resource: Res) => void;
     emptyPage?: JSX.Element;
+    propsForInlineResources?: Record<string, any>;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -68,12 +72,8 @@ export const ResourceBrowse = <Res extends Resource>(
         {productsByProvider: {}})
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
-    const [resources, fetchResources] = useCloudAPI<PageV2<Res>>({noop: true}, emptyPageV2);
-    const [renaming, setRenaming] = useState<Res | null>(null);
     const [renamingValue, setRenamingValue] = useState("");
-    const [infScroll, setInfScroll] = useState(0);
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const projectId = useProjectId();
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("ascending");
     const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
@@ -81,7 +81,8 @@ export const ResourceBrowse = <Res extends Resource>(
     const location = useLocation();
     const query = getQueryParamOrElse(location.search, "q", "");
 
-    const toggleSet = useToggleSet(resources.data.items);
+    const reloadRef = useRef<() => void>(doNothing);
+    const toggleSet = useToggleSet<Res>([]);
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
@@ -89,6 +90,17 @@ export const ResourceBrowse = <Res extends Resource>(
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
+    useEffect(() => fetchProductsWithSupport(api.retrieveProducts()), []);
+    const renaming = useRenamingState<Res>(
+        () => renamingValue, [renamingValue],
+        (a, b) => a.id === b.id, [],
+
+        async (item, text) => {
+            await props.onRename?.(text, item, callbacks);
+            callbacks.reload();
+        },
+        [props.onRename]
+    );
 
     const products: Product[] = useMemo(() => {
         const allProducts: Product[] = [];
@@ -109,57 +121,44 @@ export const ResourceBrowse = <Res extends Resource>(
         return null;
     }, [selectedProduct, productsWithSupport]);
 
-    const reload = useCallback(() => {
-        setInfScroll(prev => prev + 1);
-        fetchProductsWithSupport(api.retrieveProducts());
+    const generateFetch = useCallback((next?: string): APICallParameters => {
         if (props.isSearch) {
-            fetchResources(api.search({
+            return api.search({
                 itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                sortDirection, sortBy: sortColumn, ...props.additionalFilters
-            }));
+                next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
+            });
         } else {
-            fetchResources(api.browse({
-                itemsPerPage: 50, includeOthers, ...filters, sortBy: sortColumn,
-                sortDirection, ...props.additionalFilters
-            }));
+            return api.browse({
+                next, itemsPerPage: 50, includeOthers,
+                ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
+            });
         }
-        toggleSet.uncheckAll();
-    }, [projectId, filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
+    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
 
-    const loadMore = useCallback(() => {
-        if (resources.data.next) {
-            if (props.isSearch) {
-                fetchResources(api.search({
-                    itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
-                    next: resources.data.next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
-                }));
-            } else {
-                fetchResources(api.browse({
-                    next: resources.data.next, itemsPerPage: 50, includeOthers,
-                    ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
-                }));
-            }
-        }
-    }, [resources.data.next, filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
-
-    useEffectSkipMount(() => {
-        reload();
-    }, [reload, props.additionalFilters]);
     useEffectSkipMount(() => {
         setSelectedProduct(props.inlineProduct ?? null);
     }, [props.inlineProduct]);
+
+    const viewProperties = useCallback((res: Res) => {
+        if (props.embedded) {
+            setInlineInspecting(res);
+        } else {
+            history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+        }
+    }, [setInlineInspecting, props.embedded, history, api]);
 
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
         isCreating,
         invokeCommand,
         commandLoading,
-        reload,
+        reload: () => reloadRef.current(),
         embedded: props.embedded == true,
         onSelect,
         dispatch,
+        history,
         startRenaming: (res, value) => {
-            setRenaming(res);
+            renaming.setRenaming(res);
             setRenamingValue(value);
         },
         startCreation: () => {
@@ -168,15 +167,9 @@ export const ResourceBrowse = <Res extends Resource>(
                 setIsCreating(true);
             }
         },
-        viewProperties: res => {
-            if (props.embedded) {
-                setInlineInspecting(res);
-            } else {
-                history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
-            }
-        }
-    }), [api, invokeCommand, commandLoading, reload, isCreating, props.onInlineCreation, history, dispatch,
-        props.inlineProduct]);
+        viewProperties
+    }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
+        viewProperties, props.inlineProduct]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
@@ -215,16 +208,6 @@ export const ResourceBrowse = <Res extends Resource>(
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
-    const renameInputRef = useRef<HTMLInputElement>(null);
-    const onRename = useCallback(async () => {
-        const text = renameInputRef.current?.value;
-        if (text && renaming) {
-            await props.onRename?.(text, renaming, callbacks);
-            callbacks.reload();
-            setRenaming(null);
-        }
-    }, [props.onRename, renaming, callbacks]);
-
     const operations: Operation<Res, ResourceBrowseCallbacks<Res>>[] = useMemo(() => {
         return api.retrieveOperations();
     }, [callbacks, api]);
@@ -233,41 +216,59 @@ export const ResourceBrowse = <Res extends Resource>(
         setSortColumn(column);
         setSortDirection(dir)
     }, []);
+
+    const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
+        const renderer: ItemRenderer<Res> = {...api.renderer};
+        const RemainingStats = renderer.Stats;
+        const NormalMainTitle = renderer.MainTitle;
+        renderer.MainTitle = ({resource}) => {
+            if (resource === undefined) {
+                return !selectedProduct ?
+                    <ProductSelector products={products} onProductSelected={onProductSelected}/>
+                    :
+                    <NamingField
+                        confirmText={"Create"}
+                        onCancel={() => setIsCreating(false)}
+                        onSubmit={onInlineCreate}
+                        inputRef={inlineInputRef}
+                        prefix={props.inlinePrefix && selectedProductWithSupport ?
+                            props.inlinePrefix(selectedProductWithSupport) : null}
+                        suffix={props.inlineSuffix && selectedProductWithSupport ?
+                            props.inlineSuffix(selectedProductWithSupport) : null}
+                    />;
+            } else {
+                return NormalMainTitle ? <NormalMainTitle resource={resource}/> : null;
+            }
+        };
+        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
+            {!resource ? <>
+                <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
+                <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
+                {!selectedProduct ? null : <>
+                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.id} / {selectedProduct.category.id}</ListRowStat>
+                </>}
+            </> : <>
+                <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>
+                <ListRowStat icon={"user"}>{resource.owner.createdBy}</ListRowStat>
+                {resource.specification.product.provider === UCLOUD_CORE ? null :
+                    <ListRowStat icon={"cubeSolid"}>
+                        {resource.specification.product.id} / {resource.specification.product.category}
+                    </ListRowStat>
+                }
+            </>}
+            {RemainingStats ? <RemainingStats resource={resource}/> : null}
+        </>) : renderer.Stats;
+        return renderer;
+    }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
+        onInlineCreate, inlineInputRef, selectedProductWithSupport]);
+
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false}>
             {!isCreating ? null :
-                <ListRow
-                    icon={api.IconRenderer ? <api.IconRenderer resource={null} size={"36px"}/> : null}
-                    left={
-                        !selectedProduct ?
-                            <ProductSelector products={products} onProductSelected={onProductSelected}/>
-                            :
-                            <NamingField
-                                confirmText={"Create"}
-                                onCancel={() => setIsCreating(false)}
-                                onSubmit={onInlineCreate}
-                                inputRef={inlineInputRef}
-                                prefix={props.inlinePrefix && selectedProductWithSupport ?
-                                    props.inlinePrefix(selectedProductWithSupport) : null}
-                                suffix={props.inlineSuffix && selectedProductWithSupport ?
-                                    props.inlineSuffix(selectedProductWithSupport) : null}
-                            />
-                    }
-                    leftSub={
-                        <ListStatContainer>
-                            {props.withDefaultStats === true || !selectedProduct ? null :
-                                <>
-                                    <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
-                                    <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
-                                    <ListRowStat icon={"cubeSolid"}>
-                                        {selectedProduct.id} / {selectedProduct.category.id}
-                                    </ListRowStat>
-                                </>
-                            }
-
-                        </ListStatContainer>
-                    }
-                    right={null}
+                <ItemRow
+                    renderer={modifiedRenderer as ItemRenderer<unknown>}
+                    itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
+                    operations={operations} callbacks={callbacks}
                 />
             }
             {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
@@ -277,73 +278,37 @@ export const ResourceBrowse = <Res extends Resource>(
                 </>
             }
             {items.map(it =>
-                <ListRow
+                <ItemRow
                     key={it.id}
-                    icon={api.IconRenderer ? <api.IconRenderer resource={it} size={"36px"}/> : null}
-                    left={
-                        renaming?.id === it.id ?
-                            <NamingField onCancel={() => setRenaming(null)} confirmText={"Rename"}
-                                         inputRef={renameInputRef} onSubmit={onRename} defaultValue={renamingValue}/>
-                            : api.InlineTitleRenderer ?
-                            <api.InlineTitleRenderer resource={it}/> : <>{api.title} ({it.id})</>}
-                    isSelected={toggleSet.checked.has(it)}
-                    select={() => toggleSet.toggle(it)}
-                    navigate={() => props.navigateToChildren?.(history, it)}
-                    leftSub={
-                        <ListStatContainer>
-                            {props.withDefaultStats !== false ?
-                                <>
-                                    <ListRowStat icon={"calendar"}>{dateToString(it.createdAt)}</ListRowStat>
-                                    <ListRowStat icon={"user"}>{it.owner.createdBy}</ListRowStat>
-                                    <ListRowStat icon={"cubeSolid"}>
-                                        {it.specification.product.id} / {it.specification.product.category}
-                                    </ListRowStat>
-                                </> : null
-                            }
-                            {api.StatsRenderer ? <api.StatsRenderer resource={it}/> : null}
-                        </ListStatContainer>
-                    }
-                    right={
-                        <>
-                            {api.ImportantStatsRenderer ? <api.ImportantStatsRenderer resource={it}/> : null}
-                            <Operations
-                                selected={toggleSet.checked.items}
-                                location={"IN_ROW"}
-                                entityNameSingular={api.title}
-                                entityNamePlural={api.titlePlural}
-                                extra={callbacks}
-                                operations={operations}
-                                row={it}
-                            />
-                        </>
-                    }
+                    navigate={() => {
+                        if (props.navigateToChildren) {
+                            props.navigateToChildren?.(history, it)
+                        } else {
+                            viewProperties(it);
+                        }
+                    }}
+                    renderer={modifiedRenderer as ItemRenderer<unknown>} callbacks={callbacks} operations={operations}
+                    item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
+                    renaming={renaming}
                 />
             )}
         </List>
-    }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming]);
-
-    useEffect(() => reload(), [projectId, query]);
+    }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
+        viewProperties]);
 
     if (!props.embedded) {
         useTitle(api.titlePlural);
-        useLoading(commandLoading || resources.loading);
-        useRefreshFunction(reload);
+        useLoading(commandLoading);
         useSidebarPage(api.page);
         useResourceSearch(api);
     }
 
     const main = !inlineInspecting ? <>
-        <Pagination.ListV2
-            page={resources.data}
-            onLoadMore={loadMore}
-            infiniteScrollGeneration={infScroll}
-            loading={resources.loading}
-            pageRenderer={pageRenderer}
-            customEmptyPage={pageRenderer([])}
-        />
+        <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+            setRefreshFunction={props.embedded != true}/>
     </> : <>
-        <api.Properties api={api} resource={inlineInspecting} reload={reload} embedded={true}
-                        closeProperties={closeProperties}/>
+        <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
+                        closeProperties={closeProperties} {...props.propsForInlineResources}/>
     </>;
 
     if (props.embedded) {
@@ -376,7 +341,7 @@ export const ResourceBrowse = <Res extends Resource>(
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                                         sortEntries={api.sortEntries} sortDirection={sortDirection}
                                         onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        onApplyFilters={reload}/>
+                                        onApplyFilters={reloadRef.current}/>
                     </>
             }
         />

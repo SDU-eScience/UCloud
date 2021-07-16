@@ -58,7 +58,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     width: ${props => props.width};
     ${props => props.minWidth ? `min-width: ${props.minWidth};` : "min-width: 138px;"}
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
-    z-index: 47;
+    z-index: 1000;
     text-align: left;
     cursor: ${props => props.cursor};
     visibility: ${props => props.visible ? "visible" : "hidden"};

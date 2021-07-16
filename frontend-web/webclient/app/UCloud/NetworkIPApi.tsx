@@ -16,6 +16,7 @@ import {JobBinding} from "UCloud/JobsApi";
 import PortRangeAndProto = compute.PortRangeAndProto;
 import {ResourceProperties} from "Resource/Properties";
 import {FirewallEditor} from "Applications/NetworkIP/FirewallEditor";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -60,10 +61,13 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNS.NetworkIP, NetworkIP
     title = "Public IP";
     page = SidebarPages.Runs;
 
-    InlineTitleRenderer = ({resource}) =>
-        <>{(resource as NetworkIP).status.ipAddress ?? (resource as NetworkIP).id.toString()}</>
-    IconRenderer = ({size}) => <Icon name={"networkWiredSolid"} size={size}/>
-    TitleRenderer = this.InlineTitleRenderer;
+    renderer: ItemRenderer<NetworkIP> = {
+        MainTitle: ({resource}) =>
+            !resource ? <>Public IP</> :
+            <>{resource.status.ipAddress ?? resource.id.toString()}</>,
+        Icon: ({size}) => <Icon name={"networkWiredSolid"} size={size}/>
+    };
+
     Properties = (props) => {
         console.log(props);
         return <ResourceProperties

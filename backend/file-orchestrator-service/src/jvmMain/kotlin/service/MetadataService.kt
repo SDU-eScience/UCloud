@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -18,8 +21,8 @@ import java.util.*
 
 class MetadataService(
     private val db: DBContext,
-    private val projects: ProjectCache,
-    private val templateService: MetadataTemplates,
+    private val collections: FileCollectionService,
+    private val templates: MetadataTemplateNamespaces,
 ) {
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun create(
@@ -27,24 +30,32 @@ class MetadataService(
         request: FileMetadataAddMetadataRequest,
         ctx: DBContext = this.db,
     ) {
-        // TODO We cannot verify if a user is actually allowed to write to any given file
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername()).userStatus
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-        if (actorAndProject.project != null) {
-            val isMember = projectStatus.membership.any { it.projectId == actorAndProject.project }
-            if (!isMember) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
-            for (reqItem in request.items) {
-                val template = templateService.retrieve(
-                    actorAndProject,
-                    FileMetadataTemplatesRetrieveRequest(reqItem.metadata.templateId),
-                    session
-                )
+            // NOTE(Dan): Confirm that the user, at least, has edit permissions for the collection. This doesn't
+            // guarantee that the user can actually change the affected file but UCloud simply has no way of knowing
+            // if this is possible. Maybe we can introduce a verification step later which is done by the provider.
+            // For the initial version I think this is enough.
+            val collectionIds = request.items.map { extractPathMetadata(it.id).collection }
+            collections.retrieveBulk(
+                actorAndProject,
+                collectionIds,
+                listOf(Permission.Edit),
+                ctx = session,
+                useProject = true
+            )
 
-                val schema = jacksonMapper.readTree(defaultMapper.encodeToString(template.specification.schema))
+            val templateVersions =
+                request.items.map { FileMetadataTemplateAndVersion(it.metadata.templateId, it.metadata.version) }
+            val templates = templates.retrieveTemplate(actorAndProject, BulkRequest(templateVersions), ctx = session)
+                .responses.associateBy { FileMetadataTemplateAndVersion(it.namespaceId, it.version) }
+
+            // TODO(Dan): Performance could be made a lot better by batching requests together and making fewer
+            //  sql queries
+
+            for ((index, reqItem) in request.items.withIndex()) {
+                val template = templates[templateVersions[index]]
+                    ?: error("`templates` value is not correct! ${templates} ${templateVersions} $index")
+                val schema = jacksonMapper.readTree(defaultMapper.encodeToString(template.schema))
                 val encodedDocument = defaultMapper.encodeToString(reqItem.metadata.document)
                 val document = jacksonMapper.readTree(encodedDocument)
 
@@ -53,15 +64,15 @@ class MetadataService(
                     throw RPCException("Supplied metadata is not valid", HttpStatusCode.BadRequest)
                 }
 
-                val workspace = when (template.specification.namespaceType) {
+                val workspace = when (template.namespaceType) {
                     FileMetadataTemplateNamespaceType.PER_USER -> actorAndProject.actor.safeUsername()
                     else -> actorAndProject.project ?: actorAndProject.actor.safeUsername()
                 }
 
                 val isWorkspaceProject = actorAndProject.project != null &&
-                    template.specification.namespaceType != FileMetadataTemplateNamespaceType.PER_USER
+                    template.namespaceType != FileMetadataTemplateNamespaceType.PER_USER
 
-                if (!template.specification.requireApproval) {
+                if (!template.requireApproval) {
                     session
                         .sendPreparedStatement(
                             {
@@ -84,11 +95,10 @@ class MetadataService(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("id", UUID.randomUUID().toString())
                             setParameter("path", reqItem.id.normalize())
                             setParameter("parent_path", reqItem.id.parent().normalize())
                             setParameter("template_id", reqItem.metadata.templateId)
-                            setParameter("template_version", template.specification.version)
+                            setParameter("template_version", template.version)
                             setParameter("document", encodedDocument)
                             setParameter("change_log", reqItem.metadata.changeLog)
                             setParameter("created_by", actorAndProject.actor.safeUsername())
@@ -97,16 +107,18 @@ class MetadataService(
                             setParameter("is_workspace_project", isWorkspaceProject)
                             setParameter(
                                 "approval_type",
-                                if (template.specification.requireApproval) "pending"
+                                if (template.requireApproval) "pending"
                                 else "not_required"
                             )
-                            setParameter("is_latest", !template.specification.requireApproval)
+                            setParameter("is_latest", !template.requireApproval)
                         },
                         """
                             insert into file_orchestrator.metadata_documents
+                            (path, parent_path, template_id, template_version, is_deletion, document, change_log,
+                             created_by, workspace, is_workspace_project, latest, approval_type, created_at,
+                             approval_updated_by)
                             values
                             (
-                                :id,
                                 :path,
                                 :parent_path,
                                 :template_id,
@@ -119,8 +131,8 @@ class MetadataService(
                                 :is_workspace_project,
                                 :is_latest,
                                 :approval_type,
-                                null,
-                                now()
+                                now(),
+                                null
                             )
                         """
                     )
@@ -133,17 +145,14 @@ class MetadataService(
         parentPath: String,
         ctx: DBContext = this.db,
     ): List<FileMetadataAttached> {
-        // TODO We cannot verify if a user is actually allowed to write to any given file
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername()).userStatus
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-        if (actorAndProject.project != null) {
-            val isMember = projectStatus.membership.any { it.projectId == actorAndProject.project }
-            if (!isMember) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         return ctx.withSession { session ->
             val normalizedPath = parentPath.normalize()
+            collections.retrieveBulk(
+                actorAndProject,
+                listOf(extractPathMetadata(normalizedPath).collection),
+                listOf(Permission.Read),
+                ctx = session
+            )
             session
                 .sendPreparedStatement(
                     {
@@ -198,6 +207,12 @@ class MetadataService(
         val parent = parentPath.normalize()
         val normalizedParentPath = parent.removeSuffix("/") + "/"
         return ctx.withSession { session ->
+            collections.retrieveBulk(
+                actorAndProject,
+                listOf(extractPathMetadata(parent).collection),
+                listOf(Permission.Read),
+                ctx = session
+            )
             val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
             val templates = HashMap<String, FileMetadataTemplate>()
 
@@ -213,13 +228,12 @@ class MetadataService(
                         select 
                             d.path,
                             file_orchestrator.metadata_document_to_json(d) as document,
-                            file_orchestrator.metadata_template_to_json(mt, mts) as template
+                            file_orchestrator.metadata_template_to_json(ns, mt) as template
                         from 
                             file_orchestrator.metadata_documents d join 
-                            metadata_template_specs mts on 
-                                mts.template_id = d.template_id and 
-                                mts.version = d.template_version join 
-                            metadata_templates mt on mt.id = d.template_id
+                            file_orchestrator.metadata_template_namespaces ns on ns.resource = d.template_id join
+                            file_orchestrator.metadata_templates mt
+                                on ns.resource = mt.namespace and mt.uversion = d.template_version
                         where
                             (
                                 :paths::text[] is null or 
@@ -249,13 +263,13 @@ class MetadataService(
                         defaultMapper.decodeFromString<FileMetadataOrDeleted>(row.getString("document")!!)
                     val template = defaultMapper.decodeFromString<FileMetadataTemplate>(row.getString("template")!!)
 
-                    templates[template.id] = template
+                    templates[template.namespaceId] = template
 
                     val existing = metadata[path] ?: HashMap()
-                    val existingHistory = existing[template.id] ?: ArrayList()
+                    val existingHistory = existing[template.namespaceId] ?: ArrayList()
 
                     existingHistory.add(metadataOrDeleted)
-                    existing[template.id] = existingHistory
+                    existing[template.namespaceId] = existingHistory
                     metadata[path] = existing
                 }
 

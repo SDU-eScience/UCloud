@@ -7,7 +7,6 @@ import io.ktor.http.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.serializer
@@ -109,7 +108,8 @@ private fun CallDescriptionContainer.httpCreateExample() {
  * On HTTP this will apply the following routing logic:
  *
  * - Method: `GET`
- * - Path: `${baseContext}/browse`
+ * - Path (no subresource): `${baseContext}/browse`
+ * - Path (with subresource): `${baseContext/browse${subResource}`
  *
  * The entire request payload will be bound to the query parameters of the request.
  *
@@ -120,6 +120,7 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
     serializer: KSerializer<R>,
     type: KType,
     baseContext: String,
+    subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
@@ -132,7 +133,7 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
 
         path {
             using(baseContext)
-            +UCloudApi.BROWSE
+            +(UCloudApi.BROWSE + (subResource ?: "").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
         }
 
         if (type != typeOf<Unit>()) {
@@ -156,9 +157,10 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
 
 inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
     baseContext: String,
-    roles: Set<Role> = Roles.END_USER,
+    subResource: String? = null,
+    roles: Set<Role> = Roles.END_USER
 ) {
-    httpBrowse(containerRef.fixedSerializer(), typeOf<R>(), baseContext, roles)
+    httpBrowse(containerRef.fixedSerializer(), typeOf<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpBrowseExample() {
@@ -219,7 +221,7 @@ fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         path {
             using(baseContext)
-            +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
+            +"${UCloudApi.RETRIEVE}${subResource?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: ""}"
         }
 
         if (type != typeOf<Unit>()) {

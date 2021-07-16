@@ -562,6 +562,9 @@ export function parseJWT(encodedJWT: string): JWT | null {
     return parsed;
 }
 
+export type EmptyObject = {
+    [K in any] : never
+}
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
 export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
 export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
@@ -597,4 +600,9 @@ export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), 
 export function isAbsoluteUrl(url: string): boolean {
     return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
+}
+
+export function capitalize(text: string): string {
+    if (text.length === 0) return text;
+    return text[0].toUpperCase() + text.substr(1);
 }

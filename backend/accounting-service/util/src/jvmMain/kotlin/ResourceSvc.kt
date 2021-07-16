@@ -38,6 +38,7 @@ interface ResourceSvc<
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Spec>,
+        ctx: DBContext? = null,
     ): BulkResponse<FindByStringId?> {
         throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }

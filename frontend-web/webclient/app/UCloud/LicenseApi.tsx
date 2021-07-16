@@ -13,6 +13,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
 import {CheckboxFilter, DateRangeFilter, EnumFilter, TextFilter} from "Resource/Filter";
 import {JobBinding} from "UCloud/JobsApi";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface LicenseSpecification extends ResourceSpecification {
 }
@@ -46,10 +47,11 @@ class LicenseApi extends ResourceApi<License, ProductNS.License, LicenseSpecific
     title = "Software License";
     page = SidebarPages.Runs;
 
-    InlineTitleRenderer = ({resource}) =>
-        <>{(resource as License).specification.product.id} ({(resource as License).id})</>
-    IconRenderer = ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
-    TitleRenderer = this.InlineTitleRenderer;
+    renderer: ItemRenderer<License> = {
+        MainTitle: ({resource}) =>
+            resource ? <>{resource.specification.product.id} ({(resource as License).id})</> : <></>,
+        Icon: ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
+    };
 
     constructor() {
         super("licenses");

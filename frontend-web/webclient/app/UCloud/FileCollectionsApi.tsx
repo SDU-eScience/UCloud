@@ -14,6 +14,7 @@ import {accounting} from "UCloud/index";
 import ProductNS = accounting.ProductNS;
 import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface FileCollection extends Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification> {
 
@@ -65,9 +66,10 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductNS.Storage, 
     title = "Drive";
     page = SidebarPages.Files;
 
-    InlineTitleRenderer = ({resource}) => <>{(resource as FileCollection).specification.title}</>;
-    IconRenderer = ({resource, size}) => <Icon name={"ftFileSystem"} size={size}/>
-    TitleRenderer = this.InlineTitleRenderer;
+    renderer: ItemRenderer<FileCollection> = {
+        MainTitle: ({resource}) => <>{resource?.specification?.title ?? ""}</>,
+        Icon: ({resource, size}) => <Icon name={"ftFileSystem"} size={size}/>
+    };
 
     constructor() {
         super("files.collections");

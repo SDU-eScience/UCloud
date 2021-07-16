@@ -9,23 +9,28 @@ import {
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
 import {accounting, BulkRequest, file} from "UCloud/index";
-import FileMetadataHistory = file.orchestrator.FileMetadataHistory;
 import {FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
-import {FtIcon} from "ui-components";
+import {Box, Button, FtIcon, Link} from "ui-components";
 import * as React from "react";
-import {fileName} from "Utilities/FileUtilities";
-import * as H from "history";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {fileName, getParentPath, readableUnixMode, sizeToString} from "Utilities/FileUtilities";
 import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
 import {Operation} from "ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
 import FilesCreateDownloadRequestItem = file.orchestrator.FilesCreateDownloadRequestItem;
 import {bulkRequestOf} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import Files, {FilesBrowse} from "Files/Files";
+import {FilesBrowse} from "Files/Files";
 import {ResourceProperties} from "Resource/Properties";
+import {ItemRenderer} from "ui-components/Browse";
+import {DashboardCard} from "Dashboard/Dashboard";
+import {MetadataBrowse} from "Files/Metadata/Documents/Browse";
+import {FileMetadataHistory} from "UCloud/MetadataDocumentApi";
+import {FileFavoriteToggle} from "Files/FavoriteToggle";
+import {PrettyFilePath} from "Files/FilePath";
+import {dateToString} from "Utilities/DateUtilities";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
 
@@ -94,22 +99,84 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
 
     idIsUriEncoded = true;
 
-    InlineTitleRenderer = ({resource}) => <>{fileName((resource as UFile).id)}</>;
-    TitleRenderer = this.InlineTitleRenderer;
-    IconRenderer = (props: { resource: UFile | null, size: string }) => {
-        if (!props.resource) {
-            return <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size}/>;
+    renderer: ItemRenderer<UFile> = {
+        MainTitle: ({resource}) => <>{resource ? fileName(resource.id) : ""}</>,
+        Icon: (props: { resource?: UFile, size: string }) => {
+            const file = props.resource;
+            const favoriteComponent = parseInt(props.size.replace("px", "")) > 40 ? null :
+                <FileFavoriteToggle file={file}/>;
+            const icon = !file ?
+                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size}/> :
+                <FtIcon
+                    iconHint={file.status.icon}
+                    fileIcon={{type: file.status.type, ext: extensionFromPath(fileName(file.id))}}
+                    size={props.size}
+                />;
+            return <>{favoriteComponent}{icon}</>
         }
-        return <FtIcon
-            iconHint={props.resource.status.icon}
-            fileIcon={{type: props.resource.status.type, ext: extensionFromPath(fileName(props.resource.id))}}
-            size={props.size}
-        />
     };
+
+    private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
+        includeMetadata: true,
+        includeSizes: true,
+        includeTimestamps: true,
+        includeUnixInfo: true
+    };
+
     Properties = (props) => {
         return <ResourceProperties
             {...props} api={this}
-            showMessages={false} showPermissions={false}
+            showMessages={false} showPermissions={false} showProperties={false}
+            flagsForRetrieve={this.defaultRetrieveFlags}
+            InfoChildren={props => {
+                const file = props.resource as UFile;
+                return <>
+                    <DashboardCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
+                        <div><b>Path:</b> <PrettyFilePath path={file.id}/></div>
+                        <div>
+                            <b>Product: </b>
+                            {file.specification.product.id} / {file.specification.product.category}
+                        </div>
+                        <div><b>Provider: </b> {file.specification.product.provider}</div>
+                        <Box mt={"16px"} mb={"8px"}>
+                            <Link
+                                  to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                                <Button fullWidth>View in folder</Button>
+                            </Link>
+                        </Box>
+                    </DashboardCard>
+                    <DashboardCard color={"purple"} title={"Properties"} icon={"properties"}>
+                        <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+                        {file.status.modifiedAt ?
+                            <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+                        {file.status.accessedAt ?
+                            <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+                        {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                            <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+                        {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                            <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                            </div> : null
+                        }
+                        {file.status.unixOwner != null && file.status.unixGroup != null ?
+                            <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                            null
+                        }
+                        {file.status.unixMode != null ?
+                            <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                            null
+                        }
+                    </DashboardCard>
+                </>
+            }}
+            ContentChildren={props => (
+                <DashboardCard color={"purple"}>
+                    <MetadataBrowse
+                        path={props.resource.id}
+                        metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
+                        reload={props.reload}
+                    />
+                </DashboardCard>
+            )}
         />;
     };
 

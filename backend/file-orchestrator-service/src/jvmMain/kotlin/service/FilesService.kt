@@ -56,31 +56,6 @@ class FilesService(
         }
     }
 
-    /*
-    private suspend fun <T : WithPathMoving> prepareCopyOrMove(request: BulkRequest<T>): Map<String, List<T>> {
-        val requestsByProvider = HashMap<String, List<T>>()
-        for (requestItem in request.items) {
-            val newMetadata = extractPathMetadata(requestItem.oldPath)
-            val oldMetadata = extractPathMetadata(requestItem.newPath)
-
-            if (newMetadata.productReference.provider != oldMetadata.productReference.provider) {
-                throw RPCException("Cannot move two files across two different providers", HttpStatusCode.BadRequest)
-            }
-
-            val (_, newSupport) = providerSupport.retrieveProductSupport(newMetadata.productReference)
-            val (_, oldSupport) = providerSupport.retrieveProductSupport(oldMetadata.productReference)
-
-            if (newSupport.files.isReadOnly) {
-                throw RPCException("Cannot move file to the new location (read-only system)", HttpStatusCode.BadRequest)
-            }
-
-            val provider = newMetadata.productReference.provider
-            requestsByProvider[provider] = (requestsByProvider[provider] ?: emptyList()) + requestItem
-        }
-        return requestsByProvider
-    }
-     */
-
     private suspend fun collectionFromPath(
         actorAndProject: ActorAndProject,
         path: String?,

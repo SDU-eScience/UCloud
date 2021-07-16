@@ -1,11 +1,14 @@
 package dk.sdu.cloud.file.orchestrator
 
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
+import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
@@ -35,10 +38,11 @@ class Server(override val micro: Micro) : CommonServer {
         val providerSupport = StorageProviderSupport(providers, serviceClient) { comms ->
             comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
         }
-        val projectCache = ProjectCache(serviceClient)
-        val metadataTemplates = MetadataTemplates(db, projectCache)
-        val metadataService = MetadataService(db, projectCache, metadataTemplates)
+        val templateSupport = ProviderSupport<StorageCommunication, Product, FileMetadataTemplateSupport>(
+            providers, serviceClient, fetchSupport = { listOf(FileMetadataTemplateSupport()) })
+        val metadataTemplateNamespaces = MetadataTemplateNamespaces(db, providers, templateSupport, serviceClient)
         val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
+        val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(fileCollections, providers, providerSupport, metadataService)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
 
@@ -46,7 +50,7 @@ class Server(override val micro: Micro) : CommonServer {
             FileMetadataController(metadataService),
             FileController(filesService),
             fileCollections.asController(),
-            FileMetadataTemplateController(metadataTemplates),
+            FileMetadataTemplateController(metadataTemplateNamespaces),
             ShareController(shares)
         )
 

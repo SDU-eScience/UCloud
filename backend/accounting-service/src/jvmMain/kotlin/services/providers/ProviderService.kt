@@ -29,6 +29,7 @@ class ProviderService(
     support: dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>,
     serviceClient: AuthenticatedClient,
 ) : Super(db, providers, support, serviceClient) {
+    override val isCoreResource: Boolean = true
     override val table = SqlObject.Table("provider.providers")
     override val defaultSortColumn = SqlObject.Column(table, "resource")
     override val sortColumns = mapOf(

@@ -16,6 +16,7 @@ import {IconName} from "ui-components/Icon";
 import * as H from "history";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "Resource/Properties";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -92,6 +93,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
+    history: H.History;
 }
 
 export interface SortFlags {
@@ -144,18 +146,21 @@ export abstract class ResourceApi<Res extends Resource,
 
     public idIsUriEncoded: boolean = false;
 
+    public abstract renderer: ItemRenderer<Res>;
+    /*
     public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
     public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
     public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
     public ImportantStatsRenderer?: React.FunctionComponent<{ resource: Res }>;
+     */
     public Properties: React.FunctionComponent<{
         resource?: Res;
         reload?: () => void;
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
-    }> = (props) => <ResourceProperties {...props}/>
+    }> = (props) => <ResourceProperties {...props} api={this}/>
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
@@ -305,8 +310,8 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     search(
-        req: {query: string; flags: Flags; } & PaginationRequestV2 & SortFlags
-    ): APICallParameters<{query: string; flags: Flags; } & PaginationRequestV2, PageV2<Res>> {
+        req: { query: string; flags: Flags; } & PaginationRequestV2 & SortFlags
+    ): APICallParameters<{ query: string; flags: Flags; } & PaginationRequestV2, PageV2<Res>> {
         return {
             context: "",
             method: "POST",
@@ -321,3 +326,4 @@ export const PERMISSIONS_TAG = "permissions";
 export const DELETE_TAG = "delete";
 export const PROPERTIES_TAG = "properties";
 export const CREATE_TAG = "create";
+export const UCLOUD_CORE = "ucloud_core";

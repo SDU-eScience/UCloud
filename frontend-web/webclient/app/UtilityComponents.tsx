@@ -130,6 +130,7 @@ interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
     height?: number | string;
+    showCancelButton?: boolean;
 
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
 
@@ -141,11 +142,13 @@ export const ConfirmCancelButtons = ({
     cancelText = "Cancel",
     onConfirm,
     onCancel,
-    height
+    height,
+    showCancelButton
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
         <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+        {showCancelButton === false ? null :
+            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>}
     </ButtonGroup>
 );
 

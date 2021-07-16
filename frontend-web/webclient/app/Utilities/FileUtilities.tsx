@@ -135,3 +135,29 @@ export function sizeToHumanReadableWithUnit(bytes: number): {size: number; unit:
         return {size: (bytes / 1000 ** 6), unit: "EB"};
     }
 }
+
+export function readableUnixMode(unixPermissions: number): string {
+    let result = "";
+    if ((unixPermissions & (1 << 8)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 7)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 6)) != 0) result += "x";
+    else result += "-";
+
+    if ((unixPermissions & (1 << 5)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 4)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 3)) != 0) result += "x";
+    else result += "-";
+
+    if ((unixPermissions & (1 << 2)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 1)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 0)) != 0) result += "x";
+    else result += "-";
+
+    return result;
+}

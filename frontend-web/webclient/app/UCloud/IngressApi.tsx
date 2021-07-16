@@ -12,6 +12,7 @@ import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
 import {CheckboxFilter, DateRangeFilter, EnumFilter, TextFilter} from "Resource/Filter";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface IngressSpecification extends ResourceSpecification {
     domain: string;
@@ -47,9 +48,10 @@ class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecific
     title = "Public Link";
     page = SidebarPages.Runs;
 
-    InlineTitleRenderer = ({resource}) => resource.specification.domain
-    IconRenderer = ({resource, size}) => <Icon name={"globeEuropeSolid"} size={size}/>
-    TitleRenderer = this.InlineTitleRenderer;
+    renderer: ItemRenderer<Ingress> = {
+        Icon: ({resource, size}) => <Icon name={"globeEuropeSolid"} size={size}/>,
+        MainTitle: ({resource}) => <>{resource?.specification?.domain ?? ""}</>
+    };
 
     constructor() {
         super("ingresses");

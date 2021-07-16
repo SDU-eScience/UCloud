@@ -5,7 +5,7 @@ import {IconName} from "ui-components/Icon";
 import {Icon} from "ui-components/index";
 import {ThemeColor} from "./theme";
 import {Cursor} from "ui-components/Types";
-import {useCallback} from "react";
+import {EventHandler, MouseEvent, useCallback} from "react";
 
 type StringOrNumber = string | number;
 
@@ -51,6 +51,7 @@ interface ListRowProps {
     fontSize?: string;
     highlight?: boolean;
     stopPropagation?: boolean;
+    onContextMenu?: EventHandler<MouseEvent<never>>;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -71,6 +72,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
         fontSize={props.fontSize}
+        onContextMenu={props.onContextMenu}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">

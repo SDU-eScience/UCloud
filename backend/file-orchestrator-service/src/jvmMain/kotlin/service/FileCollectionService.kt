@@ -20,7 +20,7 @@ import io.ktor.http.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
-typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
+private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
 
 class FileCollectionService(

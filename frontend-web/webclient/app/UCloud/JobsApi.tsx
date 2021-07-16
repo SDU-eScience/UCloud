@@ -21,6 +21,7 @@ import {stateToTitle} from "Applications/Jobs";
 import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
 import View from "Applications/View";
+import {ItemRenderer} from "ui-components/Browse";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -195,17 +196,19 @@ class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUp
     title = "Run";
     page = SidebarPages.Runs;
 
-    InlineTitleRenderer = ({resource}) => resource.specification.name ?? resource.id;
-    IconRenderer = ({resource, size}) =>
-        <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}/>;
-    ImportantStatsRenderer = ({resource}) => {
-        const job = resource as Job;
-        const [icon, color] = jobStateToIconAndColor(job.status.state);
-        return <Flex width={"120px"} height={"27px"}>
-            <Icon name={icon} color={color} mr={"8px"}/>
-            <Box mt={"-3px"}>{stateToTitle(job.status.state)}</Box>
-        </Flex>
-    }
+    renderer: ItemRenderer<Job> = {
+        MainTitle: ({resource}) => <>{resource?.specification?.name ?? resource?.id ?? ""}</>,
+        Icon: ({resource, size}) =>
+            <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}/>,
+        ImportantStats: ({resource}) => {
+            const job = resource as Job;
+            const [icon, color] = jobStateToIconAndColor(job.status.state);
+            return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"}/>
+                <Box mt={"-3px"}>{stateToTitle(job.status.state)}</Box>
+            </Flex>
+        }
+    };
+
     Properties = View;
 
     constructor() {

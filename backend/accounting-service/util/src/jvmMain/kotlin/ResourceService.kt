@@ -40,6 +40,7 @@ abstract class ResourceService<
     protected val support: ProviderSupport<Comms, Prod, Support>,
     protected val serviceClient: AuthenticatedClient,
 ) : ResourceSvc<Res, Flags, Spec, Update, Prod, Support> {
+    protected open val isCoreResource: Boolean = false
     protected abstract val table: SqlObject.Table
     protected abstract val sortColumns: Map<String, SqlObject.Column>
     protected abstract val defaultSortColumn: SqlObject.Column
@@ -61,7 +62,7 @@ abstract class ResourceService<
 
     private fun String.removePluralSuffix(): String {
         return when {
-            endsWith("es") -> removeSuffix("es")
+            endsWith("ses") -> removeSuffix("es")
             endsWith("s") -> removeSuffix("s")
             else -> this
         }
@@ -164,6 +165,7 @@ abstract class ResourceService<
         includeUnconfirmed: Boolean = false,
         requireAll: Boolean = true,
         ctx: DBContext? = null,
+        useProject: Boolean = false,
     ): List<Res> {
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
@@ -174,7 +176,8 @@ abstract class ResourceService<
             actorAndProject.actor,
             listOf(Permission.Read),
             includeUnconfirmed = includeUnconfirmed,
-            flags = flags
+            flags = flags,
+            projectFilter = if (useProject) actorAndProject.project else ""
         )
 
         @Suppress("SqlResolve")
@@ -224,12 +227,14 @@ abstract class ResourceService<
         onEach { it.attachExtra(flags, includeSupport) }
 
     private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
-        if (includeSupport || flags?.includeSupport == true) {
-            status.resolvedSupport = support.retrieveProductSupport(specification.product)
-        }
+        if (specification.product.provider != Provider.UCLOUD_CORE_PROVIDER) {
+            if (includeSupport || flags?.includeSupport == true) {
+                status.resolvedSupport = support.retrieveProductSupport(specification.product)
+            }
 
-        if (flags?.includeProduct == true) {
-            status.resolvedProduct = support.retrieveProductSupport(specification.product).product
+            if (flags?.includeProduct == true) {
+                status.resolvedProduct = support.retrieveProductSupport(specification.product).product
+            }
         }
         return this
     }
@@ -277,9 +282,15 @@ abstract class ResourceService<
     override suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Spec>,
+        ctx: DBContext?
     ): BulkResponse<FindByStringId?> {
         var lastBatchOfIds: List<Long>? = null
         val adjustedResponse = ArrayList<FindByStringId?>()
+
+        val shouldCloseEarly = !(ctx != null && ctx is AsyncDBConnection)
+        if (!shouldCloseEarly && !isCoreResource) {
+            throw IllegalStateException("Unable to re-use existing database session for non-core resources!")
+        }
 
         proxy.bulkProxy(
             actorAndProject,
@@ -293,7 +304,7 @@ abstract class ResourceService<
                     actorAndProject: ActorAndProject,
                     request: BulkRequest<Spec>
                 ): List<RequestWithRefOrResource<Spec, Res>> {
-                    db.withSession { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
                         verifyMembership(actorAndProject, session)
                     }
 
@@ -308,7 +319,7 @@ abstract class ResourceService<
                     provider: String,
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
-                    return db.withTransaction { session ->
+                    return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
                         val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(
@@ -352,7 +363,7 @@ abstract class ResourceService<
                         )
 
                         lastBatchOfIds = generatedIds
-                        db.commit(session)
+                        if (shouldCloseEarly) db.commit(session)
 
                         BulkRequest(
                             retrieveBulk(
@@ -371,7 +382,7 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>,
                     response: BulkResponse<FindByStringId?>
                 ) {
-                    db.withTransaction { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
                         session
                             .sendPreparedStatement(
                                 {
@@ -401,7 +412,7 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
-                    if (mappedRequestIfAny != null) {
+                    if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
                             deleteInternal(
                                 mappedRequestIfAny.items.map { it.id.toLong() },
@@ -903,7 +914,7 @@ abstract class ResourceService<
         )
     }
 
-    private fun accessibleResources(
+    protected fun accessibleResources(
         actor: Actor,
         permissionsOneOf: Collection<Permission>,
         resourceId: Long? = null,

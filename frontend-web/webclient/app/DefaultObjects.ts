@@ -21,18 +21,19 @@ import {
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
 import * as UCloud from "UCloud";
-import {BulkRequest, BulkResponse} from "UCloud";
+import {BulkRequest, BulkResponse, PageV2} from "UCloud";
 import {useEffect} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {doNothing} from "UtilityFunctions";
+import {UCLOUD_CORE} from "UCloud/ResourceApi";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
 }
 
-export function placeholderProduct(): { "id": "", "category": "", "provider": "ucloud_core" } {
-    return { "id": "", "category": "", "provider": "ucloud_core" };
+export function placeholderProduct(): { "id": "", "category": "", "provider": string } {
+    return { "id": "", "category": "", "provider": UCLOUD_CORE };
 }
 
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
@@ -48,6 +49,10 @@ export const emptyPage: Readonly<Page<any>> =
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
     {items: [], itemsPerPage: 25};
+
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
