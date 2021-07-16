@@ -108,35 +108,8 @@ class FileQueries(
             }
         }
 
-        val start = getTimeMillis()
-
-        // STUPID (LESS) NAÏVE APPROACH
-
         val foundFilesToStat = HashMap<String, NativeStat>()
-
-        if (sortBy != null) {
-            if (sortBy != FilesSortBy.PATH) {
-                val statTimeStart = getTimeMillis()
-                foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
-                val statTimeEnd = getTimeMillis()
-                println("Stat'ing files time: ${statTimeEnd - statTimeStart}")
-            }
-            val ascending = SortOrder.ASCENDING == sortOrder
-            when (sortBy) {
-                FilesSortBy.CREATED_AT -> if (ascending) foundFiles.sortedBy { TODO() } else foundFiles.sortedByDescending { TODO() }
-                FilesSortBy.MODIFIED_AT -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.modifiedAt } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.modifiedAt }
-                FilesSortBy.SIZE -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.size } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.size }
-                FilesSortBy.PATH -> foundFiles.sortedWith(
-                    if (ascending) compareBy(
-                        String.CASE_INSENSITIVE_ORDER,
-                        InternalFile::path
-                    ) else compareByDescending(
-                        String.CASE_INSENSITIVE_ORDER,
-                        InternalFile::path
-                    )
-                )
-            }
-        }
+        foundFiles = sortFiles(nativeFs, sortBy, sortOrder, foundFiles, foundFilesToStat)
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
@@ -150,7 +123,7 @@ class FileQueries(
                     convertNativeStatToUFile(
                         nextInternalFile,
                         // For some cases we already have this stat'ed the files, so we risk duplicate work
-                        foundFilesToStat[nextInternalFile.path] ?:  nativeFs.stat(nextInternalFile),
+                        foundFilesToStat[nextInternalFile.path] ?: nativeFs.stat(nextInternalFile),
                         myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
                 )
@@ -180,12 +153,9 @@ class FileQueries(
             null
         }
 
-
-        val end = getTimeMillis()
-        println("Total duration: ${end - start}, for ${sortBy.toString()}")
-
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
+
 
     companion object : Loggable {
         override val log = logger()
@@ -198,4 +168,28 @@ class FileQueries(
         private val sessionIdCounter = AtomicInteger(0)
         private const val DIR_CACHE_EXPIRATION = 1000L * 60 * 5
     }
+}
+
+fun sortFiles(
+    nativeFs: NativeFS,
+    sortBy: FilesSortBy?,
+    sortOrder: SortOrder?,
+    foundFiles: List<InternalFile>,
+    foundFilesToStat: HashMap<String, NativeStat>
+): List<InternalFile> {
+    if (sortBy == null) return foundFiles
+    if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
+    val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
+    val comparator = when (sortBy) {
+        FilesSortBy.PATH -> pathComparator
+        FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+        FilesSortBy.CREATED_AT -> TODO()
+        FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+    }
+    if (sortOrder != SortOrder.ASCENDING) comparator.reversed()
+    return foundFiles.sortedWith(comparator)
 }
