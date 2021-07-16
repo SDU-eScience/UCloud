@@ -15,9 +15,11 @@ export interface FileMetadataDocument {
 
 export interface FileMetadataDocumentDeleted {
     type: "deleted";
+    id: string;
     createdAt: number;
     status: FileMetadataDocumentStatus;
     createdBy: string;
+    changeLog: string;
 }
 
 export interface FileMetadataDocumentSpecification {
@@ -49,20 +51,28 @@ export interface FileMetadataHistory {
 class MetadataDocumentApi {
     private baseContext = "/api/files/metadata";
 
-    create(request: BulkRequest<{ id: string, metadata: FileMetadataDocumentSpecification}>) {
+    create(request: BulkRequest<{ fileId: string, metadata: FileMetadataDocumentSpecification }>) {
         return apiCreate(request, this.baseContext);
     }
 
-    move(request: BulkRequest<{oldId: string, newId: string}>) {
+    move(request: BulkRequest<{ oldFileId: string, newFileId: string }>) {
         return apiUpdate(request, this.baseContext, "move");
     }
 
-    delete(request: BulkRequest<{id: string, templateId: string}>) {
+    delete(request: BulkRequest<{ id: string }>) {
         return apiDelete(request, this.baseContext);
     }
 
-    retrieveAll(request: { parentPath: string }) {
+    retrieveAll(request: { fileId: string }) {
         return apiRetrieve(request, this.baseContext, "all");
+    }
+
+    approve(request: BulkRequest<{ id: string }>) {
+        return apiUpdate(request, this.baseContext, "approve");
+    }
+
+    reject(request: BulkRequest<{ id: string }>) {
+        return apiUpdate(request, this.baseContext, "reject");
     }
 }
 

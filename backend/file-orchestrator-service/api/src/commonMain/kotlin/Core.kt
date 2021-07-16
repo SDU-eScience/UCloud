@@ -300,6 +300,7 @@ data class UFileSpecification(
 
 @Serializable
 sealed class FileMetadataOrDeleted {
+    abstract val id: String
     abstract val status: FileMetadataDocument.Status
     abstract val createdAt: Long
     abstract val createdBy: String
@@ -309,6 +310,7 @@ sealed class FileMetadataOrDeleted {
     @Serializable
     @SerialName("deleted")
     data class Deleted(
+        override val id: String,
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
         @UCloudApiDoc("Timestamp indicating when this change was made")
@@ -324,7 +326,7 @@ sealed class FileMetadataOrDeleted {
 @Serializable
 @SerialName("metadata")
 data class FileMetadataDocument(
-    val id: String,
+    override val id: String,
     val specification: Spec,
     override val createdAt: Long,
     override val status: Status,

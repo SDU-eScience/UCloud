@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
@@ -10,32 +12,31 @@ typealias FileMetadataAddMetadataRequest = BulkRequest<FileMetadataAddRequestIte
 
 @Serializable
 data class FileMetadataAddRequestItem(
-    override val id: String,
+    val fileId: String,
     val metadata: FileMetadataDocument.Spec,
-) : WithPath
+)
 typealias FileMetadataAddMetadataResponse = Unit
 
 typealias FileMetadataMoveRequest = BulkRequest<FileMetadataMoveRequestItem>
 
 @Serializable
 data class FileMetadataMoveRequestItem(
-    override val oldId: String,
-    override val newId: String,
-) : WithPathMoving
+    val oldFileId: String,
+    val newFileId: String,
+)
 typealias FileMetadataMoveResponse = Unit
 
 typealias FileMetadataDeleteRequest = BulkRequest<FileMetadataDeleteRequestItem>
-
 @Serializable
 data class FileMetadataDeleteRequestItem(
     override val id: String,
-    val templateId: String,
-) : WithPath
+    val changeLog: String,
+) : WithStringId
 typealias FileMetadataDeleteResponse = Unit
 
 @Serializable
 data class FileMetadataRetrieveAllRequest(
-    val parentPath: String,
+    val fileId: String,
 )
 
 @Serializable
@@ -69,6 +70,14 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
     val retrieveAll = call<FileMetadataRetrieveAllRequest, FileMetadataRetrieveAllResponse,
         CommonErrorMessage>("retrieveAll") {
         httpRetrieve(baseContext, "all")
+    }
+
+    val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
+        httpUpdate(baseContext, "approve")
+    }
+
+    val reject = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("reject") {
+        httpUpdate(baseContext, "reject")
     }
 
     /*

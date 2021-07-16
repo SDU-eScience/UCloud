@@ -3,15 +3,15 @@ package dk.sdu.cloud.file.orchestrator.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
@@ -35,7 +35,7 @@ class MetadataService(
             // guarantee that the user can actually change the affected file but UCloud simply has no way of knowing
             // if this is possible. Maybe we can introduce a verification step later which is done by the provider.
             // For the initial version I think this is enough.
-            val collectionIds = request.items.map { extractPathMetadata(it.id).collection }
+            val collectionIds = request.items.map { extractPathMetadata(it.fileId).collection }
             collections.retrieveBulk(
                 actorAndProject,
                 collectionIds,
@@ -76,7 +76,7 @@ class MetadataService(
                     session
                         .sendPreparedStatement(
                             {
-                                setParameter("path", reqItem.id.normalize())
+                                setParameter("path", reqItem.fileId.normalize())
                                 setParameter("workspace", workspace)
                                 setParameter("is_workspace_project", isWorkspaceProject)
                             },
@@ -95,8 +95,8 @@ class MetadataService(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("path", reqItem.id.normalize())
-                            setParameter("parent_path", reqItem.id.parent().normalize())
+                            setParameter("path", reqItem.fileId.normalize())
+                            setParameter("parent_path", reqItem.fileId.parent().normalize())
                             setParameter("template_id", reqItem.metadata.templateId)
                             setParameter("template_version", template.version)
                             setParameter("document", encodedDocument)
@@ -253,7 +253,7 @@ class MetadataService(
                                 )
                             )
                             
-                        order by d.created_at desc
+                        order by d.path, d.latest desc, d.created_at desc
                     """
                 )
                 .rows
@@ -277,23 +277,192 @@ class MetadataService(
         }
     }
 
+    suspend fun move(
+        actorAndProject: ActorAndProject,
+        request: FileMetadataMoveRequest,
+        ctx: DBContext = this.db
+    ) {
+        ctx.withSession(remapExceptions = true) { session ->
+            // NOTE(Dan): System user is allowed to move the metadata. This can be triggered by a normal user's move of
+            // a file.
+            if (actorAndProject.actor != Actor.System) {
+                val allCollections = (request.items.map { extractPathMetadata(it.oldFileId).collection } +
+                    request.items.map { extractPathMetadata(it.newFileId).collection }).toSet()
+
+                // NOTE(Dan): Admin is required because approval status is copied as is.
+                collections.retrieveBulk(actorAndProject, allCollections, listOf(Permission.Admin), ctx = session)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    val newPaths by parameterList<String>()
+                    for (reqItem in request.items) {
+                        oldPaths.add(reqItem.oldFileId)
+                        newPaths.add(reqItem.newFileId)
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) as old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.metadata_documents
+                    set path = e.new_path
+                    from entries e
+                    where path = e.old_path
+                """
+            )
+        }
+    }
+
     suspend fun delete(
         actorAndProject: ActorAndProject,
         request: FileMetadataDeleteRequest,
         ctx: DBContext = this.db
     ) {
-        ctx.withSession { session ->
-            for (reqItem in request.items) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("template_id", reqItem.templateId)
-                        },
-                        """
-                            
-                        """
+        data class DeletionResult(
+            val path: String, val templateId: Long, val docId: Long,
+            val workspace: String, val approvalRequired: Boolean
+        )
+
+        ctx.withSession(remapExceptions = true) { session ->
+            val deletionResult = session.sendPreparedStatement(
+                {
+                    setParameter("changed_by", actorAndProject.actor.safeUsername())
+                    val ids by parameterList<Long>()
+                    val changeLogs by parameterList<String>()
+                    request.items.forEach {
+                        ids.add(it.id.toLongOrNull() ?: throw RPCException("Unknown document", HttpStatusCode.NotFound))
+                        changeLogs.add(it.changeLog)
+                    }
+                },
+                """
+                    insert into file_orchestrator.metadata_documents
+                    (path, parent_path, template_id, template_version, is_deletion, document, change_log,
+                     created_by, workspace, is_workspace_project, latest, approval_type, created_at,
+                     approval_updated_by)
+                     
+                    with entries as (
+                        select unnest(:ids::bigint[]) id, unnest(:change_logs::text[]) change_log
                     )
+                    select
+                        docs.path, docs.parent_path, temps.namespace, temps.uversion, true, null, e.change_log,
+                        :changed_by, docs.workspace, docs.is_workspace_project, not temps.require_approval,
+                        case 
+                            when temps.require_approval = true then 'pending'
+                            else 'not_required'
+                        end, now(), null
+                    from
+                        entries e join
+                        file_orchestrator.metadata_documents docs on e.id = docs.id join
+                        file_orchestrator.metadata_templates temps on
+                            docs.template_id = temps.namespace and
+                            docs.template_version = temps.uversion
+                    returning path, template_id, id, workspace, latest
+                """
+            ).rows.map {
+                DeletionResult(
+                    it.getString(0)!!, it.getLong(1)!!, it.getLong(2)!!, it.getString(3)!!,
+                    !it.getBoolean(4)!!
+                )
             }
+
+            val collectionsAffected = deletionResult.map { extractPathMetadata(it.path).collection }
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Edit), ctx = session)
+
+            if (deletionResult.any { !it.approvalRequired }) {
+                session.sendPreparedStatement(
+                    {
+                        val ids by parameterList<Long>()
+                        val paths by parameterList<String>()
+                        val newDocs by parameterList<Long>()
+                        val workspaces by parameterList<String>()
+                        for (res in deletionResult) {
+                            if (!res.approvalRequired) {
+                                ids.add(res.templateId)
+                                paths.add(res.path)
+                                newDocs.add(res.docId)
+                                workspaces.add(res.workspace)
+                            }
+                        }
+                    },
+                    """
+                        with entries as (
+                            select unnest(:ids::bigint[]) template_id, unnest(:new_docs::bigint[]) doc_id,
+                                   unnest(:paths::text[]) path, unnest(:workspaces::text[]) workspace
+                        )
+                        update file_orchestrator.metadata_documents d
+                        set latest = false
+                        from entries e
+                        where
+                            e.path = d.path and
+                            e.template_id = d.template_id and
+                            e.doc_id != d.id and
+                            e.workspace = d.workspace
+                    """
+                )
+            }
+        }
+    }
+
+    suspend fun approve(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = this.db
+    ) {
+        setApproval(ctx, actorAndProject, "approved", request)
+    }
+
+    suspend fun reject(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = this.db
+    ) {
+        setApproval(ctx, actorAndProject, "rejected", request)
+    }
+
+    private suspend fun setApproval(
+        ctx: DBContext,
+        actorAndProject: ActorAndProject,
+        approvalType: String,
+        request: BulkRequest<FindByStringId>
+    ) {
+        ctx.withSession(remapExceptions = true) { session ->
+            val pathsAffected = session.sendPreparedStatement(
+                {
+                    setParameter("approved_by", actorAndProject.actor.safeUsername())
+                    setParameter("approval_type", approvalType)
+
+                    val ids by parameterList<Long>()
+                    request.items.forEach {
+                        ids.add(
+                            it.id.toLongOrNull()
+                                ?: throw RPCException("Unknown metadata document", HttpStatusCode.NotFound)
+                        )
+                    }
+                },
+                """
+                        with entries as (
+                            select unnest(:ids::bigint[]) id
+                        )
+                        update file_orchestrator.metadata_documents d
+                        set
+                            approval_type = :approval_type,
+                            approval_updated_by = :approved_by
+                        from entries e
+                        where
+                            d.id = e.id and
+                            approval_type = 'pending'
+                        returning d.path
+                    """
+            ).rows.map { it.getString(0)!! }
+
+            if (pathsAffected.size != request.items.size) {
+                throw RPCException("Unknown metadata document", HttpStatusCode.NotFound)
+            }
+
+            val collectionsAffected = pathsAffected.map { extractPathMetadata(it).collection }
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Admin), ctx = session)
         }
     }
 

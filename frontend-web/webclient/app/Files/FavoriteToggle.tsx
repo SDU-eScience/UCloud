@@ -64,7 +64,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
 
             await invokeCommand(
                 metadataApi.create(bulkRequestOf({
-                    id: file.id,
+                    fileId: file.id,
                     metadata: {
                         document: {isFavorite: isFavorite},
                         version: favoriteTemplateVersion,

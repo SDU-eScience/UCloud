@@ -171,7 +171,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             ContentChildren={props => (
                 <DashboardCard color={"purple"}>
                     <MetadataBrowse
-                        path={props.resource.id}
+                        file={props.resource as UFile}
                         metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
                         reload={props.reload}
                     />

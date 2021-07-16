@@ -14,14 +14,15 @@ import {SvgFt} from "ui-components/FtIcon";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {noopCall} from "Authentication/DataHook";
 import {useTraceUpdate} from "UtilityComponents";
+import {UFile} from "UCloud/FilesApi";
 
 export const entityName = "Metadata";
 
 export const MetadataBrowse: React.FunctionComponent<{
-    path: string;
+    file: UFile;
     metadata: FileMetadataHistory;
     reload: () => void;
-}> = ({path, metadata, reload}) => {
+}> = ({file, metadata, reload}) => {
     const [lookingForTemplate, setLookingForTemplate] = useState<boolean>(false);
     const [inspecting, setInspecting] = useState<string | null>(null);
     const [creatingForTemplate, setCreatingForTemplate] = useState<FileMetadataTemplate | null>(null);
@@ -61,9 +62,9 @@ export const MetadataBrowse: React.FunctionComponent<{
 
     if (inspecting) {
         return <MetadataHistory metadata={metadata} reload={reload} template={metadata.templates[inspecting]}
-                                path={path} close={() => setInspecting(null)}/>;
+                                file={file} close={() => setInspecting(null)}/>;
     } else if (creatingForTemplate != null) {
-        return <MetadataHistory metadata={metadata} reload={reload} template={creatingForTemplate} path={path}
+        return <MetadataHistory metadata={metadata} reload={reload} template={creatingForTemplate} file={file}
                                 close={() => setCreatingForTemplate(null)}/>;
     }
 
