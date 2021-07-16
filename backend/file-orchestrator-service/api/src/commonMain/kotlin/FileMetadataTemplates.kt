@@ -40,6 +40,7 @@ data class FileMetadataTemplateNamespace(
 
     @Serializable
     data class Status(
+        val latestTitle: String? = null,
         override var resolvedSupport: ResolvedSupport<Product, FileMetadataTemplateSupport>? = null,
         override var resolvedProduct: Product? = null
     ) : ResourceStatus<Product, FileMetadataTemplateSupport>

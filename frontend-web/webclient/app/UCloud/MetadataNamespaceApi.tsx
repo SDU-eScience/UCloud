@@ -37,6 +37,7 @@ export interface FileMetadataTemplateNamespaceUpdate extends ResourceUpdate {
 }
 
 export interface FileMetadataTemplateNamespaceStatus extends ResourceStatus {
+    latestTitle?: string;
 }
 
 export interface FileMetadataTemplateNamespaceSpecification extends ResourceSpecification {
@@ -84,7 +85,10 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     renderer: ItemRenderer<FileMetadataTemplateNamespace> = {
         Icon: ({resource, size}) => <Icon name={"docs"} size={size}/>,
         MainTitle: ({resource}) =>
-            <>{resource?.specification?.name ?? ""}</>
+            <>{resource?.status?.latestTitle ?? resource?.specification?.name ?? ""}</>,
+        Stats: ({resource}) => !resource ? null : <>
+            <ListRowStat icon={"id"}>{resource.specification.name}</ListRowStat>
+        </>
     };
 
     templateRenderer: ItemRenderer<FileMetadataTemplate> = {

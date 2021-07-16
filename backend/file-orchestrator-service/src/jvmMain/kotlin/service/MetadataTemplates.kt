@@ -78,8 +78,11 @@ class MetadataTemplateNamespaces(
                 setParameter("filter_name", flags?.filterName)
             },
             """
-                select *
-                from file_orchestrator.metadata_template_namespaces
+                select ns.resource, ns, temps
+                from
+                    file_orchestrator.metadata_template_namespaces ns left join
+                    file_orchestrator.metadata_templates temps
+                        on ns.resource = temps.namespace and ns.latest_version = temps.uversion
                 where
                     (:query::text is null or uname ilike '%' || :query || '%') and
                     (:filter_name::text is null or uname = :filter_name)
