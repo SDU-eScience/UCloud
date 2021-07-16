@@ -111,8 +111,10 @@ class FileQueries(
         val start = getTimeMillis()
 
         // STUPID (LESS) NAÏVE APPROACH
+
+        val foundFilesToStat = HashMap<String, NativeStat>()
+
         if (sortBy != null) {
-            val foundFilesToStat = HashMap<String, NativeStat>()
             if (sortBy != FilesSortBy.PATH) {
                 val statTimeStart = getTimeMillis()
                 foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
@@ -125,7 +127,7 @@ class FileQueries(
                 FilesSortBy.MODIFIED_AT -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.modifiedAt } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.modifiedAt }
                 FilesSortBy.SIZE -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.size } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.size }
                 FilesSortBy.PATH -> foundFiles.sortedWith(
-                    if (ascending)  compareBy(
+                    if (ascending) compareBy(
                         String.CASE_INSENSITIVE_ORDER,
                         InternalFile::path
                     ) else compareByDescending(
@@ -148,7 +150,7 @@ class FileQueries(
                     convertNativeStatToUFile(
                         nextInternalFile,
                         // For some cases we already have this stat'ed the files, so we risk duplicate work
-                        nativeFs.stat(nextInternalFile),
+                        foundFilesToStat[nextInternalFile.path] ?:  nativeFs.stat(nextInternalFile),
                         myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
                 )
