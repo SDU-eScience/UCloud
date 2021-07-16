@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.create
 import io.ktor.http.*
+import io.ktor.util.date.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -107,39 +108,32 @@ class FileQueries(
             }
         }
 
-        // STUPID NAÏVE APPROACH
-        when (sortBy) {
-            FilesSortBy.CREATED_AT, FilesSortBy.MODIFIED_AT, FilesSortBy.SIZE -> {
-                foundFiles = if (sortOrder == SortOrder.ASCENDING) {
-                    foundFiles.sortedWith { a, b ->
-                        val statA = nativeFs.stat(a)
-                        val statB = nativeFs.stat(b)
-                        when (sortBy) {
-                            FilesSortBy.SIZE -> (statA.size - statB.size).toInt()
-                            FilesSortBy.CREATED_AT -> TODO()
-                            FilesSortBy.MODIFIED_AT -> (statA.modifiedAt - statB.modifiedAt).toInt()
-                            else -> 0
-                        }
-                    }
-                } else {
-                    foundFiles.sortedWith { b, a ->
-                        val statA = nativeFs.stat(a)
-                        val statB = nativeFs.stat(b)
-                        when (sortBy) {
-                            FilesSortBy.SIZE -> (statA.size - statB.size).toInt()
-                            FilesSortBy.CREATED_AT -> 0 // TODO(jonas)
-                            FilesSortBy.MODIFIED_AT -> (statA.modifiedAt - statB.modifiedAt).toInt()
-                            else -> 0
-                        }
-                    }
-                }
+        val start = getTimeMillis()
+
+        // STUPID (LESS) NAÏVE APPROACH
+        if (sortBy != null) {
+            val foundFilesToStat = HashMap<String, NativeStat>()
+            if (sortBy != FilesSortBy.PATH) {
+                val statTimeStart = getTimeMillis()
+                foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
+                val statTimeEnd = getTimeMillis()
+                println("Stat'ing files time: ${statTimeEnd - statTimeStart}")
             }
-            FilesSortBy.PATH ->
-                foundFiles = if (sortOrder == SortOrder.ASCENDING) {
-                    foundFiles.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
-                } else {
-                    foundFiles.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER, InternalFile::path))
-                }
+            val ascending = SortOrder.ASCENDING == sortOrder
+            when (sortBy) {
+                FilesSortBy.CREATED_AT -> if (ascending) foundFiles.sortedBy { TODO() } else foundFiles.sortedByDescending { TODO() }
+                FilesSortBy.MODIFIED_AT -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.modifiedAt } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.modifiedAt }
+                FilesSortBy.SIZE -> if (ascending) foundFiles.sortedBy { foundFilesToStat[it.path]?.size } else foundFiles.sortedByDescending { foundFilesToStat[it.path]?.size }
+                FilesSortBy.PATH -> foundFiles.sortedWith(
+                    if (ascending)  compareBy(
+                        String.CASE_INSENSITIVE_ORDER,
+                        InternalFile::path
+                    ) else compareByDescending(
+                        String.CASE_INSENSITIVE_ORDER,
+                        InternalFile::path
+                    )
+                )
+            }
         }
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
@@ -153,6 +147,7 @@ class FileQueries(
                 items.add(
                     convertNativeStatToUFile(
                         nextInternalFile,
+                        // For some cases we already have this stat'ed the files, so we risk duplicate work
                         nativeFs.stat(nextInternalFile),
                         myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
@@ -182,6 +177,10 @@ class FileQueries(
         } else {
             null
         }
+
+
+        val end = getTimeMillis()
+        println("Total duration: ${end - start}, for ${sortBy.toString()}")
 
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
