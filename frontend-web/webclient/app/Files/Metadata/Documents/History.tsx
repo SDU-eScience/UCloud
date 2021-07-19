@@ -94,8 +94,8 @@ export const History: React.FunctionComponent<{
     }, []);
 
     const activityCallbacks = useMemo((): ActivityCallbacks => ({
-        file, setEditingDocument, setDocumentInspection, documentInspection
-    }), [file, setEditingDocument, setDocumentInspection, documentInspection]);
+        file, setEditingDocument, setDocumentInspection, documentInspection, reloadFile: reload
+    }), [file, setEditingDocument, setDocumentInspection, documentInspection, reload]);
 
     const approveChange = useCallback(async () => {
         if (!documentInspection) return;
@@ -212,6 +212,7 @@ interface ActivityCallbacks {
     documentInspection: FileMetadataDocumentOrDeleted | null;
     setDocumentInspection: (doc: FileMetadataDocumentOrDeleted | null) => void;
     setEditingDocument: (doc: Record<string, any>) => void;
+    reloadFile: () => void;
 }
 
 const entryRenderer: ItemRenderer<DocumentRow> = {
@@ -290,7 +291,7 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         },
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.approve(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
-            cb.reload();
+            cb.reloadFile();
         }
     },
     {
@@ -305,7 +306,7 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         },
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.reject(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
-            cb.reload();
+            cb.reloadFile();
         }
     },
     {
@@ -327,8 +328,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         confirm: true,
         enabled: (selected) => selected.length === 1 && selected[0].isActive,
         onClick: async (selected, cb) => {
-            await cb.invokeCommand(metadataApi.delete(bulkRequestOf({id: selected[0].doc.id})));
-            cb.reload();
+            await cb.invokeCommand(metadataApi.delete(bulkRequestOf({id: selected[0].doc.id, changeLog: "Deleting document"})));
+            cb.reloadFile();
         }
     },
     {

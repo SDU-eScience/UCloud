@@ -321,7 +321,7 @@ class MetadataService(
         ctx: DBContext = this.db
     ) {
         data class DeletionResult(
-            val path: String, val templateId: Long, val docId: Long,
+            val path: String, val templateId: Long, val docId: Int,
             val workspace: String, val approvalRequired: Boolean
         )
 
@@ -362,7 +362,7 @@ class MetadataService(
                 """
             ).rows.map {
                 DeletionResult(
-                    it.getString(0)!!, it.getLong(1)!!, it.getLong(2)!!, it.getString(3)!!,
+                    it.getString(0)!!, it.getLong(1)!!, it.getInt(2)!!, it.getString(3)!!,
                     !it.getBoolean(4)!!
                 )
             }
@@ -375,7 +375,7 @@ class MetadataService(
                     {
                         val ids by parameterList<Long>()
                         val paths by parameterList<String>()
-                        val newDocs by parameterList<Long>()
+                        val newDocs by parameterList<Int>()
                         val workspaces by parameterList<String>()
                         for (res in deletionResult) {
                             if (!res.approvalRequired) {
@@ -410,7 +410,7 @@ class MetadataService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = this.db
     ) {
-        setApproval(ctx, actorAndProject, "approved", request)
+        setApproval(ctx, actorAndProject, "approved", becomesLatest = true, request)
     }
 
     suspend fun reject(
@@ -418,13 +418,14 @@ class MetadataService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = this.db
     ) {
-        setApproval(ctx, actorAndProject, "rejected", request)
+        setApproval(ctx, actorAndProject, "rejected", becomesLatest = false, request)
     }
 
     private suspend fun setApproval(
         ctx: DBContext,
         actorAndProject: ActorAndProject,
         approvalType: String,
+        becomesLatest: Boolean,
         request: BulkRequest<FindByStringId>
     ) {
         ctx.withSession(remapExceptions = true) { session ->
@@ -432,6 +433,7 @@ class MetadataService(
                 {
                     setParameter("approved_by", actorAndProject.actor.safeUsername())
                     setParameter("approval_type", approvalType)
+                    setParameter("latest", becomesLatest)
 
                     val ids by parameterList<Long>()
                     request.items.forEach {
@@ -442,20 +444,33 @@ class MetadataService(
                     }
                 },
                 """
-                        with entries as (
-                            select unnest(:ids::bigint[]) id
-                        )
-                        update file_orchestrator.metadata_documents d
-                        set
-                            approval_type = :approval_type,
-                            approval_updated_by = :approved_by
-                        from entries e
-                        where
-                            d.id = e.id and
-                            approval_type = 'pending'
-                        returning d.path
-                    """
-            ).rows.map { it.getString(0)!! }
+                    with entries as (
+                        select unnest(:ids::int[]) id, true latest
+                    )
+                    update file_orchestrator.metadata_documents other_docs
+                    set
+                        latest = case
+                            when :latest then other_docs.id = some(:ids::int[])
+                            else other_docs.latest
+                        end,
+                        approval_type = case
+                            when other_docs.id = some(:ids::int[]) then :approval_type
+                            else other_docs.approval_type
+                        end,
+                        approval_updated_by = case
+                            when other_docs.id = some(:ids::int[]) then :approved_by
+                            else other_docs.approval_updated_by
+                        end
+                    from
+                        entries e left join
+                        file_orchestrator.metadata_documents d on true
+                    where
+                        d.id = e.id and
+                        d.approval_type = 'pending' and
+                        d.workspace = other_docs.workspace and d.template_id = other_docs.template_id
+                    returning other_docs.path
+                """
+            ).rows.map { it.getString(0)!! }.toSet()
 
             if (pathsAffected.size != request.items.size) {
                 throw RPCException("Unknown metadata document", HttpStatusCode.NotFound)

@@ -103,8 +103,8 @@ export function apiUpdate<R>(request: R, baseContext: string, operation: string)
 export function apiDelete<R>(request: R, baseContext: string): APICallParameters<R> {
     return {
         context: "",
-        method: "POST",
-        path: removeTrailingSlash(baseContext) + "/delete",
+        method: "DELETE",
+        path: removeTrailingSlash(baseContext),
         parameters: request,
         payload: request
     };

@@ -148,3 +148,11 @@ inline fun <T, R> PageV2<T>.mapItems(mapper: (T) -> R): PageV2<R> {
         next
     )
 }
+
+inline fun <T, R> PageV2<T>.mapItemsNotNull(mapper: (T) -> R?): PageV2<R> {
+    return PageV2(
+        itemsPerPage,
+        items.mapNotNull(mapper),
+        next
+    )
+}

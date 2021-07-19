@@ -138,16 +138,6 @@ const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callba
         }
     },
     {
-        text: "Delete",
-        icon: "trash",
-        confirm: true,
-        color: "red",
-        enabled: (selected, cb) => selected.length > 0,
-        onClick: () => {
-
-        }
-    },
-    {
         text: "Properties",
         icon: "properties",
         enabled: (selected) => selected.length === 1,

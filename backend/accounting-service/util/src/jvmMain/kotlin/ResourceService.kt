@@ -174,7 +174,7 @@ abstract class ResourceService<
 
         val (resourceParams, resourceQuery) = accessibleResources(
             actorAndProject.actor,
-            listOf(Permission.Read),
+            permissionOneOf,
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
             projectFilter = if (useProject) actorAndProject.project else ""

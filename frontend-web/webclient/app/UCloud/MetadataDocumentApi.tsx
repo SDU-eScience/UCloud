@@ -59,7 +59,7 @@ class MetadataDocumentApi {
         return apiUpdate(request, this.baseContext, "move");
     }
 
-    delete(request: BulkRequest<{ id: string }>) {
+    delete(request: BulkRequest<{ id: string, changeLog: string }>) {
         return apiDelete(request, this.baseContext);
     }
 

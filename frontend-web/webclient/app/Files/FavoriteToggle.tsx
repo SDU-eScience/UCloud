@@ -40,14 +40,14 @@ export const FileFavoriteToggle: React.FunctionComponent<{
     }, []);
 
     const onToggle = useCallback(async (e?: React.SyntheticEvent) => {
-        // NOTE(Dan): If the star is clicked on a placeholder file don't do anything.
         e?.stopPropagation();
-        if (!file) return;
+        if (!file) return; // NOTE(Dan): If the star is clicked on a placeholder file don't do anything.
         if (loading.current) return;
 
         setFavorite(!isFavorite);
         try {
             if (!favoriteTemplateId) {
+                console.log("Looking for the ID");
                 const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
                     metadataNsApi.browse(({ filterName: "favorite", itemsPerPage: 50}))
                 );
@@ -66,7 +66,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 metadataApi.create(bulkRequestOf({
                     fileId: file.id,
                     metadata: {
-                        document: {isFavorite: isFavorite},
+                        document: {isFavorite: !isFavorite},
                         version: favoriteTemplateVersion,
                         changeLog: "New favorite status",
                         templateId: favoriteTemplateId!
