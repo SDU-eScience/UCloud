@@ -103,6 +103,10 @@ export const FilesBrowse: React.FunctionComponent<{
         }));
     }, []);
 
+    const callbacks = useMemo(() => ({
+        collection: collection?.data ?? undefined
+    }), [collection.data]);
+
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
@@ -115,6 +119,7 @@ export const FilesBrowse: React.FunctionComponent<{
         header={breadcrumbsComponent}
         headerSize={48}
         navigateToChildren={navigateToFile}
+        extraCallbacks={callbacks}
     />;
 };
 

@@ -24,7 +24,7 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
+import {doNothing, EmptyObject, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
@@ -36,10 +36,10 @@ import {useDispatch} from "react-redux";
 import * as H from "history";
 import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
 
-export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceBrowseProps<Res> {
+export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
 
-    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res>) => Res["specification"] | APICallParameters;
+    onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res> & CB) => Res["specification"] | APICallParameters;
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
     inlineCreationMode?: "TEXT" | "NONE";
@@ -54,6 +54,7 @@ export interface ResourceBrowseProps<Res extends Resource> extends BaseResourceB
     navigateToChildren?: (history: H.History, resource: Res) => void;
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
+    extraCallbacks?: any;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -63,10 +64,10 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     onSelect?: (resource: Res) => void;
 }
 
-export const ResourceBrowse = <Res extends Resource>(
+export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     {
         onSelect, api, ...props
-    }: PropsWithChildren<ResourceBrowseProps<Res>>
+    }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
         {productsByProvider: {}})
@@ -147,7 +148,7 @@ export const ResourceBrowse = <Res extends Resource>(
         }
     }, [setInlineInspecting, props.embedded, history, api]);
 
-    const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
+    const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
         invokeCommand,
@@ -167,9 +168,10 @@ export const ResourceBrowse = <Res extends Resource>(
                 setIsCreating(true);
             }
         },
-        viewProperties
+        viewProperties,
+        ...props.extraCallbacks
     }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
-        viewProperties, props.inlineProduct]);
+        viewProperties, props.inlineProduct, props.extraCallbacks]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {

@@ -9,7 +9,7 @@ import {
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
 import {accounting, BulkRequest, file} from "UCloud/index";
-import {FileCollectionSupport} from "UCloud/FileCollectionsApi";
+import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Box, Button, FtIcon, Link} from "ui-components";
@@ -31,6 +31,7 @@ import {FileFavoriteToggle} from "Files/FavoriteToggle";
 import {PrettyFilePath} from "Files/FilePath";
 import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {OpenWith} from "Applications/OpenWith";
 
 export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
 
@@ -89,6 +90,10 @@ export interface FilesCreateUploadResponseItem {
 
 interface FilesTrashRequestItem {
     id: string;
+}
+
+interface ExtraCallbacks {
+    collection?: FileCollection;
 }
 
 class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
@@ -184,10 +189,10 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         super("files");
     }
 
-    retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile>>[] {
+    retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
-        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile>>[] = [
+        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] = [
             {
                 text: "Use this folder",
                 primary: true,
@@ -232,26 +237,18 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 onClick: (selected, cb) => cb.startCreation!(),
             },
             {
-                icon: "rename",
-                text: "Rename",
-                enabled: (selected, cb) =>
-                    cb.startRenaming !== undefined &&
-                    selected.length === 1 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
+                text: "Open with...",
+                icon: "open",
+                enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {
-                    console.log(cb.startRenaming, selected[0]);
-                    cb.startRenaming?.(selected[0], fileName(selected[0].id));
-                }
-            },
-            {
-                icon: "download",
-                text: "Download",
-                enabled: (selected, cb) =>
-                    selected.length === 1 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")) &&
-                    selected.every(it => it.status.type === "FILE"),
-                onClick: (selected, cb) => {
-
+                    if (cb.collection) {
+                        dialogStore.addDialog(
+                            <OpenWith file={selected[0]} collection={cb.collection}/>,
+                            doNothing,
+                            true,
+                            this.fileSelectorModalStyle
+                        );
+                    }
                 }
             },
             {
