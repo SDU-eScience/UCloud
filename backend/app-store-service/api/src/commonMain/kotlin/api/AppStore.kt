@@ -427,7 +427,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
 
     val findBySupportedFileExtension =
-        call<FindBySupportedFileExtension, List<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
+        call<FindBySupportedFileExtension, PageV2<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
             auth {
                 access = AccessRight.READ
             }
