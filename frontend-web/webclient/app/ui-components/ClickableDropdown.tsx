@@ -156,6 +156,24 @@ const ClickableDropdown: ClickableDropdownType =
             if (left < 0) left = leftAsNumber;
         }
 
+        const dropdownContent = <DropdownContent
+            overflow={"visible"}
+            squareTop={props.squareTop}
+            cursor="pointer"
+            {...props}
+            top={top}
+            left={left}
+            fixed={props.useMousePositioning}
+            width={width}
+            hover={false}
+            visible={open}
+            onClick={e => {
+                e.stopPropagation();
+                !keepOpenOnClick ? close() : null;
+            }}
+        >
+            {children}
+        </DropdownContent>;
         return (
             <Dropdown data-tag="dropdown" ref={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
@@ -169,27 +187,11 @@ const ClickableDropdown: ClickableDropdownType =
                     {props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
                 </Text.TextSpan>
                 {emptyChildren || !open ? null : (
+                    props.useMousePositioning ?
                     ReactDOM.createPortal(
-                        <DropdownContent
-                            overflow={"visible"}
-                            squareTop={props.squareTop}
-                            cursor="pointer"
-                            {...props}
-                            top={top}
-                            left={left}
-                            fixed={props.useMousePositioning}
-                            width={width}
-                            hover={false}
-                            visible={open}
-                            onClick={e => {
-                                e.stopPropagation();
-                                !keepOpenOnClick ? close() : null;
-                            }}
-                        >
-                            {children}
-                        </DropdownContent>,
+                        dropdownContent,
                         portal
-                    )
+                    ) : dropdownContent
                 )}
             </Dropdown>
         );
