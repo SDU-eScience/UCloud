@@ -15,12 +15,15 @@ import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
+typealias MoveHandler = suspend (batch: List<FilesMoveRequestItem>) -> Unit
+
 class FilesService(
     private val fileCollections: FileCollectionService,
     providers: StorageProviders,
     providerSupport: StorageProviderSupport,
     private val metadataService: MetadataService,
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
+    private val moveHandlers = ArrayList<MoveHandler>()
     private val proxy =
         ProviderProxy<StorageCommunication, Product.Storage, FSSupport, UFile>(providers, providerSupport)
     private val metadataCache = SimpleCache<Pair<ActorAndProject, String>, MetadataService.RetrieveWithHistory>(
@@ -28,6 +31,10 @@ class FilesService(
             metadataService.retrieveWithHistory(actorAndProject, parentPath)
         }
     )
+
+    fun addMoveHandler(handler: MoveHandler) {
+        moveHandlers.add(handler)
+    }
 
     private fun verifyReadRequest(request: UFileIncludeFlags, support: FSSupport) {
         if (request.allowUnsupportedInclude != true) {
@@ -61,10 +68,8 @@ class FilesService(
         path: String?,
         permission: Permission
     ): FileCollection {
-        println("The path is $path")
         if (path == null) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val collection = extractPathMetadata(path).collection
-        println("We think it might be $collection")
         return fileCollections.retrieveBulk(
             actorAndProject,
             listOf(collection),
@@ -288,6 +293,21 @@ class FilesService(
                             req.conflictPolicy
                         )
                     })
+                }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>,
+                    response: BulkResponse<LongRunningTask?>
+                ) {
+                    val batch = ArrayList<FilesMoveRequestItem>()
+                    for ((index, res) in resources.withIndex()) {
+                        if (response.responses[index] != null) {
+                            batch.add(res.first)
+                        }
+                    }
+
+                    moveHandlers.forEach { handler -> handler(batch) }
                 }
             }
         )

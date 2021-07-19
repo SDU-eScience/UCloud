@@ -24,6 +24,33 @@ class MetadataService(
     private val collections: FileCollectionService,
     private val templates: MetadataTemplateNamespaces,
 ) {
+    suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    val newPaths by parameterList<String>()
+                    for (item in batch) {
+                        oldPaths.add(item.oldId)
+                        newPaths.add(item.newId)
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.metadata_documents
+                    set
+                        path = e.new_path || substring(path, length(e.old_path) + 1),
+                        parent_path = file_orchestrator.parent_file(e.new_path || substring(path, length(e.old_path) + 1))
+                    from entries e
+                    where
+                        (path = e.old_path or path like e.old_path || '/%');
+                """
+            )
+        }
+    }
+
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun create(
         actorAndProject: ActorAndProject,
