@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
@@ -144,6 +145,14 @@ inline fun <T, R> PageV2<T>.mapItems(mapper: (T) -> R): PageV2<R> {
     return PageV2(
         itemsPerPage,
         items.map(mapper),
+        next
+    )
+}
+
+inline fun <T, R> PageV2<T>.mapItemsNotNull(mapper: (T) -> R?): PageV2<R> {
+    return PageV2(
+        itemsPerPage,
+        items.mapNotNull(mapper),
         next
     )
 }

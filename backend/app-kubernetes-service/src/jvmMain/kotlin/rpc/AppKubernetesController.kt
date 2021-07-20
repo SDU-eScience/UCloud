@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.kubernetes.services.UtilizationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
@@ -36,17 +37,17 @@ class AppKubernetesController(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(KubernetesCompute.create) {
             jobManagement.create(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { null }))
         }
 
-        implement(KubernetesCompute.delete) {
+        implement(KubernetesCompute.terminate) {
             jobManagement.cancel(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(KubernetesCompute.extend) {
             jobManagement.extend(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { }))
         }
 
         implement(KubernetesCompute.suspend) {

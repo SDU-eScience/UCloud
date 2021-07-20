@@ -38,3 +38,10 @@ export const DatePicker = styled(ReactDatePicker) <InputProps>`
 `;
 
 DatePicker.displayName = "DatePicker";
+
+export const SlimDatePickerWrapper = styled.div`
+  & .react-datepicker__day-name, & .react-datepicker__day, & .react-datepicker__time-name {
+    width: 1.4rem;
+    line-height: 1.4rem;
+  }
+`;

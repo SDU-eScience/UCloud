@@ -1,94 +1,102 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.calls.*
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-// TODO Most metadata formats are probably XSD which is also annoying. It is probably doable to do a conversion to
-//  json-schema, however, this still leads to annoying cases where we cannot reliably export to valid XML (maybe?)
-//  Useful links:
-//    - https://github.com/ginkgobioworks/react-json-schema-form-builder
-//    - https://github.com/rjsf-team/react-jsonschema-form
-//    - https://github.com/highsource/jsonix
-// TODO Searchable fields
+// Useful links:
+//   - https://github.com/ginkgobioworks/react-json-schema-form-builder
+//   - https://github.com/rjsf-team/react-jsonschema-form
+//   - https://github.com/highsource/jsonix
+
+@Serializable
+data class FileMetadataTemplateNamespace(
+    override val id: String,
+    override val specification: Spec,
+    override val createdAt: Long,
+    override val status: Status,
+    override val updates: List<Update>,
+    override val owner: ResourceOwner,
+    override val permissions: ResourcePermissions?
+) : Resource<Product, FileMetadataTemplateSupport> {
+    override val billing = ResourceBilling.Free
+    override val acl: List<ResourceAclEntry>? = null
+
+    @Serializable
+    data class Spec(
+        val name: String,
+        val namespaceType: FileMetadataTemplateNamespaceType
+    ) : ResourceSpecification {
+        override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
+    }
+
+    @Serializable
+    data class Status(
+        val latestTitle: String? = null,
+        override var resolvedSupport: ResolvedSupport<Product, FileMetadataTemplateSupport>? = null,
+        override var resolvedProduct: Product? = null
+    ) : ResourceStatus<Product, FileMetadataTemplateSupport>
+
+    @Serializable
+    data class Update(override val timestamp: Long, override val status: String?) : ResourceUpdate
+}
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("""A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`""")
 @Serializable
 data class FileMetadataTemplate(
-    override val id: String,
-    override val specification: Spec,
-    override val status: Status,
-    override val updates: List<Update>,
-    override val owner: SimpleResourceOwner,
-    override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
-    override val createdAt: Long,
-    val public: Boolean,
-    override val permissions: ResourcePermissions? = null,
-) : Resource<FileMetadataTemplatePermission> {
-    override val billing: ResourceBilling.Free = ResourceBilling.Free
+    @UCloudApiDoc("The ID of the namespace that this template belongs to")
+    val namespaceId: String,
+    @UCloudApiDoc("The title of this template. It does not have to be unique.")
+    val title: String,
+    @UCloudApiDoc("Version identifier for this version. It must be unique within a single template group.")
+    val version: String,
+    @UCloudApiDoc("JSON-Schema for this document")
+    val schema: JsonObject,
+    @UCloudApiDoc("Makes this template inheritable by descendants of the file that the template is attached to")
+    val inheritable: Boolean,
+    @UCloudApiDoc("If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata")
+    val requireApproval: Boolean,
+    @UCloudApiDoc("Description of this template. Markdown is supported.")
+    val description: String,
+    @UCloudApiDoc("A description of the change since last version. Markdown is supported.")
+    val changeLog: String,
+    val namespaceType: FileMetadataTemplateNamespaceType,
+    val uiSchema: JsonObject? = null,
 
-    @Serializable
-    data class Spec(
-        @UCloudApiDoc("The unique ID for this template")
-        val id: String,
-        @UCloudApiDoc("The title of this template. It does not have to be unique.")
-        val title: String,
-        @UCloudApiDoc("Version identifier for this version. It must be unique within a single template group.")
-        val version: String,
-        @UCloudApiDoc("JSON-Schema for this document")
-        val schema: JsonObject,
-        @UCloudApiDoc("Makes this template inheritable by descendants of the file that the template is attached to")
-        val inheritable: Boolean,
-        @UCloudApiDoc("If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata")
-        val requireApproval: Boolean,
-        @UCloudApiDoc("Description of this template. Markdown is supported.")
-        val description: String,
-        @UCloudApiDoc("A description of the change since last version. Markdown is supported.")
-        val changeLog: String,
-        @UCloudApiDoc("Determines how this metadata template is namespaces\n\n" +
-            "NOTE: This is required to not change between versions")
-        val namespaceType: FileMetadataTemplateNamespaceType,
-        val uiSchema: JsonObject? = null,
-    ) : ResourceSpecification {
-        @Contextual
-        override val product: Nothing? = null
-    }
+    val namespaceName: String? = null,
+    val createdAt: Long = 0L,
+)
 
-    @Serializable
-    class Status(
-        val oldVersions: List<String>,
-    ) : ResourceStatus
-
-    @Serializable
-    data class Update(
-        override val timestamp: Long,
-        override val status: String?,
-    ) : ResourceUpdate
-}
+@Serializable
+data class FileMetadataTemplateSupport(
+    override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
+) : ProductSupport
 
 @Serializable
 @UCloudApiDoc("Determines how the metadata template is namespaces")
 enum class FileMetadataTemplateNamespaceType {
-    @UCloudApiDoc("""The template is namespaced to all collaborators
+    @UCloudApiDoc(
+        """The template is namespaced to all collaborators
         
-This means at most one metadata document can exist per file.""")
+This means at most one metadata document can exist per file."""
+    )
     COLLABORATORS,
 
-    @UCloudApiDoc("""The template is namespaced to a single user
+    @UCloudApiDoc(
+        """The template is namespaced to a single user
         
-This means that a metadata document might exist for every user who has/had access to the file.""")
+This means that a metadata document might exist for every user who has/had access to the file."""
+    )
     PER_USER
-}
-
-@Serializable
-enum class FileMetadataTemplatePermission {
-    READ,
-    WRITE
 }
 
 @Serializable
@@ -99,52 +107,66 @@ data class FileMetadataHistory(
 
 // ---
 
-typealias FileMetadataTemplatesCreateRequest = BulkRequest<FileMetadataTemplate.Spec>
-typealias FileMetadataTemplatesCreateResponse = BulkResponse<FindByStringId>
+@Serializable
+data class FileMetadataTemplateNamespaceFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    val filterName: String? = null,
+) : ResourceIncludeFlags
 
 @Serializable
-data class FileMetadataTemplatesBrowseRequest(
+data class FileMetadataTemplateAndVersion(
+    val id: String,
+    val version: String,
+)
+
+@Serializable
+data class FileMetadataTemplatesBrowseTemplatesRequest(
+    val id: String,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-typealias FileMetadataTemplatesBrowseResponse = PageV2<FileMetadataTemplate>
-
-@Serializable
-data class FileMetadataTemplatesRetrieveRequest(val id: String, val version: String? = null)
-typealias FileMetadataTemplatesRetrieveResponse = FileMetadataTemplate
-
-typealias FileMetadataTemplatesDeprecateRequest = BulkRequest<FindByStringId>
-typealias FileMetadataTemplatesDeprecateResponse = Unit
 
 // ---
 
-object FileMetadataTemplates : CallDescriptionContainer("file.metadata_template") {
-    const val baseContext = "/api/files/metadataTemplate"
+object FileMetadataTemplateNamespaces : ResourceApi<
+    FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec, FileMetadataTemplateNamespace.Update,
+    FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status, Product,
+    FileMetadataTemplateSupport>("files.metadataTemplates") {
+    override val typeInfo = ResourceTypeInfo<FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec,
+        FileMetadataTemplateNamespace.Update, FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status,
+        Product, FileMetadataTemplateSupport>()
 
-    init {
-        title = "Metadata Templates for Files"
-        description = "No documentation."
+    val createTemplate = call<BulkRequest<FileMetadataTemplate>, BulkResponse<FileMetadataTemplateAndVersion>,
+        CommonErrorMessage>("createTemplate") {
+        httpCreate(baseContext, "templates")
     }
 
-    val create = call<FileMetadataTemplatesCreateRequest, FileMetadataTemplatesCreateResponse,
-        CommonErrorMessage>("create") {
-        httpCreate(baseContext)
+    val retrieveLatest = call<FindByStringId, FileMetadataTemplate, CommonErrorMessage>("retrieveLatest") {
+        httpRetrieve(baseContext, "latest")
     }
 
-    val browse = call<FileMetadataTemplatesBrowseRequest, FileMetadataTemplatesBrowseResponse,
-        CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
+    val retrieveTemplate = call<FileMetadataTemplateAndVersion, FileMetadataTemplate,
+        CommonErrorMessage>("retrieveTemplate") {
+        httpRetrieve(baseContext, "templates")
     }
 
-    val retrieve = call<FileMetadataTemplatesRetrieveRequest, FileMetadataTemplatesRetrieveResponse,
-        CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
+    val browseTemplates = call<FileMetadataTemplatesBrowseTemplatesRequest, PageV2<FileMetadataTemplate>,
+        CommonErrorMessage>("browseTemplates") {
+        httpBrowse(baseContext, "templates")
     }
 
-    val deprecate = call<FileMetadataTemplatesDeprecateRequest, FileMetadataTemplatesDeprecateResponse,
-        CommonErrorMessage>("deprecate") {
+    val deprecate = call<BulkRequest<FindByStringId>, BulkResponse<Unit>, CommonErrorMessage>("deprecate") {
         httpUpdate(baseContext, "deprecate")
     }
 }

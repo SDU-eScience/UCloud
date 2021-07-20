@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.joinPath
-import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import io.ktor.http.*
 
 class TrashService(

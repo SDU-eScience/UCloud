@@ -5,9 +5,13 @@ package dk.sdu.cloud.calls
 import dk.sdu.cloud.*
 import io.ktor.http.*
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.serializer
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 object UCloudApi {
     const val RETRIEVE = "retrieve"
@@ -41,7 +45,8 @@ object UCloudApi {
  *
  * @example [httpCreateExample]
  */
-inline fun <reified R : Any> CallDescription<R, *, *>.httpCreate(
+fun <R : Any> CallDescription<R, *, *>.httpCreate(
+    serializer: KSerializer<R>,
     baseContext: String,
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
@@ -57,8 +62,21 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpCreate(
             using(baseContext)
             if (subResource != null) +(subResource)
         }
-        body { bindEntireRequestFromBody() }
+        body { bindEntireRequestFromBody(serializer) }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpCreate(
+    baseContext: String,
+    subResource: String? = null,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpCreate(
+        containerRef.fixedSerializer(),
+        baseContext,
+        subResource,
+        roles
+    )
 }
 
 private fun CallDescriptionContainer.httpCreateExample() {
@@ -90,15 +108,19 @@ private fun CallDescriptionContainer.httpCreateExample() {
  * On HTTP this will apply the following routing logic:
  *
  * - Method: `GET`
- * - Path: `${baseContext}/browse`
+ * - Path (no subresource): `${baseContext}/browse`
+ * - Path (with subresource): `${baseContext/browse${subResource}`
  *
  * The entire request payload will be bound to the query parameters of the request.
  *
  * @example [httpBrowseExample]
  */
 @OptIn(ExperimentalSerializationApi::class)
-inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
+fun <R : Any> CallDescription<R, *, *>.httpBrowse(
+    serializer: KSerializer<R>,
+    type: KType,
     baseContext: String,
+    subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
@@ -111,17 +133,34 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 
         path {
             using(baseContext)
-            +UCloudApi.BROWSE
+            +(UCloudApi.BROWSE + (subResource ?: "").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
         }
 
-        if (R::class != Unit::class) {
+        if (type != typeOf<Unit>()) {
             params {
-                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
-                    +boundTo(it)
+                for (i in 0 until serializer.descriptor.elementsCount) {
+                    val name = serializer.descriptor.getElementName(i)
+                    val descriptor = serializer.descriptor.getElementDescriptor(i)
+
+                    if (descriptor.kind == StructureKind.CLASS) {
+                        descriptor.elementNames.forEach {
+                            +boundTo(it, name)
+                        }
+                    } else {
+                        +boundTo(name)
+                    }
                 }
             }
         }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
+    baseContext: String,
+    subResource: String? = null,
+    roles: Set<Role> = Roles.END_USER
+) {
+    httpBrowse(containerRef.fixedSerializer(), typeOf<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpBrowseExample() {
@@ -165,7 +204,9 @@ private fun CallDescriptionContainer.httpBrowseExample() {
  * @example [httpRetrieveExample]
  */
 @OptIn(ExperimentalSerializationApi::class)
-inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
+fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
+    serializer: KSerializer<R>,
+    type: KType,
     baseContext: String,
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
@@ -180,17 +221,34 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         path {
             using(baseContext)
-            +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
+            +"${UCloudApi.RETRIEVE}${subResource?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: ""}"
         }
 
-        if (R::class != Unit::class) {
+        if (type != typeOf<Unit>()) {
             params {
-                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
-                    +boundTo(it)
+                for (i in 0 until serializer.descriptor.elementsCount) {
+                    val name = serializer.descriptor.getElementName(i)
+                    val descriptor = serializer.descriptor.getElementDescriptor(i)
+
+                    if (descriptor.kind == StructureKind.CLASS) {
+                        descriptor.elementNames.forEach {
+                            +boundTo(it, name)
+                        }
+                    } else {
+                        +boundTo(name)
+                    }
                 }
             }
         }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
+    baseContext: String,
+    subResource: String? = null,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpRetrieve(containerRef.fixedSerializer<R>(), typeOf<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpRetrieveExample() {
@@ -262,7 +320,8 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
  *
  * @example [httpSearchExample]
  */
-inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
+fun <R : Any> CallDescription<R, *, *>.httpSearch(
+    serializer: KSerializer<R>,
     baseContext: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
@@ -279,8 +338,15 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
             +UCloudApi.SEARCH
         }
 
-        body { bindEntireRequestFromBody() }
+        body { bindEntireRequestFromBody(serializer) }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpSearch(serializer<R>(), baseContext, roles)
 }
 
 private fun CallDescriptionContainer.httpSearchExample() {
@@ -339,7 +405,8 @@ private fun CallDescriptionContainer.httpSearchExample() {
  *
  * @example [httpUpdateExample]
  */
-inline fun <reified R : Any> CallDescription<R, *, *>.httpUpdate(
+fun <R : Any> CallDescription<R, *, *>.httpUpdate(
+    serializer: KSerializer<R>,
     baseContext: String,
     operation: String,
     roles: Set<Role> = Roles.END_USER,
@@ -357,8 +424,16 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpUpdate(
             +operation
         }
 
-        body { bindEntireRequestFromBody() }
+        body { bindEntireRequestFromBody(serializer) }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpUpdate(
+    baseContext: String,
+    operation: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpUpdate(containerRef.fixedSerializer(), baseContext, operation, roles)
 }
 
 private fun CallDescriptionContainer.httpUpdateExample() {
@@ -401,7 +476,8 @@ private fun CallDescriptionContainer.httpUpdateExample() {
  *
  * @example [httpDeleteExample]
  */
-inline fun <reified R : Any> CallDescription<R, *, *>.httpDelete(
+fun <R : Any> CallDescription<R, *, *>.httpDelete(
+    serializer: KSerializer<R>,
     baseContext: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
@@ -417,8 +493,15 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpDelete(
             using(baseContext)
         }
 
-        body { bindEntireRequestFromBody() }
+        body { bindEntireRequestFromBody(serializer) }
     }
+}
+
+inline fun <reified R : Any> CallDescription<R, *, *>.httpDelete(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
+    httpDelete(containerRef.fixedSerializer(), baseContext, roles)
 }
 
 private fun CallDescriptionContainer.httpDeleteExample() {
@@ -487,10 +570,13 @@ private fun CallDescriptionContainer.httpVerifyExample() {
     }
 }
 
-@TSDefinition("""
+@TSDefinition(
+    """
 export type BulkRequest<T> = { type: "bulk", items: T[] }
-""")
-@UCloudApiDoc("""A base type for requesting a bulk operation.
+"""
+)
+@UCloudApiDoc(
+    """A base type for requesting a bulk operation.
     
 ---
 
@@ -509,7 +595,8 @@ verification API to cleanup these resources later.
 ---
     
 
-""")
+"""
+)
 @Serializable
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
@@ -525,6 +612,11 @@ fun <T : Any> bulkRequestOf(vararg items: T): BulkRequest<T> {
 fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     if (items.isEmpty()) error("No items provided")
     return BulkRequest(items.toList())
+}
+
+fun <T : Any> bulkResponseOf(vararg items: T): BulkResponse<T> {
+    if (items.isEmpty()) error("No items provided")
+    return BulkResponse(listOf(*items))
 }
 
 @Serializable

@@ -65,6 +65,7 @@ data class HttpParams<Request : Any>(val parameters: List<HttpQueryParameter<Req
 sealed class HttpQueryParameter<Request : Any> {
     data class Property<Request : Any>(
         val property: String,
+        val nestedInside: String? = null
     ) : HttpQueryParameter<Request>()
 }
 

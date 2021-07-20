@@ -1,0 +1,86 @@
+application: v1
+
+title: All Optional
+name: all-opt
+version: 4
+
+applicationType: WEB
+
+web:
+  port: 6901
+
+tool:
+  name: all
+  version: 1
+
+authors:
+- Dan
+
+container:
+  runAsRoot: true
+ 
+description: >
+  All!
+ 
+invocation:
+- tail
+- -f
+- /dev/null
+
+outputFileGlobs:
+  - "*"
+
+parameters:
+  file_opt:
+    optional:  true
+    title: "file opt"
+    description: "A description of file"
+    type: input_file
+  directory_opt:
+    optional:  true
+    title: "directory opt"
+    description: "A description of directory"
+    type: input_file
+  text_opt:
+    optional:  true
+    title: "text opt"
+    description: "A description of text"
+    type: text
+  integer_opt:
+    optional:  true
+    title: "integer opt"
+    description: "A description of integer"
+    type: integer
+  boolean_opt:
+    optional:  true
+    title: "boolean opt"
+    description: "A description of boolean"
+    type: boolean
+  floating_point_opt:
+    optional:  true
+    title: "floating_point opt"
+    description: "A description of floating_point"
+    type: floating_point
+  peeropt:
+    optional:  true
+    title: "peer opt"
+    description: "A description of peer"
+    type: peer
+  license_server_opt:
+    optional:  true
+    title: "license_server opt"
+    description: "A description of license_server"
+    type: license_server
+    tagged: ["app"]
+  enumeration_server_opt:
+    optional:  true
+    title: "enumeration opt"
+    description: "A description of enumeration"
+    type: enumeration
+    options:
+    - name: A
+      value: a
+    - name: B
+      value: b
+    - name: C
+      value: c

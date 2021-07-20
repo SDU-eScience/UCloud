@@ -149,38 +149,4 @@ class CronJobTest {
         "parentuser",
         ProjectRole.ADMIN
     )
-
-    @Test
-    fun LowFundsEmailingTest() {
-        val client = ClientMock.authenticatedClient
-        val config = Configuration(500000)
-        val cronjobs = LowFundsJob(db, client, config)
-        ClientMock.mockCallSuccess(
-            Projects.lookupByIdBulk,
-            listOf(project2)
-        )
-
-        ClientMock.mockCallSuccess(
-            ProjectMembers.lookupAdminsBulk,
-            LookupAdminsBulkResponse(
-                listOf(
-                    Pair("idOfProject2", listOf(pi, admin))
-                )
-            )
-        )
-
-        ClientMock.mockCallSuccess(
-            ProjectMembers.lookupAdmins,
-            LookupAdminsResponse(listOf(parentAdmin))
-        )
-
-        ClientMock.mockCallSuccess(
-            MailDescriptions.sendBulk,
-            Unit
-        )
-
-        runBlocking {
-            cronjobs.notifyLowFundsWallets()
-        }
-    }
 }

@@ -1,11 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequest
-import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequestItem
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -70,10 +68,10 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         if (timespent > 0L) {
             val insufficientFunds = JobsControl.chargeCredits.call(
                 bulkRequestOf(
-                    JobsControlChargeCreditsRequestItem(
+                    ResourceChargeCredits(
                         jobId,
                         lastTs.toString(),
-                        SimpleDuration.fromMillis(timespent)
+                        kotlin.math.ceil(timespent / 1000 * 60.0).toLong()
                     )
                 ),
                 k8.serviceClient

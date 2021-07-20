@@ -46,6 +46,7 @@ class AppStoreController(
             ok(
                 appStore.findBySupportedFileExtension(
                     ctx.securityPrincipal,
+                    request.normalize(),
                     ctx.project,
                     request.files
                 )

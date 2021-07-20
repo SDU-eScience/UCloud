@@ -1,12 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -15,28 +11,29 @@ import kotlinx.serialization.json.decodeFromJsonElement
 // Note: These files are internal
 @Serializable
 private data class FileToMove(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldId: String,
+    override val newId: String,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving
 
 class MoveTask : TaskHandler {
-    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+    override fun TaskContext.canHandle(name: String, request: JsonObject): Boolean {
         return name == Files.move.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         }.isSuccess
     }
 
     override suspend fun TaskContext.collectRequirements(
-        actor: Actor,
         name: String,
         request: JsonObject,
         maxTime: Long?,
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         for (reqItem in realRequest.items) {
+            /*
             aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.WRITE)
             aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
+             */
         }
 
         // TODO It might be beneficial to go into the background if the policy is MERGE and the destination exists
@@ -45,7 +42,7 @@ class MoveTask : TaskHandler {
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
@@ -54,28 +51,28 @@ class MoveTask : TaskHandler {
             numberOfCoroutines,
             realRequest.items.map {
                 FileToMove(
-                    pathConverter.ucloudToInternal(UCloudFile.create(it.oldPath)).path,
-                    pathConverter.ucloudToInternal(UCloudFile.create(it.newPath)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path,
                     it.conflictPolicy
                 )
             },
             doWork = doWork@{ nextItem ->
                 try {
                     val needsToRecurse = nativeFs.move(
-                        InternalFile(nextItem.oldPath),
-                        InternalFile(nextItem.newPath),
+                        InternalFile(nextItem.oldId),
+                        InternalFile(nextItem.newId),
                         nextItem.conflictPolicy
                     ).needsToRecurse
 
                     if (needsToRecurse) {
-                        val childrenFileNames = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldPath)) }
+                        val childrenFileNames = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }
                             .getOrDefault(emptyList())
 
                         for (childFileName in childrenFileNames) {
                             channel.send(
                                 FileToMove(
-                                    nextItem.oldPath + "/" + childFileName,
-                                    nextItem.newPath + "/" + childFileName,
+                                    nextItem.oldId + "/" + childFileName,
+                                    nextItem.newId + "/" + childFileName,
                                     nextItem.conflictPolicy
                                 )
                             )

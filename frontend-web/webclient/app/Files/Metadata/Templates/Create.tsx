@@ -1,14 +1,9 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import templateApi = UCloud.file.orchestrator.metadata_template;
 import {useHistory} from "react-router";
 import {getQueryParam} from "Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {file} from "UCloud";
-import FileMetadataTemplate = file.orchestrator.FileMetadataTemplate;
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {entityName} from "Files/Metadata/Templates/Browse";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import MainContainer from "MainContainer/MainContainer";
@@ -18,8 +13,10 @@ import * as Heading from "ui-components/Heading";
 import {Operation, Operations} from "ui-components/Operation";
 import {Section} from "ui-components/Section";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
+import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
+import {BulkResponse, FindByStringId} from "UCloud";
 import styled from "styled-components";
 
 enum Stage {
@@ -30,10 +27,11 @@ enum Stage {
 
 const Create: React.FunctionComponent = props => {
     const history = useHistory();
-    const id = getQueryParam(history.location.search, "id");
+    const id = getQueryParam(history.location.search, "namespace");
     const [schema, setSchema] = useState<string>("{}");
     const [uiSchema, setUiSchema] = useState<string>("{}");
-    const [template, fetchTemplate] = useCloudAPI<FileMetadataTemplate | null>({noop: true}, null);
+    const [namespace, fetchNamespace] = useCloudAPI<FileMetadataTemplateNamespace | null>({noop: true}, null);
+    const [latestTemplate, fetchLatestTemplate] = useCloudAPI<FileMetadataTemplate | null>({noop: true}, null);
     const [stage, setStage] = useState(Stage.INFO);
     const [commandLoading, invokeCommand] = useCloudCommand();
 
@@ -47,20 +45,23 @@ const Create: React.FunctionComponent = props => {
     const inheritRef = useRef<HTMLSelectElement>(null);
 
     const reload = useCallback(() => {
-        if (id) fetchTemplate(templateApi.retrieve({id}));
+        if (id) {
+            fetchNamespace(templateApi.retrieve({id}));
+            fetchLatestTemplate(templateApi.retrieveLatest({id}));
+        }
     }, [id]);
 
     const saveVersion = useCallback(async () => {
-        const id = idRef.current?.value;
+        let name = idRef.current?.value;
         const title = titleRef.current?.value;
         const description = descriptionRef.current?.value;
         const version = versionRef.current?.value;
         const changeLog = changeLogRef.current?.value;
-        const namespace = namespaceRef.current?.value;
+        const namespaceType = namespaceRef.current?.value;
         const requireApproval = requireApprovalRef.current?.value === "true";
         const inheritable = inheritRef.current?.value === "true";
 
-        if (!id) {
+        if (!name) {
             snackbarStore.addFailure("Missing or bad ID", false);
             return;
         }
@@ -76,23 +77,45 @@ const Create: React.FunctionComponent = props => {
         }
 
         if (!version) {
-            snackbarStore.addFailure("Missing or bad description", false);
+            snackbarStore.addFailure("Missing or bad version", false);
             return;
         }
 
         if (!changeLog) {
-            snackbarStore.addFailure("Missing or bad description", false);
+            snackbarStore.addFailure("Missing or bad change log", false);
             return;
         }
 
         if (!namespaceRef) {
-            snackbarStore.addFailure("Missing or bad description", false);
+            snackbarStore.addFailure("Missing or bad namespace type", false);
             return;
         }
 
+        if (id == null) {
+            // NOTE(Dan): We must register the namespace if this is not a new version of an existing template
+            try {
+                name = (await invokeCommand<BulkResponse<FindByStringId>>(
+                    templateApi.create(bulkRequestOf({
+                        name,
+                        namespaceType: namespaceType as ("COLLABORATORS" | "PER_USER"),
+                        product: placeholderProduct()
+                    })),
+                    {defaultErrorHandler: false}
+                ))?.responses?.[0]!.id;
+            } catch (e) {
+                snackbarStore.addFailure(
+                    "Unable to use this ID. It might already be in use, try a different ID",
+                    false
+                );
+                return;
+            }
+        } else {
+            name = namespace.data!.id;
+        }
+
         const success = await invokeCommand(
-            templateApi.create(bulkRequestOf({
-                id,
+            templateApi.createTemplate(bulkRequestOf({
+                namespaceId: name!,
                 title,
                 version,
                 description,
@@ -101,13 +124,12 @@ const Create: React.FunctionComponent = props => {
                 requireApproval,
                 uiSchema: JSON.parse(uiSchema),
                 schema: JSON.parse(schema),
-                namespaceType: namespace as ("COLLABORATORS" | "PER_USER"),
-                product: undefined
+                namespaceType: namespaceType as ("COLLABORATORS" | "PER_USER"),
             }))
         ) != null;
 
         if (success) {
-            history.push("/files/metadata/templates/");
+            history.push("/" + templateApi.routingNamespace);
         }
     }, [schema, uiSchema]);
 
@@ -120,30 +142,33 @@ const Create: React.FunctionComponent = props => {
     useEffect(reload, [reload]);
 
     useLayoutEffect(() => {
-        if (template.data) {
-            setSchema(JSON.stringify(template.data?.specification.schema));
-            if (template.data?.specification.uiSchema) {
-                setUiSchema(JSON.stringify(template.data?.specification.uiSchema));
+        if (namespace.data) {
+            idRef.current!.value = namespace.data.specification.name;
+        }
+
+        if (latestTemplate.data) {
+            setSchema(JSON.stringify(latestTemplate.data?.schema));
+            if (latestTemplate.data?.uiSchema) {
+                setUiSchema(JSON.stringify(latestTemplate.data?.uiSchema));
             }
 
-            idRef.current!.value = template.data.id;
-            titleRef.current!.value = template.data.specification.title;
-            descriptionRef.current!.value = template.data.specification.description;
-            versionRef.current!.value = template.data.specification.version;
-            changeLogRef.current!.value = template.data.specification.changeLog;
-            namespaceRef.current!.value = template.data.specification.namespaceType;
-            requireApprovalRef.current!.value = template.data.specification.requireApproval.toString();
-            inheritRef.current!.value = template.data.specification.inheritable.toString();
+            titleRef.current!.value = latestTemplate.data.title;
+            descriptionRef.current!.value = latestTemplate.data.description;
+            versionRef.current!.value = latestTemplate.data.version;
+            changeLogRef.current!.value = latestTemplate.data.changeLog;
+            namespaceRef.current!.value = latestTemplate.data.namespaceType;
+            requireApprovalRef.current!.value = latestTemplate.data.requireApproval.toString();
+            inheritRef.current!.value = latestTemplate.data.inheritable.toString();
         }
-    }, [template]);
+    }, [latestTemplate.data, namespace.data]);
 
     {
-        let title = entityName;
-        if (template?.data) {
-            title += ` (${template.data.specification.title})`;
+        let title = templateApi.title;
+        if (latestTemplate?.data) {
+            title += ` (${latestTemplate.data.title})`;
         }
         useTitle(title);
-        useLoading(template.loading);
+        useLoading(latestTemplate.loading || namespace.loading);
         useRefreshFunction(reload);
         useSidebarPage(SidebarPages.Files);
     }
@@ -151,15 +176,12 @@ const Create: React.FunctionComponent = props => {
     return <MainContainer
         header={
             <SelectableTextWrapper mb={"16px"}>
-                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO} mr="1em">
-                    1. Info
-                </SelectableText>
-                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA} mr="1em">
-                    2. Schema
-                </SelectableText>
-                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW} mr="1em">
-                    3. Preview and save
-                </SelectableText>
+                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO}
+                                children={"1. Info"} mr={"1em"}/>
+                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA}
+                                children={"2. Schema"} mr={"1em"}/>
+                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW}
+                                children={"3. Preview and save"} mr={"1em"}/>
             </SelectableTextWrapper>
         }
         headerSize={45}
@@ -171,14 +193,20 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Information</Heading.h3>
                             <Label>
                                 ID
-                                <Input ref={idRef} placeholder={"schema-xyz"} />
+                                <Input ref={idRef} placeholder={"schema-xyz"} disabled={id != null}/>
+                                {id == null ? null :
+                                    <Text color={"gray"}>
+                                        <b>NOTE:</b>{" "}
+                                        You cannot change to ID when you are creating a new version of a template.
+                                    </Text>
+                                }
                             </Label>
                             <Label>
                                 Title
-                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"} />
+                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"}/>
                             </Label>
                             <Label>
-                                Description <br />
+                                Description <br/>
                                 <TextArea
                                     ref={descriptionRef}
                                     rows={5}
@@ -192,13 +220,13 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Versioning</Heading.h3>
                             <Label>
                                 Version
-                                <Input ref={versionRef} placeholder={"1.0.0"} />
+                                <Input ref={versionRef} placeholder={"1.0.0"}/>
                             </Label>
 
                             <Label>
-                                Changes since last version <br />
+                                Changes since last version <br/>
                                 <TextArea ref={changeLogRef} rows={2} width={"100%"}
-                                    placeholder={"Version 1.1.0 has made the following changes..."} />
+                                          placeholder={"Version 1.1.0 has made the following changes..."}/>
                             </Label>
                         </Section>
 
@@ -321,7 +349,7 @@ const Create: React.FunctionComponent = props => {
         }
         sidebar={
             <Operations location={"SIDEBAR"} operations={operations} selected={[]} extra={callbacks}
-                entityNameSingular={entityName} />
+                        entityNameSingular={templateApi.title}/>
         }
     />;
 };

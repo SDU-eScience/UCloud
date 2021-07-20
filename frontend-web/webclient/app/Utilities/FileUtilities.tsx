@@ -82,7 +82,7 @@ const goUpDirectory = (
     path: string
 ): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string): string => {
+export const fileName = (path: string): string => {
     const lastSlash = path.lastIndexOf("/");
     if (lastSlash !== -1 && path.length > lastSlash + 1) {
         return path.substring(lastSlash + 1);
@@ -92,7 +92,7 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string, projects: ProjectName[]): string {
-    const baseName: string = toFileName(path);
+    const baseName: string = fileName(path);
 
     if (baseName === "..") return `.. (${getFilenameFromPath(goUpDirectory(2, path), projects)})`;
     if (baseName === ".") return `. (Current folder)`;
@@ -134,4 +134,30 @@ export function sizeToHumanReadableWithUnit(bytes: number): {size: number; unit:
     } else {
         return {size: (bytes / 1000 ** 6), unit: "EB"};
     }
+}
+
+export function readableUnixMode(unixPermissions: number): string {
+    let result = "";
+    if ((unixPermissions & (1 << 8)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 7)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 6)) != 0) result += "x";
+    else result += "-";
+
+    if ((unixPermissions & (1 << 5)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 4)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 3)) != 0) result += "x";
+    else result += "-";
+
+    if ((unixPermissions & (1 << 2)) != 0) result += "r";
+    else result += "-";
+    if ((unixPermissions & (1 << 1)) != 0) result += "w";
+    else result += "-";
+    if ((unixPermissions & (1 << 0)) != 0) result += "x";
+    else result += "-";
+
+    return result;
 }

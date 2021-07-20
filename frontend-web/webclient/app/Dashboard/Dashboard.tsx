@@ -15,7 +15,6 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {EllipsedText} from "ui-components/Text";
 import {sizeToString} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
@@ -50,10 +49,6 @@ import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
-import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
-import {jobAppTitle, jobTitle} from "Applications/Jobs";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -137,10 +132,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
         emptyPage
     );
 
-    const [jobs, fetchJobs] = useCloudAPI<PageV2<UCloud.compute.Job>>(UCloud.compute.jobs.browse({
-        itemsPerPage: 10,
-    }), emptyPage);
-
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -169,7 +160,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10, includeApplication: true}));
     }
 
     const {
@@ -182,9 +172,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
             <DashboardNews news={news.data.items} loading={news.loading}/>
-            <DashboardFavoriteFiles/>
-
-            <DashboardAnalyses runs={jobs}/>
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -204,94 +191,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
 
     return (<MainContainer main={main}/>);
 }
-
-const DashboardFavoriteFiles: React.FunctionComponent = () => (
-    null
-    /*
-    TODO
-    <DashboardCard
-        title={<Link to={"/files/"}><Heading.h3>Favorite Files</Heading.h3></Link>}
-        color="blue"
-        isLoading={false}
-        icon={"starFilled"}
-    >
-        {files.length || error ? null : (
-            <NoResultsCardBody title="No favorite files">
-                <Text>
-                    Click the <Icon name="starEmpty"/> next to one of your files to mark it as a favorite.
-                    <Link to={fileTablePage(Client.activeHomeFolder)}>
-                        <Button fullWidth mt={16}>Explore files</Button>
-                    </Link>
-                </Text>
-            </NoResultsCardBody>
-        )}
-        <Error error={error}/>
-        <List>
-            {files.slice(0, 7).map(file => (
-                <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
-                    <ListFileContent file={file} pixelsWide={200}/>
-                    <Icon
-                        ml="auto"
-                        size="1em"
-                        name="starFilled"
-                        color="blue"
-                        cursor="pointer"
-                        onClick={() => favorite(file)}
-                    />
-                </Flex>
-            ))}
-        </List>
-    </DashboardCard>
-     */
-);
-
-const DashboardAnalyses: React.FunctionComponent<{ runs: APICallState<PageV2<UCloud.compute.Job>> }> = ({runs}) => (
-    <DashboardCard
-        title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
-        color="purple"
-        isLoading={runs.loading}
-        icon={"apps"}
-    >
-        {runs.data.items.length || runs.error ? null : (
-            <NoResultsCardBody title={"No recent application runs"}>
-                <Text>
-                    When you run an application on UCloud the results will appear here.
-
-                    <Link to={"/applications/overview"} mt={8}>
-                        <Button fullWidth mt={8}>Explore applications</Button>
-                    </Link>
-                </Text>
-            </NoResultsCardBody>
-        )}
-        <Error error={runs.error?.why}/>
-        <List>
-            {runs.data.items.slice(0, 7).map((run: UCloud.compute.Job, index: number) => (
-                <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
-                    <JobStateIcon
-                        size="1.2em"
-                        pr="0.3em"
-                        state={run.status.state}
-                        isExpired={isRunExpired(run)}
-                        mr="8px"
-                    />
-                    <Link to={`/applications/jobs/${run.id}`}>
-                        <EllipsedText width={175} fontSize={3}>
-                            {jobTitle(run)} ({jobAppTitle(run)})
-                        </EllipsedText>
-                    </Link>
-                    <Box ml="auto"/>
-                    <Text fontSize={1} color="grey">
-                        {formatDistanceToNow(
-                            new Date(
-                                run.updates[run.updates.length - 1]?.timestamp ?? run.status.startedAt
-                            ), {addSuffix: true}
-                        )}
-                    </Text>
-                </Flex>
-            ))}
-        </List>
-    </DashboardCard>
-);
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;

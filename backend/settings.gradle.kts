@@ -17,5 +17,11 @@ include("integration-testing")
         if (apiBuild.exists()) {
             include("${file.name}:api")
         }
+
+        val utilPackage = File(file, "util")
+        val utilBuild = File(utilPackage, "build.gradle.kts")
+        if (utilBuild.exists()) {
+            include("${file.name}:util")
+        }
     }
 }

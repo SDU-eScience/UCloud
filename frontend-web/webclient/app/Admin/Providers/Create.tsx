@@ -8,7 +8,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as UCloud from "UCloud";
 import {Box, Button, Checkbox, Flex, Input, Label} from "ui-components";
 import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {useHistory} from "react-router";
 import {useProjectId} from "Project";
 
@@ -82,6 +82,7 @@ function Create(): JSX.Element | null {
                     domain,
                     https: isHttps,
                     port: isNaN(port) ? undefined : port,
+                    product: placeholderProduct()
                 })),
                 {defaultErrorHandler: false}
             );

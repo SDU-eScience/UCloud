@@ -38,9 +38,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                 visual.value = value!.value;
             }
         };
-        value!.addEventListener("change", listener);
+        value?.addEventListener("change", listener);
         return () => {
-            value!.removeEventListener("change", listener);
+            value?.removeEventListener("change", listener);
         }
     }, []);
 

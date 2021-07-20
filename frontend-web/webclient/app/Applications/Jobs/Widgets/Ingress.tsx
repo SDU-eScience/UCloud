@@ -8,7 +8,7 @@ import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications
 import {PointerInput} from "Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "UCloud";
-import Ingress = compute.Ingress;
+// import Ingress = compute.Ingress;
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "Authentication/DataHook";
@@ -18,6 +18,8 @@ interface IngressProps extends WidgetProps {
 }
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
+    return null;
+    /*
     const error = props.errors[props.parameter.name] != null;
     const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
@@ -78,6 +80,8 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             <Browse computeProvider={props.provider} onSelect={onUse}/>
         </ReactModal>
     </Flex>);
+
+     */
 }
 
 export const IngressValidator: WidgetValidator = (param) => {

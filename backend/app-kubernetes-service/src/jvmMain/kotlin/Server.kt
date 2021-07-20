@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
@@ -10,7 +11,7 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.EnvoyConfigurationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
-import dk.sdu.cloud.app.orchestrator.api.IngressSettings
+import dk.sdu.cloud.app.orchestrator.api.IngressSupport
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
@@ -49,7 +50,6 @@ class Server(
                 if (!micro.developmentModeEnabled && integrationTestingIsKubernetesReady) {
                     throw IllegalStateException("Missing configuration at app.kubernetes.providerRefreshToken")
                 }
-                requireTokenInit = true
                 Pair("REPLACED_LATER", InternalTokenValidationJWT.withSharedSecret(UUID.randomUUID().toString()))
             } else {
                 Pair(
@@ -98,7 +98,11 @@ class Server(
         val resourceCache = ResourceCache(k8Dependencies)
         val sessions = SessionDao()
         val ingressService = IngressService(
-            IngressSettings(configuration.prefix, "." + configuration.domain),
+            IngressSupport(
+                configuration.prefix,
+                "." + configuration.domain,
+                ProductReference("u1-publiclink", "u1-publiclink", "ucloud")
+            ),
             db,
             k8Dependencies
         )
@@ -220,61 +224,6 @@ class Server(
         ktorEngine.application.routing {
             vncService.install(this)
             webService.install(this)
-        }
-
-        if (requireTokenInit) {
-            log.warn("Initializing a provider for UCloud in development mode")
-            runBlocking {
-                val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-                val project = Projects.create.call(
-                    CreateProjectRequest("UCloudProviderForDev"),
-                    serviceClient
-                ).orThrow()
-
-                Providers.create.call(
-                    bulkRequestOf(
-                        ProviderSpecification(
-                            UCLOUD_PROVIDER,
-                            "localhost",
-                            false,
-                            8080
-                        )
-                    ),
-                    serviceClient.withProject(project.id)
-                ).orRethrowAs {
-                    throw IllegalStateException("Could not register a provider for development mode!")
-                }
-
-                val retrievedResponse = Providers.retrieve.call(
-                    ProvidersRetrieveRequest(UCLOUD_PROVIDER),
-                    serviceClient.withProject(project.id)
-                ).orThrow()
-
-                if (micro.developmentModeEnabled) {
-                    val defaultConfigDir = File(System.getProperty("user.home"), "ucloud").also { it.mkdirs() }
-                    val configFile = File(defaultConfigDir, "ucloud-compute-config.yml")
-                    log.warn("Provider configuration is stored at: ${configFile.absolutePath}")
-                    configFile.writeText(
-                        //language=yaml
-                        """
-                          ---
-                          app:
-                            kubernetes:
-                              providerRefreshToken: ${retrievedResponse.refreshToken}
-                              ucloudCertificate: ${retrievedResponse.publicKey}
-                        """.trimIndent()
-                    )
-                }
-
-                @Suppress("UNCHECKED_CAST")
-                micro.providerTokenValidation = InternalTokenValidationJWT
-                    .withPublicCertificate(retrievedResponse.publicKey) as TokenValidation<Any>
-
-                k8Dependencies.serviceClient = RefreshingJWTAuthenticator(
-                    micro.client,
-                    JwtRefresher.Provider(retrievedResponse.refreshToken)
-                ).authenticateClient(OutgoingHttpCall)
-            }
         }
     }
 

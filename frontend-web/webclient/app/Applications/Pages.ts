@@ -9,7 +9,7 @@ export const viewApplication = (application: { name: string, version: string }):
     view(application.name, application.version);
 
 export const run = (name: string, version: string): string =>
-    `/applications/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
+    buildQueryString("/jobs/create", {app: name, version});
 
 export const runApplication = (application: NameAndVersion): string =>
     run(application.name, application.version);

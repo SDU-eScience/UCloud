@@ -16,14 +16,13 @@ import {supportedProtocols, Upload, UploadState} from "Files/Upload";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {Operation, Operations} from "ui-components/Operation";
-import * as UCloud from "UCloud";
-import FileApi = UCloud.file.orchestrator;
+import {default as FilesApi, FilesCreateUploadResponseItem} from "UCloud/FilesApi";
 import {callAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {BulkResponse} from "UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
-import {sizeToString} from "Utilities/FileUtilities";
-import {fileName} from "./Files";
+import {fileName, sizeToString} from "Utilities/FileUtilities";
+import {FilesCreateUploadRequestItem} from "UCloud/FilesApi";
 
 const maxConcurrentUploads = 5;
 const entityName = "Upload";
@@ -33,7 +32,7 @@ const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
 interface LocalStorageFileUploadInfo {
     offset: number;
     size: number;
-    strategy: FileApi.FilesCreateUploadResponseItem;
+    strategy: FilesCreateUploadResponseItem;
     expiration: number;
 }
 
@@ -155,10 +154,9 @@ const Uploader: React.FunctionComponent = () => {
             if (u.state === UploadState.UPLOADING) activeUploads++;
         }
 
-
         const maxUploadsToUse = maxConcurrentUploads - activeUploads;
         if (maxUploadsToUse > 0) {
-            const creationRequests: FileApi.FilesCreateUploadRequestItem[] = [];
+            const creationRequests: FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
             const resumingUploads: Upload[] = [];
 
@@ -180,7 +178,7 @@ const Uploader: React.FunctionComponent = () => {
                 creationRequests.push({
                     supportedProtocols,
                     conflictPolicy: upload.conflictPolicy,
-                    path: fullFilePath,
+                    id: fullFilePath,
                 });
 
                 actualUploads.push(upload);
@@ -189,13 +187,15 @@ const Uploader: React.FunctionComponent = () => {
             if (actualUploads.length + resumingUploads.length === 0) return;
 
             try {
-                const responses = (await callAPI<BulkResponse<FileApi.FilesCreateUploadResponseItem>>(
-                    FileApi.files.createUpload(bulkRequestOf(...creationRequests))
-                )).responses;
+                if (creationRequests.length > 0) {
+                    const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
+                        FilesApi.createUpload(bulkRequestOf(...creationRequests))
+                    )).responses;
 
-                for (const [index, response] of responses.entries()) {
-                    const upload = actualUploads[index];
-                    upload.uploadResponse = response;
+                    for (const [index, response] of responses.entries()) {
+                        const upload = actualUploads[index];
+                        upload.uploadResponse = response;
+                    }
                 }
 
                 for (const upload of [...actualUploads, ...resumingUploads]) {

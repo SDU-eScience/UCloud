@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import * as React from "react";
 import {Button} from "ui-components/index";
-import {useCallback, useLayoutEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ButtonProps} from "ui-components/Button";
 import Icon, {IconName} from "ui-components/Icon";
 import {shakeAnimation} from "UtilityComponents";
@@ -258,7 +258,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.classList.remove("success");
         button.classList.add("process");
         timeout.current = setTimeout(success, tickRate);
-    }, [buttonRef.current]);
+    }, [buttonRef.current, success]);
 
     const end = useCallback(() => {
         const button = buttonRef.current;

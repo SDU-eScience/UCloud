@@ -1,141 +1,80 @@
 package dk.sdu.cloud.file.orchestrator.service
 
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceUpdate
+import dk.sdu.cloud.provider.api.UpdatedAcl
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.serializer
+
+private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
+    FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
 
 class FileCollectionService(
-    private val providers: Providers,
-    private val providerSupport: ProviderSupport,
-    private val projectCache: ProjectCache,
-) {
-    suspend fun browse(
+    db: AsyncDBSessionFactory,
+    providers: Providers<StorageCommunication>,
+    support: ProviderSupport<StorageCommunication, Product.Storage, FSSupport>,
+    serviceClient: AuthenticatedClient,
+) : Super(db, providers, support, serviceClient) {
+    override val table = SqlObject.Table("file_orchestrator.file_collections")
+    override val defaultSortColumn = SqlObject.Column(table, "resource")
+    override val sortColumns = mapOf(
+        "resource" to SqlObject.Column(table, "resource")
+    )
+
+    override val serializer = serializer<FileCollection>()
+    override val updateSerializer = serializer<FileCollection.Update>()
+    override val productArea = ProductArea.STORAGE
+
+    override fun userApi() = FileCollections
+    override fun controlApi() = FileCollectionsControl
+    override fun providerApi(comms: ProviderComms) = FileCollectionsProvider(comms.provider.id)
+
+    override suspend fun createSpecifications(
         actorAndProject: ActorAndProject,
-        request: FileCollectionsBrowseRequest,
-    ): FileCollectionsBrowseResponse {
-        val comms = providers.prepareCommunication(request.provider)
-
-        return comms.fileCollectionsApi.browse.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                FileCollectionsProviderBrowseRequest(
-                    request.itemsPerPage,
-                    request.next,
-                    request.consistency,
-                    request.itemsToSkip
-                )
-            ),
-            comms.client
-        ).orThrow()
-    }
-
-    suspend fun retrieve(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsRetrieveRequest,
-    ): FileCollection {
-        val comms = providers.prepareCommunication(request.provider)
-
-        return comms.fileCollectionsApi.retrieve.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                FindByStringId(request.id)
-            ),
-            comms.client
-        ).orThrow()
-    }
-
-    suspend fun retrieveManifest(
-        request: FileCollectionsRetrieveManifestRequest,
-    ): FileCollectionsRetrieveManifestResponse {
-        val comms = providers.prepareCommunication(request.provider)
-        return comms.fileCollectionsApi.retrieveManifest.call(Unit, comms.client).orThrow()
-    }
-
-    suspend fun create(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsCreateRequest,
-    ): BulkResponse<FindByStringId> {
-        val requestsByProvider = HashMap<String, List<Pair<Int, FileCollection.Spec>>>()
-        for ((index, reqItem) in request.items.withIndex()) {
-            requestsByProvider[reqItem.product.provider] =
-                (requestsByProvider[reqItem.product.provider] ?: emptyList()) + Pair(index, reqItem)
-        }
-        val allIds = arrayOfNulls<FindByStringId?>(request.items.size)
-        for ((provider, requests) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            val ids = comms.fileCollectionsApi.create.call(
-                proxiedRequest(projectCache, actorAndProject, bulkRequestOf(requests.map { it.second })),
-                comms.client,
-            ).orThrow().responses
-            for ((index, id) in ids.withIndex()) {
-                allIds[requestsByProvider[provider]!![index].first] = id
-            }
-        }
-        return BulkResponse(allIds.filterNotNull())
-    }
-
-    suspend fun rename(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsRenameRequest,
+        idWithSpec: List<Pair<Long, FileCollection.Spec>>,
+        session: AsyncDBConnection,
+        allowDuplicates: Boolean
     ) {
-        val requestsByProvider = request.items.groupBy { it.provider }
-        for ((provider, requests) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            comms.fileCollectionsApi.rename.call(
-                proxiedRequest(
-                    projectCache,
-                    actorAndProject,
-                    bulkRequestOf(requests.map { FileCollectionsProviderRenameRequestItem(it.id, it.newTitle) })
-                ),
-                comms.client
-            ).orThrow()
-        }
+        session.sendPreparedStatement(
+            {
+                val titles by parameterList<String>()
+                val ids by parameterList<Long>()
+                for ((id, spec) in idWithSpec) {
+                    ids.add(id)
+                    titles.add(spec.title)
+                }
+            },
+            """
+                insert into file_orchestrator.file_collections (resource, title)
+                select unnest(:ids::bigint[]) id, unnest(:titles::text[]) title
+            """
+        )
     }
 
-    suspend fun delete(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsDeleteRequest,
-    ) {
-        val requestsByProvider = request.items.groupBy { it.provider }
-        for ((provider, requests) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            comms.fileCollectionsApi.delete.call(
-                proxiedRequest(
-                    projectCache,
-                    actorAndProject,
-                    bulkRequestOf(requests.map { FindByStringId(it.id) })
-                ),
-                comms.client
-            ).orThrow()
-        }
-    }
-
-    suspend fun updateAcl(
-        actorAndProject: ActorAndProject,
-        request: FileCollectionsUpdateAclRequest,
-    ) {
-        val requestsByProvider = request.items.groupBy { it.provider }
-        for ((provider, requests) in requestsByProvider) {
-            val comms = providers.prepareCommunication(provider)
-            comms.fileCollectionsApi.updateAcl.call(
-                proxiedRequest(
-                    projectCache,
-                    actorAndProject,
-                    bulkRequestOf(requests.map { FileCollectionsProviderUpdateAclRequestItem(it.id, it.newAcl) })
-                ),
-                comms.client
-            ).orThrow()
-        }
+    override suspend fun browseQuery(flags: FileCollectionIncludeFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+            },
+            """
+                select * from file_orchestrator.file_collections
+                where
+                    (:query::text is null or title ilike '%' || :query || '%')
+            """
+        )
     }
 }

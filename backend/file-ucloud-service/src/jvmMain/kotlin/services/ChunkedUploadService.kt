@@ -1,10 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -15,44 +12,44 @@ import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 import kotlin.math.max
-import kotlin.math.min
 
 class ChunkedUploadService(
     private val db: DBContext,
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val nativeFS: NativeFS,
 ) {
     suspend fun createSession(
-        actor: Actor,
         file: UCloudFile,
         conflictPolicy: WriteConflictPolicy,
     ): String {
-        aclService.requirePermission(actor, file, FilePermission.WRITE)
-        val internalFile = pathConverter.ucloudToInternal(file)
-        val relativeFile = pathConverter.internalToRelative(internalFile)
-        val id = UUID.randomUUID().toString()
+        try {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            val relativeFile = pathConverter.internalToRelative(internalFile)
+            val id = UUID.randomUUID().toString()
 
-        val (fileName, outs) = nativeFS.openForWriting(internalFile, conflictPolicy)
-        @Suppress("BlockingMethodInNonBlockingContext")
-        outs.close()
+            val (fileName, outs) = nativeFS.openForWriting(internalFile, conflictPolicy)
+            @Suppress("BlockingMethodInNonBlockingContext")
+            outs.close()
 
-        val destination = relativeFile.parent().path.removeSuffix("/") + "/" + fileName
+            val destination = relativeFile.parent().path.removeSuffix("/") + "/" + fileName
 
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", id)
-                    setParameter("destination", destination)
-                },
-                """
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("destination", destination)
+                    },
+                    """
                     insert into file_ucloud.upload_sessions (id, relative_path, last_update) values
                     (:id, :destination, now())
                 """
-            )
+                )
+            }
+            return id
+        } catch (ex: Throwable) {
+            ex.printStackTrace()
+            throw ex
         }
-
-        return id
     }
 
     suspend fun receiveChunk(

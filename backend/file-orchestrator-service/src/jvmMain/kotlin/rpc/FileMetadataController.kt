@@ -16,15 +16,27 @@ class FileMetadataController(
         }
 
         implement(FileMetadata.retrieveAll) {
-            ok(FileMetadataRetrieveAllResponse(metadataService.retrieveAll(actorAndProject, request.parentPath)))
+            ok(FileMetadataRetrieveAllResponse(metadataService.retrieveAll(actorAndProject, request.fileId)))
         }
 
         implement(FileMetadata.delete) {
-            TODO()
+            metadataService.delete(actorAndProject, request)
+            ok(Unit)
         }
 
         implement(FileMetadata.move) {
-            TODO()
+            metadataService.move(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(FileMetadata.approve) {
+            metadataService.approve(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(FileMetadata.reject) {
+            metadataService.reject(actorAndProject, request)
+            ok(Unit)
         }
         return@with
     }

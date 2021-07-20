@@ -3,348 +3,318 @@ package dk.sdu.cloud.file.orchestrator.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import com.github.jasync.sql.db.RowData
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.AclEntity
-import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.SimpleResourceOwner
-import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.LocalDateTime
+import kotlinx.serialization.serializer
 
-class MetadataTemplates(
-    private val db: DBContext,
-    private val projects: ProjectCache,
-) {
-    suspend fun retrieve(
+private typealias SuperTemplateNs = ResourceService<FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec,
+    FileMetadataTemplateNamespace.Update, FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status,
+    Product, FileMetadataTemplateSupport, StorageCommunication>
+
+class MetadataTemplateNamespaces(
+    db: AsyncDBSessionFactory,
+    providers: Providers<StorageCommunication>,
+    support: ProviderSupport<StorageCommunication, Product, FileMetadataTemplateSupport>,
+    serviceClient: AuthenticatedClient,
+) : SuperTemplateNs(db, providers, support, serviceClient) {
+    override val isCoreResource: Boolean = true
+    override val resourceType: String = "metadata_template_namespace"
+    override val sqlJsonConverter = SqlObject.Function("file_orchestrator.metadata_template_namespace_to_json")
+    override val table = SqlObject.Table("file_orchestrator.metadata_template_namespaces")
+    override val defaultSortColumn = SqlObject.Column(table, "resource")
+    override val sortColumns: Map<String, SqlObject.Column> = mapOf(
+        "resource" to SqlObject.Column(table, "resource")
+    )
+
+    override val serializer = serializer<FileMetadataTemplateNamespace>()
+    override val updateSerializer = serializer<FileMetadataTemplateNamespace.Update>()
+    override val productArea: ProductArea = ProductArea.STORAGE
+
+    override fun userApi() = FileMetadataTemplateNamespaces
+    override fun providerApi(comms: ProviderComms) = error("Not supported")
+    override fun controlApi() = error("Not supported")
+
+    override suspend fun createSpecifications(
         actorAndProject: ActorAndProject,
-        request: FileMetadataTemplatesRetrieveRequest,
-        ctx: DBContext = this.db,
-    ): FileMetadataTemplate {
-        val template = ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", request.id)
-                        setParameter("version", request.version)
-                    },
-                    """
-                            select * 
-                            from file_orchestrator.metadata_templates t join metadata_template_specs mts
-                                on t.id = mts.template_id
-                            where
-                                t.latest_version = mts.version and
-                                (:version::text is null or mts.version = :version) and
-                                t.id = :id
-                        """
-                )
-                .rows
-                .map { rowToTemplate(it) }
-                .singleOrNull()
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-        if (!hasPermissions(actorAndProject, FileMetadataTemplatePermission.READ, listOf(template)).single()) {
-            throw RPCException("You do not have permission to use this metadata template", HttpStatusCode.Forbidden)
-        }
-
-        return template
-    }
-
-    suspend fun browse(
-        actorAndProject: ActorAndProject,
-        pagination: NormalizedPaginationRequestV2,
-    ): PageV2<FileMetadataTemplate> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            pagination,
-            create = { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("username", actorAndProject.actor.safeUsername())
-                            setParameter("project", actorAndProject.project)
-                        },
-                        """
-                            declare c cursor for
-                            select *
-                            from 
-                                file_orchestrator.metadata_templates t join metadata_template_specs mts
-                                    on t.id = mts.template_id
-                            where
-                                t.latest_version = mts.version and
-                                t.deprecated = false and
-                                (
-                                    t.is_public or 
-                                    t.project = :project or
-                                    (:project::text is null and t.created_by = :username)
-                                )
-                            order by
-                                t.id
-                        """
-                    )
+        idWithSpec: List<Pair<Long, FileMetadataTemplateNamespace.Spec>>,
+        session: AsyncDBConnection,
+        allowDuplicates: Boolean
+    ) {
+        session.sendPreparedStatement(
+            {
+                val ids by parameterList<Long>()
+                val names by parameterList<String>()
+                val types by parameterList<String>()
+                for ((id, spec) in idWithSpec) {
+                    ids.add(id)
+                    names.add(spec.name)
+                    types.add(spec.namespaceType.name)
+                }
             },
-            mapper = { _, rows ->
-                val templates = rows.map { rowToTemplate(it) }
-                templates
-                    .zip(hasPermissions(actorAndProject, FileMetadataTemplatePermission.READ, templates))
-                    .mapNotNull { (template, hasPermission) ->
-                        if (hasPermission) template else null
-                    }
-            }
+            """
+                insert into file_orchestrator.metadata_template_namespaces (resource, uname, namespace_type)
+                select unnest(:ids::bigint[]), unnest(:names::text[]), unnest(:types::file_orchestrator.metadata_template_namespace_type[])
+            """
         )
     }
 
-    private fun rowToTemplate(row: RowData): FileMetadataTemplate = FileMetadataTemplate(
-        row.getString("id")!!,
-        FileMetadataTemplate.Spec(
-            row.getString("id")!!,
-            row.getString("title")!!,
-            row.getString("version")!!,
-            defaultMapper.decodeFromString(row.getString("schema")!!),
-            row.getBoolean("inheritable")!!,
-            row.getBoolean("require_approval")!!,
-            row.getString("description")!!,
-            row.getString("change_log")!!,
-            row.getString("namespace_type")!!.let { FileMetadataTemplateNamespaceType.valueOf(it) },
-            row.getString("ui_schema")?.let { defaultMapper.decodeFromString(it) }
-        ),
-        FileMetadataTemplate.Status(emptyList()),
-        emptyList(),
-        SimpleResourceOwner(row.getString("created_by")!!, row.getString("project")),
-        defaultMapper.decodeFromString(row.getString("acl")!!),
-        (row["created_at"]!! as LocalDateTime).toDateTime().millis,
-        row.getBoolean("is_public")!!
-    )
-
-    private suspend fun hasPermissions(
-        actorAndProject: ActorAndProject,
-        permission: FileMetadataTemplatePermission,
-        batch: List<FileMetadataTemplate>,
-    ): List<Boolean> {
-        val result = ArrayList<Boolean>()
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername())
-
-        for (template in batch) {
-            result.add(hasPermission(
-                actorAndProject,
-                permission,
-                projectStatus,
-                template.owner,
-                template.public,
-                template.acl
-            ))
-        }
-
-        return result
+    override suspend fun browseQuery(flags: FileMetadataTemplateNamespaceFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("filter_name", flags?.filterName)
+            },
+            """
+                select ns.resource, ns, temps
+                from
+                    file_orchestrator.metadata_template_namespaces ns left join
+                    file_orchestrator.metadata_templates temps
+                        on ns.resource = temps.namespace and ns.latest_version = temps.uversion
+                where
+                    (:query::text is null or uname ilike '%' || :query || '%') and
+                    (:filter_name::text is null or uname = :filter_name)
+            """
+        )
     }
 
-    private fun hasPermission(
+    suspend fun createTemplate(
         actorAndProject: ActorAndProject,
-        permission: FileMetadataTemplatePermission,
-        projectStatus: ProjectCache.CacheResponse,
+        request: BulkRequest<FileMetadataTemplate>,
+        ctx: DBContext? = null,
+    ): BulkResponse<FileMetadataTemplateAndVersion> {
+        return (ctx ?: db).withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    val titles by parameterList<String>()
+                    val namespaceIds by parameterList<Long>()
+                    val versions by parameterList<String>()
+                    val schemas by parameterList<String>()
+                    val inheritable by parameterList<Boolean>()
+                    val requireApproval by parameterList<Boolean>()
+                    val descriptions by parameterList<String>()
+                    val changeLogs by parameterList<String>()
+                    val uiSchemas by parameterList<String>()
 
-        owner: ResourceOwner,
-        public: Boolean,
-        acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
-    ): Boolean {
-        val groups = projectStatus.userStatus?.groups ?: emptyList()
-        val projects = projectStatus.userStatus?.membership ?: emptyList()
-        return if (public && permission == FileMetadataTemplatePermission.READ) {
-            true
-        } else {
-            val project = owner.project
+                    for (spec in request.items) {
+                        // TODO Check for empty arrays and replace them with null
+                        //  (the JsonSchema validator disagrees with the frontend)
+                        val encodedSchema = defaultMapper.encodeToString(spec.schema)
+                        val encodedUiSchema = defaultMapper.encodeToString(spec.uiSchema)
 
-            (project == null && owner.createdBy == actorAndProject.actor.safeUsername()) ||
-                (project != null && projects.any { it.projectId == project && it.whoami.role.isAdmin() }) ||
-                acl.any { aclEntry ->
-                    if (permission !in aclEntry.permissions) return@any false
-
-                    when (val entity = aclEntry.entity) {
-                        is AclEntity.ProjectGroup -> {
-                            groups.any { entity.group == it.group && entity.projectId == it.project }
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        val jacksonNode = jacksonMapper.readTree(encodedSchema)
+                        val validateSchema = JsonSchemaFactory.byDefault().syntaxValidator.validateSchema(jacksonNode)
+                        if (!validateSchema.isSuccess) {
+                            validateSchema.forEach {
+                                println(it.message)
+                            }
+                            throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
                         }
 
-                        is AclEntity.User -> {
-                            actorAndProject.actor.safeUsername() == entity.username
-                        }
-
-                        else -> false
+                        titles.add(spec.title)
+                        namespaceIds.add(spec.namespaceId.toLongOrNull()
+                            ?: throw RPCException("Unknown namespace", HttpStatusCode.BadRequest))
+                        versions.add(spec.version)
+                        schemas.add(encodedSchema)
+                        inheritable.add(spec.inheritable)
+                        requireApproval.add(spec.requireApproval)
+                        descriptions.add(spec.description)
+                        changeLogs.add(spec.changeLog)
+                        uiSchemas.add(encodedUiSchema)
                     }
-                }
-        }
-    }
-
-    suspend fun create(
-        actorAndProject: ActorAndProject,
-        request: FileMetadataTemplatesCreateRequest,
-        db: DBContext = this.db,
-    ) {
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername())
-        try {
-            db.withSession { session ->
-                for (reqItem in request.items) {
-                    @Suppress("BlockingMethodInNonBlockingContext")
-                    val jacksonNode = jacksonMapper.readTree(defaultMapper.encodeToString(reqItem.schema))
-                    if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(jacksonNode)) {
-                        throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
-                    }
-                }
-
-                for (reqItem in request.items) {
-                    val templateManifest = session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("id", reqItem.id)
-                                setParameter("version", reqItem.version)
-                                setParameter("created_by", actorAndProject.actor.safeUsername())
-                                setParameter("project", actorAndProject.project)
-                                setParameter("namespace_type", reqItem.namespaceType.name)
-                            },
-                            """
-                            insert into file_orchestrator.metadata_templates values
-                            (
-                                :id,
-                                :version,
-                                :created_by,
-                                :project,
-                                '[]'::jsonb,
-                                '[]'::jsonb,
-                                :namespace_type,
-                                false,
-                                false,
-                                now(),
-                                now()
-                            )
-                            on conflict (id) do update
-                            set 
-                                latest_version = excluded.latest_version,
-                                modified_at = excluded.modified_at
-                            returning created_by, project, acl, namespace_type
-                        """
-                        )
-                        .rows
-                        .single()
-
-                    val isAllowedToWrite = hasPermission(
-                        actorAndProject,
-                        FileMetadataTemplatePermission.WRITE,
-                        projectStatus,
-                        SimpleResourceOwner(
-                            templateManifest.getString("created_by")!!,
-                            templateManifest.getString("project")
-                        ),
-                        false,
-                        defaultMapper.decodeFromString(templateManifest.getString("acl")!!)
+                },
+                """
+                    with entries as (
+                        select
+                            unnest(:titles::text[]) title,
+                            unnest(:namespace_ids::bigint[]) namespace, unnest(:versions::text[]) e_version, 
+                            unnest(:schemas::jsonb[]) e_schema, unnest(:inheritable::boolean[]) inheritable,
+                            unnest(:require_approval::boolean[]) require_approval,
+                            unnest(:descriptions::text[]) description, unnest(:change_logs::text[]) change_log,
+                            unnest(:ui_schemas::jsonb[]) ui_schema
                     )
+                    insert into file_orchestrator.metadata_templates
+                        (title, namespace, uversion, schema, inheritable, require_approval, description,
+                        change_log, ui_schema)
+                    select
+                        e.title, e.namespace, e.e_version, e.e_schema, e.inheritable, e.require_approval,
+                        e.description, e.change_log, e.ui_schema
+                    from
+                        entries e
+                    returning namespace
+                """
+            )
 
-                    if (!isAllowedToWrite) {
-                        throw RPCException("Already exists or permission denied", HttpStatusCode.Forbidden)
-                    }
-
-                    val existingNamespace = FileMetadataTemplateNamespaceType.valueOf(
-                        templateManifest.getString("namespace_type")!!
-                    )
-
-                    if (existingNamespace != reqItem.namespaceType) {
-                        throw RPCException(
-                            "The namespaceType of a template is not allowed to change",
-                            HttpStatusCode.BadRequest
-                        )
-                    }
-
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("id", reqItem.id)
-                                setParameter("title", reqItem.title)
-                                setParameter("version", reqItem.version)
-                                setParameter("schema", defaultMapper.encodeToString(reqItem.schema))
-                                setParameter("inheritable", reqItem.inheritable)
-                                setParameter("require_approval", reqItem.requireApproval)
-                                setParameter("description", reqItem.description)
-                                setParameter("change_log", reqItem.changeLog)
-                                setParameter("namespace_type", reqItem.namespaceType.name)
-                                setParameter("ui_schema", reqItem.uiSchema?.let { defaultMapper.encodeToString(it) })
-                            },
-                            """
-                            insert into file_orchestrator.metadata_template_specs
-                            values (
-                                :id,
-                                :title,
-                                :version,
-                                :schema,
-                                :inheritable,
-                                :require_approval,
-                                :description,
-                                :change_log,
-                                :namespace_type,
-                                :ui_schema::jsonb,
-                                now()
-                            )
-                        """
-                        )
-                }
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
-            }
-            throw ex
-        }
-    }
-
-    suspend fun deprecate(
-        actorAndProject: ActorAndProject,
-        request: FileMetadataTemplatesDeprecateRequest,
-        db: DBContext = this.db,
-    ) {
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername())
-
-        db.withSession { session ->
-            for (reqItem in request.items) {
-                val deprecatedRow = session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", reqItem.id)
-                        },
-                        """
-                            update file_orchestrator.metadata_templates
-                            set deprecated = true
-                            where id = :id
-                            returning created_by, project, acl
-                        """
-                    )
-                    .rows
-                    .single()
-
-                val isAllowedToWrite = hasPermission(
+            val namespaces = try {
+                retrieveBulk(
                     actorAndProject,
-                    FileMetadataTemplatePermission.WRITE,
-                    projectStatus,
-                    SimpleResourceOwner(
-                        deprecatedRow.getString("created_by")!!,
-                        deprecatedRow.getString("project")
-                    ),
-                    false,
-                    defaultMapper.decodeFromString(deprecatedRow.getString("acl")!!)
+                    request.items.map { it.namespaceId },
+                    listOf(Permission.Edit),
+                    ctx = session
                 )
-
-                if (!isAllowedToWrite) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.BadRequest) {
+                    throw RPCException("Unknown namespace. Did you remember to create one?", HttpStatusCode.BadRequest)
+                } else {
+                    throw ex
                 }
             }
+
+            // TODO Replace with a trigger?
+            val requestsWithNamespaces = request.items.zip(namespaces)
+            session.sendPreparedStatement(
+                {
+                    val nsIds by parameterList<Long>()
+                    val versions by parameterList<String>()
+                    for ((template, ns) in requestsWithNamespaces) {
+                        nsIds.add(ns.id.toLong())
+                        versions.add(template.version)
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:ns_ids::bigint[]) ns, unnest(:versions::text[]) new_version
+                    )
+                    update file_orchestrator.metadata_template_namespaces
+                    set latest_version = new_version
+                    from entries
+                    where resource = ns
+                """
+            )
+
+            BulkResponse(requestsWithNamespaces.map { (template, namespace) ->
+                FileMetadataTemplateAndVersion(namespace.id, template.version)
+            })
         }
+    }
+
+    suspend fun retrieveLatest(
+        actorAndProject: ActorAndProject,
+        request: FindByStringId,
+        ctx: DBContext? = null
+    ): FileMetadataTemplate {
+        return (ctx ?: db).withSession(remapExceptions = true) { session ->
+            val (nsParams, nsQuery) = accessibleResources(
+                actorAndProject.actor,
+                listOf(Permission.Read),
+                request.id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound),
+                projectFilter = actorAndProject.project
+            )
+
+            val encodedJson = session.sendPreparedStatement(
+                nsParams,
+                """
+                    with
+                        accessible_resources as ($nsQuery)
+                    select file_orchestrator.metadata_template_to_json(ns, temp)
+                    from
+                        accessible_resources resc join
+                        file_orchestrator.metadata_template_namespaces ns on (resc.r).id = ns.resource join
+                        file_orchestrator.metadata_templates temp
+                            on ns.resource = temp.namespace and ns.latest_version = temp.uversion
+                """
+            ).rows.singleOrNull()?.getString(0) ?: throw RPCException(
+                "Unknown namespace or no templates",
+                HttpStatusCode.NotFound
+            )
+
+            defaultMapper.decodeFromString(encodedJson)
+        }
+    }
+
+    suspend fun retrieveTemplate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FileMetadataTemplateAndVersion>,
+        permissionOneOf: Collection<Permission> = listOf(Permission.Read),
+        ctx: DBContext? = null
+    ): BulkResponse<FileMetadataTemplate> {
+        return (ctx ?: db).withSession<BulkResponse<FileMetadataTemplate>>(remapExceptions = true) { session ->
+            val (nsParams, nsQuery) = accessibleResources(
+                actorAndProject.actor,
+                permissionOneOf,
+                projectFilter = actorAndProject.project
+            )
+
+            BulkResponse(session.sendPreparedStatement(
+                {
+                    nsParams()
+                    val resourceIds by parameterList<Long?>()
+                    val versions by parameterList<String>()
+                    for (reqItem in request.items) {
+                        resourceIds.add(reqItem.id.toLongOrNull())
+                        versions.add(reqItem.version)
+                    }
+                },
+                """
+                    with
+                        entries as (select unnest(:resource_ids::bigint[]) id, unnest(:versions::text[]) uversion),
+                        accessible_resources as ($nsQuery)
+                    select file_orchestrator.metadata_template_to_json(ns, temp)
+                    from
+                        accessible_resources resc join
+                        file_orchestrator.metadata_template_namespaces ns on (resc.r).id = ns.resource join
+                        file_orchestrator.metadata_templates temp on ns.resource = temp.namespace join
+                        entries e on e.id = ns.resource and e.uversion = temp.uversion
+                """,
+                debug = true
+            ).rows.map { defaultMapper.decodeFromString(it.getString(0)!!) })
+        }.also { resp ->
+            if (resp.responses.size != request.items.size) {
+                throw RPCException(
+                    "Template does not exist or you lack the permission to use it",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun browseTemplates(
+        actorAndProject: ActorAndProject,
+        request: FileMetadataTemplatesBrowseTemplatesRequest
+    ): PageV2<FileMetadataTemplate> {
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                val (nsParams, nsQuery) = accessibleResources(
+                    actorAndProject.actor,
+                    listOf(Permission.Read),
+                    request.id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound),
+                    projectFilter = actorAndProject.project
+                )
+                session.sendPreparedStatement(
+                    nsParams,
+                    """
+                        declare c cursor for
+                        with
+                            accessible_resources as ($nsQuery)
+                        select file_orchestrator.metadata_template_to_json(ns, temp)
+                        from
+                            accessible_resources resc join
+                            file_orchestrator.metadata_template_namespaces ns on (resc.r).id = ns.resource join
+                            file_orchestrator.metadata_templates temp on ns.resource = temp.namespace
+                        order by
+                            temp.created_at desc
+                    """
+                )
+            },
+            mapper = { _, rows ->
+                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+            }
+        )
     }
 
     companion object : Loggable {

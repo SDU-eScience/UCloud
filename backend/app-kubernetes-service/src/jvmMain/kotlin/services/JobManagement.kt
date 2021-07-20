@@ -9,12 +9,14 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -129,7 +131,7 @@ class JobManagement(
         plugins.add(plugin)
     }
 
-    suspend fun create(jobs: BulkRequest<JobsProviderCreateRequestItem>) {
+    suspend fun create(jobs: BulkRequest<Job>) {
         jobs.items.forEach { create(it) }
     }
 
@@ -200,11 +202,13 @@ class JobManagement(
         if (!exists) {
             JobsControl.update.call(
                 bulkRequestOf(
-                    JobsControlUpdateRequestItem(
+                    ResourceUpdateAndId(
                         verifiedJob.id,
-                        JobState.FAILURE,
-                        "An internal error occurred in UCloud/Compute. " +
-                            "Job cancellation was requested but the job was not known to us."
+                        JobUpdate(
+                            JobState.FAILURE,
+                            "An internal error occurred in UCloud/Compute. " +
+                                "Job cancellation was requested but the job was not known to us."
+                        )
                     )
                 ),
                 k8.serviceClient
@@ -530,10 +534,12 @@ class JobManagement(
                         log.info("We appear to have lost the following job: ${job}")
                         JobsControl.update.call(
                             bulkRequestOf(
-                                JobsControlUpdateRequestItem(
+                                ResourceUpdateAndId(
                                     job,
-                                    state = JobState.FAILURE,
-                                    status = "UCloud/Compute lost track of this job"
+                                    JobUpdate(
+                                        state = JobState.FAILURE,
+                                        status = "UCloud/Compute lost track of this job"
+                                    )
                                 )
                             ),
                             k8.serviceClient
@@ -561,20 +567,18 @@ class JobManagement(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
-        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
-            ComputeProductSupport(
+    suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
+        return BulkResponse(productCache.get(Unit)?.map {
+            ComputeSupport(
                 ProductReference(it.id, it.category.id, it.category.provider),
-                ComputeSupport(
-                    ComputeSupport.Docker(
-                        enabled = true,
-                        web = true,
-                        vnc = true,
-                        logs = true,
-                        terminal = true,
-                        peers = true,
-                        timeExtension = true,
-                    )
+                ComputeSupport.Docker(
+                    enabled = true,
+                    web = true,
+                    vnc = true,
+                    logs = true,
+                    terminal = true,
+                    peers = true,
+                    timeExtension = true,
                 )
             )
         } ?: emptyList())

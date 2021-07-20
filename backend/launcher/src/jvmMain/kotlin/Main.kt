@@ -2,10 +2,13 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
+import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
@@ -14,13 +17,13 @@ import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.AvatarService
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
-import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -28,13 +31,12 @@ import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
-import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
-import dk.sdu.cloud.task.TaskService
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
@@ -44,6 +46,7 @@ import io.ktor.server.netty.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
 import org.apache.logging.log4j.Level
 import java.io.File
 import kotlin.system.exitProcess
@@ -52,7 +55,7 @@ object Launcher : Loggable {
     override val log = logger()
 }
 
-val services = setOf(
+val services = setOf<Service>(
     AccountingService,
     ActivityService,
     AppOrchestratorService,
@@ -69,7 +72,6 @@ val services = setOf(
     FileOrchestratorService,
     FileUcloudService,
     SupportService,
-    TaskService,
     AppAauService,
     AppKubernetesService,
 )
@@ -101,7 +103,8 @@ suspend fun main(args: Array<String>) {
     }.configuration
 
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true) {
+        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
+    ) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
@@ -164,7 +167,7 @@ suspend fun main(args: Array<String>) {
             ).orThrow().id
 
             val providerId = "ucloud"
-            Providers.create.call(
+            val createdId = Providers.create.call(
                 bulkRequestOf(
                     ProviderSpecification(
                         providerId,
@@ -174,10 +177,10 @@ suspend fun main(args: Array<String>) {
                     )
                 ),
                 userClient.withProject(project)
-            ).orThrow()
+            ).orThrow().responses.singleOrNull() ?: error("Bad response from Providers.create")
 
             val provider = Providers.retrieve.call(
-                ProvidersRetrieveRequest(providerId),
+                ResourceRetrieveRequest(ProviderIncludeFlags(), createdId.id),
                 userClient
             ).orThrow()
 

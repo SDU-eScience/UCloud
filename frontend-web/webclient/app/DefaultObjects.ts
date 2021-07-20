@@ -1,5 +1,4 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
-import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
@@ -22,15 +21,27 @@ import {
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
 import * as UCloud from "UCloud";
-import {BulkRequest} from "UCloud";
+import {BulkRequest, BulkResponse, PageV2} from "UCloud";
+import {useEffect} from "react";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {doNothing} from "UtilityFunctions";
+import {UCLOUD_CORE} from "UCloud/ResourceApi";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
 }
 
+export function placeholderProduct(): { "id": "", "category": "", "provider": string } {
+    return { "id": "", "category": "", "provider": UCLOUD_CORE };
+}
+
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
     return {"type": "bulk", items};
+}
+
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
 }
 
 export const emptyPage: Readonly<Page<any>> =
@@ -38,6 +49,10 @@ export const emptyPage: Readonly<Page<any>> =
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
     {items: [], itemsPerPage: 25};
+
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -137,6 +152,9 @@ export interface HookStore {
     uploads?: Upload[];
     uploadPath?: string;
 
+    searchPlaceholder?: string;
+    onSearch?: (query: string) => void;
+
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
@@ -167,8 +185,7 @@ interface LegacyReduxObject {
 
 declare global {
     export type ReduxObject =
-        LegacyReduxObject &
-        TaskReduxState;
+        LegacyReduxObject;
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -226,3 +243,22 @@ export const initSidebar = (): SidebarReduxObject => ({
     options: []
 });
 
+export function useSearch(onSearch: (query: string) => void) {
+    const [, setOnSearch] = useGlobal("onSearch", doNothing);
+    useEffect(() => {
+        setOnSearch(() => onSearch);
+        return () => {
+            setOnSearch(() => doNothing);
+        };
+    }, [setOnSearch, onSearch]);
+}
+
+export function useSearchPlaceholder(searchPlaceholder: string) {
+    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", "");
+    useEffect(() => {
+        setSearchPlaceholder(searchPlaceholder);
+        return () => {
+            setSearchPlaceholder("");
+        };
+    }, [setSearchPlaceholder, searchPlaceholder]);
+}

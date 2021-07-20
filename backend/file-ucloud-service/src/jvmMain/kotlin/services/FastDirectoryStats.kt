@@ -9,7 +9,6 @@ class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
         return try {
             nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
-            log.info(ex.stackTraceToString())
             return -1
         }
     }

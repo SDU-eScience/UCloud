@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
@@ -13,9 +14,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -109,16 +108,17 @@ class AppStoreService(
                 session,
                 applicationName
             ).map { accessEntity ->
-                val projectAndGroupLookup = if (!accessEntity.entity.project.isNullOrBlank() && !accessEntity.entity.group.isNullOrBlank()) {
-                    ProjectGroups.lookupProjectAndGroup.call(
-                        LookupProjectAndGroupRequest(accessEntity.entity.project!!, accessEntity.entity.group!!),
-                        authenticatedClient
-                    ).orRethrowAs {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                val projectAndGroupLookup =
+                    if (!accessEntity.entity.project.isNullOrBlank() && !accessEntity.entity.group.isNullOrBlank()) {
+                        ProjectGroups.lookupProjectAndGroup.call(
+                            LookupProjectAndGroupRequest(accessEntity.entity.project!!, accessEntity.entity.group!!),
+                            authenticatedClient
+                        ).orRethrowAs {
+                            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                        }
+                    } else {
+                        null
                     }
-                } else {
-                    null
-                }
 
                 DetailedEntityWithPermission(
                     if (projectAndGroupLookup != null) {
@@ -235,9 +235,10 @@ class AppStoreService(
 
     suspend fun findBySupportedFileExtension(
         securityPrincipal: SecurityPrincipal,
+        request: NormalizedPaginationRequestV2,
         project: String?,
         files: List<String>
-    ): List<ApplicationWithExtension> {
+    ): PageV2<ApplicationWithExtension> {
         val extensions = files.map { file ->
             if (file.contains(".")) {
                 "." + file.substringAfterLast('.')
@@ -252,15 +253,14 @@ class AppStoreService(
             retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
-        return db.withTransaction {
-            applicationDao.findBySupportedFileExtension(
-                it,
-                securityPrincipal,
-                project,
-                projectGroups,
-                extensions
-            )
-        }
+        return applicationDao.findBySupportedFileExtension(
+            db,
+            securityPrincipal,
+            project,
+            projectGroups,
+            request,
+            extensions
+        )
     }
 
     suspend fun findByName(
@@ -332,10 +332,12 @@ class AppStoreService(
             applicationDao.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
         }
 
-        appEventProducer.produce(AppEvent.Deleted(
-            appName,
-            appVersion
-        ))
+        appEventProducer.produce(
+            AppEvent.Deleted(
+                appName,
+                appVersion
+            )
+        )
 
         elasticDao.deleteApplicationInElastic(appName, appVersion)
     }

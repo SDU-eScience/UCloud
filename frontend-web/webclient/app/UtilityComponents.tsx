@@ -126,6 +126,7 @@ interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
     height?: number | string;
+    showCancelButton?: boolean;
 
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
 
@@ -137,17 +138,21 @@ export const ConfirmCancelButtons = ({
     cancelText = "Cancel",
     onConfirm,
     onCancel,
-    height
+    height,
+    showCancelButton
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
         <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+        {showCancelButton === false ? null :
+            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>}
     </ButtonGroup>
 );
 
 export const NamingField: React.FunctionComponent<{
     onCancel: () => void;
     confirmText: string;
+    prefix?: string | null;
+    suffix?: string | null;
     inputRef: React.MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
     defaultValue?: string;
@@ -166,6 +171,7 @@ export const NamingField: React.FunctionComponent<{
     return (
         <form onSubmit={submit}>
             <Flex>
+                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -182,6 +188,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
+                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
                 <div onClick={stopPropagationAndPreventDefault} style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons
                         confirmText={props.confirmText}

@@ -18,24 +18,21 @@ import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
-import {arrayToPage} from "Types";
-import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute} from "UCloud";
-import Job = compute.Job;
+import {WSFactory} from "Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import AppParameterValueNS = compute.AppParameterValueNS;
-import JobUpdate = compute.JobUpdate;
 import {creditFormatter} from "Project/ProjectUsage";
-import JobStatus = compute.JobStatus;
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import JobSpecification = compute.JobSpecification;
 import {bulkRequestOf} from "DefaultObjects";
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
-import {addStandardDialog} from "UtilityComponents";
+import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
+import {accounting, compute} from "UCloud";
+import {ResolvedSupport} from "UCloud/ResourceApi";
+import AppParameterValueNS = compute.AppParameterValueNS;
+import ProductNS = accounting.ProductNS;
 
 const enterAnimation = keyframes`
   from {
@@ -216,6 +213,7 @@ interface JobUpdateListener {
 export const View: React.FunctionComponent = () => {
     const {id} = useParams<{ id: string }>();
     const history = useHistory();
+    console.log("The ID is", id);
 
     // Note: This might not match the real app name
     const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
@@ -258,13 +256,14 @@ export const View: React.FunctionComponent = () => {
             }
 
             const expires = status.expiresAt + (3600 * 1000 * duration);
-            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
-            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.specification.resolvedProduct?.category.id);
+            //const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
+            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.status.resolvedProduct?.category.id);
 
             if (!wallet) {
                 return true;
             }
 
+            /*
             if (wallet.balance < needed) {
                 const extend = await new Promise(resolve => addStandardDialog({
                     title: "Extend job beyond balance?",
@@ -292,6 +291,7 @@ export const View: React.FunctionComponent = () => {
                     return false
                 }
             }
+             */
         }
         return true;
     }
@@ -512,11 +512,11 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -623,7 +623,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
     const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
         "My Workspace";
 
-    const machine = job.specification.resolvedProduct;
+    const machine = job.status.resolvedProduct as ProductNS.Compute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
     const estimatedCost = time ?
         (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
@@ -644,7 +644,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
             {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
         </InfoCard>
-        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
+        {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
             null :
             <InfoCard
                 stat={prettyTime}
@@ -654,7 +654,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
                 {!isJobStateTerminal(status?.state) ? (<>
                     {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
                     <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
-                </>) : <><b>Charged: </b>{creditFormatter(job.billing.creditsCharged, 0)}</>}
+                </>) : null}
             </InfoCard>
         }
         <InfoCard
@@ -715,7 +715,7 @@ const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
                 </Heading.h2>
                 <Heading.h3>
                     <i>
-                        {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                         {" "}v{job.specification.application.version}
                     </i>
                 </Heading.h3>
@@ -826,9 +826,9 @@ const RunningContent: React.FunctionComponent<{
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
 
-    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
+    const support = (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support;
     const supportsExtension =
         (backendType === "DOCKER" && support.docker.timeExtension) ||
         (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.timeExtension);
@@ -857,7 +857,7 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </DashboardCard>
-            {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
+            {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
                 ? null :
                 <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                     <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
@@ -1070,18 +1070,19 @@ function jobStateToText(state: JobState) {
 }
 
 const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+    const app = job.specification.application;
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
             <i>
-                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                 {" "}v{job.specification.application.version}
             </i>
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
-            <Link to={`/applications/${job.specification.application.name}/${job.specification.application.version}`}>
+            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
                 <Button>Run application again</Button>
             </Link>
         </AltButtonGroup>
@@ -1122,9 +1123,9 @@ const RunningButtonGroup: React.FunctionComponent<{
     expanded?: boolean | false,
     toggleExpand?: () => void | undefined
 }> = ({job, rank, expanded, toggleExpand}) => {
-    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
+    const support = (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support;
     const supportTerminal =
         backendType === "VIRTUAL_MACHINE" ? support.virtualMachine.terminal :
             backendType === "DOCKER" ? support.docker.terminal : false;
@@ -1186,7 +1187,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
+            await invokeCommand(JobsApi.terminate(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

@@ -17,18 +17,19 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
 object ProductCategoryTable : SQLTable("accounting.product_categories") {
+    val id = long("id", notNull = true)
     val provider = text("provider", notNull = true)
     val category = text("category", notNull = true)
     val area = text("area", notNull = true)
 }
 
 object ProductTable : SQLTable("accounting.products") {
-    val provider = text("provider", notNull = true)
-    val category = text("category", notNull = true)
+    val id = long("id", notNull = true)
+    val category = long("category", notNull = true)
     val area = text("area", notNull = true)
 
     val pricePerUnit = long("price_per_unit", notNull = true)
-    val id = text("id", notNull = true)
+    val name = text("name", notNull = true)
     val description = text("description", notNull = true)
     val availability = text("availability", notNull = false)
     val priority = int("priority", notNull = true)
@@ -53,14 +54,16 @@ class ProductService(
     ) {
         ctx.withSession { session ->
             requirePermission(session, actor, product.category.provider, readOnly = false)
-            createProductCategoryIfNotExists(session, product.category.provider, product.category.id, product.area)
+            val category = createProductCategoryIfNotExists(
+                session, product.category.provider, product.category.id,
+                product.area
+            )
             try {
                 session.insert(ProductTable) {
-                    set(ProductTable.provider, product.category.provider)
-                    set(ProductTable.category, product.category.id)
+                    set(ProductTable.category, category)
                     set(ProductTable.area, product.area.name)
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
-                    set(ProductTable.id, product.id)
+                    set(ProductTable.name, product.id)
                     set(ProductTable.description, product.description)
                     set(ProductTable.hiddenInGrantApplications, product.hiddenInGrantApplications)
                     set(ProductTable.priority, product.priority)
@@ -130,7 +133,7 @@ class ProductService(
                         setParameter("provider", product.category.provider)
                         setParameter("category", product.category.id)
                         setParameter("pricePerUnit", product.pricePerUnit)
-                        setParameter("id", product.id)
+                        setParameter("name", product.id)
                         setParameter("description", product.description)
                         setParameter("hiddenInGrantApplications", product.hiddenInGrantApplications)
                         setParameter(
@@ -164,15 +167,17 @@ class ProductService(
                                 else -> null
                             }
                         )
-                        setParameter("paymentModel", when (product) {
-                            is Product.License -> product.paymentModel.name
-                            is Product.Ingress -> product.paymentModel.name
-                            else -> null
-                        })
+                        setParameter(
+                            "paymentModel", when (product) {
+                                is Product.License -> product.paymentModel.name
+                                is Product.Ingress -> product.paymentModel.name
+                                else -> null
+                            }
+                        )
                     },
 
                     """
-                        update accounting.products 
+                        update accounting.products p
                         set
                             price_per_unit = :pricePerUnit,
                             description = :description,
@@ -184,9 +189,14 @@ class ProductService(
                             license_tags = :tags::jsonb,
                             payment_model = :paymentModel::text
                         where 
-                            provider = :provider and 
-                            category = :category and 
-                            id = :id
+                            name = :name and
+                            category = (
+                                select pc.id
+                                from p join accounting.product_categories pc on p.category = pc.id
+                                where
+                                    pc.category = :category and
+                                    pc.provider = :provider
+                            )
                     """
                 )
                 .rowsAffected > 0L
@@ -208,15 +218,15 @@ class ProductService(
                     {
                         setParameter("category", product.productCategory)
                         setParameter("provider", product.provider)
-                        setParameter("id", product.product)
+                        setParameter("name", product.product)
                     },
                     """
-                        select *
-                        from accounting.products
+                        select p.*, pc.category, pc.provider
+                        from accounting.products p join accounting.product_categories pc on p.category = pc.id
                         where
-                            category = :category and
-                            provider = :provider and
-                            id = :id
+                            p.name = :name and
+                            pc.category = :category and
+                            pc.provider = :provider
                     """
                 )
                 .rows
@@ -242,10 +252,12 @@ class ProductService(
                         setParameter("showHidden", showHidden)
                     },
                     """
-                        select * from accounting.products
-                        where provider = :provider and
+                        select p.*, pc.provider, pc.category
+                        from accounting.products p join accounting.product_categories pc on p.category = pc.id
+                        where
+                            pc.provider = :provider and
                             (hidden_in_grant_applications is false or :showHidden is true)
-                        order by priority, id
+                        order by p.priority, p.name
                     """
                 )
                 .rows
@@ -269,10 +281,10 @@ class ProductService(
                         setParameter("provider", provider)
                     },
                     """
-                        from accounting.products
+                        from accounting.products p join accounting.product_categories pc on p.category = pc.id
                         where provider = :provider
                     """,
-                    "order by priority, id"
+                    "order by priority, p.name"
                 )
                 .mapItems { it.toProduct() }
         }
@@ -298,11 +310,11 @@ class ProductService(
                         setParameter("showHidden", showHidden)
                     },
                     """
-                        from accounting.products
-                        where provider = :provider and area = :area and
+                        from accounting.products p join accounting.product_categories pc on p.category = pc.id
+                        where provider = :provider and pc.area = :area and
                             (hidden_in_grant_applications is false or :showHidden is true)
                     """,
-                    "order by priority, id"
+                    "order by priority, p.name"
                 )
                 .mapItems { it.toProduct() }
         }
@@ -337,13 +349,13 @@ class ProductService(
                         params,
                         """
                             declare c cursor for
-                            select *
-                            from accounting.products p
+                            select p.*, pc.category, pc.provider
+                            from accounting.products p join accounting.product_categories pc on p.category = pc.id
                             where
                                 (:filterCategory::text is null or p.category = :filterCategory) and
-                                (:filterProvider::text is null or p.provider = :filterProvider) and
+                                (:filterProvider::text is null or pc.provider = :filterProvider) and
                                 (:filterArea::text is null or p.area = :filterArea)
-                            order by p.provider, p.priority, p.id
+                            order by pc.provider, p.priority, p.id
                         """
                     )
                 } else {
@@ -361,28 +373,28 @@ class ProductService(
                         """
                             declare c cursor for
                             with my_wallets as(
-                                select *
-                                from accounting.wallets
+                                select w.*
+                                from accounting.wallets w join accounting.product_categories pc on w.category = pc.id
                                 where
                                     account_id = :accountId and
                                     account_type = :accountType and
-                                    (:filterCategory::text is null or product_category = :filterCategory) and
-                                    (:filterProvider::text is null or product_provider = :filterProvider)
+                                    (:filterCategory::text is null or pc.category = :filterCategory) and
+                                    (:filterProvider::text is null or pc.provider = :filterProvider)
                             )
-                            select p.*, w.balance
+                            select p.*, w.balance, pc.provider, pc.category
                             from 
-                                accounting.products p left outer join my_wallets w 
-                                    on (p.category = w.product_category and p.provider = w.product_provider)
+                                accounting.products p left outer join my_wallets w on p.category = w.category join
+                                accounting.product_categories pc on p.category = pc.id
                             where
-                                (:filterCategory::text is null or p.category = :filterCategory) and
-                                (:filterProvider::text is null or p.provider = :filterProvider) and
+                                (:filterCategory::text is null or pc.category = :filterCategory) and
+                                (:filterProvider::text is null or pc.provider = :filterProvider) and
                                 (:filterArea::text is null or p.area = :filterArea) and
                                 (
                                     not :filterUsable or 
                                     (w.balance is not null and w.balance > 0) or 
                                     (p.price_per_unit = 0 and p.payment_model != :requireCredits)
                                 )
-                            order by p.provider, p.priority, p.id
+                            order by pc.provider, p.priority, p.id
                         """
                     )
                 }
@@ -404,8 +416,8 @@ class ProductService(
         provider: String,
         category: String,
         area: ProductArea
-    ) {
-        ctx.withSession { session ->
+    ): Long {
+        return ctx.withSession { session ->
             val existing = findProductCategory(session, provider, category)
 
             if (existing != null) {
@@ -416,12 +428,21 @@ class ProductService(
                         HttpStatusCode.BadRequest
                     )
                 }
+
+                existing.getLong("id")!!
             } else {
-                session.insert(ProductCategoryTable) {
-                    set(ProductCategoryTable.area, area.name)
-                    set(ProductCategoryTable.category, category)
-                    set(ProductCategoryTable.provider, provider)
-                }
+                session.sendPreparedStatement(
+                    {
+                        setParameter("provider", provider)
+                        setParameter("category", category)
+                        setParameter("area", area.name)
+                    },
+                    """
+                        insert into accounting.product_categories (provider, category, area)
+                        values (:provider, :category, :area)
+                        returning id
+                    """.trimIndent()
+                ).rows.single().getLong(0)!!
             }
         }
     }
@@ -456,7 +477,8 @@ class ProductService(
         if (actor is Actor.System) return
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
         if (actor is Actor.User && actor.principal.role == Role.PROVIDER &&
-            actor.username.removePrefix(AuthProviders.PROVIDER_PREFIX) == providerId) return
+            actor.username.removePrefix(AuthProviders.PROVIDER_PREFIX) == providerId
+        ) return
 
         throw RPCException("Forbidden", HttpStatusCode.Forbidden)
     }
@@ -465,11 +487,11 @@ class ProductService(
         return when (ProductArea.valueOf(getField(ProductTable.area))) {
             ProductArea.COMPUTE -> {
                 Product.Compute(
-                    getField(ProductTable.id),
+                    getField(ProductTable.name),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(
-                        getField(ProductTable.category),
-                        getField(ProductTable.provider)
+                        getField(ProductCategoryTable.category),
+                        getField(ProductCategoryTable.provider)
                     ),
                     getField(ProductTable.description),
                     getField(ProductTable.hiddenInGrantApplications),
@@ -486,11 +508,11 @@ class ProductService(
 
             ProductArea.STORAGE -> {
                 Product.Storage(
-                    getField(ProductTable.id),
+                    getField(ProductTable.name),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(
-                        getField(ProductTable.category),
-                        getField(ProductTable.provider)
+                        getField(ProductCategoryTable.category),
+                        getField(ProductCategoryTable.provider)
                     ),
                     getField(ProductTable.description),
                     getField(ProductTable.hiddenInGrantApplications),
@@ -503,11 +525,11 @@ class ProductService(
             }
             ProductArea.INGRESS -> {
                 Product.Ingress(
-                    getField(ProductTable.id),
+                    getField(ProductTable.name),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(
-                        getField(ProductTable.category),
-                        getField(ProductTable.provider)
+                        getField(ProductCategoryTable.category),
+                        getField(ProductCategoryTable.provider)
                     ),
                     getField(ProductTable.description),
                     getField(ProductTable.hiddenInGrantApplications),
@@ -522,11 +544,11 @@ class ProductService(
             }
             ProductArea.LICENSE -> {
                 Product.License(
-                    getField(ProductTable.id),
+                    getField(ProductTable.name),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(
-                        getField(ProductTable.category),
-                        getField(ProductTable.provider)
+                        getField(ProductCategoryTable.category),
+                        getField(ProductCategoryTable.provider)
                     ),
                     getField(ProductTable.description),
                     getField(ProductTable.hiddenInGrantApplications),
@@ -535,7 +557,8 @@ class ProductService(
                         else -> ProductAvailability.Unavailable(reason)
                     },
                     getField(ProductTable.priority),
-                    getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.decodeFromString(it) } ?: emptyList(),
+                    getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.decodeFromString(it) }
+                        ?: emptyList(),
                     getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
                         ?: PaymentModel.PER_ACTIVATION,
                 )
@@ -543,11 +566,11 @@ class ProductService(
 
             ProductArea.NETWORK_IP -> {
                 Product.NetworkIP(
-                    getField(ProductTable.id),
+                    getField(ProductTable.name),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(
-                        getField(ProductTable.category),
-                        getField(ProductTable.provider)
+                        getField(ProductCategoryTable.category),
+                        getField(ProductCategoryTable.provider)
                     ),
                     getField(ProductTable.description),
                     getField(ProductTable.hiddenInGrantApplications),

@@ -5,9 +5,6 @@ package dk.sdu.cloud.providers
 /* Generated at: Tue May 25 13:07:01 CEST 2021 */
 
 
-import dk.sdu.cloud.providers.UCloudRpcDispatcher
-import dk.sdu.cloud.providers.UCloudWsDispatcher
-import dk.sdu.cloud.providers.UCloudWsContext
 import dk.sdu.cloud.calls.CallDescription
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -309,7 +306,7 @@ abstract class IngressController(
     
     abstract fun retrieveSettings(
         request: dk.sdu.cloud.accounting.api.ProductReference,
-    ): dk.sdu.cloud.app.orchestrator.api.IngressSettings
+    ): dk.sdu.cloud.app.orchestrator.api.IngressSupport
     
     
     @Suppress("UNCHECKED_CAST")

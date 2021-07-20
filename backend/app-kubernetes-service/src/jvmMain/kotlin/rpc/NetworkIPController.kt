@@ -1,8 +1,13 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
 import dk.sdu.cloud.app.kubernetes.services.NetworkIPService
+import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
 
@@ -11,19 +16,32 @@ class NetworkIPController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(KubernetesNetworkIP.create) {
-            ok(service.create(request))
+            service.create(request)
+            ok(BulkResponse(request.items.map { null }))
         }
 
         implement(KubernetesNetworkIP.delete) {
-            ok(service.delete(request))
+            service.delete(request)
+            ok(BulkResponse(request.items.map { }))
         }
 
         implement(KubernetesNetworkIP.verify) {
             ok(Unit)
         }
 
+        implement(KubernetesNetworkIP.retrieveProducts) {
+            ok(bulkResponseOf(
+                NetworkIPSupport(
+                    ProductReference("u1-publicip", "u1-publicip", UCLOUD_PROVIDER),
+                    NetworkIPSupport.Firewall(
+                        enabled = true
+                    )
+                )
+            ))
+        }
+
         implement(KubernetesNetworkIP.updateFirewall) {
-            ok(Unit)
+            ok(BulkResponse(request.items.map { }))
         }
 
         implement(KubernetesNetworkIPMaintenance.create) {
