@@ -39,7 +39,11 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [props.embedded]);
 
     const navigateToFile = useCallback((history: H.History, file: UFile) => {
-        navigateToPath(history, file.id);
+        if (file.status.type === "DIRECTORY") {
+            navigateToPath(history, file.id);
+        } else {
+            history.push(`/${FilesApi.routingNamespace}/properties/${encodeURIComponent(file.id)}`);
+        }
     }, [navigateToPath]);
 
     useEffect(() => {

@@ -13,7 +13,6 @@ const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const FilesRouter = React.lazy(() => import("Files/Files"));
 const FileCollectionsRouter = React.lazy(() => import("Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("Files/Metadata/Templates/Namespaces"));
-const FilePreview = React.lazy(() => import("Files/Preview"));
 const Shares = React.lazy(() => import("Files/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
@@ -100,8 +99,6 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"}><FileCollectionsRouter/></Route>
                     <Route path={"/files"}><FilesRouter/></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter/></Route>
-                    <Route exact path="/files/preview/"
-                           component={requireAuth(FilePreview)}/>
                     <Route exact path="/shares" component={requireAuth(Shares)}/>
 
                     <Route exact path="/activity" component={requireAuth(Activity)}/>

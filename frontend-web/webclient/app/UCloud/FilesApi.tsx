@@ -31,6 +31,7 @@ import {PrettyFilePath} from "Files/FilePath";
 import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
+import {FilePreview} from "Files/Preview";
 
 export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
 
@@ -156,7 +157,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                         <div><b>Provider: </b> {file.specification.product.provider}</div>
                         <Box mt={"16px"} mb={"8px"}>
                             <Link
-                                  to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                                to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>
                             </Link>
                         </Box>
@@ -185,13 +186,20 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 </>
             }}
             ContentChildren={props => (
-                <DashboardCard color={"purple"}>
-                    <MetadataBrowse
-                        file={props.resource as UFile}
-                        metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
-                        reload={props.reload}
-                    />
-                </DashboardCard>
+                <>
+                    <DashboardCard color={"purple"}>
+                        <MetadataBrowse
+                            file={props.resource as UFile}
+                            metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
+                            reload={props.reload}
+                        />
+                    </DashboardCard>
+                    {(props.resource as UFile).status.type !== "FILE" ? null :
+                        <DashboardCard color={"purple"} title={"Preview"} icon={"search"}>
+                            <FilePreview file={props.resource as UFile}/>
+                        </DashboardCard>
+                    }
+                </>
             )}
         />;
     };
