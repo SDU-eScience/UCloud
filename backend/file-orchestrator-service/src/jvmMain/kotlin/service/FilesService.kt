@@ -16,6 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 typealias MoveHandler = suspend (batch: List<FilesMoveRequestItem>) -> Unit
+typealias DeleteHandler = suspend (batch: List<FindByStringId>) -> Unit
 
 class FilesService(
     private val fileCollections: FileCollectionService,
@@ -24,6 +25,7 @@ class FilesService(
     private val metadataService: MetadataService,
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
     private val moveHandlers = ArrayList<MoveHandler>()
+    private val deleteHandlers = ArrayList<DeleteHandler>()
     private val proxy =
         ProviderProxy<StorageCommunication, Product.Storage, FSSupport, UFile>(providers, providerSupport)
     private val metadataCache = SimpleCache<Pair<ActorAndProject, String>, MetadataService.RetrieveWithHistory>(
@@ -34,6 +36,10 @@ class FilesService(
 
     fun addMoveHandler(handler: MoveHandler) {
         moveHandlers.add(handler)
+    }
+
+    fun addDeleteHandler(handler: DeleteHandler) {
+        deleteHandlers.add(handler)
     }
 
     private fun verifyReadRequest(request: UFileIncludeFlags, support: FSSupport) {
@@ -205,7 +211,17 @@ class FilesService(
             Permission.Edit,
             { it.filesApi.delete },
             { extractPathMetadata(it.id).collection },
-            { req, coll -> dummyResource(req.id, coll) }
+            { req, coll -> dummyResource(req.id, coll) },
+            afterCall = { _, resources, response ->
+                val batch = ArrayList<FindByStringId>()
+                for ((index, res) in resources.withIndex()) {
+                    if (response.responses[index] != null) {
+                        batch.add(res.first)
+                    }
+                }
+
+                deleteHandlers.forEach { handler -> handler(batch) }
+            }
         )
     }
 
@@ -487,6 +503,8 @@ class FilesService(
         isUserRequest: Boolean = true,
         dontTolerateReadOnly: Boolean = true,
         checkRequest: (Req, FSSupport) -> Unit = { _, _ -> },
+        afterCall: suspend (provider: String, resources: List<RequestWithRefOrResource<Req, FileCollection>>,
+                    response: BulkResponse<Res?>) -> Unit = { _, _, _ -> }
     ): BulkResponse<Res?> {
         return proxy.bulkProxy(
             actorAndProject,
@@ -525,6 +543,14 @@ class FilesService(
                         val collection = (res as ProductRefOrResource.SomeResource).resource
                         requestMapper(req, collection)
                     })
+                }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<Req, FileCollection>>,
+                    response: BulkResponse<Res?>
+                ) {
+                    afterCall(provider, resources, response)
                 }
             }
         )

@@ -31,8 +31,8 @@ class MetadataService(
                     val oldPaths by parameterList<String>()
                     val newPaths by parameterList<String>()
                     for (item in batch) {
-                        oldPaths.add(item.oldId)
-                        newPaths.add(item.newId)
+                        oldPaths.add(item.oldId.normalize())
+                        newPaths.add(item.newId.normalize())
                     }
                 },
                 """
@@ -46,6 +46,26 @@ class MetadataService(
                     from entries e
                     where
                         (path = e.old_path or path like e.old_path || '/%');
+                """
+            )
+        }
+    }
+
+    suspend fun onFilesDeleted(batch: List<FindByStringId>) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val paths by parameterList<String>()
+                    for (item in batch) paths.add(item.id.normalize())
+                },
+                """
+                    with entries as (
+                        select unnest(:paths::text[]) path
+                    )
+                    delete from file_orchestrator.metadata_documents d
+                    using entries e
+                    where
+                        (e.path = d.path or d.path like e.path || '/%')
                 """
             )
         }

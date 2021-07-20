@@ -46,6 +46,7 @@ class Server(override val micro: Micro) : CommonServer {
         val filesService = FilesService(fileCollections, providers, providerSupport, metadataService)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
         filesService.addMoveHandler(metadataService::onFilesMoved)
+        filesService.addDeleteHandler(metadataService::onFilesDeleted)
 
         configureControllers(
             FileMetadataController(metadataService),
