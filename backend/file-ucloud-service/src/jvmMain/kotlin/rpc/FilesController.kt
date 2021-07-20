@@ -6,10 +6,13 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
+import dk.sdu.cloud.file.ucloud.api.UCloudFilesDownloadRequest
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Controller
 import io.ktor.application.*
@@ -22,6 +25,7 @@ class FilesController(
     private val fileQueries: FileQueries,
     private val taskSystem: TaskSystem,
     private val chunkedUploadService: ChunkedUploadService,
+    private val downloadService: DownloadService,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
@@ -148,7 +152,18 @@ class FilesController(
                 ok(Unit)
             }
         }
+
+        implement(UCloudFiles.createDownload) {
+            ok(downloadService.createSessions(request))
+        }
+
+        implement(UCloudFileDownload.download) {
+            withContext<HttpCall> {
+                audit(Unit)
+                downloadService.download(request.token, ctx)
+                okContentAlreadyDelivered()
+            }
+        }
         return@with
     }
-
 }

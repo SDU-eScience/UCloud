@@ -391,6 +391,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesCreateUploadRequest
     ): FilesCreateUploadResponse {
+        // TODO(Dan): This needs to remap the results to add provider info!
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -410,6 +411,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesCreateDownloadRequest
     ): FilesCreateDownloadResponse {
+        // TODO(Dan): This needs to remap the results to add provider info!
         return bulkProxyEdit(
             actorAndProject,
             request,

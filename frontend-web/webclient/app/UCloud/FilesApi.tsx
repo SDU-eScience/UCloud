@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, file} from "UCloud/index";
+import {accounting, BulkRequest, BulkResponse, file} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
@@ -18,7 +18,6 @@ import {fileName, getParentPath, readableUnixMode, sizeToString} from "Utilities
 import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
 import {Operation} from "ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
-import FilesCreateDownloadRequestItem = file.orchestrator.FilesCreateDownloadRequestItem;
 import {bulkRequestOf} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {FilesBrowse} from "Files/Files";
@@ -86,6 +85,14 @@ export interface FilesCreateUploadResponseItem {
     endpoint: string;
     protocol: UploadProtocol;
     token: string;
+}
+
+export interface FilesCreateDownloadRequestItem {
+    id: string;
+}
+
+export interface FilesCreateDownloadResponseItem {
+    endpoint: string;
 }
 
 interface FilesTrashRequestItem {
@@ -248,6 +255,24 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             true,
                             this.fileSelectorModalStyle
                         );
+                    }
+                }
+            },
+            {
+                text: "Download",
+                icon: "download",
+                enabled: (selected, cb) => selected.length === 1 && selected[0].status.type === "FILE",
+                onClick: async (selected, cb) => {
+                    // TODO(Dan): We should probably add a feature flag for file types
+                    const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
+                        this.createDownload(bulkRequestOf(
+                            ...selected.map(it => ({id: it.id})),
+                        ))
+                    );
+
+                    const endpoint = result?.responses[0];
+                    if (endpoint) {
+                        window.location.href = endpoint.endpoint;
                     }
                 }
             },

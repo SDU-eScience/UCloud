@@ -1,11 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -22,11 +19,10 @@ class FileQueries(
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
+    private val cephStats: CephFsFastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
         val internalFile = pathConverter.ucloudToInternal(file)
-        println(file)
-        println(internalFile)
         val nativeStat = nativeFs.stat(internalFile)
         return convertNativeStatToUFile(internalFile, nativeStat)
     }
@@ -56,6 +52,7 @@ class FileQueries(
                 nativeStat.fileType,
                 findIcon(file),
                 sizeInBytes = nativeStat.size,
+                sizeIncludingChildrenInBytes = runCatching { cephStats.getRecursiveSize(file) }.getOrNull(),
                 modifiedAt = nativeStat.modifiedAt,
                 unixMode = nativeStat.mode,
                 unixOwner = nativeStat.ownerUid,

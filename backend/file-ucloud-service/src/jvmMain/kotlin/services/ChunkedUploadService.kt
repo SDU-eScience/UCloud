@@ -23,22 +23,15 @@ class ChunkedUploadService(
         conflictPolicy: WriteConflictPolicy,
     ): String {
         try {
-            println(1)
-            // aclService.requirePermission(actor, file, FilePermission.WRITE)
             val internalFile = pathConverter.ucloudToInternal(file)
-            println(internalFile)
             val relativeFile = pathConverter.internalToRelative(internalFile)
             val id = UUID.randomUUID().toString()
-            println(relativeFile)
 
             val (fileName, outs) = nativeFS.openForWriting(internalFile, conflictPolicy)
-            println(1)
             @Suppress("BlockingMethodInNonBlockingContext")
             outs.close()
-            println(1)
 
             val destination = relativeFile.parent().path.removeSuffix("/") + "/" + fileName
-            println(1)
 
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -52,8 +45,6 @@ class ChunkedUploadService(
                 """
                 )
             }
-            println(1)
-
             return id
         } catch (ex: Throwable) {
             ex.printStackTrace()

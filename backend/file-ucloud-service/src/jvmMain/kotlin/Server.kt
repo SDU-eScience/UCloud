@@ -44,10 +44,11 @@ class Server(
         val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), authenticatedClient)
         val nativeFs = NativeFS(pathConverter)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
-        val metadataDao = MetadataDao()
         val trashService = TrashService(pathConverter)
-        val fileQueries = FileQueries(pathConverter, distributedStateFactory, nativeFs, trashService)
+        val cephStats = CephFsFastDirectoryStats(nativeFs)
+        val fileQueries = FileQueries(pathConverter, distributedStateFactory, nativeFs, trashService, cephStats)
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
+        val downloadService = DownloadService(db, pathConverter, nativeFs)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope).apply {
             install(CopyTask())
             install(DeleteTask())
@@ -65,7 +66,7 @@ class Server(
         taskSystem.launchScheduler(micro.backgroundScope)
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
         )
 
