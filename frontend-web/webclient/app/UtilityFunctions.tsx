@@ -8,6 +8,7 @@ import {JWT} from "Authentication/lib";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
+import {UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -605,4 +606,18 @@ export function isAbsoluteUrl(url: string): boolean {
 export function capitalize(text: string): string {
     if (text.length === 0) return text;
     return text[0].toUpperCase() + text.substr(1);
+}
+
+
+// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
+export function removeExpiredFileUploads(): void {
+    const now = new Date().getTime();
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`${UPLOAD_LOCALSTORAGE_PREFIX}:`)) {
+            const expiration = JSON.parse(localStorage.getItem(key) ?? "{}")?.expiration ?? now
+            if (expiration < now) {
+                localStorage.removeItem(key);
+            }
+        }
+    });
 }

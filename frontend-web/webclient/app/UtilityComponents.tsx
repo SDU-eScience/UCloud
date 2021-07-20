@@ -29,20 +29,18 @@ interface StandardDialog {
     cancelButtonColor?: ThemeColor;
 }
 
-export function addStandardDialog(
-    {
-        title,
-        message,
-        onConfirm,
-        onCancel = () => undefined,
-        validator = () => true,
-        cancelText = "Cancel",
-        confirmText = "Confirm",
-        addToFront = false,
-        cancelButtonColor = "red",
-        confirmButtonColor = "green"
-    }: StandardDialog
-): void {
+export function addStandardDialog({
+    title,
+    message,
+    onConfirm,
+    onCancel = () => undefined,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Confirm",
+    addToFront = false,
+    cancelButtonColor = "red",
+    confirmButtonColor = "green"
+}: StandardDialog): void {
     const validate = (): void => {
         if (validator()) onConfirm();
         dialogStore.success();
@@ -81,20 +79,18 @@ interface InputDialog {
     width?: string;
 }
 
-export async function addStandardInputDialog(
-    {
-        title,
-        help,
-        validator = () => true,
-        cancelText = "Cancel",
-        confirmText = "Submit",
-        addToFront = false,
-        placeholder = "",
-        validationFailureMessage = "error",
-        type = "input",
-        width = "300px",
-    }: InputDialog
-): Promise<{result: string}> {
+export async function addStandardInputDialog({
+    title,
+    help,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Submit",
+    addToFront = false,
+    placeholder = "",
+    validationFailureMessage = "error",
+    type = "input",
+    width = "300px",
+}: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
         <div>
             <div>

@@ -16,19 +16,18 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useCloudAPI} from "Authentication/DataHook";
-import {ProductArea, UsageResponse, transformUsageChartForCharting, usage, NativeChart} from "Accounting";
+import {UsageResponse, transformUsageChartForCharting, usage, NativeChart} from "Accounting";
 import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
-import {
-    ingoingGrantApplications, IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings
-} from "Project/Grant";
+import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
 import {Client} from "Authentication/HttpClientInstance";
 import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import * as UCloud from "UCloud";
 
 export function computeUsageInPeriod(charts: NativeChart[]): number {
     let result = 0;
@@ -100,7 +99,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
-        setGrantParams(ingoingGrantApplications({itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
         fetchSettings(readGrantRequestSettings({projectId}));
         setUsageParams(usage({
             bucketSize: durationOption.bucketSize,

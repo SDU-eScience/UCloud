@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import styled from "styled-components";
 import ReactModal from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate} from "ui-components";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text, Tooltip, Relative} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import {
     errorMessageOrDefault,
@@ -20,9 +20,10 @@ import {default as FilesApi, FilesCreateUploadResponseItem} from "UCloud/FilesAp
 import {callAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {BulkResponse} from "UCloud";
-import {ChunkedFileReader, createLocalStorageUploadKey} from "Files/ChunkedFileReader";
+import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
 import {sizeToString} from "Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "UCloud/FilesApi";
+import {fileName} from "./Files";
 
 const maxConcurrentUploads = 5;
 const entityName = "Upload";
@@ -47,8 +48,6 @@ function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadI
 }
 
 async function processUpload(upload: Upload) {
-
-
     const strategy = upload.uploadResponse;
     if (!strategy) {
         upload.error = "Internal client error";
@@ -120,7 +119,9 @@ async function processUpload(upload: Upload) {
         );
     }
 
-    localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+    if (!upload.paused) {
+        localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+    }
 }
 
 const Uploader: React.FunctionComponent = () => {
@@ -148,7 +149,7 @@ const Uploader: React.FunctionComponent = () => {
 
             for (const upload of batch) {
                 if (upload.state !== UploadState.PENDING) continue;
-                if (creationRequests.length >= maxUploadsToUse) break;
+                if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
 
                 const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
 
@@ -213,8 +214,24 @@ const Uploader: React.FunctionComponent = () => {
         }
     }, []);
 
+    const pauseUploads = useCallback((batch: Upload[]) => {
+        for (const upload of batch) {
+            upload.terminationRequested = true;
+            upload.paused = true;
+            upload.state = UploadState.PENDING;
+        }
+    }, []);
+
+    const resumeUploads = useCallback((batch: Upload[]) => {
+        batch.forEach(it => {
+            it.terminationRequested = undefined;
+            it.paused = undefined;
+        });
+        startUploads(batch)
+    }, [uploads]);
+
     const callbacks: UploadCallback = useMemo(() => {
-        return {startUploads, stopUploads};
+        return {startUploads, stopUploads, pauseUploads, resumeUploads};
     }, [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
@@ -271,6 +288,16 @@ const Uploader: React.FunctionComponent = () => {
             startUploads(uploads);
         }
     }, [lookForNewUploads, startUploads]);
+
+
+    const [pausedFilesInFolder, setFilesInFolder] = useState<string[]>([]);
+
+    useEffect(() => {
+        const matches = Object.keys(localStorage).filter(key => key.startsWith(UPLOAD_LOCALSTORAGE_PREFIX)).map(key =>
+            key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
+        ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
+        setFilesInFolder(matches);
+    }, [uploadPath]);
 
     return <>
         <ReactModal
@@ -345,7 +372,15 @@ const Uploader: React.FunctionComponent = () => {
                                     }
                                 </ListStatContainer>
                             }
-                            right={
+                            right={<>
+                                {!upload.paused ? null : (
+                                    <Flex>
+                                        Paused <Tooltip tooltipContentWidth="150px" wrapperOffsetLeft="-110px"
+                                            trigger={<Icon ml="6px" name="info" color="white" color2="black" />}>
+                                            Upload paused. To resume, add the file again.
+                                        </Tooltip>
+                                    </Flex>
+                                )}
                                 <Operations
                                     row={upload}
                                     location={"IN_ROW"}
@@ -354,10 +389,16 @@ const Uploader: React.FunctionComponent = () => {
                                     extra={callbacks}
                                     entityNameSingular={entityName}
                                 />
-                            }
+                            </>}
                         />
                     ))}
                 </List>
+                {pausedFilesInFolder.length === 0 ? null :
+                    <div>
+                        <Text>Uploads that can be resumed:</Text>
+                        {pausedFilesInFolder.map(it => <Text bold key={it}>{fileName(it)}</Text>)}
+                    </div>
+                }
             </div>
         </ReactModal>
     </>;
@@ -366,6 +407,8 @@ const Uploader: React.FunctionComponent = () => {
 interface UploadCallback {
     startUploads: (batch: Upload[]) => void;
     stopUploads: (batch: Upload[]) => void;
+    pauseUploads: (batch: Upload[]) => void;
+    resumeUploads: (batch: Upload[]) => void;
 }
 
 const operations: Operation<Upload, UploadCallback>[] = [
@@ -378,10 +421,25 @@ const operations: Operation<Upload, UploadCallback>[] = [
         icon: "trash",
         confirm: true,
         primary: true,
-    }
+    },
+    {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
+        onClick: (selected, cb) => cb.pauseUploads(selected),
+        text: "Pause",
+        color: "blue",
+        icon: undefined, // TODO: Pause icon
+    },
+    /* {
+        enabled: selected => selected.length > 0 && selected.every(it => it.paused),
+        onClick: (selected, cb) => cb.resumeUploads(selected),
+        text: "Resume",
+        color: "blue",
+        icon: "play",
+        primary: true
+    } */
 ];
 
-const UploaderArt: React.FunctionComponent = props => {
+const UploaderArt: React.FunctionComponent = () => {
     return <UploadArtWrapper>
         <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
         <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />

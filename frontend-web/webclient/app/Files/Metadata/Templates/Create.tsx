@@ -8,7 +8,7 @@ import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import MainContainer from "MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
-import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid} from "ui-components";
+import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation, Operations} from "ui-components/Operation";
 import {Section} from "ui-components/Section";
@@ -17,6 +17,7 @@ import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "UCloud";
+import styled from "styled-components";
 
 enum Stage {
     INFO,
@@ -293,14 +294,16 @@ const Create: React.FunctionComponent = props => {
                     </Grid>
                 </Box>
                 {stage !== Stage.SCHEMA ? null :
-                    <FormBuilder
-                        schema={schema}
-                        uiSchema={uiSchema}
-                        onChange={(newSchema: any, newUiSchema: any) => {
-                            setSchema(newSchema);
-                            setUiSchema(newUiSchema);
-                        }}
-                    />
+                    <BootstrapReplacement>
+                        <FormBuilder
+                            schema={schema}
+                            uiSchema={uiSchema}
+                            onChange={(newSchema: any, newUiSchema: any) => {
+                                setSchema(newSchema);
+                                setUiSchema(newUiSchema ?? uiSchema);
+                            }}
+                        />
+                    </BootstrapReplacement>
                 }
                 {stage !== Stage.PREVIEW ? null :
                     <Grid gridGap={"32px"} width={"800px"} margin={"0 auto"}>
@@ -333,10 +336,12 @@ const Create: React.FunctionComponent = props => {
                         </Section>
                         <Section>
                             <Heading.h3>Form preview</Heading.h3>
-                            <JsonSchemaForm
-                                schema={JSON.parse(schema)}
-                                uiSchema={JSON.parse(uiSchema)}
-                            />
+                            <JsonSchemaFormBootstrapReplacement>
+                                <JsonSchemaForm
+                                    schema={JSON.parse(schema)}
+                                    uiSchema={JSON.parse(uiSchema)}
+                                />
+                            </JsonSchemaFormBootstrapReplacement>
                         </Section>
                     </Grid>
                 }
@@ -399,5 +404,251 @@ const operations: Operation<void, Callbacks>[] = [
         }
     }
 ];
+
+const BootstrapReplacement = styled.div`
+    & > div.formBuilder-0-2-1 {
+        div.formHead-0-2-2 {
+            border: 1px solid transparent;
+            background-color: var(--lightGray, #f00);
+
+            div > {
+                h5.form-name-label {
+                    color: var(--text, #f00);
+                }
+
+                input.form-control:focus-visible {
+                    outline: none;
+                }
+            }
+        }
+        
+        div.card-select {
+            background-color: var(--lightGray, #f00);
+        }
+
+        span.label {
+            color: var(--text);
+        }
+
+        div.form-body {
+
+            div.collapse-element.card-container {
+                background-color: var(--lightGray, #f00);
+                border: 2px solid transparent;
+            }
+
+            div.collapse-element.card-container:hover {
+                border: 2px solid var(--blue, #f00);
+            }
+
+            div.section-container {
+                background-color: var(--lightGray, #f00);
+                border: 1px solid transparent;
+            }
+
+            div.section-container:hover {
+                border: 1px solid var(--blue, #f00);
+            }
+        }
+
+        div > span > svg.svg-inline--fa.fa-plus-square.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa,
+        span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+            color: var(--blue, #f00);
+        }
+
+        span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+            border: none;
+        }
+        
+        span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
+            color: var(--blue, #f00);
+            border: 2px solid var(--blue, #f00);
+        }
+
+        span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
+            color: var(--red, #f00);
+            border: 2px solid var(--red, #f00);
+        }
+
+        input.form-control {
+            border: 2px solid var(--midGray);
+            display: block;
+            font-family: inherit;
+            width: 100%;
+            color: var(--black, #f00);
+            background-color: transparent;
+        
+            margin: 0;
+            &:invalid {
+                border-color: var(--red, #f00);
+            }
+        
+            border-radius: 5px;
+            padding: 7px 12px 7px 12px;
+        
+            ::placeholder {
+                color: var(--gray, #f00);
+            }
+        
+            &:focus {
+                outline: none;
+                background-color: transparent;
+            }
+        
+            &:disabled {
+                background-color: var(--lightGray, #f00);
+            }
+        }
+
+        input.form-control:active, input.form-control:focus {
+            border: 2px solid var(--blue);            
+        }
+
+        div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
+            background-color: var(--lightGray);
+        }
+
+        div.delete-button {
+            color: var(--red);
+            margin-left: 6px;
+        }
+
+        svg.svg-inline--fa.fa-plus.fa-w-14.fa {
+            margin-left: auto;
+            margin-right: auto;
+            color: var(--blue);            
+        }
+
+    & form > button {
+        font-smoothing: antialiased;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        text-decoration: none;
+        font-family: inherit;
+        font-weight: ${theme.bold};
+        cursor: pointer;
+        border-radius: ${theme.radius};
+        background-color: var(--blue, #f00);
+        color: var(--white, #f00);
+        border-width: 0;
+        border-style: solid;
+        line-height: 1.5;
+        width: 100px;
+        height: 40px;
+    }
+
+    & div.d-flex {
+        display: flex;
+        border-bottom: none;
+    }
+
+    & div.collapse, & div.collapsing {
+        display: none;
+    }
+
+    & div.collapse.show {
+        display: block;
+    }
+
+    & div.cardEntries-0-2-7 {
+        border-bottom: none;
+    }
+
+    & div.section-interactions { 
+        border-top: none; 
+    }
+
+    & div.section-head { 
+        border-bottom: none;
+    }
+`;
+
+const JsonSchemaFormBootstrapReplacement = styled.div`
+
+    & button {
+        font-smoothing: antialiased;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        text-decoration: none;
+        font-family: inherit;
+        font-weight: ${theme.bold};
+        cursor: pointer;
+        border-radius: ${theme.radius};
+        background-color: var(--blue, #f00);
+        color: var(--white, #f00);
+        border-width: 0;
+        border-style: solid;
+        line-height: 1.5;
+        width: 100px;
+        height: 40px;
+    }
+
+    & form.rjsf > div > button:hover {
+        transform: translateY(-2px);
+    }
+
+    & form.rjsf > div > fieldset > div > input {
+        margin-top: 2px;
+        margin-bottom: 4px;
+    }
+
+    & button:hover {
+        transform: translateY(-2px);
+    }
+
+    & i.glyphicon.glyphicon-remove::before {
+        content: "❌";
+    }
+
+    & button.btn-add {
+        width: 45px;
+        color: var(--white, #f00);
+        background-color: var(--green, #f00);
+    }
+
+    & i {
+        font-style: normal;
+    }
+
+
+
+    & .glyphicon-arrow-up::before {
+        content: '↑';
+    }
+
+    & .glyphicon-arrow-down::before {
+        content: '↓';
+    }
+
+    & button.btn-danger {
+        width: 45px;
+        color: var(--white, #f00);
+        background-color: var(--red, #f00);
+    }
+
+    & div.array-item > div.col.xs-9 { 
+        width: 100%;
+    }
+    
+    & div.array-item {
+        display: flex;
+    }
+
+    & button.btn.btn-default.array-item-move-up, & button.btn.btn-default.array-item-move-down, & button.btn.btn-default.array-item-remove { 
+        width: 45px;
+    }
+
+    & i.glyphicon.glyphicon-plus::before {
+        content: "+";
+    }
+
+    & div.array-item > div.col.xs-9 {
+        width: 100%;
+    }
+`;
 
 export default Create;

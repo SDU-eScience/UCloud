@@ -23,6 +23,7 @@ export interface Upload {
     conflictPolicy: WriteConflictPolicy;
     uploadResponse?: FileApi.FilesCreateUploadResponseItem;
     terminationRequested?: true;
+    paused?: true;
 }
 
 export const supportedProtocols: UploadProtocol[] = ["CHUNKED"];

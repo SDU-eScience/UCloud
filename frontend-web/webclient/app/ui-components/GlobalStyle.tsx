@@ -45,6 +45,87 @@ export function injectFonts(): void {
 }
 
 const UIGlobalStyle = `
+
+/*  /files/metadata/templates/create/ START */
+
+div.modal.fade.show { 
+    max-width: 800px;
+    background-color: var(--lightGray, #f00);
+    border-color: 2px solid var(--black, #f00);
+}
+
+div.tooltip.show.bs-tooltip-auto {
+    color: var(--text, #f00);
+    background-color: var(--white);
+    border: 1px solid var(--midGray);
+    border-radius: 5px;
+    padding: 2px 5px 2px 5px;
+}
+
+div#form-builder_add_popover.popover-inner h3.popover-header {
+    margin-top: 0px;
+    border-bottom: none;
+}
+
+div.popover.show.bs-popover-auto {
+    background-color: var(--lightGray);
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-top: 4px;
+
+    .popover-inner {
+        border: none;
+    }
+}
+
+span.toggle-collapse {
+    display: hidden;
+}
+
+div.popover.show.bs-popover-auto > div.popover-inner > h3.popover-header {
+    border-bottom: none;
+    margin-top: 0px;
+}
+
+div > div > div.modal { 
+    margin-left: calc(50% - 400px);
+    padding: 10px 10px 10px 10px;
+    background-color: var(--white, #f00);
+    border: 1px solid var(--gray, #f00);
+    border-radius: 5px;
+}
+
+
+div.modal-footer > button {
+    margin-right: 5px;
+}
+
+div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
+    font-smoothing: antialiased;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+    font-weight: ${theme.bold};
+    cursor: pointer;
+    border-radius: ${theme.radius};
+    background-color: var(--blue, #f00);
+    color: var(--white, #f00);
+    border-width: 0;
+    border-style: solid;
+    line-height: 1.5;
+    width: 100px;
+    height: 40px;
+}
+
+
+/* /files/metadata/templates/create/ END */
+
 /* Colors */
 html {
     --black: #000;
