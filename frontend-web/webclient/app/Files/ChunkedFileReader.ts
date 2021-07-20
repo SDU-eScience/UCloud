@@ -1,6 +1,8 @@
 export const UPLOAD_LOCALSTORAGE_PREFIX = "file-upload"
 
-export function createLocalStorageUploadKey(path: string): `${typeof UPLOAD_LOCALSTORAGE_PREFIX}:${string}` {
+// NOTE(Dan): This used to have a more specific type but it did not compile for me. I am not sure why but it doesn't
+// appear that this specific type was really needed.
+export function createLocalStorageUploadKey(path: string): string {
     return `${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
 }
 

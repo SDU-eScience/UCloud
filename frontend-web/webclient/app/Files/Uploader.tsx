@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import styled from "styled-components";
 import ReactModal from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text, Tooltip, Relative} from "ui-components";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text, Tooltip} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import {
     errorMessageOrDefault,
@@ -21,9 +21,8 @@ import {callAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {BulkResponse} from "UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
-import {sizeToString} from "Utilities/FileUtilities";
+import {fileName, sizeToString} from "Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "UCloud/FilesApi";
-import {fileName} from "./Files";
 
 const maxConcurrentUploads = 5;
 const entityName = "Upload";
@@ -174,13 +173,15 @@ const Uploader: React.FunctionComponent = () => {
             if (actualUploads.length + resumingUploads.length === 0) return;
 
             try {
-                const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
-                    FilesApi.createUpload(bulkRequestOf(...creationRequests))
-                )).responses;
+                if (creationRequests.length > 0) {
+                    const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
+                        FilesApi.createUpload(bulkRequestOf(...creationRequests))
+                    )).responses;
 
-                for (const [index, response] of responses.entries()) {
-                    const upload = actualUploads[index];
-                    upload.uploadResponse = response;
+                    for (const [index, response] of responses.entries()) {
+                        const upload = actualUploads[index];
+                        upload.uploadResponse = response;
+                    }
                 }
 
                 for (const upload of [...actualUploads, ...resumingUploads]) {
