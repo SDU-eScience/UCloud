@@ -5,12 +5,14 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.mapItems
+import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.task.api.*
 import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -20,9 +22,11 @@ typealias DeleteHandler = suspend (batch: List<FindByStringId>) -> Unit
 
 class FilesService(
     private val fileCollections: FileCollectionService,
-    providers: StorageProviders,
+    private val providers: StorageProviders,
     providerSupport: StorageProviderSupport,
     private val metadataService: MetadataService,
+    private val serviceClient: AuthenticatedClient,
+    private val db: DBContext,
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
     private val moveHandlers = ArrayList<MoveHandler>()
     private val deleteHandlers = ArrayList<DeleteHandler>()
@@ -163,7 +167,8 @@ class FilesService(
 
             val metadataJob = async {
                 if (flags?.includeMetadata == true) {
-                    val r = metadataService.retrieveWithHistory(actorAndProject,
+                    val r = metadataService.retrieveWithHistory(
+                        actorAndProject,
                         path.parent(),
                         listOf(path.fileName())
                     )
@@ -259,9 +264,11 @@ class FilesService(
                     request: BulkRequest<FilesMoveRequestItem>
                 ): List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>> {
                     val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
-                        extractPathMetadata(it.oldId).collection }
+                        extractPathMetadata(it.oldId).collection
+                    }
                     val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
-                        extractPathMetadata(it.newId).collection }
+                        extractPathMetadata(it.newId).collection
+                    }
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
 
                     val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
@@ -324,6 +331,12 @@ class FilesService(
                     }
 
                     moveHandlers.forEach { handler -> handler(batch) }
+
+                    registerTasks(
+                        findTasksInBackgroundFromResponse(response)
+                            .map { TaskToRegister(provider, "Moving files", it, actorAndProject) }
+                            .toList()
+                    )
                 }
             }
         )
@@ -348,9 +361,11 @@ class FilesService(
                     request: BulkRequest<FilesCopyRequestItem>
                 ): List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>> {
                     val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Read) {
-                        extractPathMetadata(it.oldId).collection }
+                        extractPathMetadata(it.oldId).collection
+                    }
                     val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
-                        extractPathMetadata(it.newId).collection }
+                        extractPathMetadata(it.newId).collection
+                    }
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
 
                     val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
@@ -399,6 +414,18 @@ class FilesService(
                         )
                     })
                 }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>,
+                    response: BulkResponse<LongRunningTask?>
+                ) {
+                    registerTasks(
+                        findTasksInBackgroundFromResponse(response)
+                            .map { TaskToRegister(provider, "Copying files", it, actorAndProject) }
+                            .toList()
+                    )
+                }
             }
         )
     }
@@ -414,12 +441,14 @@ class FilesService(
             Permission.Edit,
             { it.filesApi.createUpload },
             { extractPathMetadata(it.id).collection },
-            { req, coll -> FilesProviderCreateUploadRequestItem(
-                coll,
-                req.id,
-                req.supportedProtocols,
-                req.conflictPolicy
-            )}
+            { req, coll ->
+                FilesProviderCreateUploadRequestItem(
+                    coll,
+                    req.id,
+                    req.supportedProtocols,
+                    req.conflictPolicy
+                )
+            }
         )
     }
 
@@ -448,9 +477,22 @@ class FilesService(
             Permission.Edit,
             { it.filesApi.createFolder },
             { extractPathMetadata(it.id).collection },
-            { req, coll -> FilesProviderCreateFolderRequestItem(coll, req.id, req.conflictPolicy) }
+            { req, coll -> FilesProviderCreateFolderRequestItem(coll, req.id, req.conflictPolicy) },
+            afterCall = { provider, _, response ->
+                registerTasks(
+                    findTasksInBackgroundFromResponse(response)
+                        .map { TaskToRegister(provider, "Creating folders", it, actorAndProject) }
+                        .toList()
+                )
+            }
         )
     }
+
+    private fun findTasksInBackgroundFromResponse(response: BulkResponse<LongRunningTask?>) =
+        response.responses
+            .asSequence()
+            .filterNotNull()
+            .filterIsInstance<LongRunningTask.ContinuesInBackground>()
 
     suspend fun trash(
         actorAndProject: ActorAndProject,
@@ -462,7 +504,14 @@ class FilesService(
             Permission.Edit,
             { it.filesApi.trash },
             { extractPathMetadata(it.id).collection },
-            { req, coll -> FilesProviderTrashRequestItem(coll, req.id) }
+            { req, coll -> FilesProviderTrashRequestItem(coll, req.id) },
+            afterCall = { provider, _, response ->
+                registerTasks(
+                    findTasksInBackgroundFromResponse(response)
+                        .map { TaskToRegister(provider, "Emptying trash", it, actorAndProject) }
+                        .toList()
+                )
+            }
         )
     }
 
@@ -497,14 +546,16 @@ class FilesService(
         request: BulkRequest<Req>,
         permission: Permission,
         call: (comms: StorageCommunication) ->
-            CallDescription<BulkRequest<ReqProvider>, BulkResponse<Res?>, CommonErrorMessage>,
+        CallDescription<BulkRequest<ReqProvider>, BulkResponse<Res?>, CommonErrorMessage>,
         idFetcher: (Req) -> String,
         requestMapper: (Req, FileCollection) -> ReqProvider,
         isUserRequest: Boolean = true,
         dontTolerateReadOnly: Boolean = true,
         checkRequest: (Req, FSSupport) -> Unit = { _, _ -> },
-        afterCall: suspend (provider: String, resources: List<RequestWithRefOrResource<Req, FileCollection>>,
-                    response: BulkResponse<Res?>) -> Unit = { _, _, _ -> }
+        afterCall: suspend (
+            provider: String, resources: List<RequestWithRefOrResource<Req, FileCollection>>,
+            response: BulkResponse<Res?>
+        ) -> Unit = { _, _, _ -> }
     ): BulkResponse<Res?> {
         return proxy.bulkProxy(
             actorAndProject,
@@ -554,5 +605,131 @@ class FilesService(
                 }
             }
         )
+    }
+
+    private data class TaskToRegister(
+        val provider: String,
+        val title: String,
+        val backgroundTask: LongRunningTask.ContinuesInBackground,
+        val actorAndProject: ActorAndProject
+    )
+
+    private suspend fun registerTasks(
+        tasks: List<TaskToRegister>
+    ) {
+        if (tasks.isEmpty()) return
+        data class MappedTask(val provider: String, val providerId: String, val taskId: String)
+
+        val mappedTasks = ArrayList<MappedTask>()
+        for (task in tasks) {
+            val taskId = Tasks.create.call(
+                CreateRequest(task.title, task.actorAndProject.actor.safeUsername()),
+                serviceClient
+            ).orNull()?.jobId
+
+            if (taskId == null) {
+                log.info("Unable to register tasks!")
+                continue
+            }
+
+            mappedTasks.add(MappedTask(task.provider, task.backgroundTask.taskId, taskId))
+        }
+
+        if (mappedTasks.isEmpty()) return
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val providers by parameterList<String>()
+                    val providerGeneratedIds by parameterList<String>()
+                    val taskIds by parameterList<String>()
+                    for (task in mappedTasks) {
+                        providers.add(task.provider)
+                        providerGeneratedIds.add(task.providerId)
+                        taskIds.add(task.taskId)
+                    }
+                },
+                """
+                    insert into file_orchestrator.task_mapping (provider_id, provider_generated_task_id, actual_task_id) 
+                    select unnest(:providers::text[]), unnest(:provider_generated_ids::text[]),
+                           unnest(:task_ids::text[])
+                """
+            )
+        }
+    }
+
+    suspend fun addTaskUpdate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesControlAddUpdateRequestItem>
+    ) {
+        val providerSpec = providers.prepareCommunication(actorAndProject.actor).provider
+        db.withSession { session ->
+            val taskIds = lookupTaskIds(session, providerSpec, request.items.map { it.taskId })
+
+            for ((taskId, update) in taskIds.zip(request.items)) {
+                val response = Tasks.postStatus.call(
+                    PostStatusRequest(TaskUpdate(taskId, messageToAppend = update.update)),
+                    serviceClient
+                )
+
+                if (response !is IngoingCallResponse.Ok) {
+                    log.info("Unable to add task update: $taskId")
+                }
+            }
+        }
+    }
+
+    suspend fun markTaskAsComplete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesControlMarkAsCompleteRequestItem>
+    ) {
+        val providerSpec = providers.prepareCommunication(actorAndProject.actor).provider
+        db.withSession { session ->
+            val taskIds = lookupTaskIds(session, providerSpec, request.items.map { it.taskId })
+
+            for (taskId in taskIds) {
+                val response = Tasks.markAsComplete.call(
+                    MarkAsCompleteRequest(taskId),
+                    serviceClient
+                )
+
+                if (response !is IngoingCallResponse.Ok) {
+                    log.info("Unable to mark task as complete: $taskId")
+                }
+            }
+        }
+    }
+
+    private suspend fun lookupTaskIds(
+        session: AsyncDBConnection,
+        providerSpec: ProviderSpecification,
+        providerIds: List<String>
+    ): List<String> {
+        val taskIds = session.sendPreparedStatement(
+            {
+                setParameter("provider_id", providerSpec.id)
+                setParameter("task_ids", providerIds)
+            },
+            """
+                with entries as (
+                    select unnest(:task_ids::text[]) task_id
+                )
+                select actual_task_id
+                from
+                    file_orchestrator.task_mapping tm join
+                    entries e on tm.provider_generated_task_id = e.task_id
+                where
+                    tm.provider_id = :provider_id
+            """
+        ).rows.map { it.getString(0)!! }
+
+        if (taskIds.size != providerIds.size) {
+            throw RPCException("Request contains unknown task IDs", HttpStatusCode.NotFound)
+        }
+        return taskIds
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

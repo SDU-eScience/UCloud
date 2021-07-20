@@ -49,7 +49,7 @@ class Server(
         val fileQueries = FileQueries(pathConverter, distributedStateFactory, nativeFs, trashService, cephStats)
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
-        val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope).apply {
+        val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())
             install(MoveTask())

@@ -36,6 +36,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.support.SupportService
+import dk.sdu.cloud.task.TaskService
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -516,6 +517,7 @@ object UCloudLauncher : Loggable {
                 NotificationService,
                 PasswordResetService,
                 SupportService,
+                TaskService,
             )
 
             // Reflection is _way_ too slow

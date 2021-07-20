@@ -43,14 +43,6 @@ class CopyTask : TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
 
-        // Check permissions
-        for (reqItem in realRequest.items) {
-            /*
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.READ)
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
-             */
-        }
-
         var fileCount = 0
         val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
         // TODO We need to check if the initial files even exist

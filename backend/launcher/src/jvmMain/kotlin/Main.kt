@@ -37,6 +37,7 @@ import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
+import dk.sdu.cloud.task.TaskService
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
@@ -74,6 +75,7 @@ val services = setOf<Service>(
     SupportService,
     AppAauService,
     AppKubernetesService,
+    TaskService,
 )
 
 suspend fun main(args: Array<String>) {

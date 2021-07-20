@@ -118,9 +118,6 @@ class MetadataTemplateNamespaces(
                         val jacksonNode = jacksonMapper.readTree(encodedSchema)
                         val validateSchema = JsonSchemaFactory.byDefault().syntaxValidator.validateSchema(jacksonNode)
                         if (!validateSchema.isSuccess) {
-                            validateSchema.forEach {
-                                println(it.message)
-                            }
                             throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
                         }
 

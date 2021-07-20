@@ -43,7 +43,7 @@ class Server(override val micro: Micro) : CommonServer {
         val metadataTemplateNamespaces = MetadataTemplateNamespaces(db, providers, templateSupport, serviceClient)
         val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
-        val filesService = FilesService(fileCollections, providers, providerSupport, metadataService)
+        val filesService = FilesService(fileCollections, providers, providerSupport, metadataService, serviceClient, db)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)

@@ -1,7 +1,13 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.FilesControl
+import dk.sdu.cloud.file.orchestrator.api.FilesControlAddUpdateRequestItem
+import dk.sdu.cloud.file.orchestrator.api.FilesControlMarkAsCompleteRequestItem
 import dk.sdu.cloud.file.orchestrator.api.LongRunningTask
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
@@ -40,6 +46,7 @@ class TaskSystem(
     private val pathConverter: PathConverter,
     private val nativeFs: NativeFS,
     private val backgroundScope: BackgroundScope,
+    private val client: AuthenticatedClient,
 ) {
     private val taskContext = TaskContext(pathConverter, nativeFs, backgroundScope)
     private val handlers = ArrayList<TaskHandler>()
@@ -56,14 +63,14 @@ class TaskSystem(
 
         with (handler) {
             val requirements = taskContext.collectRequirements(name, request, REQUIREMENT_MAX_TIME_MS)
-            if (requirements == null || requirements.scheduleInBackground) {
-                return scheduleInBackground(name, request, requirements)
+            return if (requirements == null || requirements.scheduleInBackground) {
+                scheduleInBackground(name, request, requirements)
             } else {
                 val taskId = UUID.randomUUID().toString()
                 taskContext.execute(
                     StorageTask(taskId, name, requirements, request, null, Time.now())
                 )
-                return LongRunningTask.Complete()// (Unit)
+                LongRunningTask.Complete()
             }
         }
     }
@@ -72,7 +79,7 @@ class TaskSystem(
         name: String,
         request: JsonObject,
         requirements: TaskRequirements?,
-    ): LongRunningTask.ContinuesInBackground<Unit> {
+    ): LongRunningTask.ContinuesInBackground {
         val id = UUID.randomUUID().toString()
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -82,12 +89,11 @@ class TaskSystem(
                     setParameter("request", defaultMapper.encodeToString(request))
                     setParameter("requirements", defaultMapper.encodeToString(requirements))
                     setParameter("progress", null as String?)
-                    TODO("setParameter(\"owner\", actor.safeUsername()")
                 },
                 """
                     insert into file_ucloud.tasks
-                    (id, request_name, requirements, request, progress, owner, last_update, processor_id) 
-                    values (:id, :request_name, :requirements, :request, :progress, :owner, null, null) 
+                    (id, request_name, requirements, request, progress, last_update, processor_id) 
+                    values (:id, :request_name, :requirements, :request, :progress, null, null) 
                 """
             )
         }
@@ -187,7 +193,22 @@ class TaskSystem(
                                     ?: error("Handler returned no requirements $task"))
 
                             log.debug("Starting work of $task")
+                            FilesControl.addUpdate.call(
+                                bulkRequestOf(
+                                    FilesControlAddUpdateRequestItem(
+                                        task.taskId,
+                                        "Resuming work on task..."
+                                    )
+                                ),
+                                client
+                            )
                             taskContext.execute(task.copy(requirements = requirements))
+                            FilesControl.markAsComplete.call(
+                                bulkRequestOf(
+                                    FilesControlMarkAsCompleteRequestItem(task.taskId)
+                                ),
+                                client
+                            )
                             log.debug("Completed the execution of $task")
 
                             markJobAsComplete(db, task.taskId)

@@ -91,27 +91,20 @@ class FileQueries(
             }
         }
 
-        println(file)
-        println(pathConverter.ucloudToInternal(file))
-        println(foundFiles)
-
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
         val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-            println("Looking at $i")
             try {
                 val nextInternalFile = foundFiles[i++]
-                println(nextInternalFile)
                 items.add(
                     convertNativeStatToUFile(
                         nextInternalFile,
                         nativeFs.stat(nextInternalFile),
                     )
                 )
-                println("File done")
             } catch (ex: FSException.NotFound) {
                 // NOTE(Dan): File might have gone away between these two calls
                 didSkipFiles = true
@@ -119,7 +112,6 @@ class FileQueries(
                 ex.printStackTrace()
             }
         }
-        println(1)
 
         if (items.isEmpty() && didSkipFiles) {
             // NOTE(Dan): The directory might not even exist anymore. We perform a check if we are about to return no
@@ -127,7 +119,6 @@ class FileQueries(
             val isDir = nativeFs.stat(pathConverter.ucloudToInternal(file)).fileType == FileType.DIRECTORY
             if (!isDir) throw FSException.IsDirectoryConflict()
         }
-        println(1)
 
         val didWeCoverEverything = i == foundFiles.size
         val newNext = if (!didWeCoverEverything) {
@@ -141,9 +132,7 @@ class FileQueries(
         } else {
             null
         }
-        println(1)
 
-        println("Got this far: $items")
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 

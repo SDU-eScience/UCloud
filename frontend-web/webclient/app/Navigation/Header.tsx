@@ -36,6 +36,7 @@ import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
 import {VersionManager} from "VersionManager/VersionManager";
 import * as Applications from "Applications"
 import {useGlobal} from "Utilities/ReduxHooks";
+import BackgroundTasks from "BackgroundTasks/BackgroundTask";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -118,6 +119,9 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <DevelopmentBadge/>
             </ui.Hide>
             <VersionManager/>
+            <ui.Flex width="48px" justifyContent="center">
+            <BackgroundTasks />
+            </ui.Flex>
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading}/>
             </ui.Flex>
