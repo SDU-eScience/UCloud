@@ -105,6 +105,10 @@ interface ExtraCallbacks {
 
 class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
+    constructor() {
+        super("files");
+    }
+
     routingNamespace = "files";
     title = "File";
     page = SidebarPages.Files;
@@ -192,10 +196,6 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         />;
     };
 
-    constructor() {
-        super("files");
-    }
-
     retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
@@ -256,6 +256,14 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             this.fileSelectorModalStyle
                         );
                     }
+                }
+            },
+            {
+                text: "Rename",
+                icon: "rename",
+                enabled: (selected) => selected.length === 1,
+                onClick: (selected, cb) => {
+                    cb.startRenaming?.(selected[0], fileName(selected[0].id));
                 }
             },
             {
