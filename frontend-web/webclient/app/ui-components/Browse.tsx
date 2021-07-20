@@ -61,7 +61,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
         if (resources.next) {
             fetchResources(props.generateCall(resources.next));
         }
-    }, [props.generateCall, hasPreloadedResources]);
+    }, [props.generateCall, hasPreloadedResources, resources.next]);
 
     if (props.toggleSet) props.toggleSet.allItems.current = resources.items;
 
