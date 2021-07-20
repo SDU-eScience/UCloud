@@ -323,7 +323,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (selected, cb) => {
             cb.startSynchronization(selected[0])
         },
-        disabled: files => files.length !== 1 || files[0].fileType !== "DIRECTORY" || isAnyMockFile(files),
+        disabled: files => files.length !== 1 || files[0].fileType !== "DIRECTORY" || isAnyMockFile(files) || !Client.userIsAdmin,
         icon: "refresh"
     }
 ] as FileOperation[];

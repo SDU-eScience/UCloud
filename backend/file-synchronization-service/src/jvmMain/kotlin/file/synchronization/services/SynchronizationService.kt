@@ -32,7 +32,7 @@ class SynchronizationService(
         // NOTE(Brian): Chooses a random device. In the storage-implementation, the device with the least amount of
         // storage attached (size-wise) will be used.
 
-        val deviceIndex = (0..syncthing.config.devices.length).shuffled().first()
+        val deviceIndex = (0 until syncthing.config.devices.length).shuffled().first()
         return syncthing.config.devices[deviceIndex]
     }
 
@@ -57,7 +57,7 @@ class SynchronizationService(
                     setParameter("access", accessType)
                 },
                 """
-                    insert into file_ucloud.synchronized_folders(
+                    insert into file_synchronization.synchronized_folders(
                         id, 
                         device_id, 
                         path,
@@ -85,7 +85,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    delete from file_ucloud.synchronized_folders
+                    delete from file_synchronization.synchronized_folders
                     where id = :id and user_id = :user
                 """
             )
@@ -106,7 +106,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    insert into file_ucloud.user_devices(
+                    insert into file_synchronization.user_devices(
                         device_id,
                         user_id
                     ) values (
@@ -128,7 +128,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    delete from file_ucloud.user_devices
+                    delete from file_synchronization.user_devices
                     where device_id = :id and user_id = :user
                 """
             )
@@ -145,7 +145,7 @@ class SynchronizationService(
                 },
                 """
                         select device_id
-                        from file_ucloud.user_devices
+                        from file_synchronization.user_devices
                         where user_id = :user
                         limit 100
                     """
@@ -164,7 +164,7 @@ class SynchronizationService(
                 },
                 """
                         select id, path, device_id
-                        from file_ucloud.synchronized_folders
+                        from file_synchronization.synchronized_folders
                         where user_id = :user and path = :path
                         limit 100
                     """
