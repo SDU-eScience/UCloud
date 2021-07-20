@@ -86,7 +86,7 @@ async function processUpload(upload: Upload) {
 function createResumeable(
     reader: ChunkedFileReader,
     upload: Upload,
-    strategy: FileApi.FilesCreateUploadResponseItem,
+    strategy: FilesCreateUploadResponseItem,
     fullFilePath: string
 ) {
     return async () => {
