@@ -104,7 +104,7 @@ suspend fun insertTestWallet(db: DBContext, wallet: Wallet, startBalance: Long) 
         session.insert(WalletTable) {
             set(WalletTable.accountId, wallet.id)
             set(WalletTable.accountType, wallet.type.name)
-            set(WalletTable.productCategory, wallet.paysFor.id)
+            set(WalletTable.productCategory, wallet.paysFor.name)
             set(WalletTable.productProvider, wallet.paysFor.provider)
             set(WalletTable.balance, startBalance)
         }
@@ -115,10 +115,10 @@ suspend fun insertTestProduct(db: DBContext, product: Product) {
     db.withSession { session ->
         session.insert(ProductTable) {
             set(ProductTable.provider, product.category.provider)
-            set(ProductTable.category, product.category.id)
+            set(ProductTable.category, product.category.name)
             set(ProductTable.area, product.area.name)
             set(ProductTable.pricePerUnit, product.pricePerUnit)
-            set(ProductTable.id, product.id)
+            set(ProductTable.id, product.name)
             set(ProductTable.description, product.description)
             set(ProductTable.priority, product.priority)
             when (val availability = product.availability) {
@@ -151,7 +151,7 @@ suspend fun insertTestProductCategories(db: DBContext, productCategory: ProductC
     db.withSession { session ->
         session.insert(ProductCategoryTable) {
             set(ProductCategoryTable.area, productCategory.area.name)
-            set(ProductCategoryTable.category, productCategory.id.id )
+            set(ProductCategoryTable.category, productCategory.id.name)
             set(ProductCategoryTable.provider, productCategory.id.provider)
         }
     }

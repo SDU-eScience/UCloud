@@ -1,27 +1,10 @@
 package dk.sdu.cloud.accounting.services.wallets
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.TimeRangeQuery
-import dk.sdu.cloud.accounting.api.UsageChart
-import dk.sdu.cloud.accounting.api.UsageLine
-import dk.sdu.cloud.accounting.api.UsagePoint
-import dk.sdu.cloud.accounting.api.UsageResponse
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import java.util.*
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
-
 class VisualizationService(
     private val balance: BalanceService,
     private val projectCache: ProjectCache
 ) {
+    /*
     @OptIn(ExperimentalStdlibApi::class)
     suspend fun usage(
         ctx: DBContext,
@@ -251,4 +234,5 @@ class VisualizationService(
     companion object : Loggable {
         override val log = logger()
     }
+     */
 }

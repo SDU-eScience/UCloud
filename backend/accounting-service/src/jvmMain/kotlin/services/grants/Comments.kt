@@ -120,6 +120,8 @@ class GrantCommentService(
         applicationId: Long
     ): ApplicationWithComments {
         return ctx.withSession { session ->
+            TODO()
+            /*
             val (application, approver) = applications.viewApplicationById(session, actor, applicationId)
             val comments = session
                 .sendPreparedStatement(
@@ -145,6 +147,8 @@ class GrantCommentService(
                 }
 
             ApplicationWithComments(application, comments, approver)
+
+             */
         }
     }
 
@@ -153,7 +157,8 @@ class GrantCommentService(
         id: Long,
         actor: Actor
     ): Pair<Application, Boolean> {
-        return applications.viewApplicationById(session, actor, id)
+        TODO()
+//        return applications.viewApplicationById(session, actor, id)
     }
 
     private fun LocalDateTime.toTimestamp(): Long = toDateTime(DateTimeZone.UTC).millis

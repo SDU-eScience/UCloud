@@ -68,8 +68,8 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
     suspend fun retrieveProductSupport(product: ProductReference): ResolvedSupport<P, Support> {
         return providerProductCache.get(product.provider)
             ?.find {
-                it.product.id == product.id &&
-                    it.product.category.id == product.category &&
+                it.product.name == product.id &&
+                    it.product.category.name == product.category &&
                     it.product.category.provider == product.provider
             } ?: throw RPCException("Unknown product requested $product", HttpStatusCode.InternalServerError)
     }

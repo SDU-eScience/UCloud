@@ -73,14 +73,8 @@ class LicenseService(
                     set(LicenseServerTable.license, license.license)
                     set(LicenseServerTable.tags, defaultMapper.encodeToString(license.tags))
                     set(LicenseServerTable.priority, license.priority)
-                    set(LicenseServerTable.availability, when (val availability = license.availability) {
-                        is ProductAvailability.Available -> null
-                        is ProductAvailability.Unavailable -> availability.reason
-                        else -> error("unknown availability")
-                    })
                     set(LicenseServerTable.pricePerUnit, license.pricePerUnit)
                     set(LicenseServerTable.description, license.description)
-                    set(LicenseServerTable.paymentModel, license.paymentModel.name)
                 }
 
                 val resp = Products.createProduct.call(
@@ -150,14 +144,8 @@ class LicenseService(
                         setParameter("tags", defaultMapper.encodeToString(newLicense.tags))
 
                         setParameter("priority", newLicense.priority)
-                        setParameter("product_availability", when (val availability = newLicense.availability) {
-                            is ProductAvailability.Available -> null
-                            is ProductAvailability.Unavailable -> availability.reason
-                            else -> error("unknown availability")
-                        })
                         setParameter("price_per_unit", newLicense.pricePerUnit)
                         setParameter("description", newLicense.description)
-                        setParameter("payment_model", newLicense.paymentModel.name)
                     },
                     """
                         update app_kubernetes.license_servers
@@ -194,9 +182,10 @@ class LicenseService(
             description = "Software license",
             hiddenInGrantApplications,
             tags = tags,
-            availability = availability,
-            paymentModel = paymentModel,
             priority = priority,
+            version = 1,
+            freeToUse = false,
+            unitOfPrice = ProductPriceUnit.PER_UNIT
         )
     }
 
@@ -221,12 +210,7 @@ class LicenseService(
                     ),
                     k8.serviceClient
                 ).orThrow().hiddenInGrantApplications,
-                when (val reason = it.getFieldNullable(LicenseServerTable.availability)) {
-                    null -> ProductAvailability.Available()
-                    else -> ProductAvailability.Unavailable(reason)
-                },
                 it.getField(LicenseServerTable.priority),
-                PaymentModel.valueOf(it.getField(LicenseServerTable.paymentModel))
             )
         }
     }

@@ -15,6 +15,7 @@ class VisualizationController(
     private val visualization: VisualizationService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(Visualization.usage) {
             val project = ctx.project
             val accountId = project ?: ctx.securityPrincipal.username
@@ -29,5 +30,6 @@ class VisualizationController(
         }
 
         return@with
+         */
     }
 }

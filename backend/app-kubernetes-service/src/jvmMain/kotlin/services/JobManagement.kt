@@ -570,7 +570,7 @@ class JobManagement(
     suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
         return BulkResponse(productCache.get(Unit)?.map {
             ComputeSupport(
-                ProductReference(it.id, it.category.id, it.category.provider),
+                ProductReference(it.name, it.category.name, it.category.provider),
                 ComputeSupport.Docker(
                     enabled = true,
                     web = true,

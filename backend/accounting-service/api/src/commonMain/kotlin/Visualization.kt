@@ -73,24 +73,7 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
     const val baseContext = "/api/accounting/visualization"
 
     val usage = call<UsageRequest, UsageResponse, CommonErrorMessage>("usage") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"usage"
-            }
-
-            params {
-                +boundTo(UsageRequest::bucketSize)
-                +boundTo(UsageRequest::periodEnd)
-                +boundTo(UsageRequest::periodStart)
-            }
-        }
+        httpRetrieve(baseContext, "usage")
     }
 }
 

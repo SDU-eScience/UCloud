@@ -1,33 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.products.ProductCategoryTable
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
-import java.util.*
-
-object WalletTable : SQLTable("accounting.wallets") {
-    val accountId = text("account_id", notNull = true)
-    val accountType = text("account_type", notNull = true)
-    val category = long("category", notNull = true)
-    val balance = long("balance", notNull = true)
-    val lowFundsNotificationSend = bool("low_funds_notifications_send", notNull = true)
-
-    // The following fields are managed by triggers
-    val allocated = long("allocated", notNull = true)
-    val used = long("used", notNull = true)
-}
 
 const val CREDITS_NOTIFY_LIMIT = 5000000
 
@@ -36,6 +9,7 @@ class BalanceService(
     private val verificationService: VerificationService,
     private val client: AuthenticatedClient
 ) {
+    /*
     suspend fun requirePermissionToReadBalance(
         initiatedBy: Actor,
         accountId: String,
@@ -771,4 +745,5 @@ class BalanceService(
     companion object : Loggable {
         override val log = logger()
     }
+     */
 }

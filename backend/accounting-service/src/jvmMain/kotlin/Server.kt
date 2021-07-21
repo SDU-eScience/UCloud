@@ -25,7 +25,6 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
-import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
@@ -65,6 +64,8 @@ class Server(
             micro.developmentModeEnabled)
 
         if (micro.commandLineArguments.contains("--low-funds-check")) {
+            TODO()
+            /*
             val jobs = LowFundsJob(db, client, config)
             try {
                 jobs.notifyLowFundsWallets()
@@ -73,6 +74,7 @@ class Server(
                 log.warn(ex.stackTraceToString())
                 exitProcess(1)
             }
+             */
         }
 
         with(micro.server) {

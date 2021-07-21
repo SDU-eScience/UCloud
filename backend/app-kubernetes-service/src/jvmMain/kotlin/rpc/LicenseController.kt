@@ -30,7 +30,7 @@ class LicenseController(
         implement(KubernetesLicenses.retrieveProducts) {
             ok(BulkResponse(
                 service.fetchAllSupportedProducts().map {
-                    LicenseSupport(ProductReference(it.id, it.category.id, it.category.provider))
+                    LicenseSupport(ProductReference(it.name, it.category.name, it.category.provider))
                 }
             ))
         }

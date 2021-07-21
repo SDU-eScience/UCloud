@@ -1,35 +1,13 @@
 package dk.sdu.cloud.grant.rpc
 
-import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.PaginationRequest
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.accounting.api.RetrieveWalletsForProjectsRequest
-import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
 import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
 import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
-import dk.sdu.cloud.auth.api.GetPrincipalRequest
-import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.toActor
-import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.util.cio.*
-import io.ktor.utils.io.*
-import java.io.ByteArrayInputStream
 
 class GrantController(
     private val applications: GrantApplicationService,
@@ -40,6 +18,7 @@ class GrantController(
     private val db: DBContext
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(Grants.approveApplication) {
             applications.updateStatus(
                 db,
@@ -321,5 +300,6 @@ class GrantController(
         }
 
         return@with
+         */
     }
 }

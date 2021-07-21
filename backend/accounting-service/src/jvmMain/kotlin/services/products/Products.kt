@@ -1,52 +1,11 @@
 package dk.sdu.cloud.accounting.services.products
 
-import com.github.jasync.sql.db.RowData
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.BalanceService
-import dk.sdu.cloud.auth.api.AuthProviders
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-
-object ProductCategoryTable : SQLTable("accounting.product_categories") {
-    val id = long("id", notNull = true)
-    val provider = text("provider", notNull = true)
-    val category = text("category", notNull = true)
-    val area = text("area", notNull = true)
-}
-
-object ProductTable : SQLTable("accounting.products") {
-    val id = long("id", notNull = true)
-    val category = long("category", notNull = true)
-    val area = text("area", notNull = true)
-
-    val pricePerUnit = long("price_per_unit", notNull = true)
-    val name = text("name", notNull = true)
-    val description = text("description", notNull = true)
-    val availability = text("availability", notNull = false)
-    val priority = int("priority", notNull = true)
-    val hiddenInGrantApplications = bool("hidden_in_grant_applications", notNull = true)
-
-    val cpu = int("cpu", notNull = false)
-    val gpu = int("gpu", notNull = false)
-    val memoryInGigs = int("memory_in_gigs", notNull = false)
-
-    val licenseTags = jsonb("license_tags", notNull = false)
-
-    val paymentModel = text("payment_model", notNull = false)
-}
 
 class ProductService(
     private val balanceService: BalanceService,
 ) {
+    /*
     suspend fun create(
         ctx: DBContext,
         actor: Actor,
@@ -589,4 +548,5 @@ class ProductService(
     companion object : Loggable {
         override val log = logger()
     }
+     */
 }

@@ -280,7 +280,7 @@ class WalletServiceTest {
                     LocalDateTime.now().plusHours(4).toDateTime().millis,
                     walletProjectStandard,
                     user.username,
-                    walletUserStandard.paysFor.id,
+                    walletUserStandard.paysFor.name,
                     400,
                     transactionType = TransactionType.TRANSFERRED_TO_PROJECT
                 )

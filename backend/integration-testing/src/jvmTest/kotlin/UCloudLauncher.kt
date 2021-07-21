@@ -340,8 +340,8 @@ object UCloudLauncher : Loggable {
                 ---
                 storage:
                   product:
-                    id: ${sampleStorage.id}
-                    category: ${sampleStorage.category.id}
+                    id: ${sampleStorage.name}
+                    category: ${sampleStorage.category.name}
                     provider: ${sampleStorage.category.provider}
                     pricePerGb: ${sampleStorage.pricePerUnit}
                     defaultQuota: -1

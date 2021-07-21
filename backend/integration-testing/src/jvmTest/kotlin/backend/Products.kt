@@ -53,7 +53,7 @@ suspend fun createSampleProducts() {
     }
 }
 
-fun Product.toReference(): ProductReference = ProductReference(id, category.id, category.provider)
+fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)
 
 class ProductTest : IntegrationTest() {
     @Test
@@ -62,7 +62,7 @@ class ProductTest : IntegrationTest() {
             // Test conditions before create
             assertThatInstance(
                 Products.findProduct.call(
-                    FindProductRequest(sampleCompute.category.provider, sampleCompute.category.id, sampleCompute.id),
+                    FindProductRequest(sampleCompute.category.provider, sampleCompute.category.name, sampleCompute.name),
                     serviceClient
                 ),
                 "fails because the product doesn't exist"
@@ -100,7 +100,7 @@ class ProductTest : IntegrationTest() {
             assertEquals(
                 sampleCompute,
                 Products.findProduct.call(
-                    FindProductRequest(sampleCompute.category.provider, sampleCompute.category.id, sampleCompute.id),
+                    FindProductRequest(sampleCompute.category.provider, sampleCompute.category.name, sampleCompute.name),
                     serviceClient
                 ).orThrow()
             )
@@ -136,7 +136,7 @@ class ProductTest : IntegrationTest() {
         assertEquals(
             newProduct,
             Products.findProduct.call(
-                FindProductRequest(sampleCompute.category.provider, sampleCompute.category.id, sampleCompute.id),
+                FindProductRequest(sampleCompute.category.provider, sampleCompute.category.name, sampleCompute.name),
                 serviceClient
             ).orThrow()
         )
@@ -148,7 +148,7 @@ class ProductTest : IntegrationTest() {
         assertEquals(
             sampleStorage,
             Products.findProduct.call(
-                FindProductRequest(sampleStorage.category.provider, sampleStorage.category.id, sampleStorage.id),
+                FindProductRequest(sampleStorage.category.provider, sampleStorage.category.name, sampleStorage.name),
                 serviceClient
             ).orThrow()
         )
@@ -199,7 +199,7 @@ class ProductTest : IntegrationTest() {
 
         assertThatInstance(
             Products.updateProduct.call(
-                sampleStorage.copy(id = sampleCompute.id, category = sampleCompute.category),
+                sampleStorage.copy(id = sampleCompute.name, category = sampleCompute.category),
                 serviceClient
             ),
             "fails"

@@ -56,7 +56,7 @@ class ProductServiceTest {
             val product = products.find(
                 db,
                 Actor.System,
-                FindProductRequest(computeProduct.category.provider, computeProduct.category.id, computeProduct.id)
+                FindProductRequest(computeProduct.category.provider, computeProduct.category.name, computeProduct.name)
             )
             assertEquals(computeProduct, product)
         }
@@ -66,7 +66,7 @@ class ProductServiceTest {
             val product = products.find(
                 db,
                 Actor.System,
-                FindProductRequest(storageProduct.category.provider, storageProduct.category.id, storageProduct.id)
+                FindProductRequest(storageProduct.category.provider, storageProduct.category.name, storageProduct.name)
             )
             assertEquals(storageProduct, product)
         }
@@ -144,7 +144,7 @@ class ProductServiceTest {
         val retrievedProduct = products.find(
             db,
             Actor.System,
-            FindProductRequest(computeProduct.category.provider, computeProduct.category.id, computeProduct.id)
+            FindProductRequest(computeProduct.category.provider, computeProduct.category.name, computeProduct.name)
         )
         assertEquals(newProduct, retrievedProduct)
         return@runBlocking
@@ -157,7 +157,7 @@ class ProductServiceTest {
             products.update(
                 db,
                 Actor.System,
-                storageProduct.copy(id = computeProduct.id, category = computeProduct.category)
+                storageProduct.copy(id = computeProduct.name, category = computeProduct.category)
             )
             assert(false)
         } catch (ex: RPCException) {

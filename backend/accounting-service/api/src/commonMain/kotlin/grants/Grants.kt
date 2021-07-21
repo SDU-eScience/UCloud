@@ -272,11 +272,11 @@ data class ResourceRequest(
 
     companion object {
         fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, null)
+            return ResourceRequest(product.category.name, product.category.provider, credits, null)
         }
 
         fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, quota)
+            return ResourceRequest(product.category.name, product.category.provider, credits, quota)
         }
     }
 }

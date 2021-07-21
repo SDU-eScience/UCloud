@@ -1,53 +1,6 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.grant.api.Application
-import dk.sdu.cloud.grant.api.ApplicationStatus
-import dk.sdu.cloud.grant.api.CreateApplication
-import dk.sdu.cloud.grant.api.GrantApplicationFilter
-import dk.sdu.cloud.grant.api.GrantRecipient
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.mail.api.*
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.offset
-import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
-import java.util.*
-
-object ApplicationTable : SQLTable("grant.applications") {
-    val id = long("id", notNull = true)
-    val status = text("status", notNull = true)
-    val resourcesOwnedBy = text("resources_owned_by", notNull = true)
-    val requestedBy = text("requested_by", notNull = true)
-    val grantRecipient = text("grant_recipient", notNull = true)
-    val grantRecipientType = text("grant_recipient_type", notNull = true)
-    val document = text("document", notNull = true)
-    val createdAt = timestamp("created_at", notNull = true)
-    val updatedAt = timestamp("updated_at", notNull = true)
-    val statusChangedBy = text("status_changed_by")
-}
-
-object RequestedResourceTable : SQLTable("grant.requested_resources") {
-    val applicationId = long("application_id", notNull = true)
-    val productCategory = text("product_category", notNull = true)
-    val productProvider = text("product_provider", notNull = true)
-    val creditsRequested = long("credits_requested", notNull = false)
-    val quotaRequestedBytes = long("quota_requested_bytes", notNull = false)
-}
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 
 class GrantApplicationService(
     private val projects: ProjectCache,
@@ -55,6 +8,7 @@ class GrantApplicationService(
     private val notifications: GrantNotificationService,
     private val serviceClient: AuthenticatedClient
 ) {
+    /*
     private val productCacheByProvider = SimpleCache<String, List<Product>> {
         Products.retrieveAllFromProvider.call(
             RetrieveAllFromProviderRequest(it),
@@ -880,8 +834,11 @@ class GrantApplicationService(
         override val log = logger()
         private const val GRANT_APP_RESPONSE = "GRANT_APPLICATION_RESPONSE"
     }
+
+     */
 }
 
+/*
 suspend fun checkBalance(
     resources: List<ResourceRequest>,
     projectId: String,
@@ -1016,3 +973,4 @@ suspend fun grantResourcesToProject(
         }
     }
 }
+     */

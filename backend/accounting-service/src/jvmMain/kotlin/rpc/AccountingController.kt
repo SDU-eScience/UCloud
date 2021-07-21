@@ -17,6 +17,7 @@ class AccountingController(
     private val balance: BalanceService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(Wallets.addToBalance) {
             balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.wallet, request.credits)
             ok(Unit)
@@ -122,5 +123,6 @@ class AccountingController(
         }
 
         return@with
+         */
     }
 }

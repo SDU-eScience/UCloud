@@ -23,6 +23,6 @@ class ProductCache(private val serviceClient: AuthenticatedClient) {
         val machines = productsByProvider.get(provider) ?: return null
         return machines
             .filterIsInstance<T>()
-            .find { it.id == id && it.category.id == category && it.category.provider == provider }
+            .find { it.name == id && it.category.name == category && it.category.provider == provider }
     }
 }

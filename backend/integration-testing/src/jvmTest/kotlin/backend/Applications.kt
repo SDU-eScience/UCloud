@@ -125,7 +125,8 @@ object SampleApplications {
     }
 }
 
-fun Product.Compute.reference(): ComputeProductReference = ComputeProductReference(id, category.id, category.provider)
+fun Product.Compute.reference(): ComputeProductReference =
+    ComputeProductReference(name, category.name, category.provider)
 
 class ApplicationTest : IntegrationTest() {
     @Test

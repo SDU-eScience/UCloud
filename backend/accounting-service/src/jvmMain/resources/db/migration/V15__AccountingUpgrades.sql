@@ -1,0 +1,160 @@
+-- create schema accounting2;
+--
+-- set search_path to accounting2;
+--
+-- create type product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
+-- create type charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
+--
+-- create table product_category(
+--     id bigserial primary key,
+--     name text not null,
+--     provider_id bigint references provider.providers(resource),
+--     product_type product_type not null ,
+--     charge_type charge_type not null,
+--     unique (name, provider_id)
+-- );
+--
+-- -- Migrate product categories from old data.
+-- insert into product_category (name, provider_id, product_type, charge_type)
+-- select product_categories.category, product_categories.provider, product_categories.area::product_type, 'ABSOLUTE'
+-- from accounting.product_categories;
+--
+-- -- set Storage types to be differential and add credits.
+-- update product_category
+-- set name = name || '_credits'
+-- where product_type = 'STORAGE'::product_type;
+--
+-- with storageCategories as (
+--     select category, provider, area
+--     from accounting.product_categories
+--     where area = 'STORAGE'
+-- )
+-- insert into product_category (name, provider_id, product_type, charge_type)
+-- values (storageCategories.category || '_quota', storageCategories.provider, storageCategories.area, 'DIFFERENTIAL_QUOTA');
+--
+-- create type product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
+--
+-- create table product(
+--     id bigserial primary key,
+--     product_category_id bigint not null references product_category(id),
+--     name text not null,
+--     price_per_unit bigint not null check (price_per_unit >= 0),
+--     unit_of_price product_price_unit not null,
+--     product_type product_type not null,
+--     description text,
+--     version bigint not null,
+--     priority bigint,
+--     cpu bigint,
+--     gpu bigint,
+--     memory_in_gigs bigint,
+--     license_tags jsonb,
+--     free_to_use boolean not null default false,
+--     -- TODO Metadata
+--     unique (name, version, product_category_id)
+-- );
+-- -- Migrate products from old data.
+--
+-- create type allocation_selector_policy as enum ('ORDERED', 'EXPIRE_FIRST');
+--
+-- create table wallet_owner(
+--     id bigserial primary key,
+--     username text references auth.principals(id),
+--     project_id text references project.projects(id)
+--     constraint check_only_one_owner check (
+--          (username is not null and project_id is null) or
+--          (username is null and project_id is not null)
+--     )
+-- );
+--
+-- -- Migrate wallet owners from old data.
+-- insert into wallet_owner (username)
+-- select id from auth.principals
+-- where role = 'USER' or role = 'ADMIN';
+--
+-- insert into wallet_owner (project_id)
+-- select id from project.projects;
+--
+-- create table wallets(
+--     id bigserial primary key,
+--     owner_id bigint references wallet_owner(id),
+--     allocation_selector_policy allocation_selector_policy not null,
+--     category_id bigint not null references product_category(id),
+--     low_funds_notifications_send bool not null default false,
+--     unique (owner_id, category_id)
+-- );
+--
+-- create type transaction_type as enum ('TRANSFER', 'CHARGE', 'DEPOSIT');
+--
+-- create table transaction(
+--     id bigserial primary key,
+--     transaction_type transaction_type not null,
+--     target_wallet_id bigint not null references wallets(id),
+--     units bigint not null,
+--     number_of_products bigint not null,
+--     action_performed_by text references auth.principals(id),
+--     action_performed_by_wallet bigint references wallets(id),
+--     product_id bigint references product(id),
+--     transfer_from_wallet_id bigint references wallets(id),
+--     description text not null,
+--     -- Change in wallet_allocation: product.price_per_unit * units * number_of_products
+--     constraint check_deposit_convention check (
+--         transaction_type != 'DEPOSIT' or number_of_products = 1
+--     ),
+--     constraint check_target check(
+--         transaction_type != 'TRANSFER' or transfer_from_wallet_id is not null
+--     ),
+--     constraint root_deposits check (
+--         transaction_type != 'DEPOSIT' and action_performed_by_wallet is not null
+--     )
+--     -- TODO enforce that product id matches wallet (also check on backend)
+-- );
+--
+-- create table wallet_allocation(
+--     id bigserial not null,
+--     associated_wallet bigint not null references wallets(id),
+--     balance bigint not null,
+--     initial_balance bigint not null,
+--     start_date timestamp not null,
+--     end_date timestamp,
+--     parent_wallet_id bigint references wallets(id),
+--
+--     -- TODO Check that this is charge or deposit (seems to must be done in backend)
+--     transaction_id bigint not null references transaction(id)
+-- );
+--
+-- --TODO migrate in next script (need to find oldest ancestor as giver)
+--
+-- create type product_category_relationship_type as enum ('STORAGE_CREDITS', 'NODE_HOURS');
+--
+-- create table product_category_relationship(
+--     type product_category_relationship_type not null,
+--     credits_category bigint references product_category(id),
+--     quota_category bigint references product_category(id),
+--     hours_category bigint references product_category(id),
+--     constraint storage_credits check(
+--               type != 'STORAGE_CREDITS' or (
+--               credits_category is not null and
+--               quota_category is not null
+--           )
+--       ),
+--     constraint node_hours check(
+--           type != 'NODE_HOURS' or
+--           (
+--               credits_category is not null and
+--               hours_category is not null
+--           )
+--       )
+-- );
+--
+-- create table internal_transactions(
+--     id bigserial not null,
+--     transaction_id bigint not null references transaction(id),
+--     transaction_type transaction_type not null,
+--     units bigint not null,
+--     number_of_products bigint not null,
+--     description text not null,
+--     product_id bigint references product(id),
+--     source_wallet bigint not null references wallets(id),
+--     target_wallet bigint not null references wallets(id),
+--     current_wallet bigint not null references wallets(id)
+-- );

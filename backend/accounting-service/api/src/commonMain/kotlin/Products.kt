@@ -11,8 +11,11 @@ import kotlin.reflect.typeOf
 
 const val UCLOUD_PROVIDER = "ucloud"
 
+@Deprecated("Replace with ProductType", ReplaceWith("ProductType"))
+typealias ProductArea = ProductType
+
 @Serializable
-enum class ProductArea {
+enum class ProductType {
     STORAGE,
     COMPUTE,
     INGRESS,
@@ -23,14 +26,35 @@ enum class ProductArea {
 @Serializable
 data class ProductCategory(
     val id: ProductCategoryId,
-    val area: ProductArea
-)
+    val productType: ProductType,
+    val chargeType: ChargeType = ChargeType.ABSOLUTE,
+) {
+    @Deprecated("Renamed to productType")
+    val area: ProductType get() = productType
+}
+
+@Serializable
+enum class ChargeType {
+    ABSOLUTE,
+    DIFFERENTIAL_QUOTA
+}
+
+enum class ProductPriceUnit {
+    PER_MINUTE,
+    PER_HOUR,
+    PER_DAY,
+    PER_WEEK,
+    PER_UNIT
+}
 
 @Serializable
 data class ProductCategoryId(
-    val id: String,
+    val name: String,
     val provider: String
-)
+) {
+    @Deprecated("Renamed to name", ReplaceWith("name"))
+    val id: String get() = name
+}
 
 @Serializable
 @UCloudApiDoc("Contains a unique reference to a [Product](/backend/accounting-service/README.md)")
@@ -50,56 +74,46 @@ typealias UpdateProductRequest = Product
 typealias UpdateProductResponse = Unit
 
 @Serializable
-sealed class ProductAvailability {
-    @Serializable
-    @SerialName("available")
-    class Available : ProductAvailability() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other == null || this::class != other::class) return false
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return this::class.hashCode()
-        }
-    }
-
-    @Serializable
-    @SerialName("unavailable")
-    data class Unavailable(val reason: String) : ProductAvailability()
-}
-
-@Serializable
 sealed class Product {
     abstract val category: ProductCategoryId
     abstract val pricePerUnit: Long
-    abstract val id: String
+    abstract val name: String
     abstract val description: String
     abstract val hiddenInGrantApplications: Boolean
-    abstract val availability: ProductAvailability
     abstract val priority: Int
+    abstract val version: Int
+    abstract val freeToUse: Boolean
+    abstract val productType: ProductType
+    abstract val unitOfPrice: ProductPriceUnit
+
+
+    @Deprecated("Replace with name", ReplaceWith("name"))
+    val id: String get() = name
 
     @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
     var balance: Long? = null
 
-    abstract val area: ProductArea
+    @Deprecated("productType", ReplaceWith("productType"))
+    val area: ProductArea
+        get() = productType
 
     @Serializable
     @SerialName("storage")
     data class Storage(
-        override val id: String,
+        override val name: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
-        override val area: ProductArea = ProductArea.STORAGE,
+        override val version: Int,
+        override val freeToUse: Boolean,
+        override val unitOfPrice: ProductPriceUnit,
     ) : Product() {
+        override val productType: ProductType = ProductType.STORAGE
         init {
             require(pricePerUnit >= 0)
-            require(id.isNotBlank())
+            require(name.isNotBlank())
             require(description.count { it == '\n' } == 0)
         }
     }
@@ -107,21 +121,24 @@ sealed class Product {
     @Serializable
     @SerialName("compute")
     data class Compute(
-        override val id: String,
+        override val name: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
         val gpu: Int? = null,
-        override val area: ProductArea = ProductArea.COMPUTE,
+        override val version: Int,
+        override val freeToUse: Boolean,
+        override val unitOfPrice: ProductPriceUnit,
     ) : Product() {
+        override val productType: ProductType = ProductType.COMPUTE
+
         init {
             require(pricePerUnit >= 0)
-            require(id.isNotBlank())
+            require(name.isNotBlank())
             require(description.count { it == '\n' } == 0)
 
             if (gpu != null) require(gpu >= 0) { "gpu is negative ($this)" }
@@ -133,19 +150,20 @@ sealed class Product {
     @Serializable
     @SerialName("ingress")
     data class Ingress(
-        override val id: String,
+        override val name: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
-        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
-        override val area: ProductArea = ProductArea.INGRESS,
+        override val version: Int,
+        override val freeToUse: Boolean,
+        override val unitOfPrice: ProductPriceUnit,
     ) : Product() {
+        override val productType: ProductType = ProductType.INGRESS
         init {
             require(pricePerUnit >= 0)
-            require(id.isNotBlank())
+            require(name.isNotBlank())
             require(description.count { it == '\n' } == 0)
         }
     }
@@ -153,20 +171,21 @@ sealed class Product {
     @Serializable
     @SerialName("license")
     data class License(
-        override val id: String,
+        override val name: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
-        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
-        override val area: ProductArea = ProductArea.LICENSE,
+        override val version: Int,
+        override val freeToUse: Boolean,
+        override val unitOfPrice: ProductPriceUnit,
     ) : Product() {
+        override val productType: ProductType = ProductType.LICENSE
         init {
             require(pricePerUnit >= 0)
-            require(id.isNotBlank())
+            require(name.isNotBlank())
             require(description.count { it == '\n' } == 0)
         }
     }
@@ -174,32 +193,23 @@ sealed class Product {
     @Serializable
     @SerialName("network_ip")
     data class NetworkIP(
-        override val id: String,
+        override val name: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
-        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
-        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
-        override val area: ProductArea = ProductArea.NETWORK_IP,
+        override val version: Int,
+        override val freeToUse: Boolean,
+        override val unitOfPrice: ProductPriceUnit,
     ) : Product() {
+        override val productType: ProductType = ProductType.NETWORK_IP
         init {
             require(pricePerUnit >= 0)
-            require(id.isNotBlank())
+            require(name.isNotBlank())
             require(description.count { it == '\n' } == 0)
         }
     }
-}
-
-@Serializable
-enum class PaymentModel {
-    @UCloudApiDoc(
-        "Indicates that the product has a `pricePerUnit` of 0" +
-            ", but the wallet must still receive a balance check 1 credit"
-    )
-    FREE_BUT_REQUIRE_BALANCE,
-    PER_ACTIVATION
 }
 
 @Serializable
@@ -278,58 +288,15 @@ object Products : CallDescriptionContainer("products") {
      * [ProductCategory] is automatically created when the first [Product] in that category is created.
      */
     val createProduct = call<CreateProductRequest, CreateProductResponse, CommonErrorMessage>("createProduct") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER)
-        }
-
-        http {
-            method = HttpMethod.Put
-
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
     }
 
     val updateProduct = call<UpdateProductRequest, UpdateProductResponse, CommonErrorMessage>("updateProduct") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(baseContext, "update", roles = Roles.AUTHENTICATED)
     }
 
     val findProduct = call<FindProductRequest, FindProductResponse, CommonErrorMessage>("findProduct") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(FindProductRequest::provider)
-                +boundTo(FindProductRequest::productCategory)
-                +boundTo(FindProductRequest::product)
-            }
-        }
+        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
     }
 
     @Deprecated("Switch to `browse`")

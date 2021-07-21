@@ -1,3 +1,4 @@
+drop type if exists file_orchestrator.metadata_namespace_with_latest_title cascade;
 create type file_orchestrator.metadata_namespace_with_latest_title as (
     resource bigint,
     ns_in file_orchestrator.metadata_template_namespaces,

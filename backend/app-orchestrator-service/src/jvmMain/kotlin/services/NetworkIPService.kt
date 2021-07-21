@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.util.*
@@ -50,7 +49,7 @@ class NetworkIPService(
     override fun isReady(res: NetworkIP): Boolean = res.status.state == NetworkIPState.READY
     override fun boundUpdate(binding: JobBinding): NetworkIPUpdate = NetworkIPUpdate(binding = binding)
     override fun requireCreditCheck(res: NetworkIP, product: Product.NetworkIP): Boolean =
-        product.paymentModel != PaymentModel.FREE_BUT_REQUIRE_BALANCE
+        !product.freeToUse
 
     override fun userApi() = NetworkIPs
     override fun controlApi() = NetworkIPControl

@@ -74,7 +74,7 @@ class ComputeController(
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
-                                        "machine_template" to JsonPrimitive(resources.product.id),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
                                         // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )
@@ -123,7 +123,7 @@ class ComputeController(
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
-                                        "machine_template" to JsonPrimitive(resources.product.id),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
                                         // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )

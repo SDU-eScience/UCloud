@@ -70,7 +70,7 @@ class AccountVisualizationTest : IntegrationTest() {
             "contains the correct usage"
         ) { resp ->
             val chart = resp.charts.single()
-            val line = chart.lines.find { it.category == wallet.paysFor.id } ?: error("Could not find wallet")
+            val line = chart.lines.find { it.category == wallet.paysFor.name } ?: error("Could not find wallet")
             line.points.fold(0L) { acc, usagePoint ->  acc + usagePoint.creditsUsed } == charge
         }
 
@@ -105,7 +105,7 @@ class AccountVisualizationTest : IntegrationTest() {
             "contains the correct usage"
         ) { resp ->
             val chart = resp.charts.single()
-            val line = chart.lines.find { it.category == wallet.paysFor.id } ?: error("Could not find wallet")
+            val line = chart.lines.find { it.category == wallet.paysFor.name } ?: error("Could not find wallet")
             line.points.fold(0L) { acc, usagePoint ->  acc + usagePoint.creditsUsed } == charge
         }
 

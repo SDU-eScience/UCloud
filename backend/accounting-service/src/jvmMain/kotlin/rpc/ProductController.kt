@@ -16,6 +16,7 @@ class ProductController(
     private val products: ProductService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(Products.createProduct) {
             products.create(db, ctx.securityPrincipal.toActor(), request)
             ok(Unit)
@@ -68,5 +69,6 @@ class ProductController(
         }
 
         return@with
+         */
     }
 }

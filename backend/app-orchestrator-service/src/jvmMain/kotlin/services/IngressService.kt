@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.util.*
@@ -39,7 +38,7 @@ class IngressService(
     override fun isReady(res: Ingress): Boolean = res.status.state == IngressState.READY
     override fun resourcesFromJob(job: Job): List<AppParameterValue.Ingress> = job.ingressPoints
     override fun requireCreditCheck(res: Ingress, product: Product.Ingress): Boolean =
-        product.paymentModel != PaymentModel.FREE_BUT_REQUIRE_BALANCE
+        !product.freeToUse
 
     override fun userApi() = Ingresses
     override fun controlApi() = IngressControl

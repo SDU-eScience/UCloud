@@ -219,7 +219,10 @@ suspend fun main(args: Array<String>) {
                     ProductCategoryId("u1-standard", providerId),
                     cpu = 1,
                     memoryInGigs = 1,
-                    gpu = 0
+                    gpu = 0,
+                    unitOfPrice = ProductPriceUnit.PER_MINUTE,
+                    freeToUse = false,
+                    version = 1,
                 ),
                 userClient
             ).orThrow()
@@ -228,11 +231,17 @@ suspend fun main(args: Array<String>) {
                 Product.Storage(
                     "u1-cephfs",
                     0L,
-                    ProductCategoryId("u1-cephfs", providerId)
+                    ProductCategoryId("u1-cephfs", providerId),
+                    unitOfPrice = ProductPriceUnit.PER_DAY,
+                    version = 1,
+                    freeToUse = false
                 ),
                 userClient
             ).orThrow()
 
+            // TODO(Dan): Need to set balance
+
+            /*
             Wallets.setBalance.call(
                 SetBalanceRequest(
                     Wallet(project, WalletOwnerType.PROJECT, ProductCategoryId("u1-cephfs", providerId)),
@@ -268,6 +277,7 @@ suspend fun main(args: Array<String>) {
                 ),
                 client
             ).orThrow()
+             */
 
             ToolStore.create.call(
                 Unit,

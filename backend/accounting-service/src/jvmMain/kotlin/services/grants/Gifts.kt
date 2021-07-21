@@ -47,6 +47,8 @@ class GiftService(
         actor: Actor,
         giftId: Long
     ) {
+        TODO()
+        /*
         ctx.withSession { session ->
             val hasClaimedGift = session
                 .sendPreparedStatement(
@@ -78,6 +80,7 @@ class GiftService(
                 transactionType = TransactionType.GIFTED
             )
         }
+         */
     }
 
     suspend fun findAvailableGifts(

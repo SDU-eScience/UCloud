@@ -82,7 +82,7 @@ suspend fun reserveCredits(
             Time.now() + 1000 * 60,
             wallet,
             "_UCloud",
-            product.id,
+            product.name,
             amount / product.pricePerUnit,
             chargeImmediately = chargeImmediately,
             transactionType = TransactionType.PAYMENT

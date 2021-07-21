@@ -1,0 +1,63 @@
+package dk.sdu.cloud.accounting.api
+
+import kotlinx.serialization.Serializable
+
+enum class TransactionType {
+    TRANSFER,
+    CHARGE,
+    DEPOSIT
+}
+
+@Serializable
+sealed class Transaction {
+    abstract val units: Long
+    abstract val actionPerformedBy: String
+    abstract val product: Product
+    abstract val targetWallet: Wallet
+    abstract val description: String?
+    abstract val numberOfProducts: Long
+
+    data class Deposit(
+        override val units: Long,
+        override val actionPerformedBy: String,
+        override val product: Product,
+        override val targetWallet: Wallet,
+        override val description: String,
+        override val numberOfProducts: Long = 1
+    ) : Transaction() {
+        init {
+            require(units > 0)
+            require(numberOfProducts == 1L)
+        }
+    }
+
+    data class Charge(
+        override val units: Long,
+        override val actionPerformedBy: String,
+        override val product: Product,
+        override val targetWallet: Wallet,
+        override val description: String,
+        override val numberOfProducts: Long,
+    ) : Transaction() {
+        init {
+            require(numberOfProducts > 0)
+
+        }
+    }
+
+    data class Transfer (
+        override val units: Long,
+        override val actionPerformedBy: String,
+        override val product: Product,
+        override val targetWallet: Wallet,
+        override val description: String,
+        override val numberOfProducts: Long,
+        val actionPerformedByWallet: String,
+        val transferFromWallet: Wallet
+    ) : Transaction() {
+        init {
+            require(units > 0)
+            require(targetWallet.id != transferFromWallet.id)
+        }
+    }
+}

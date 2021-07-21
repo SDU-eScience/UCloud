@@ -25,11 +25,11 @@ data class Payment(
 )
 
 val Payment.wallet: Wallet
-    get() = Wallet(
+    get() = TODO()/*Wallet(
         project ?: launchedBy,
         if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
         ProductCategoryId(product.category, product.provider)
-    )
+    )*/
 
 
 class PaymentService(
@@ -43,6 +43,8 @@ class PaymentService(
     }
 
     suspend fun charge(payment: Payment): ChargeResult {
+        TODO()
+        /*
         with(payment) {
             val price = pricePerUnit * units
             val result = Wallets.reserveCredits.call(
@@ -74,9 +76,12 @@ class PaymentService(
 
             return ChargeResult.Charged(price, pricePerUnit)
         }
+         */
     }
 
     suspend fun reserve(payment: Payment, expiresIn: Long = 1000L * 60 * 60) {
+        TODO()
+        /*
         with(payment) {
             val price = pricePerUnit * units
 
@@ -111,6 +116,7 @@ class PaymentService(
                 else -> throw RPCException.fromStatusCode(code)
             }
         }
+         */
     }
 
     suspend fun creditCheck(
@@ -118,6 +124,8 @@ class PaymentService(
         accountId: String,
         accountType: WalletOwnerType,
     ) {
+        TODO()
+        /*
         val code = Wallets.reserveCredits.call(
             ReserveCreditsRequest(
                 UUID.randomUUID().toString(),
@@ -148,6 +156,7 @@ class PaymentService(
 
             else -> throw RPCException.fromStatusCode(code)
         }
+         */
     }
 
     companion object : Loggable {

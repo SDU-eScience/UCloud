@@ -1,33 +1,15 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.accounting.Configuration
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.services.products.ProductCategoryTable
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.mail.api.*
-import dk.sdu.cloud.project.api.LookupAdminsBulkRequest
-import dk.sdu.cloud.project.api.LookupByIdBulkRequest
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
-import java.lang.Exception
 
 class LowFundsJob(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
     private val config: Configuration
 ) {
+    /*
     fun notifyLowFundsWallets(): Unit = runBlocking {
         db.withSession { session ->
             session
@@ -145,4 +127,5 @@ class LowFundsJob(
     companion object : Loggable {
         override val log = logger()
     }
+     */
 }
