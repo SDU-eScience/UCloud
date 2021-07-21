@@ -1,11 +1,11 @@
-package dk.sdu.cloud.file.synchronization.http
+package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.synchronization.api.FileSynchronizationDescriptions
-import dk.sdu.cloud.file.synchronization.services.SynchronizationService
+import dk.sdu.cloud.file.api.FileSynchronizationDescriptions
+import dk.sdu.cloud.file.services.SynchronizationService
 
 class SynchronizationController(
     private val synchronizationService: SynchronizationService

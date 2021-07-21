@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Jun 25 11:16:28 CEST 2021 */
+/* Generated at: Tue Jul 20 16:55:03 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -7082,6 +7082,37 @@ export interface CreateMetadataRequest {
 export interface VerifyRequest {
     paths: string[],
 }
+export interface SynchronizedFolder {
+    id: string,
+    path: string,
+    device_id: string,
+}
+export interface SynchronizationRetrieveFolderRequest {
+    path: string,
+    provider: string,
+}
+export interface SynchronizationAddFolderRequest {
+    path: string,
+    provider: string,
+}
+export interface SynchronizationRemoveFolderRequest {
+    id: string,
+    provider: string,
+}
+export interface SynchronizationAddDeviceRequest {
+    id: string,
+    provider: string,
+}
+export interface SynchronizationRemoveDeviceRequest {
+    id: string,
+    provider: string,
+}
+export interface SynchronizationDevice {
+    id: string,
+}
+export interface SynchronizationBrowseDevicesRequest {
+    provider: string,
+}
 export namespace metadata {
 export function findMetadata(
     request: FindMetadataRequest
@@ -7253,38 +7284,6 @@ export interface Ok extends LongRunningResponse {
 }
 }
 export namespace synchronization {
-export interface SynchronizedFolder {
-    id: string,
-    path: string,
-    device_id: string,
-}
-export interface SynchronizationRetrieveFolderRequest {
-    path: string,
-    provider: string,
-}
-export interface SynchronizationAddFolderRequest {
-    path: string,
-    provider: string,
-}
-export interface SynchronizationRemoveFolderRequest {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationAddDeviceRequest {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationRemoveDeviceRequest {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationDevice {
-    id: string,
-}
-export interface SynchronizationBrowseDevicesRequest {
-    provider: string,
-}
-export namespace synchronization {
 export function retrieveFolder(
     request: SynchronizationRetrieveFolderRequest
 ): APICallParameters<SynchronizationRetrieveFolderRequest, SynchronizedFolder> {
@@ -7354,7 +7353,6 @@ export function browseDevices(
         parameters: request,
         reloadId: Math.random(),
     };
-}
 }
 }
 export namespace KnowledgeModeNS {

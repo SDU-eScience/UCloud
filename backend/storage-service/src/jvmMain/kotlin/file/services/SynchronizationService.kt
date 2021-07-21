@@ -1,13 +1,18 @@
-package dk.sdu.cloud.file.synchronization.services
+package dk.sdu.cloud.file.services
 
 import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.synchronization.LocalSyncthingDevice
-import dk.sdu.cloud.file.synchronization.api.*
+import dk.sdu.cloud.file.LocalSyncthingDevice
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.services.acl.AclService
+import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
+import java.io.File
 import java.util.*
 
 object SynchronizedFoldersTable : SQLTable("synchronized_folders") {
@@ -27,21 +32,43 @@ class SynchronizationService(
     private val syncthing: SyncthingClient,
     private val fsPath: String,
     private val db: DBContext,
+    private val aclService: AclService
 ) {
-    private fun chooseFolderDevice(): LocalSyncthingDevice? {
+    private suspend fun chooseFolderDevice(): LocalSyncthingDevice? {
         // NOTE(Brian): Chooses a random device. In the storage-implementation, the device with the least amount of
         // storage attached (size-wise) will be used.
 
-        val deviceIndex = (0 until syncthing.config.devices.length).shuffled().first()
-        return syncthing.config.devices[deviceIndex]
+        return syncthing.config.devices.minByOrNull { device ->
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("device", device.id)
+                    },
+                    """
+                        select path
+                        from synchronized_folders
+                        where device_id = :device
+                    """
+                )
+            }.rows.sumOf {
+                CephFsFastDirectoryStats.getRecursiveSize(File(it.getField(SynchronizedFoldersTable.path)))
+            }
+        }
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
         // TODO Check for number of files in folder before adding (limit to 1000_000)
+        if (CephFsFastDirectoryStats.getRecursiveFileCount(File(request.path)) > 1000_000) {
+            throw RPCException("Number of files in directory exceeded for synchronization", HttpStatusCode.Forbidden)
+        }
 
         val id = UUID.randomUUID().toString()
         val device = chooseFolderDevice()
-        val accessType = "SEND_RECEIVE"
+        val accessType = if (aclService.hasPermission(request.path, actor.username, AccessRight.WRITE)) {
+            SynchronizationType.SEND_RECEIVE
+        } else {
+            SynchronizationType.SEND_ONLY
+        }
 
         if (device == null) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
@@ -54,10 +81,10 @@ class SynchronizationService(
                     setParameter("device", device.id)
                     setParameter("path", request.path)
                     setParameter("user", actor.username)
-                    setParameter("access", accessType)
+                    setParameter("access", accessType.name)
                 },
                 """
-                    insert into file_synchronization.synchronized_folders(
+                    insert into storage.synchronized_folders(
                         id, 
                         device_id, 
                         path,
@@ -85,7 +112,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    delete from file_synchronization.synchronized_folders
+                    delete from storage.synchronized_folders
                     where id = :id and user_id = :user
                 """
             )
@@ -106,7 +133,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    insert into file_synchronization.user_devices(
+                    insert into storage.user_devices(
                         device_id,
                         user_id
                     ) values (
@@ -128,7 +155,7 @@ class SynchronizationService(
                     setParameter("user", actor.username)
                 },
                 """
-                    delete from file_synchronization.user_devices
+                    delete from storage.user_devices
                     where device_id = :id and user_id = :user
                 """
             )
@@ -145,7 +172,7 @@ class SynchronizationService(
                 },
                 """
                         select device_id
-                        from file_synchronization.user_devices
+                        from storage.user_devices
                         where user_id = :user
                         limit 100
                     """
@@ -164,7 +191,7 @@ class SynchronizationService(
                 },
                 """
                         select id, path, device_id
-                        from file_synchronization.synchronized_folders
+                        from storage.synchronized_folders
                         where user_id = :user and path = :path
                         limit 100
                     """

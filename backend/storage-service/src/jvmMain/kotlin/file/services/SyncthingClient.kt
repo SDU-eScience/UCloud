@@ -2,9 +2,11 @@ package dk.sdu.cloud.file.synchronization.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.synchronization.LocalSyncthingDevice
-import dk.sdu.cloud.file.synchronization.SynchronizationConfiguration
-import dk.sdu.cloud.file.synchronization.api.SynchronizationType
+import dk.sdu.cloud.file.LocalSyncthingDevice
+import dk.sdu.cloud.file.SynchronizationConfiguration
+import dk.sdu.cloud.file.api.SynchronizationType
+import dk.sdu.cloud.file.services.SynchronizedFoldersTable
+import dk.sdu.cloud.file.services.UserDevicesTable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -246,8 +248,8 @@ class SyncthingClient(
                         setParameter("localDevice", device.id)
                     },
                     """
-                       select id, path, access_type, d.device_id, d.user_id from file_synchronization.synchronized_folders as f
-                       inner join file_synchronization.user_devices as d on f.user_id = d.user_id
+                       select id, path, access_type, d.device_id, d.user_id from storage.synchronized_folders as f
+                       inner join storage.user_devices as d on f.user_id = d.user_id
                        where f.device_id = :localDevice
                     """
                 )
@@ -272,7 +274,7 @@ class SyncthingClient(
                                 },
                                 """
                                     select device_id
-                                    from file_synchronization.user_devices
+                                    from storage.user_devices
                                     where user_id = :user
                                 """
                             ).rows.map { SyncthingFolderDevice(it.getField(UserDevicesTable.device)) }

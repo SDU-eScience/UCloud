@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.synchronization.api
+package dk.sdu.cloud.file.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage

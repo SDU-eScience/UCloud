@@ -28,6 +28,17 @@ data class CephConfiguration(
     val useCephDirectoryStats: Boolean = false
 )
 
+data class LocalSyncthingDevice(
+    val name: String = "UCloud",
+    val hostname: String = "",
+    val apiKey: String = "",
+    val id: String = ""
+)
+
+data class SynchronizationConfiguration(
+    val devices: List<LocalSyncthingDevice> = emptyList()
+)
+
 object StorageService : Service {
     override val description = StorageServiceDescription
 
@@ -36,6 +47,9 @@ object StorageService : Service {
         micro.install(BackgroundScopeFeature)
         val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
         val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
+        val syncDevices = micro.configuration.requestChunkAtOrNull<List<LocalSyncthingDevice>>("syncthing", "devices") ?: emptyList()
+        val syncConfig = micro.configuration.requestChunkAtOrNull("syncthing") ?: SynchronizationConfiguration(syncDevices)
+
 
         /*
         micro.feature(LogFeature).configureLevels(
@@ -48,7 +62,8 @@ object StorageService : Service {
         return Server(
             config,
             folder,
-            micro
+            micro,
+            syncConfig
         )
     }
 }
