@@ -334,8 +334,8 @@ class NetworkIPService(
         actor: Actor,
         request: NetworkIPControlChargeCreditsRequest
     ): NetworkIPControlChargeCreditsResponse {
-        val insufficient = ArrayList<NetworkIPId>()
-        val duplicates = ArrayList<NetworkIPId>()
+        val insufficient = ArrayList<NetworkIPRetrieve>()
+        val duplicates = ArrayList<NetworkIPRetrieve>()
 
         db.withSession { session ->
             for ((id, requests) in request.items.groupBy { it.id }) {

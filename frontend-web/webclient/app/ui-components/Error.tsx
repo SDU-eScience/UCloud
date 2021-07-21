@@ -6,7 +6,7 @@ import Flex from "ui-components/Flex";
 import Icon from "ui-components/Icon";
 import Text from "ui-components/Text";
 
-interface ErrorProps {clearError?: () => void; error?: string; width?: string | number}
+interface ErrorProps {clearError?: () => void; error?: string; width?: string | number; mb?: string | number;}
 function Error(props: ErrorProps): JSX.Element | null {
     if (!props.error) return null;
 
@@ -19,6 +19,7 @@ function Error(props: ErrorProps): JSX.Element | null {
         <ErrorWrapper
             bg="lightRed"
             borderColor="red"
+            mb={props.mb}
         >
             <Flex alignItems="center">
                 <div><WhiteSpacedText fontSize={1} color="red">{props.error}</WhiteSpacedText></div>
@@ -41,6 +42,7 @@ interface ErrorWrapperProps {
     width?: string | number;
     bg: string;
     borderColor: string;
+    mb?: string | number;
 }
 
 export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<ErrorWrapperProps>> = props => (
@@ -52,6 +54,7 @@ export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<Error
         bg={props.bg}
         borderColor={props.borderColor}
         width={props.width}
+        mb={props.mb}
     >
         {props.children}
     </Card>

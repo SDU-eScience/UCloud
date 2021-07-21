@@ -44,39 +44,46 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
     }, [reload, projectId, selectedProvider, selectedProduct]);
 
     return <div>
-        <Spacer mb="6px"
-                left={
-                    <Box width="calc(50% - 10px)">
+        {viableProviders.length === 0 ? <>
+            You don&#39;t have enough credits to allocate an IP address. You can request additional credits from the
+            dashboard.
+        </> : <>
+            <Spacer mb="6px"
+                    left={
+                        <Box width="calc(50% - 10px)">
+                            <Label>
+                                {canChangeProvider ? <>1. Select Provider</> : <>Provider</>}
+                                {canChangeProvider ? <Select placeholder="Provider..." onChange={e => setSelectedProvider(e.target.value ? e.target.value : undefined)}>
+                                    <option />
+                                    {viableProviders.map(provider =>
+                                        <option key={provider}>
+                                            {provider}
+                                        </option>
+                                    )}
+                                </Select> : <Input value={props.computeProvider} readOnly />}
+                            </Label>
+                        </Box>
+                    }
+                    right={<Box width="calc(50% - 10px)">
                         <Label>
-                            {canChangeProvider ? <>1. Select Provider</> : <>Provider</>}
-                            {canChangeProvider ? <Select placeholder="Provider..." onChange={e => setSelectedProvider(e.target.value ? e.target.value : undefined)}>
-                                <option />
-                                {viableProviders.map(provider =>
-                                    <option key={provider}>
-                                        {provider}
+                            {!canChangeProvider ? "1" : "2"}. Select Product
+                            <Select placeholder="Product..." onChange={e => {
+                                setSelectedProduct(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
+                            }}>
+                                <option onClick={() => setSelectedProduct(null)} />
+                                {allProducts.data.items.map(product =>
+                                    <option key={product.id} value={product.id}>
+                                        {product.id}
                                     </option>
                                 )}
-                            </Select> : <Input value={props.computeProvider} readOnly />}
+                            </Select>
                         </Label>
-                    </Box>
-                }
-                right={<Box width="calc(50% - 10px)">
-                    <Label>
-                        {!canChangeProvider ? "1" : "2"}. Select Product
-                        <Select placeholder="Product..." onChange={e => {
-                            setSelectedProduct(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
-                        }}>
-                            <option onClick={() => setSelectedProduct(null)} />
-                            {allProducts.data.items.map(product =>
-                                <option key={product.id} value={product.id}>
-                                    {product.id}
-                                </option>
-                            )}
-                        </Select>
-                    </Label>
-                </Box>}
-        />
-        <Button onClick={register} fullWidth>Allocate IP address</Button>
+                    </Box>}
+            />
+            <Button onClick={register} fullWidth>Allocate IP address</Button>
+        </>
+        }
+
     </div>
 
     async function register() {
@@ -90,20 +97,26 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             return;
         }
 
-        const resp = await invokeCommand<NetworkIPsCreateResponse>(networkApi.create(bulkRequestOf({
-            product: {
-                category: selectedProduct.category.id,
-                id: selectedProduct.id,
-                provider: props.computeProvider ?? selectedProvider!
+        try {
+            const resp = await invokeCommand<NetworkIPsCreateResponse>(networkApi.create(bulkRequestOf({
+                product: {
+                    category: selectedProduct.category.id,
+                    id: selectedProduct.id,
+                    provider: props.computeProvider ?? selectedProvider!
+                }
+            })), {defaultErrorHandler: false});
+
+            if (resp?.ids?.length) {
+                snackbarStore.addSuccess(`Allocated a public IP.`, false);
+                const ip = await callAPI(networkApi.retrieve({id: resp.ids[0], includeAcl: true, includeProduct: true,
+                    includeUpdates: true}));
+                props.onCreateFinished?.(ip);
             }
-        })));
-
-
-        if (resp?.ids?.length) {
-            snackbarStore.addSuccess(`Allocated a public IP.`, false);
-            const ip = await callAPI(networkApi.retrieve({id: resp.ids[0], includeAcl: true, includeProduct: true,
-                includeUpdates: true}));
-            props.onCreateFinished?.(ip);
+        } catch(e) {
+            snackbarStore.addFailure(
+                "Unable to allocate an IP address. Please make sure you have enough credits allocated to your project.",
+                false
+            );
         }
     }
 };

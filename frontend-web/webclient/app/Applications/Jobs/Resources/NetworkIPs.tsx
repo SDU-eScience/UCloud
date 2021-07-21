@@ -12,7 +12,6 @@ import {compute} from "UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
-import {inDevEnvironment, onDevSite} from "UtilityFunctions";
 
 export const NetworkIPResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -22,12 +21,12 @@ export const NetworkIPResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (!inDevEnvironment() && !onDevSite() && localStorage.getItem("enablepublicip") == null) return null;
+    if (application.invocation.allowPublicIp !== true) return null;
 
     return <Box>
         <Flex alignItems="center">
             <Box flexGrow={1}>
-                <Heading.h4>Attach public IP addresses to your application</Heading.h4>
+                <Heading.h4>Attach public IP addresses to your application (BETA)</Heading.h4>
             </Box>
 
             <Button type={"button"} ml={"5px"} lineHeight={"16px"} onClick={onAdd}>Add public IP</Button>
@@ -36,9 +35,15 @@ export const NetworkIPResource: React.FunctionComponent<{
         <Box my={8}>
             {params.length !== 0 ?
                 <Box mb="6px">
-                    <Warning>
+                    <Warning mb={"6px"}>
                         By enabling this setting, anyone with the IP can contact your application. <i>You</i> must take
                         action to ensure that your application is properly secured.
+                    </Warning>
+
+                    <Warning>
+                        This feature is currently in beta and as such is only available on a limited set of
+                        applications. We may also release any IPs you have allocated if they are not used for a
+                        sufficiently long period of time.
                     </Warning>
                 </Box> :
                 <>

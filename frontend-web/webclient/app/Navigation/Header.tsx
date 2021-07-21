@@ -102,20 +102,22 @@ function Header(props: HeaderProps): JSX.Element | null {
                 />
             </ui.Hide>
             <ui.Box mr="auto" />
-            <ui.Flex justifyContent="center" width="48px">
-                <Link to={`/news/detailed/upcomingDowntime`}>
-                    <ui.Tooltip
-                        right="0"
-                        bottom="1"
-                        tooltipContentWidth="115px"
-                        wrapperOffsetLeft="10px"
-                        trigger={<ui.Icon color="yellow" name="warning" />}
-                    >
-                        Upcoming downtime.<br />
-                        Click to view
-                    </ui.Tooltip>
-                </Link>
-            </ui.Flex>
+            {upcomingDowntime !== -1 ? (
+                <ui.Flex justifyContent="center" width="48px">
+                    <Link to={`/news/detailed/upcomingDowntime`}>
+                        <ui.Tooltip
+                            right="0"
+                            bottom="1"
+                            tooltipContentWidth="115px"
+                            wrapperOffsetLeft="10px"
+                            trigger={<ui.Icon color="yellow" name="warning" />}
+                        >
+                            Upcoming downtime.<br />
+                            Click to view
+                        </ui.Tooltip>
+                    </Link>
+                </ui.Flex>
+            ) : null}
             <ui.Hide xs sm md lg>
                 <DevelopmentBadge />
             </ui.Hide>

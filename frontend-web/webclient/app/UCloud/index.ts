@@ -266,6 +266,7 @@ export interface ApplicationInvocationDescription {
     environment?: Record<string, InvocationParameter>,
     allowAdditionalMounts?: boolean,
     allowAdditionalPeers?: boolean,
+    allowPublicIp?: boolean,
     allowMultiNode: boolean,
     fileExtensions: string[],
     licenseServers: string[],

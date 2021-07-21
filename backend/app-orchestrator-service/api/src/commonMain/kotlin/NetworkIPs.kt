@@ -16,7 +16,7 @@ interface NetworkIPId {
     val id: String
 }
 
-fun NetworkIPId(id: String): NetworkIPId = NetworkIPRetrieve(id)
+fun NetworkIPId(id: String): NetworkIPRetrieve = NetworkIPRetrieve(id)
 @Serializable
 data class NetworkIPRetrieve(override val id: String) : NetworkIPId
 

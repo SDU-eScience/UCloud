@@ -150,6 +150,16 @@ class JobVerificationService(
             }
         }
 
+        run {
+            val ipParameters = application.invocation.parameters
+                .filterIsInstance<ApplicationParameter.NetworkIP>()
+                .mapNotNull { verifiedParameters[it.name] as AppParameterValue.Network? }
+
+            if (ipParameters.isNotEmpty() && !application.invocation.allowPublicIp) {
+                throw JobException.VerificationError("This application does not support public IPs")
+            }
+        }
+
         // Verify membership of project
         if (unverifiedJob.project != null) {
             Projects.viewMemberInProject.call(
