@@ -58,7 +58,7 @@ class Server(
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
-        val syncthingClient = SyncthingClient(syncConfig, db)
+        val syncthingClient = SyncthingClient(syncConfig, db, fsRootFile.absolutePath)
         val synchronizationService = SynchronizationService(syncthingClient, fsRootFile.absolutePath, db, newAclService)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)

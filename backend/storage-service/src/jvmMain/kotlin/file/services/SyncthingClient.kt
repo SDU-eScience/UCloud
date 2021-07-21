@@ -21,6 +21,7 @@ import io.ktor.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import java.io.File
 
 @Serializable
 data class SyncthingIgnoredFolder(
@@ -222,7 +223,8 @@ data class SyncthingFolderDevice(
 
 class SyncthingClient(
     val config: SynchronizationConfiguration,
-    val db: DBContext
+    val db: DBContext,
+    val fsPath: String
 ) {
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
@@ -279,7 +281,7 @@ class SyncthingClient(
                                 """
                             ).rows.map { SyncthingFolderDevice(it.getField(UserDevicesTable.device)) }
                         },
-                        path = row.getField(SynchronizedFoldersTable.path)
+                        path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
                     )
                 }
             )

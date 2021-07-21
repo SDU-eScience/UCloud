@@ -1,13 +1,10 @@
 package dk.sdu.cloud.file.services
 
-import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.service.db.async.*
@@ -35,9 +32,6 @@ class SynchronizationService(
     private val aclService: AclService
 ) {
     private suspend fun chooseFolderDevice(): LocalSyncthingDevice? {
-        // NOTE(Brian): Chooses a random device. In the storage-implementation, the device with the least amount of
-        // storage attached (size-wise) will be used.
-
         return syncthing.config.devices.minByOrNull { device ->
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -51,14 +45,14 @@ class SynchronizationService(
                     """
                 )
             }.rows.sumOf {
-                CephFsFastDirectoryStats.getRecursiveSize(File(it.getField(SynchronizedFoldersTable.path)))
+                CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
             }
         }
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
         // TODO Check for number of files in folder before adding (limit to 1000_000)
-        if (CephFsFastDirectoryStats.getRecursiveFileCount(File(request.path)) > 1000_000) {
+        if (CephFsFastDirectoryStats.getRecursiveFileCount(File(fsPath, request.path)) > 1000_000) {
             throw RPCException("Number of files in directory exceeded for synchronization", HttpStatusCode.Forbidden)
         }
 
