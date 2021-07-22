@@ -29,31 +29,32 @@ data class SynchronizationBrowseDevicesRequest(
 typealias SynchronizationBrowseDevicesResponse = PageV2<SynchronizationDevice>
 
 @Serializable
-data class SynchronizationAddFolderRequest(
+data class SynchronizationAddFolderItem(
     val path: String,
     val provider: String
 )
+typealias SynchronizationAddFolderRequest = BulkRequest<SynchronizationAddFolderItem>
+
 typealias SynchronizationAddFolderResponse = Unit
 
 @Serializable
-data class SynchronizationRemoveFolderRequest(
+data class SynchronizationDeleteFolderItem(
     val id: String,
     val provider: String
 )
+typealias SynchronizationRemoveFolderRequest = BulkRequest<SynchronizationDeleteFolderItem>
 typealias SynchronizationRemoveFolderResponse = Unit
 
 @Serializable
-data class SynchronizationAddDeviceRequest(
+data class SynchronizationDeviceItem(
     val id: String,
     val provider: String
 )
+typealias SynchronizationAddDeviceRequest = BulkRequest<SynchronizationDeviceItem>
+
 typealias SynchronizationAddDeviceResponse = Unit
 
-@Serializable
-data class SynchronizationRemoveDeviceRequest(
-    val id: String,
-    val provider: String
-)
+typealias SynchronizationRemoveDeviceRequest = BulkRequest<SynchronizationDeviceItem>
 typealias SynchronizationRemoveDeviceResponse = Unit
 
 @Serializable
@@ -64,7 +65,7 @@ data class SynchronizationRetrieveFolderRequest(
 typealias SynchronizationRetrieveFolderResponse = SynchronizedFolder
 
 
-object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchronization") {
+object FileSynchronization: CallDescriptionContainer("files.synchronization") {
     const val baseContext = "/api/files/synchronization"
 
     val retrieveFolder = call<SynchronizationRetrieveFolderRequest, SynchronizationRetrieveFolderResponse,
@@ -74,83 +75,27 @@ object FileSynchronizationDescriptions: CallDescriptionContainer("files.synchron
 
     val addFolder = call<SynchronizationAddFolderRequest, SynchronizationAddFolderResponse,
         CommonErrorMessage>("addFolder") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"folder"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpCreate(joinPath(baseContext, "folder"), roles = Roles.PRIVILEGED)
     }
 
     val removeFolder = call<SynchronizationRemoveFolderRequest, SynchronizationRemoveFolderResponse,
         CommonErrorMessage>("removeFolder") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-                +"folder"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpDelete(joinPath(baseContext, "folder"), roles = Roles.PRIVILEGED)
     }
 
     val addDevice = call<SynchronizationAddDeviceRequest, SynchronizationAddDeviceResponse,
         CommonErrorMessage>("addDevice") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"device"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpCreate(joinPath(baseContext, "device"), roles = Roles.PRIVILEGED)
     }
 
     val removeDevice = call<SynchronizationRemoveDeviceRequest, SynchronizationRemoveDeviceResponse,
         CommonErrorMessage>("removeDevice") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-                +"device"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpDelete(joinPath(baseContext, "device"), roles = Roles.PRIVILEGED)
     }
 
     val browseDevices = call<SynchronizationBrowseDevicesRequest, SynchronizationBrowseDevicesResponse,
         CommonErrorMessage>("browseDevices") {
-        httpBrowse(baseContext, Roles.PRIVILEGED)
+        httpBrowse(baseContext, roles = Roles.PRIVILEGED)
     }
 }
 

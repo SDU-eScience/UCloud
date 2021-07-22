@@ -51,91 +51,100 @@ class SynchronizationService(
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
-        // TODO Check for number of files in folder before adding (limit to 1000_000)
-        if (CephFsFastDirectoryStats.getRecursiveFileCount(File(fsPath, request.path)) > 1000_000) {
-            throw RPCException("Number of files in directory exceeded for synchronization", HttpStatusCode.Forbidden)
-        }
-
-        val id = UUID.randomUUID().toString()
-        val device = chooseFolderDevice()
-        val accessType = if (aclService.hasPermission(request.path, actor.username, AccessRight.WRITE)) {
-            SynchronizationType.SEND_RECEIVE
-        } else {
-            SynchronizationType.SEND_ONLY
-        }
-
-        if (device == null) {
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
 
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", id)
-                    setParameter("device", device.id)
-                    setParameter("path", request.path)
-                    setParameter("user", actor.username)
-                    setParameter("access", accessType.name)
-                },
-                """
-                    insert into storage.synchronized_folders(
-                        id, 
-                        device_id, 
-                        path,
-                        user_id,
-                        access_type
-                    ) values (
-                        :id,
-                        :device,
-                        :path,
-                        :user,
-                        :access
+            request.items.forEach { folder ->
+                if (CephFsFastDirectoryStats.getRecursiveFileCount(File(fsPath, folder.path)) > 1_000_000) {
+                    throw RPCException(
+                        "Number of files in directory exceeded for synchronization",
+                        HttpStatusCode.Forbidden
                     )
-                """
-            )
-        }
+                }
 
-        syncthing.writeConfig()
+                val id = UUID.randomUUID().toString()
+                val device = chooseFolderDevice()
+                val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
+                    SynchronizationType.SEND_RECEIVE
+                } else {
+                    SynchronizationType.SEND_ONLY
+                }
+
+                if (device == null) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("device", device.id)
+                        setParameter("path", folder.path)
+                        setParameter("user", actor.username)
+                        setParameter("access", accessType.name)
+                    },
+                    """
+                        insert into storage.synchronized_folders(
+                            id, 
+                            device_id, 
+                            path,
+                            user_id,
+                            access_type
+                        ) values (
+                            :id,
+                            :device,
+                            :path,
+                            :user,
+                            :access
+                        )
+                    """
+                )
+            }
+
+            syncthing.writeConfig()
+        }
     }
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", request.id)
-                    setParameter("user", actor.username)
-                },
-                """
-                    delete from storage.synchronized_folders
-                    where id = :id and user_id = :user
-                """
-            )
+            request.items.forEach { item ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", item.id)
+                        setParameter("user", actor.username)
+                    },
+                    """
+                        delete from storage.synchronized_folders
+                        where id = :id and user_id = :user
+                    """
+                )
+            }
         }
 
         syncthing.writeConfig()
     }
 
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
-        if (syncthing.config.devices.find { it.id == request.id } != null) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-        }
-
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("device", request.id)
-                    setParameter("user", actor.username)
-                },
-                """
-                    insert into storage.user_devices(
-                        device_id,
-                        user_id
-                    ) values (
-                        :device,
-                        :user
-                    )
-                """
-            )
+            request.items.forEach { item ->
+                if (syncthing.config.devices.find { it.id == item.id } != null) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("device", item.id)
+                        setParameter("user", actor.username)
+                    },
+                    """
+                        insert into storage.user_devices(
+                            device_id,
+                            user_id
+                        ) values (
+                            :device,
+                            :user
+                        )
+                    """
+                )
+            }
         }
 
         syncthing.writeConfig()
@@ -143,16 +152,18 @@ class SynchronizationService(
 
     suspend fun removeDevice(actor: Actor, request: SynchronizationRemoveDeviceRequest) {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", request.id)
-                    setParameter("user", actor.username)
-                },
-                """
-                    delete from storage.user_devices
-                    where device_id = :id and user_id = :user
-                """
-            )
+            request.items.forEach { item ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", item.id)
+                        setParameter("user", actor.username)
+                    },
+                    """
+                        delete from storage.user_devices
+                        where device_id = :id and user_id = :user
+                    """
+                )
+            }
         }
 
         syncthing.writeConfig()

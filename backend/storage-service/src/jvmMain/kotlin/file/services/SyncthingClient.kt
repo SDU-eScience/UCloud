@@ -7,10 +7,7 @@ import dk.sdu.cloud.file.SynchronizationConfiguration
 import dk.sdu.cloud.file.api.SynchronizationType
 import dk.sdu.cloud.file.services.SynchronizedFoldersTable
 import dk.sdu.cloud.file.services.UserDevicesTable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*

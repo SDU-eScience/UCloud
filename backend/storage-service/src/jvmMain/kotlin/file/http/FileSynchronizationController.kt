@@ -2,41 +2,40 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.FileSynchronizationDescriptions
+import dk.sdu.cloud.file.api.FileSynchronization
 import dk.sdu.cloud.file.services.SynchronizationService
+import dk.sdu.cloud.service.actorAndProject
 
 class SynchronizationController(
     private val synchronizationService: SynchronizationService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(FileSynchronizationDescriptions.retrieveFolder) {
-            ok(synchronizationService.retrieveFolder(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username), request.path))
+        implement(FileSynchronization.retrieveFolder) {
+            ok(synchronizationService.retrieveFolder(actorAndProject.actor, request.path))
         }
 
-        implement(FileSynchronizationDescriptions.addFolder) {
-            synchronizationService.addFolder(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username), request)
+        implement(FileSynchronization.addFolder) {
+            synchronizationService.addFolder(actorAndProject.actor, request)
             ok(Unit)
         }
 
-        implement(FileSynchronizationDescriptions.removeFolder) {
-            synchronizationService.removeFolder(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username), request)
+        implement(FileSynchronization.removeFolder) {
+            synchronizationService.removeFolder(actorAndProject.actor, request)
             ok(Unit)
         }
 
-        implement(FileSynchronizationDescriptions.addDevice) {
-            synchronizationService.addDevice(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username), request)
+        implement(FileSynchronization.addDevice) {
+            synchronizationService.addDevice(actorAndProject.actor, request)
             ok(Unit)
         }
 
-        implement(FileSynchronizationDescriptions.removeDevice) {
-            synchronizationService.removeDevice(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username), request)
+        implement(FileSynchronization.removeDevice) {
+            synchronizationService.removeDevice(actorAndProject.actor, request)
             ok(Unit)
         }
 
-        implement(FileSynchronizationDescriptions.browseDevices) {
-            ok(synchronizationService.browseDevices(Actor.SystemOnBehalfOfUser(ctx.securityPrincipal.username)))
+        implement(FileSynchronization.browseDevices) {
+            ok(synchronizationService.browseDevices(actorAndProject.actor))
         }
     }
 }

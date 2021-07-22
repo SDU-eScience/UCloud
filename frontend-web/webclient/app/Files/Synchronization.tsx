@@ -6,7 +6,7 @@ import List, { ListRow } from "ui-components/List";
 import { Text } from "ui-components";
 import {file, PageV2} from "UCloud";
 import sync = file.synchronization;
-import { emptyPageV2 } from "DefaultObjects";
+import { bulkRequestOf, emptyPageV2 } from "DefaultObjects";
 import { TextSpan } from "ui-components/Text";
 import { copyToClipboard } from "UtilityFunctions";
 import { pathComponents } from "Utilities/FileUtilities";
@@ -48,7 +48,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     const addDevice = async e => {
         e.preventDefault();
         if (deviceIdRef.current && deviceIdRef.current.value.length > 0) {
-            await invokeCommand(sync.addDevice({ id: deviceIdRef.current.value, provider }));
+            await invokeCommand(sync.addDevice(bulkRequestOf({ id: deviceIdRef.current.value, provider })));
             fetchDevices(sync.browseDevices({ provider }), true);
             deviceIdRef.current.value = "";
             snackbarStore.addSuccess("Added device", false);
@@ -58,7 +58,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     };
 
     const removeDevice = async (id: string) => {
-        await invokeCommand(sync.removeDevice({ id, provider }));
+        await invokeCommand(sync.removeDevice(bulkRequestOf({ id, provider })));
         fetchDevices(sync.browseDevices({ provider }), true);
         snackbarStore.addSuccess("Removed device", false);
     };
@@ -80,11 +80,11 @@ export const SynchronizationSettings: React.FunctionComponent<{
 
     const toggleSynchronizeFolder = async () => {
         if (!synchronizedFolder) {
-            await invokeCommand(sync.addFolder({ path, provider } ));
+            await invokeCommand(sync.addFolder(bulkRequestOf({ path, provider })));
             fetchFolder(sync.retrieveFolder({ path, provider }), true);
         } else {
             if (folder.data) {
-                await invokeCommand(sync.removeFolder({ id: folder.data.id, provider }));
+                await invokeCommand(sync.removeFolder(bulkRequestOf({ id: folder.data.id, provider })));
                 setUcloudDeviceId(undefined);
                 setSynchronizedFolder(undefined);
             }

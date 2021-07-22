@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Jul 20 16:55:03 CEST 2021 */
+/* Generated at: Thu Jul 22 15:10:55 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -266,7 +266,7 @@ export interface ApplicationInvocationDescription {
     environment?: Record<string, InvocationParameter>,
     allowAdditionalMounts?: boolean,
     allowAdditionalPeers?: boolean,
-    allowPublicIp?: boolean,
+    allowPublicIp: boolean,
     allowMultiNode: boolean,
     fileExtensions: string[],
     licenseServers: string[],
@@ -1427,14 +1427,11 @@ export interface NetworkIPControlChargeCreditsResponse {
     /**
      * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
      */
-    insufficientFunds: NetworkIPId[],
+    insufficientFunds: NetworkIPRetrieve[],
     /**
      * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
      */
-    duplicateCharges: NetworkIPId[],
-}
-export interface NetworkIPId {
-    id: string,
+    duplicateCharges: NetworkIPRetrieve[],
 }
 export interface NetworkIPControlChargeCreditsRequestItem {
     /**
@@ -7092,19 +7089,15 @@ export interface SynchronizationRetrieveFolderRequest {
     path: string,
     provider: string,
 }
-export interface SynchronizationAddFolderRequest {
+export interface SynchronizationAddFolderItem {
     path: string,
     provider: string,
 }
-export interface SynchronizationRemoveFolderRequest {
+export interface SynchronizationDeleteFolderItem {
     id: string,
     provider: string,
 }
-export interface SynchronizationAddDeviceRequest {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationRemoveDeviceRequest {
+export interface SynchronizationDeviceItem {
     id: string,
     provider: string,
 }
@@ -7297,48 +7290,48 @@ export function retrieveFolder(
     };
 }
 export function addFolder(
-    request: SynchronizationAddFolderRequest
-): APICallParameters<SynchronizationAddFolderRequest, any /* unknown */> {
+    request: BulkRequest<SynchronizationAddFolderItem>
+): APICallParameters<BulkRequest<SynchronizationAddFolderItem>, any /* unknown */> {
     return {
         context: "",
         method: "POST",
-        path: "/api/files/synchronization" + "/folder",
+        path: "/api/files/synchronization/folder",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
     };
 }
 export function removeFolder(
-    request: SynchronizationRemoveFolderRequest
-): APICallParameters<SynchronizationRemoveFolderRequest, any /* unknown */> {
+    request: BulkRequest<SynchronizationDeleteFolderItem>
+): APICallParameters<BulkRequest<SynchronizationDeleteFolderItem>, any /* unknown */> {
     return {
         context: "",
         method: "DELETE",
-        path: "/api/files/synchronization" + "/folder",
+        path: "/api/files/synchronization/folder",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
     };
 }
 export function addDevice(
-    request: SynchronizationAddDeviceRequest
-): APICallParameters<SynchronizationAddDeviceRequest, any /* unknown */> {
+    request: BulkRequest<SynchronizationDeviceItem>
+): APICallParameters<BulkRequest<SynchronizationDeviceItem>, any /* unknown */> {
     return {
         context: "",
         method: "POST",
-        path: "/api/files/synchronization" + "/device",
+        path: "/api/files/synchronization/device",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
     };
 }
 export function removeDevice(
-    request: SynchronizationRemoveDeviceRequest
-): APICallParameters<SynchronizationRemoveDeviceRequest, any /* unknown */> {
+    request: BulkRequest<SynchronizationDeviceItem>
+): APICallParameters<BulkRequest<SynchronizationDeviceItem>, any /* unknown */> {
     return {
         context: "",
         method: "DELETE",
-        path: "/api/files/synchronization" + "/device",
+        path: "/api/files/synchronization/device",
         parameters: request,
         reloadId: Math.random(),
         payload: request,

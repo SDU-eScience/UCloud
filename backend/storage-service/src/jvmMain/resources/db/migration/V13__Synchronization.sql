@@ -2,7 +2,7 @@ create table synchronized_folders (
     id          varchar(36) not null primary key,
     device_id   varchar(64) not null,
     path        text        not null,
-    access_type varchar(20) not null default 'SEND_RECEIVE',
+    access_type varchar(20) not null default 'SEND_ONLY',
     user_id     text        not null
 );
 
