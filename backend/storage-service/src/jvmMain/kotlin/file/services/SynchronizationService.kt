@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import java.io.File
@@ -31,27 +32,58 @@ class SynchronizationService(
     private val db: DBContext,
     private val aclService: AclService
 ) {
-    private suspend fun chooseFolderDevice(): LocalSyncthingDevice? {
-        return syncthing.config.devices.minByOrNull { device ->
-            db.withSession { session ->
+    private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
+        println("Init device")
+        db.withSession { session ->
+            syncthing.config.devices.minByOrNull { device ->
                 session.sendPreparedStatement(
                     {
                         setParameter("device", device.id)
                     },
                     """
-                        select path
-                        from synchronized_folders
-                        where device_id = :device
+                                select path
+                                from synchronized_folders
+                                where device_id = :device
+                            """
+                ).rows.sumOf {
+                    CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
+                }
+            }
+        }
+    }
+
+    private suspend fun chooseFolderDevice(session: AsyncDBConnection): LocalSyncthingDevice {
+        val resolvedDevice = folderDeviceCache.get(Unit)
+
+        if (resolvedDevice != null) {
+            println("Using cached device")
+            return resolvedDevice
+        } else {
+            println("Lookup device")
+            val deviceLookup = syncthing.config.devices.minByOrNull { device ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("device", device.id)
+                    },
                     """
-                )
-            }.rows.sumOf {
-                CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
+                            select path
+                            from synchronized_folders
+                            where device_id = :device
+                        """
+                ).rows.sumOf {
+                    CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
+                }
+            }
+            if (deviceLookup != null) {
+                folderDeviceCache.insert(Unit, deviceLookup)
+                return deviceLookup
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "No internal device found")
             }
         }
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
-
         db.withSession { session ->
             request.items.forEach { folder ->
                 if (CephFsFastDirectoryStats.getRecursiveFileCount(File(fsPath, folder.path)) > 1_000_000) {
@@ -62,15 +94,11 @@ class SynchronizationService(
                 }
 
                 val id = UUID.randomUUID().toString()
-                val device = chooseFolderDevice()
+                val device = chooseFolderDevice(session)
                 val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
                     SynchronizationType.SEND_RECEIVE
                 } else {
                     SynchronizationType.SEND_ONLY
-                }
-
-                if (device == null) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
 
                 session.sendPreparedStatement(

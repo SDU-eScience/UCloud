@@ -15,6 +15,8 @@ import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.util.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -226,6 +228,7 @@ class SyncthingClient(
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
     }
+    private val mutex = Mutex()
 
     private suspend fun readConfig(device: LocalSyncthingDevice): SyncthingConfig {
         val requestPath = "http://" + device.hostname + "/rest/config"
@@ -240,61 +243,66 @@ class SyncthingClient(
     }
 
     suspend fun writeConfig() {
-        config.devices.forEach { device ->
-            val result = db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("localDevice", device.id)
-                    },
-                    """
-                       select id, path, access_type, d.device_id, d.user_id from storage.synchronized_folders as f
-                       inner join storage.user_devices as d on f.user_id = d.user_id
-                       where f.device_id = :localDevice
-                    """
-                )
-            }.rows
-            val oldConfig = readConfig(device)
-
-            val newConfig = oldConfig.copy(
-                devices = result.map { row ->
-                    SyncthingDevice(
-                        deviceID = row.getField(UserDevicesTable.device),
-                        name = row.getField(UserDevicesTable.device)
-                    )
-                } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
-                folders = result.map { row ->
-                    SyncthingFolder(
-                        id = row.getField(SynchronizedFoldersTable.id),
-                        label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
-                        devices = db.withSession { session ->
-                            session.sendPreparedStatement(
-                                {
-                                    setParameter("user", row.getField(UserDevicesTable.user))
-                                },
-                                """
-                                    select device_id
-                                    from storage.user_devices
-                                    where user_id = :user
-                                """
-                            ).rows.map { SyncthingFolderDevice(it.getField(UserDevicesTable.device)) }
+        mutex.withLock {
+            config.devices.forEach { device ->
+                val result = db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("localDevice", device.id)
                         },
-                        path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
+                        """
+                           select id, path, access_type, d.device_id, d.user_id
+                           from
+                              storage.synchronized_folders f join
+                              storage.user_devices d on f.user_id = d.user_id
+                           where
+                              f.device_id = :localDevice
+                        """
                     )
-                }
-            )
+                }.rows
+                val oldConfig = readConfig(device)
 
-            val resp = httpClient.put<HttpResponse>("http://" + device.hostname + "/rest/config") {
-                body = TextContent(
-                    defaultMapper.encodeToString(newConfig),
-                    ContentType.Application.Json
+                val newConfig = oldConfig.copy(
+                    devices = result.map { row ->
+                        SyncthingDevice(
+                            deviceID = row.getField(UserDevicesTable.device),
+                            name = row.getField(UserDevicesTable.device)
+                        )
+                    } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                    folders = result.map { row ->
+                        SyncthingFolder(
+                            id = row.getField(SynchronizedFoldersTable.id),
+                            label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
+                            devices = db.withSession { session ->
+                                session.sendPreparedStatement(
+                                    {
+                                        setParameter("user", row.getField(UserDevicesTable.user))
+                                    },
+                                    """
+                                        select device_id
+                                        from storage.user_devices
+                                        where user_id = :user
+                                    """
+                                ).rows.map { SyncthingFolderDevice(it.getField(UserDevicesTable.device)) }
+                            },
+                            path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
+                        )
+                    }
                 )
-                headers {
-                    append("X-API-Key", device.apiKey)
-                }
-            }
 
-            if (resp.status != HttpStatusCode.OK) {
-                throw RPCException(resp.content.toByteArray().toString(Charsets.UTF_8), HttpStatusCode.BadRequest)
+                val resp = httpClient.put<HttpResponse>("http://" + device.hostname + "/rest/config") {
+                    body = TextContent(
+                        defaultMapper.encodeToString(newConfig),
+                        ContentType.Application.Json
+                    )
+                    headers {
+                        append("X-API-Key", device.apiKey)
+                    }
+                }
+
+                if (resp.status != HttpStatusCode.OK) {
+                    throw RPCException(resp.content.toByteArray().toString(Charsets.UTF_8), HttpStatusCode.BadRequest)
+                }
             }
         }
     }
