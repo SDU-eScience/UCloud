@@ -86,7 +86,8 @@ class SynchronizationService(
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
         db.withSession { session ->
             request.items.forEach { folder ->
-                if (CephFsFastDirectoryStats.getRecursiveFileCount(File(fsPath, folder.path)) > 1_000_000) {
+                val internalFile = File(fsPath, folder.path)
+                if (CephFsFastDirectoryStats.getRecursiveFileCount(internalFile) > 1_000_000) {
                     throw RPCException(
                         "Number of files in directory exceeded for synchronization",
                         HttpStatusCode.Forbidden
@@ -95,10 +96,13 @@ class SynchronizationService(
 
                 val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
+
                 val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
                     SynchronizationType.SEND_RECEIVE
-                } else {
+                } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
                     SynchronizationType.SEND_ONLY
+                } else {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
 
                 session.sendPreparedStatement(
