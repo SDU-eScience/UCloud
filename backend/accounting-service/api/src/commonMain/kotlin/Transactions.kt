@@ -3,12 +3,6 @@ package dk.sdu.cloud.accounting.api
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-enum class TransactionType {
-    TRANSFER,
-    CHARGE,
-    DEPOSIT
-}
-
 @Serializable
 sealed class Transaction {
     abstract val units: Long
@@ -64,7 +58,7 @@ sealed class Transaction {
     ) : Transaction() {
         init {
             require(units > 0)
-            require(targetWallet.id != transferFromWallet.id)
+            require(targetWallet.owner != transferFromWallet.owner)
         }
     }
 }
