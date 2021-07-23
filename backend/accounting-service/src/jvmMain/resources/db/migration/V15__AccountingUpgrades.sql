@@ -1,3 +1,4 @@
+create extension if not exists ltree;
 create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
 create type accounting.product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
@@ -19,8 +20,9 @@ alter table accounting.product_categories add foreign key (provider) references 
 
 alter table accounting.product_categories drop column area;
 
----- /Changes to product_categories ----
+alter table accounting.products drop column area;
 
+---- /Changes to product_categories ----
 
 ---- Update storage products ----
 
@@ -39,6 +41,8 @@ with storage_products as (
 insert into accounting.product_categories (provider, category, product_type, charge_type)
 select provider, replace(category, '_credits', '_quota'), product_type, 'DIFFERENTIAL_QUOTA'
 from storage_products;
+
+-- TODO(Dan): Insert products and define price_per_unit for DIFFERENTIAL_QUOTA products
 
 ---- /Update storage products ----
 
@@ -83,6 +87,8 @@ create table accounting.wallet_owner(
          (username is null and project_id is not null)
     )
 );
+
+create unique index wallet_owner_uniq on accounting.wallet_owner (coalesce(username, ''), coalesce(project_id, ''));
 
 insert into accounting.wallet_owner (username)
 select id from auth.principals
@@ -141,6 +147,7 @@ create table accounting.wallet_allocations(
     initial_balance bigint not null,
     start_date timestamptz not null,
     end_date timestamptz,
+    allocation_path ltree not null,
     parent_wallet_id bigint references accounting.wallets(id),
 
     -- TODO Check that this is charge or deposit (seems to must be done in backend)
@@ -179,15 +186,19 @@ from
 where
     result.row_number <= 1;
 
+
+-- TODO This creates a different balance for products which do not have a price. Does this matter?
+
 insert into accounting.wallet_allocations
-    (associated_wallet, balance, initial_balance, start_date, end_date, parent_wallet_id, transaction_id)
+    (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path, transaction_id)
 select
+    nextval('accounting.wallet_allocations_id_seq'),
     nt.target_wallet_id,
     greatest(1::bigint, nt.units * p.price_per_unit),
     greatest(1::bigint, nt.units * p.price_per_unit),
     now(),
     null,
-    null,
+    currval('accounting.wallet_allocations_id_seq')::text::ltree,
     nt.id
 from
     accounting.new_transactions nt join
@@ -230,20 +241,23 @@ from
 where
     result.row_number <= 1;
 
+-- TODO(Dan): The allocation path is wrong. It needs to match the current project hierarchy, which I don't think we
+--   can get without a full traversal of the project hierarchy [O(n) queries likely].
 insert into accounting.wallet_allocations
-    (associated_wallet, balance, initial_balance, start_date, end_date, parent_wallet_id, transaction_id)
+    (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path, transaction_id)
 select
+    nextval('accounting.wallet_allocations_id_seq'),
     nt.target_wallet_id,
     greatest(1::bigint, nt.units * p.price_per_unit),
     greatest(1::bigint, nt.units * p.price_per_unit),
     now(),
     null,
-    nt.transfer_from_wallet_id,
+    currval('accounting.wallet_allocations_id_seq')::text::ltree,
     nt.id
 from
     accounting.new_transactions nt join
     accounting.products p on nt.product_id = p.id join
-    accounting.wallet_owner wo on nt.target_wallet_id = wo.id and wo.project_id is not null
+    accounting.wallets w on nt.target_wallet_id = w.id and w.account_type = 'PROJECT'
 where
     transaction_type = 'DEPOSIT';
 
@@ -315,3 +329,321 @@ drop table accounting.job_completed_events;
 drop table accounting.old_transactions;
 
 ---- /Remove legacy tables ----
+
+
+---- Procedures ----
+
+-- NOTE(Dan): We needed to change the structure such that an allocation is a child of an allocation and not a wallet.
+-- When an allocation is a child of a wallet it becomes extremely hard to verify that we do not create cycles in
+-- the allocation graph. When an allocation is a child of an allocation it becomes trivial, we simply have to check
+-- for duplicates in the path.
+
+create type accounting.charge_request as (
+    payer text,
+    payer_is_project boolean,
+    units bigint,
+    number_of_products bigint,
+    product_name text,
+    product_cat_name text,
+    product_provider text,
+    performed_by text,
+    description text
+);
+
+create or replace function accounting.process_charge_requests(
+    requests accounting.charge_request[]
+) returns void language plpgsql as $$
+begin
+    create temporary table charge_result on commit drop as
+        with
+            requests as (
+                -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
+                select payer, payer_is_project, units, number_of_products, product_name, product_cat_name,
+                       product_provider, performed_by, description,
+                       row_number() over () local_request_id
+               from unnest(requests) r
+            ),
+            -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
+            -- correct price and resolve the correct wallets.
+            product_and_price as (
+                select
+                    p.id product_id,
+                    request.units * request.number_of_products * p.price_per_unit as payment_required,
+                    request.*
+                from
+                    requests request join
+                    accounting.products p on request.product_name = p.name join
+                    accounting.product_categories pc on
+                        p.category = pc.id and
+                        pc.category = request.product_cat_name and
+                        pc.provider = request.product_provider
+            ),
+            -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
+            -- each allocation.
+            --
+            -- The code below will attempt to charge as much as possible from the allocations until the
+            -- target is reached. If all of the allocations combined do not have enough credits then all allocations will
+            -- be emptied. That is, we charge as much as possible. This is useful for the common case, which is that we are
+            -- charging for resources which have already been consumed.
+            --
+            -- A leaf allocation is any allocation that:
+            --   1) Matches the product
+            --   2) Belongs directly to the payer
+            leaf_charges as (
+                select
+                    id,
+                    allocation_path,
+                    associated_wallet,
+                    balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
+                    product_id,
+                    units, number_of_products, performed_by, description,
+                    payment_required, local_request_id
+                from
+                    product_and_price p,
+                    lateral (
+                        select
+                            alloc.id,
+                            alloc.balance,
+                            alloc.allocation_path,
+                            alloc.associated_wallet,
+                            -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will cause
+                            -- invalid results, hence we sort by the ID when we have identical end dates.
+                            sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
+                        from
+                            accounting.wallet_allocations alloc join
+                            accounting.wallets w on alloc.associated_wallet = w.id join
+                            accounting.wallet_owner wo on w.owned_by = wo.id
+                        where
+                            (
+                                (payer_is_project and wo.project_id = payer) or
+                                (not payer_is_project and wo.username = payer)
+                            ) and
+                            now() >= alloc.start_date and
+                            (alloc.end_date is null or now() <= alloc.end_date)
+                    ) allocations
+                where
+                    balance_available - balance < payment_required
+            )
+    -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge as much as
+    -- possible, but no more than what we subtracted from the child allocation, in every ancestor.
+    --
+    -- It is possible that an ancestor allocation does not have enough money.
+    -- TODO(Dan): In this case, should we simply place an overcharge on the ancestor?
+    select
+        leaves.id as leaf_id,
+        leaves.associated_wallet as leaf_wallet,
+        ancestor_alloc.id as local_id,
+        balance - greatest(0, balance - subtracted) as local_subtraction,
+        ancestor_alloc.allocation_path,
+        ancestor_alloc.associated_wallet as local_wallet,
+        product_id,
+        units, number_of_products, performed_by, description,
+        payment_required, local_request_id
+    from
+        leaf_charges leaves join
+        accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
+end;
+$$;
+
+-- noinspection SqlResolve
+create or replace function accounting.charge(
+    requests accounting.charge_request[]
+) returns void language plpgsql as $$
+begin
+    -- TODO(Dan): This is currently lacking replay protection
+    perform accounting.process_charge_requests(requests);
+
+    -- NOTE(Dan): Update the balance of every relevant allocation
+    update accounting.wallet_allocations alloc
+    set balance = balance - res.local_subtraction
+    from charge_result res
+    where alloc.id = res.local_id;
+
+    -- NOTE(Dan): Insert a record of every change we did in the transactions table
+    -- TODO(Dan): We are losing quite a lot information from this transformation. I think we should change the format
+    --   of the transaction table to better suit our actual change.
+    insert into accounting.transactions
+        (transaction_type, target_wallet_id, units, number_of_products, action_performed_by,
+        action_performed_by_wallet, product_id, transfer_from_wallet_id, description)
+    select
+        'CHARGE',
+        res.local_wallet,
+        units,
+        number_of_products,
+        performed_by,
+        res.leaf_wallet,
+        product_id,
+        null,
+        description
+    from charge_result res;
+end;
+$$;
+
+-- noinspection SqlResolve
+create or replace function accounting.credit_check(
+    requests accounting.charge_request[]
+) returns boolean language plpgsql as $$
+begin
+    perform accounting.process_charge_requests(requests);
+    return (
+        select bool_and(has_enough_credits)
+        from (
+            select sum(group_subtraction)::bigint = payment_required has_enough_credits
+            from (
+                select min(local_subtraction) group_subtraction, payment_required, local_request_id
+                from charge_result
+                group by leaf_id, payment_required, local_request_id
+            ) min_per_group
+            group by local_request_id, payment_required
+        ) credit_check
+    );
+end;
+$$;
+
+create type accounting.deposit_request as (
+    initiated_by text,
+    recipient text,
+    recipient_is_project boolean,
+    source_allocation bigint,
+    desired_balance bigint,
+    product_cat_name text,
+    product_provider text,
+    start_date timestamptz,
+    end_date timestamptz,
+    description text
+);
+
+create or replace function accounting.deposit(
+    request accounting.deposit_request
+) returns void language plpgsql as $$
+begin
+    create temporary table deposit_result on commit drop as
+    with
+        -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
+        wallets as (
+            select
+                -- NOTE(Dan): we pre-allocate the transaction ID to make it easier to connect the data later
+                nextval('accounting.new_transactions_id_seq') idx,
+                source_wallet.id source_wallet,
+                source_wallet.category product_category,
+                source_alloc.allocation_path source_allocation_path,
+                target_wallet.id target_wallet,
+                request.recipient,
+                request.recipient_is_project,
+                request.start_date,
+                request.end_date,
+                request.desired_balance
+            from
+                accounting.wallet_allocations source_alloc join
+                accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
+                accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
+                project.project_members pm on source_owner.project_id = pm.project_id and pm.role = 'ADMIN' left join
+
+                accounting.wallet_owner target_owner on
+                    (request.recipient_is_project and target_owner.project_id = request.recipient) or
+                    (not request.recipient_is_project and target_owner.username = request.recipient) left join
+                accounting.wallets target_wallet on
+                    target_wallet.owned_by = target_owner and
+                    target_wallet.category = source_wallet.category
+            where
+                request.initiated_by = source_owner.username or
+                request.initiated_by = pm.username
+        ),
+        -- NOTE(Dan): Find the cheapest product in the category and determine how many units we need
+        resolved_product as (
+            select *
+            from
+                (
+                    select
+                        t.idx transaction_id,
+                        row_number() over (partition by t.idx order by p.price_per_unit) rn,
+                        p.id product_id,
+                        pc.id category,
+                        case p.price_per_unit
+                            when 0 then 1
+                            else ceil(t.desired_balance / p.price_per_unit)
+                        end number_of_units,
+                        t.source_wallet,
+                        t.source_allocation_path,
+                        t.target_wallet,
+                        t.recipient,
+                        t.recipient_is_project,
+                        t.start_date,
+                        t.end_date,
+                        t.desired_balance
+                    from
+                        wallets t join
+                        accounting.product_categories pc on t.category = pc.id join
+                        accounting.products p on pc.id = p.category
+                ) cheapest_products
+            where
+                rn <= 1
+        )
+        select *
+        from resolved_product;
+
+    -- NOTE(Dan): We don't know for sure that the wallet_owner doesn't exist, but it might not exist since there is
+    -- no wallet.
+    insert into accounting.wallet_owner (username, project_id)
+    select
+        case r.recipient_is_project when false then r.recipient end,
+        case r.recipient_is_project when true then r.recipient end
+    from deposit_result r
+    where target_wallet is null
+    on conflict do nothing;
+
+    -- NOTE(Dan): Create the missing wallets.
+    insert into accounting.wallets (category, owned_by)
+    select r.category, wo.id
+    from
+        deposit_result r join
+        accounting.wallet_owner wo on
+            (r.recipient_is_project and wo.project_id = r.recipient) or
+            (not r.recipient_is_project and wo.username = r.recipient)
+    where target_wallet is null;
+
+    -- NOTE(Dan): Update the result such that all target_wallets are not null
+    update deposit_result r
+    set target_wallet = w.id
+    from
+        accounting.wallet_owner wo join
+        accounting.wallets w on wo.id = w.owned_by
+    where
+        (r.recipient_is_project and wo.project_id = r.recipient) or
+        (not r.recipient_is_project and wo.username = r.recipient);
+
+    -- NOTE(Dan): Create the transactions which describe the change.
+    insert into accounting.transactions (id, transaction_type, target_wallet_id, units, number_of_products,
+            action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description)
+    select
+        r.transaction_id,
+        'DEPOSIT',
+        r.target_wallet,
+        r.number_of_units,
+        1,
+        request.initiated_by,
+        r.source_wallet,
+        r.product_id,
+        null,
+        request.description
+    from deposit_result r;
+
+    -- NOTE(Dan): And we can now, finally, insert the allocation.
+    insert into accounting.wallet_allocations (id, associated_wallet, balance, initial_balance, start_date, end_date,
+        allocation_path, parent_wallet_id, transaction_id)
+    select
+        nextval('accounting.wallet_allocations_id_seq'),
+        r.target_wallet,
+        r.desired_balance,
+        r.desired_balance,
+        r.start_date,
+        r.end_date,
+        (r.source_allocation_path::text || '.' || currval('accounting.wallet_allocations_id_seq')::text)::ltree,
+        r.source_wallet,
+        r.transaction_id
+    from deposit_result r
+    where r.target_wallet is not null;
+end;
+$$;
+
+---- /Procedures ----

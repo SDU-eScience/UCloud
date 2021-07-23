@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.api
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 enum class TransactionType {
@@ -17,6 +18,8 @@ sealed class Transaction {
     abstract val description: String?
     abstract val numberOfProducts: Long
 
+    @Serializable
+    @SerialName("deposit")
     data class Deposit(
         override val units: Long,
         override val actionPerformedBy: String,
@@ -31,6 +34,8 @@ sealed class Transaction {
         }
     }
 
+    @Serializable
+    @SerialName("charge")
     data class Charge(
         override val units: Long,
         override val actionPerformedBy: String,
@@ -45,6 +50,8 @@ sealed class Transaction {
         }
     }
 
+    @Serializable
+    @SerialName("transfer")
     data class Transfer (
         override val units: Long,
         override val actionPerformedBy: String,
