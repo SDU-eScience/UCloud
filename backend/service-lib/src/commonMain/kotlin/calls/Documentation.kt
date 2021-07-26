@@ -11,7 +11,7 @@ import kotlin.reflect.KProperty
  */
 @Retention
 @Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
-annotation class UCloudApiDoc(@Language("markdown", "", "") val documentation: String)
+annotation class UCloudApiDoc(@Language("markdown", "", "") val documentation: String, val inherit: Boolean = false)
 
 expect annotation class Language(
     val value: String,

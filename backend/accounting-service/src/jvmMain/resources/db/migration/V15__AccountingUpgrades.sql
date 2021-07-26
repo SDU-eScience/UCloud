@@ -3,7 +3,7 @@ create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'L
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
 create type accounting.product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
 create type accounting.allocation_selector_policy as enum ('ORDERED', 'EXPIRE_FIRST');
-create type accounting.transaction_type as enum ('TRANSFER', 'CHARGE', 'DEPOSIT');
+create type accounting.transaction_type as enum ('transfer', 'charge', 'deposit', 'allocation_update');
 create type accounting.product_category_relationship_type as enum ('STORAGE_CREDITS', 'NODE_HOURS');
 
 ---- Changes to product_categories ----
@@ -108,36 +108,6 @@ alter table accounting.wallets add column allocation_selector_policy accounting.
 ---- /Allocation selector policy ----
 
 
----- Additions to transactions ----
-
-create table accounting.new_transactions(
-    id bigserial primary key,
-    transaction_type accounting.transaction_type not null,
-    target_wallet_id bigint not null references accounting.wallets(id),
-    units bigint not null,
-    number_of_products bigint not null,
-    action_performed_by text references auth.principals(id),
-    action_performed_by_wallet bigint references accounting.wallets(id),
-    product_id bigint references accounting.products(id),
-    transfer_from_wallet_id bigint references accounting.wallets(id),
-    description text not null,
-    created_at timestamptz not null default now(),
-    -- Change in wallet_allocation: product.price_per_unit * units * number_of_products
-    constraint check_deposit_convention check (
-        transaction_type != 'DEPOSIT' or number_of_products = 1
-    ),
-    constraint check_target check(
-        transaction_type != 'TRANSFER' or transfer_from_wallet_id is not null
-    )
-
-    -- TODO enforce that product id matches wallet (also check on backend)
-);
-
-alter table accounting.transactions rename to old_transactions;
-
----- /Additions to transactions ----
-
-
 ---- Wallet allocations ----
 
 create table accounting.wallet_allocations(
@@ -148,118 +118,144 @@ create table accounting.wallet_allocations(
     start_date timestamptz not null,
     end_date timestamptz,
     allocation_path ltree not null,
-    parent_wallet_id bigint references accounting.wallets(id),
+    parent_wallet_id bigint references accounting.wallets(id)
 
-    -- TODO Check that this is charge or deposit (seems to must be done in backend)
-    transaction_id bigint not null references accounting.new_transactions(id)
+    -- NOTE(Dan): we can trace this back to the original transaction by doing a reverse-lookup
 );
 
 ---- /Wallet allocations ----
 
 
+---- Additions to transactions ----
+
+create table accounting.new_transactions(
+    id bigserial primary key,
+    type accounting.transaction_type not null,
+    created_at timestamptz not null default now(),
+    affected_allocation_id bigint references accounting.wallet_allocations(id) not null,
+    action_performed_by text not null references auth.principals(id),
+    change bigint not null,
+    description varchar(1000) not null,
+
+    source_allocation_id bigint references accounting.wallet_allocations(id) default null,
+    product_id bigint references accounting.products(id) default null,
+    number_of_products bigint default null,
+    units bigint default null,
+
+    start_date timestamptz default null,
+    end_date timestamptz default null,
+
+    constraint valid_charge check (
+        type != 'charge' or (
+            source_allocation_id is not null and
+            product_id is not null and
+            number_of_products > 0 and
+            units > 0 and
+            start_date is null and
+            end_date is null
+        )
+    ),
+
+    constraint valid_deposit check (
+        type != 'deposit' or (
+            -- NOTE(Dan): source_allocation_id almost always needs to be not-null
+            product_id is null and
+            number_of_products is null and
+            units is null and
+            start_date is not null
+        )
+    ),
+
+    constraint valid_transfer check(
+        type != 'transfer' or (
+            source_allocation_id is not null and
+            product_id is null and
+            number_of_products is null and
+            units is null and
+            start_date is not null
+        )
+    ),
+
+    constraint valid_update check(
+        type != 'allocation_update' or (
+            source_allocation_id is null and
+            product_id is null and
+            number_of_products is null and
+            units is null and
+            start_date is not null
+        )
+    )
+);
+
+alter table accounting.transactions rename to old_transactions;
+
+---- /Additions to transactions ----
+
+
 ---- Transfer all personal workspace balances ----
 
-insert into accounting.new_transactions
-    (transaction_type, target_wallet_id, units, number_of_products, action_performed_by, action_performed_by_wallet,
-     product_id, transfer_from_wallet_id, description)
-select
-    'DEPOSIT',
-    (result.w).id,
-    ceil((result.w).balance / greatest(1, (result.p).price_per_unit)),
-    1,
-    null,
-    null,
-    (result.p).id,
-    null,
-    'Initial balance'
-from
-    (
-        select row_number() over (partition by w.id order by p.price_per_unit) row_number, w, p
+insert into auth.principals
+    (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, phone_number, title, hashed_password,
+     salt, org_id, email)
+values
+    ('SERVICE', '_ucloud', now(), now(), 'SERVICE', null, null, null, null, null, null, null, null, null)
+on conflict do nothing;
+
+with new_allocations as (
+    insert into accounting.wallet_allocations
+        (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path)
+        select
+            nextval('accounting.wallet_allocations_id_seq'),
+            w.id,
+            w.balance,
+            w.balance,
+            now(),
+            null,
+            currval('accounting.wallet_allocations_id_seq')::text::ltree
         from
             accounting.wallet_owner wo join
             accounting.wallets w on
-                wo.username = w.account_id and
-                w.account_type = 'USER' and
-                wo.username is not null join
-            accounting.products p on p.category = w.category
-    ) result
-where
-    result.row_number <= 1;
-
-
--- TODO This creates a different balance for products which do not have a price. Does this matter?
-
-insert into accounting.wallet_allocations
-    (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path, transaction_id)
-select
-    nextval('accounting.wallet_allocations_id_seq'),
-    nt.target_wallet_id,
-    greatest(1::bigint, nt.units * p.price_per_unit),
-    greatest(1::bigint, nt.units * p.price_per_unit),
-    now(),
-    null,
-    currval('accounting.wallet_allocations_id_seq')::text::ltree,
-    nt.id
-from
-    accounting.new_transactions nt join
-    accounting.products p on nt.product_id = p.id
-where
-    transaction_type = 'DEPOSIT';
+                        wo.username = w.account_id and
+                        w.account_type = 'USER' and
+                        wo.username is not null
+        returning id, balance
+)
+insert into accounting.new_transactions
+    (type, affected_allocation_id, action_performed_by, change, description, start_date)
+select 'deposit', id, '_ucloud', balance, 'Initial balance', now()
+from new_allocations;
 
 ---- /Transfer all personal workspace balances ----
 
 
 ---- Transfer all project balances ----
 
+with new_allocations as (
+    insert into accounting.wallet_allocations
+        (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path)
+    select
+        nextval('accounting.wallet_allocations_id_seq'),
+        w.id,
+        w.balance,
+        w.balance,
+        now(),
+        null,
+        currval('accounting.wallet_allocations_id_seq')::text::ltree
+    from
+        accounting.wallet_owner wo join
+        accounting.wallets w on
+            wo.username = w.account_id and
+            w.account_type = 'PROJECT' and
+            wo.project_id is not null
+    returning id, balance
+)
 insert into accounting.new_transactions
-    (transaction_type, target_wallet_id, units, number_of_products, action_performed_by, action_performed_by_wallet,
-     product_id, transfer_from_wallet_id, description)
-select
-    'DEPOSIT',
-    (result.w).id,
-    ceil((result.w).balance / greatest(1, (result.prod).price_per_unit)),
-    1,
-    null,
-    (result.parent_w).id,
-    (result.prod).id,
-    null,
-    'Initial balance'
-from
-    (
-        select row_number() over (partition by w.id order by prod.price_per_unit) row_number, w, prod, parent_w
-        from
-            accounting.wallet_owner wo join
-            accounting.wallets w on
-                wo.project_id = w.account_id and
-                w.account_type = 'PROJECT' and
-                wo.project_id is not null join
-            accounting.products prod on prod.category = w.category join
-            project.projects project on wo.project_id = project.id left join
-            accounting.wallets parent_w
-                on project.parent = parent_w.account_id and parent_w.account_type = 'PROJECT'
-    ) result
-where
-    result.row_number <= 1;
+(type, affected_allocation_id, action_performed_by, change, description, start_date)
+select 'deposit', id, '_ucloud', balance, 'Initial balance', now()
+from new_allocations;
 
 -- TODO(Dan): The allocation path is wrong. It needs to match the current project hierarchy, which I don't think we
 --   can get without a full traversal of the project hierarchy [O(n) queries likely].
-insert into accounting.wallet_allocations
-    (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path, transaction_id)
-select
-    nextval('accounting.wallet_allocations_id_seq'),
-    nt.target_wallet_id,
-    greatest(1::bigint, nt.units * p.price_per_unit),
-    greatest(1::bigint, nt.units * p.price_per_unit),
-    now(),
-    null,
-    currval('accounting.wallet_allocations_id_seq')::text::ltree,
-    nt.id
-from
-    accounting.new_transactions nt join
-    accounting.products p on nt.product_id = p.id join
-    accounting.wallets w on nt.target_wallet_id = w.id and w.account_type = 'PROJECT'
-where
-    transaction_type = 'DEPOSIT';
 
 ---- /Transfer all project balances ----
 
@@ -282,24 +278,24 @@ alter table accounting.wallets alter column owned_by set not null;
 
 ---- Product category relationship ----
 
-create table product_category_relationship(
+create table accounting.product_category_relationship(
     type accounting.product_category_relationship_type not null,
     credits_category bigint references accounting.product_categories(id),
     quota_category bigint references accounting.product_categories(id),
     hours_category bigint references accounting.product_categories(id),
     constraint storage_credits check(
-              type != 'STORAGE_CREDITS' or (
-              credits_category is not null and
-              quota_category is not null
-          )
-      ),
+        type != 'STORAGE_CREDITS' or (
+            credits_category is not null and
+            quota_category is not null
+        )
+    ),
     constraint node_hours check(
-          type != 'NODE_HOURS' or
-          (
-              credits_category is not null and
-              hours_category is not null
-          )
-      )
+        type != 'NODE_HOURS' or
+        (
+            credits_category is not null and
+            hours_category is not null
+        )
+    )
 );
 
 ---- /Product category relationship ----
@@ -460,21 +456,11 @@ begin
     where alloc.id = res.local_id;
 
     -- NOTE(Dan): Insert a record of every change we did in the transactions table
-    -- TODO(Dan): We are losing quite a lot information from this transformation. I think we should change the format
-    --   of the transaction table to better suit our actual change.
     insert into accounting.transactions
-        (transaction_type, target_wallet_id, units, number_of_products, action_performed_by,
-        action_performed_by_wallet, product_id, transfer_from_wallet_id, description)
-    select
-        'CHARGE',
-        res.local_wallet,
-        units,
-        number_of_products,
-        performed_by,
-        res.leaf_wallet,
-        product_id,
-        null,
-        description
+            (type, created_at, affected_allocation_id, action_performed_by, change, description,
+             source_allocation_id, product_id, number_of_products, units)
+    select 'charge', now(), res.local_id, res.performed_by, res.local_subtraction, res.description,
+           res.leaf_id, res.product_id, res.number_of_products, res.units
     from charge_result res;
 end;
 $$;
@@ -518,69 +504,36 @@ create or replace function accounting.deposit(
 ) returns void language plpgsql as $$
 begin
     create temporary table deposit_result on commit drop as
-    with
         -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
-        wallets as (
-            select
-                -- NOTE(Dan): we pre-allocate the transaction ID to make it easier to connect the data later
-                nextval('accounting.new_transactions_id_seq') idx,
-                source_wallet.id source_wallet,
-                source_wallet.category product_category,
-                source_alloc.allocation_path source_allocation_path,
-                target_wallet.id target_wallet,
-                request.recipient,
-                request.recipient_is_project,
-                request.start_date,
-                request.end_date,
-                request.desired_balance
-            from
-                accounting.wallet_allocations source_alloc join
-                accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
-                accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
-                project.project_members pm on source_owner.project_id = pm.project_id and pm.role = 'ADMIN' left join
+        select
+            -- NOTE(Dan): we pre-allocate the IDs to make it easier to connect the data later
+            nextval('accounting.wallet_allocations_id_seq') idx,
+            source_wallet.id source_wallet,
+            source_wallet.category product_category,
+            source_alloc.allocation_path source_allocation_path,
+            target_wallet.id target_wallet,
+            request.recipient,
+            request.recipient_is_project,
+            request.start_date,
+            request.end_date,
+            request.desired_balance,
+            request.initiated_by,
+            source_wallet.category
+        from
+            accounting.wallet_allocations source_alloc join
+            accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
+            accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
+            project.project_members pm on source_owner.project_id = pm.project_id and pm.role = 'ADMIN' left join
 
-                accounting.wallet_owner target_owner on
-                    (request.recipient_is_project and target_owner.project_id = request.recipient) or
-                    (not request.recipient_is_project and target_owner.username = request.recipient) left join
-                accounting.wallets target_wallet on
-                    target_wallet.owned_by = target_owner and
-                    target_wallet.category = source_wallet.category
-            where
-                request.initiated_by = source_owner.username or
-                request.initiated_by = pm.username
-        ),
-        -- NOTE(Dan): Find the cheapest product in the category and determine how many units we need
-        resolved_product as (
-            select *
-            from
-                (
-                    select
-                        t.idx transaction_id,
-                        row_number() over (partition by t.idx order by p.price_per_unit) rn,
-                        p.id product_id,
-                        pc.id category,
-                        case p.price_per_unit
-                            when 0 then 1
-                            else ceil(t.desired_balance / p.price_per_unit)
-                        end number_of_units,
-                        t.source_wallet,
-                        t.source_allocation_path,
-                        t.target_wallet,
-                        t.recipient,
-                        t.recipient_is_project,
-                        t.start_date,
-                        t.end_date,
-                        t.desired_balance
-                    from
-                        wallets t join
-                        accounting.product_categories pc on t.category = pc.id join
-                        accounting.products p on pc.id = p.category
-                ) cheapest_products
-            where
-                rn <= 1
-        )
-        select *
-        from resolved_product;
+            accounting.wallet_owner target_owner on
+                (request.recipient_is_project and target_owner.project_id = request.recipient) or
+                (not request.recipient_is_project and target_owner.username = request.recipient) left join
+            accounting.wallets target_wallet on
+                target_wallet.owned_by = target_owner and
+                target_wallet.category = source_wallet.category
+        where
+            request.initiated_by = source_owner.username or
+            request.initiated_by = pm.username;
 
     -- NOTE(Dan): We don't know for sure that the wallet_owner doesn't exist, but it might not exist since there is
     -- no wallet.
@@ -612,37 +565,30 @@ begin
         (r.recipient_is_project and wo.project_id = r.recipient) or
         (not r.recipient_is_project and wo.username = r.recipient);
 
-    -- NOTE(Dan): Create the transactions which describe the change.
-    insert into accounting.transactions (id, transaction_type, target_wallet_id, units, number_of_products,
-            action_performed_by, action_performed_by_wallet, product_id, transfer_from_wallet_id, description)
-    select
-        r.transaction_id,
-        'DEPOSIT',
-        r.target_wallet,
-        r.number_of_units,
-        1,
-        request.initiated_by,
-        r.source_wallet,
-        r.product_id,
-        null,
-        request.description
-    from deposit_result r;
-
-    -- NOTE(Dan): And we can now, finally, insert the allocation.
-    insert into accounting.wallet_allocations (id, associated_wallet, balance, initial_balance, start_date, end_date,
-        allocation_path, parent_wallet_id, transaction_id)
-    select
-        nextval('accounting.wallet_allocations_id_seq'),
-        r.target_wallet,
-        r.desired_balance,
-        r.desired_balance,
-        r.start_date,
-        r.end_date,
-        (r.source_allocation_path::text || '.' || currval('accounting.wallet_allocations_id_seq')::text)::ltree,
-        r.source_wallet,
-        r.transaction_id
-    from deposit_result r
-    where r.target_wallet is not null;
+    -- NOTE(Dan): Create allocations and insert transactions
+    with new_allocations as (
+        insert into accounting.wallet_allocations
+            (id, associated_wallet, balance, initial_balance, start_date, end_date,
+             allocation_path, parent_wallet_id)
+        select
+            r.idx,
+            r.target_wallet,
+            r.desired_balance,
+            r.desired_balance,
+            r.start_date,
+            r.end_date,
+            (r.source_allocation_path::text || '.' || r.idx::text)::ltree,
+            r.source_wallet
+        from deposit_result r
+        where r.target_wallet is not null
+        returning id, balance
+    )
+    insert into accounting.new_transactions
+    (type, affected_allocation_id, action_performed_by, change, description, start_date)
+    select 'deposit', alloc.id, r.initiated_by, alloc.balance, 'Initial balance', now()
+    from
+        new_allocations alloc join
+        deposit_result r on alloc.id = r.idx;
 end;
 $$;
 
