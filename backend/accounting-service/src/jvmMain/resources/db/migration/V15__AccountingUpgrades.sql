@@ -275,7 +275,7 @@ alter table accounting.wallets alter column owned_by set not null;
 ---- /Add wallet owners to wallets ----
 
 
----- Verify wallet allocation paths ----
+---- Verify allocation updates ----
 
 create or replace function accounting.allocation_path_check() returns trigger as $$
 declare
@@ -302,7 +302,38 @@ create constraint trigger allocation_path_check
 after insert or update of allocation_path on accounting.wallet_allocations
 for each row execute function accounting.allocation_path_check();
 
----- /Verify wallet allocation paths ----
+create or replace function accounting.allocation_date_check() returns trigger as $$
+declare
+    is_valid boolean;
+begin
+    select bool_or(valid) into is_valid
+    from (
+        select
+            (ancestor.start_date <= new.start_date) and
+            (
+                ancestor.end_date is null or
+                ancestor.end_date >= new.end_date
+            ) is true as valid
+        from accounting.wallet_allocations ancestor
+        where
+            ancestor.allocation_path @> new.allocation_path and
+            ancestor.id != new.id
+    ) checks;
+
+    if not is_valid then
+        raise exception 'Update would extend allocation period';
+    end if;
+
+    return null;
+end;
+$$ language plpgsql;
+
+create constraint trigger allocation_date_check
+after insert or update of start_date, end_date on accounting.wallet_allocations
+for each row execute function accounting.allocation_date_check();
+
+
+---- /Verify allocation updates ----
 
 ---- Product category relationship ----
 
