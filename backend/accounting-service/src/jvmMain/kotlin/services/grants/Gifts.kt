@@ -2,8 +2,6 @@ package dk.sdu.cloud.accounting.services.grants
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Actor
-import dk.sdu.cloud.accounting.api.TransactionType
-import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.grant.api.*

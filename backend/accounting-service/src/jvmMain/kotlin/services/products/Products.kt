@@ -1,9 +1,6 @@
 package dk.sdu.cloud.accounting.services.products
 
-import dk.sdu.cloud.accounting.services.wallets.BalanceService
-
 class ProductService(
-    private val balanceService: BalanceService,
 ) {
     /*
     suspend fun create(

@@ -492,8 +492,6 @@ create type accounting.deposit_request as (
     recipient_is_project boolean,
     source_allocation bigint,
     desired_balance bigint,
-    product_cat_name text,
-    product_provider text,
     start_date timestamptz,
     end_date timestamptz,
     description text
@@ -514,7 +512,7 @@ begin
             target_wallet.id target_wallet,
             request.recipient,
             request.recipient_is_project,
-            request.start_date,
+            coalesce(request.start_date, now()),
             request.end_date,
             request.desired_balance,
             request.initiated_by,

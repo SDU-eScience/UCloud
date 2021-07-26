@@ -1,5 +1,7 @@
 package dk.sdu.cloud.service.db
 
+import dk.sdu.cloud.service.db.async.TransactionMode
+
 /**
  * Provides a fake [DBSessionFactory] all session objects are [Unit]
  *
@@ -10,7 +12,7 @@ object FakeDBSessionFactory : DBSessionFactory<Unit> {
 
     override suspend fun closeSession(session: Unit) {}
 
-    override suspend fun openTransaction(session: Unit) {}
+    override suspend fun openTransaction(session: Unit, transactionMode: TransactionMode?) {}
 
     override suspend fun commit(session: Unit) {}
 
