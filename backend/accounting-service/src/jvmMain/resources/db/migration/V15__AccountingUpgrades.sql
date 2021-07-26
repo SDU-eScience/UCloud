@@ -117,8 +117,7 @@ create table accounting.wallet_allocations(
     initial_balance bigint not null,
     start_date timestamptz not null,
     end_date timestamptz,
-    allocation_path ltree not null,
-    parent_wallet_id bigint references accounting.wallets(id)
+    allocation_path ltree not null
 
     -- NOTE(Dan): we can trace this back to the original transaction by doing a reverse-lookup
 );
@@ -275,6 +274,35 @@ alter table accounting.wallets alter column owned_by set not null;
 
 ---- /Add wallet owners to wallets ----
 
+
+---- Verify wallet allocation paths ----
+
+create or replace function accounting.allocation_path_check() returns trigger as $$
+declare
+    has_violation boolean;
+begin
+    select bool_or(is_cyclic) into has_violation
+    from (
+        select allocation_path @> new.allocation_path as is_cyclic
+        from accounting.wallet_allocations
+        where
+            associated_wallet = new.associated_wallet and
+            id != new.id
+    ) checks;
+
+    if has_violation then
+        raise exception 'Update would introduce a cyclic allocation';
+    end if;
+
+    return null;
+end;
+$$ language plpgsql;
+
+create constraint trigger allocation_path_check
+after insert or update of allocation_path on accounting.wallet_allocations
+for each row execute function accounting.allocation_path_check();
+
+---- /Verify wallet allocation paths ----
 
 ---- Product category relationship ----
 
@@ -567,7 +595,7 @@ begin
     with new_allocations as (
         insert into accounting.wallet_allocations
             (id, associated_wallet, balance, initial_balance, start_date, end_date,
-             allocation_path, parent_wallet_id)
+             allocation_path)
         select
             r.idx,
             r.target_wallet,
@@ -575,8 +603,7 @@ begin
             r.desired_balance,
             r.start_date,
             r.end_date,
-            (r.source_allocation_path::text || '.' || r.idx::text)::ltree,
-            r.source_wallet
+            (r.source_allocation_path::text || '.' || r.idx::text)::ltree
         from deposit_result r
         where r.target_wallet is not null
         returning id, balance
