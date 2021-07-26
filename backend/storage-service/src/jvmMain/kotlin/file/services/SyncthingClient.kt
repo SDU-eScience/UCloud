@@ -244,50 +244,50 @@ class SyncthingClient(
 
     suspend fun writeConfig() {
         mutex.withLock {
-            config.devices.forEach { device ->
-                val result = db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("localDevice", device.id)
-                        },
-                        """
-                           select id, path, access_type, d.device_id, d.user_id
+            val result = db.withSession { session ->
+                session.sendPreparedStatement(
+                    """
+                           select id, path, access_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
                            from
                               storage.synchronized_folders f join
                               storage.user_devices d on f.user_id = d.user_id
-                           where
-                              f.device_id = :localDevice
                         """
-                    )
-                }.rows
+                )
+            }.rows
+
+            config.devices.forEach { device ->
                 val oldConfig = readConfig(device)
 
                 val newConfig = oldConfig.copy(
-                    devices = result.map { row ->
-                        SyncthingDevice(
-                            deviceID = row.getField(UserDevicesTable.device),
-                            name = row.getField(UserDevicesTable.device)
-                        )
-                    } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
-                    folders = result.map { row ->
-                        SyncthingFolder(
-                            id = row.getField(SynchronizedFoldersTable.id),
-                            label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
-                            devices = db.withSession { session ->
-                                session.sendPreparedStatement(
-                                    {
-                                        setParameter("user", row.getField(UserDevicesTable.user))
+                    devices = result
+                        .filter {
+                            it.getString("local_device_id") == device.id
+                        }
+                        .distinctBy { it.getField(UserDevicesTable.device) }
+                        .map { row ->
+                            SyncthingDevice(
+                                deviceID = row.getField(UserDevicesTable.device),
+                                name = row.getField(UserDevicesTable.device)
+                            )
+                        } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                    folders = result
+                        .filter { it.getString("local_device_id") == device.id }
+                        .distinctBy { it.getField(SynchronizedFoldersTable.id) }
+                        .map { row ->
+                            SyncthingFolder(
+                                id = row.getField(SynchronizedFoldersTable.id),
+                                label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
+                                devices = result
+                                    .filter {
+                                        it.getString("local_device_id") == device.id &&
+                                        it.getField(SynchronizedFoldersTable.id) == row.getField(SynchronizedFoldersTable.id) &&
+                                        it.getField(UserDevicesTable.user) == row.getField(SynchronizedFoldersTable.user)
+                                    }.map {
+                                        SyncthingFolderDevice(it.getField(UserDevicesTable.device))
                                     },
-                                    """
-                                        select device_id
-                                        from storage.user_devices
-                                        where user_id = :user
-                                    """
-                                ).rows.map { SyncthingFolderDevice(it.getField(UserDevicesTable.device)) }
-                            },
-                            path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
-                        )
-                    }
+                                path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
+                            )
+                        }
                 )
 
                 val resp = httpClient.put<HttpResponse>("http://" + device.hostname + "/rest/config") {
@@ -301,7 +301,10 @@ class SyncthingClient(
                 }
 
                 if (resp.status != HttpStatusCode.OK) {
-                    throw RPCException(resp.content.toByteArray().toString(Charsets.UTF_8), HttpStatusCode.BadRequest)
+                    throw RPCException(
+                        resp.content.toByteArray().toString(Charsets.UTF_8),
+                        HttpStatusCode.BadRequest
+                    )
                 }
             }
         }

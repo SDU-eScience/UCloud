@@ -33,7 +33,6 @@ class SynchronizationService(
     private val aclService: AclService
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
-        println("Init device")
         db.withSession { session ->
             syncthing.config.devices.minByOrNull { device ->
                 session.sendPreparedStatement(
@@ -56,10 +55,8 @@ class SynchronizationService(
         val resolvedDevice = folderDeviceCache.get(Unit)
 
         if (resolvedDevice != null) {
-            println("Using cached device")
             return resolvedDevice
         } else {
-            println("Lookup device")
             val deviceLookup = syncthing.config.devices.minByOrNull { device ->
                 session.sendPreparedStatement(
                     {
@@ -130,9 +127,9 @@ class SynchronizationService(
                     """
                 )
             }
-
-            syncthing.writeConfig()
         }
+
+        syncthing.writeConfig()
     }
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
@@ -157,7 +154,7 @@ class SynchronizationService(
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
         db.withSession { session ->
             request.items.forEach { item ->
-                if (syncthing.config.devices.find { it.id == item.id } != null) {
+                if (syncthing.config.devices.any { it.id == item.id }) {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
 
