@@ -162,6 +162,17 @@ data class TransferToWalletRequestItem(
 
 typealias TransferToWalletResponse = Unit
 
+@Serializable
+data class UpdateAllocationRequestItem(
+    val id: String,
+    val balance: Long,
+    val startDate: Long?,
+    val endDate: Long?,
+    val reason: String,
+)
+
+typealias UpdateAllocationResponse = Unit
+
 object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
 
@@ -181,5 +192,37 @@ object Accounting : CallDescriptionContainer("accounting") {
         "transfer"
     ) {
         httpUpdate(baseContext, "transfer")
+    }
+
+    val updateAllocation = call<BulkRequest<UpdateAllocationRequestItem>, UpdateAllocationResponse, CommonErrorMessage>(
+        "updateAllocation"
+    ) {
+        httpUpdate(baseContext, "allocation")
+
+        documentation {
+            summary = "Update an existing allocation"
+
+            description = """
+                Updates one or more existing allocations. This endpoint will use all the provided values. That is,
+                you must provide all values, even if they do not change. This will generate a transaction indicating
+                the change. This will set the initial balance of the allocation, as if it was initially created with
+                this value.
+                
+                The constraints that are in place during a standard creation are still in place when updating the
+                values. This means that the new start and end dates _must_ overlap with the values of all ancestors.
+            """.trimIndent()
+        }
+    }
+
+    val check = call<BulkRequest<ChargeWalletRequestItem>, BulkResponse<Boolean>, CommonErrorMessage>("check") {
+        httpUpdate(baseContext, "check", roles = Roles.SERVICE)
+
+        documentation {
+            summary = "Checks if one or more wallets are able to carry a charge"
+            description = """
+                Checks if one or more charges would succeed without lacking credits. This will not generate a
+                transaction message, and as a result, the description will never be used.
+            """.trimIndent()
+        }
     }
 }
