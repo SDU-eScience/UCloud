@@ -324,6 +324,24 @@ begin
         raise exception 'Update would extend allocation period';
     end if;
 
+    select bool_or(valid) into is_valid
+    from (
+        select
+            (new.start_date <= descendant.start_date) and
+            (
+                new.end_date is null or
+                new.end_date >= descendant.end_date
+            ) is true as valid
+        from accounting.wallet_allocations descendant
+        where
+            new.allocation_path @> descendant.allocation_path and
+            descendant.id != new.id
+    ) checks;
+
+    if not is_valid then
+        raise exception 'Update would extend allocation period';
+    end if;
+
     return null;
 end;
 $$ language plpgsql;
