@@ -179,6 +179,38 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateAllocationRequestItem>,
     ) {
-        TODO()
+        db.withSession(remapExceptions = true, transactionMode) { session ->
+            session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long?>()
+                    val balance by parameterList<Long>()
+                    val startDates by parameterList<Long>()
+                    val endDates by parameterList<Long?>()
+                    val descriptions by parameterList<String>()
+                    setParameter("performed_by", actorAndProject.actor.safeUsername())
+                    for (req in request.items) {
+                        ids.add(req.id.toLongOrNull())
+                        balance.add(req.balance)
+                        descriptions.add(req.reason)
+                        startDates.add(req.startDate / 1000)
+                        endDates.add(req.endDate?.let { it / 1000 })
+                    }
+                },
+                """
+                    with requests as (
+                        select (
+                            :performed_by,
+                            unnest(:ids::bigint[]),
+                            to_timestamp(unnest(:start_dates::bigint[])),
+                            to_timestamp(unnest(:end_dates::bigint[])),
+                            unnest(:descriptions::text[]),
+                            unnest(:balance::bigint[])
+                        )::accounting.allocation_update_request req
+                    )
+                    select accounting.update_allocations(array_agg(req))
+                    from requests
+                """
+            )
+        }
     }
 }

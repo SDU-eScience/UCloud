@@ -166,7 +166,7 @@ typealias TransferToWalletResponse = Unit
 data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
-    val startDate: Long?,
+    val startDate: Long,
     val endDate: Long?,
     val reason: String,
 )

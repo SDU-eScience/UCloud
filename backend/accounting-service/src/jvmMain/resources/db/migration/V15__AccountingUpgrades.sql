@@ -666,4 +666,100 @@ begin
 end;
 $$;
 
+create type accounting.allocation_update_request as (
+    performed_by text,
+    allocation_id bigint,
+    start_date timestamptz,
+    end_date timestamptz,
+    description text,
+    balance bigint
+);
+
+create or replace function accounting.update_allocations(
+    request accounting.allocation_update_request[]
+) returns void language plpgsql as $$
+begin
+    create temporary table update_result on commit drop as
+    with requests as (
+        select performed_by, allocation_id, start_date, end_date, description, balance
+        from unnest(request)
+    )
+    select
+        alloc.id as alloc_id, parent.id as parent_id, descendant.id as descandant_id,
+        alloc.balance as alloc_balance, descendant.balance as descendant_balance,
+        req.performed_by, req.start_date, req.end_date, req.description, req.balance
+    from
+        requests req join
+        accounting.wallet_allocations alloc on allocation_id = alloc.id join
+
+        -- NOTE(Dan): Find the parent allocation and the parent's owner
+        accounting.wallet_allocations parent on
+            parent.id = subpath(alloc.allocation_path, nlevel(alloc.allocation_path) - 2, 1)::text::bigint and
+            parent.id != alloc.id join
+        accounting.wallets parent_wallet on parent.associated_wallet = parent_wallet.id join
+        accounting.wallet_owner parent_owner on parent_owner.id = parent_wallet.owned_by left join
+        project.project_members pm on
+            parent_owner.project_id = pm.project_id and
+            pm.username = req.performed_by and
+            pm.role = 'ADMIN' left join
+
+        -- NOTE(Dan): Find descendants with non-overlapping allocation periods
+        accounting.wallet_allocations descendant on
+            alloc.allocation_path @> descendant.allocation_path and
+            (
+                (req.start_date >= descendant.start_date) or
+                (req.end_date is not null and descendant.end_date is null) or
+                (req.end_date is not null and req.end_date >= descendant.end_date)
+            )
+    where
+        -- NOTE(Dan): Check that we are allowed to act on the parent's behalf
+        req.performed_by = pm.username or
+        req.performed_by = parent_owner.username;
+
+    -- NOTE(Dan): Update the descendants. This needs to happen bottom-up.
+    with update_table as (
+        select descandant_id, start_date, end_date
+        from update_result
+        where descandant_id is not null
+        order by descandant_id desc -- NOTE(Dan): Order by bottom-up.
+    )
+    update accounting.wallet_allocations alloc
+    set
+        start_date = update_table.start_date,
+        end_date = update_table.end_date
+    where
+        alloc.id = update_table.descandant_id;
+
+    -- NOTE(Dan): Update the target allocation
+    with update_table as (
+        select distinct alloc_id, start_date, end_date, balance
+        from update_result
+    )
+    update accounting.wallet_allocations alloc
+    set
+        start_date = update_table.start_date,
+        end_date = update_table.end_date,
+        balance = update_table.balance
+    from update_table
+    where alloc.id = update_table.alloc_id;
+
+    -- NOTE(Dan): Insert transactions for all descendants
+    insert into accounting.transactions
+        (type, affected_allocation_id, action_performed_by, change, description, source_allocation_id,
+        start_date, end_date)
+    select 'allocation_update', u.descandant_id, u.performed_by, 0, u.description, u.parent_id, u.start_date, u.end_date
+    from update_result u
+    where u.descandant_id is not null;
+
+    -- NOTE(Dan): Insert transactions for all target allocations
+    insert into accounting.transactions
+        (type, affected_allocation_id, action_performed_by, change, description, source_allocation_id,
+        start_date, end_date)
+    select distinct
+        'allocation_update', u.alloc_id, u.performed_by, u.balance - u.alloc_balance, u.description, u.parent_id,
+        u.start_date, u.end_date
+    from update_result u;
+end;
+$$;
+
 ---- /Procedures ----
