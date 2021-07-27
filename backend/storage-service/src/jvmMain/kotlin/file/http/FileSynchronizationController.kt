@@ -35,7 +35,7 @@ class SynchronizationController(
         }
 
         implement(FileSynchronization.browseDevices) {
-            ok(synchronizationService.browseDevices(actorAndProject.actor))
+            ok(synchronizationService.browseDevices(actorAndProject.actor, request))
         }
     }
 }

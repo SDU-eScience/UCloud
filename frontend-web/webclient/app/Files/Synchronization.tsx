@@ -1,6 +1,7 @@
 import { useCloudAPI, useCloudCommand } from "Authentication/DataHook";
+import * as Pagination from "Pagination";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Checkbox, Flex, Icon, Input, Label, SelectableText, SelectableTextWrapper } from "ui-components";
 import List, { ListRow } from "ui-components/List";
 import { Text } from "ui-components";
@@ -31,13 +32,19 @@ export const SynchronizationSettings: React.FunctionComponent<{
 
     const [manageDevices, setManageDevices] = useState(false);
     const [devices, fetchDevices] = useCloudAPI<PageV2<file.SynchronizationDevice>>(
-        sync.browseDevices({ provider }),
+        sync.browseDevices({ provider, itemsPerPage: 25, next: undefined }),
         emptyPageV2
     );
     const [folder, fetchFolder] = useCloudAPI<file.SynchronizedFolder|undefined>(
         sync.retrieveFolder({ path: path, provider }),
         undefined
     );
+
+    const loadMore = useCallback(() => {
+        if (devices.data.next) {
+            fetchDevices(sync.browseDevices({ provider, next: devices.data.next }));
+        }
+    }, [devices.data.next]);
 
 
     const deviceIdRef = useRef<HTMLInputElement>(null);
@@ -49,7 +56,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
         e.preventDefault();
         if (deviceIdRef.current && deviceIdRef.current.value.length > 0) {
             await invokeCommand(sync.addDevice(bulkRequestOf({ id: deviceIdRef.current.value, provider })));
-            fetchDevices(sync.browseDevices({ provider }), true);
+            fetchDevices(sync.browseDevices({ provider, itemsPerPage: 25, next: undefined}), true);
             deviceIdRef.current.value = "";
             snackbarStore.addSuccess("Added device", false);
         } else {
@@ -59,7 +66,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
 
     const removeDevice = async (id: string) => {
         await invokeCommand(sync.removeDevice(bulkRequestOf({ id, provider })));
-        fetchDevices(sync.browseDevices({ provider }), true);
+        fetchDevices(sync.browseDevices({ provider, itemsPerPage: 25, next: undefined }), true);
         snackbarStore.addSuccess("Removed device", false);
     };
 
@@ -105,27 +112,35 @@ export const SynchronizationSettings: React.FunctionComponent<{
                         <Button color="green" width="160px">Add device</Button>
                     </Flex>
                 </form>
-                <List>
-                    {devices.data.items.map(d => {
-                        return (
-                            <ListRow
-                                key={d.id}
-                                left={
-                                    <>
-                                        {d.id}
-                                    </>
-                                } 
-                                right={
-                                    <>
-                                        <Button color="red" onClick={() => removeDevice(d.id)}>
-                                            <Icon name="trash" size="16px"/>
-                                        </Button>
-                                    </>
-                                }
-                            />
-                        )
-                    })}
-                </List>
+                <Pagination.ListV2
+                    page={devices.data}
+                    loading={devices.loading}
+                    onLoadMore={loadMore}
+                    customEmptyPage={"No Syncthing devices added. Add the device ID of Syncthing installed on your device to start synchronization."}
+                    pageRenderer={(items) =>
+                        <List>
+                            {items.map(d => {
+                                return (
+                                    <ListRow
+                                        key={d.id}
+                                        left={
+                                            <>
+                                                {d.id}
+                                            </>
+                                        } 
+                                        right={
+                                            <>
+                                                <Button color="red" onClick={() => removeDevice(d.id)}>
+                                                    <Icon name="trash" size="16px"/>
+                                                </Button>
+                                            </>
+                                        }
+                                    />
+                                )
+                            })}
+                        </List>
+                    }
+                />
             </>
         ) : (
             <>

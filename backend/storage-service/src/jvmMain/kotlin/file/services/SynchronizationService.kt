@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -29,7 +30,7 @@ object UserDevicesTable : SQLTable("user_devices") {
 class SynchronizationService(
     private val syncthing: SyncthingClient,
     private val fsPath: String,
-    private val db: DBContext,
+    private val db: AsyncDBSessionFactory,
     private val aclService: AclService
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
@@ -198,22 +199,26 @@ class SynchronizationService(
         syncthing.writeConfig()
     }
 
-    suspend fun browseDevices(actor: Actor): PageV2<SynchronizationDevice> {
-        val devices = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", actor.username)
-                },
-                """
+    suspend fun browseDevices(actor: Actor, request: SynchronizationBrowseDevicesRequest): PageV2<SynchronizationDevice> {
+        return db.paginateV2(
+            actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("user", actor.username)
+                    },
+                    """
+                        declare c cursor for
                         select device_id
                         from storage.user_devices
                         where user_id = :user
-                        limit 100
+                        order by device_id
                     """
-            ).rows.map { SynchronizationDevice(it.getField(UserDevicesTable.device)) }
-        }
-
-        return PageV2(100, devices, null)
+                )
+            },
+            mapper = { _, rows -> rows.map { SynchronizationDevice(it.getField(UserDevicesTable.device)) } }
+       )
     }
 
     suspend fun retrieveFolder(actor: Actor, path: String): SynchronizedFolder {

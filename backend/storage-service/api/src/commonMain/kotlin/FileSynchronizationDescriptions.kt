@@ -1,9 +1,7 @@
 package dk.sdu.cloud.file.api
 
+import dk.sdu.cloud.*
 import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
@@ -24,8 +22,12 @@ data class SynchronizedFolder(
 
 @Serializable
 data class SynchronizationBrowseDevicesRequest(
-    val provider: String
-)
+    val provider: String,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
 typealias SynchronizationBrowseDevicesResponse = PageV2<SynchronizationDevice>
 
 @Serializable

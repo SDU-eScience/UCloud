@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Jul 22 15:10:55 CEST 2021 */
+/* Generated at: Tue Jul 27 08:52:25 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -7104,8 +7104,58 @@ export interface SynchronizationDeviceItem {
 export interface SynchronizationDevice {
     id: string,
 }
+/**
+ * The base type for requesting paginated content.
+ * 
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ * 
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ * 
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ * 
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ * 
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ * 
+ * ---
+ * 
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ * 
+ * ---
+ * 
+ */
 export interface SynchronizationBrowseDevicesRequest {
     provider: string,
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: "PREFER" | "REQUIRE",
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
 }
 export namespace metadata {
 export function findMetadata(
@@ -7343,7 +7393,7 @@ export function browseDevices(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/files/synchronization" + "/browse", {provider: request.provider}),
+        path: buildQueryString("/api/files/synchronization" + "/browse", {provider: request.provider, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
         parameters: request,
         reloadId: Math.random(),
     };
