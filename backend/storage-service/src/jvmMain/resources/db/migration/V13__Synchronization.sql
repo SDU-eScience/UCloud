@@ -12,4 +12,4 @@ create table user_devices (
 );
 
 alter table synchronized_folders
-    add constraint unique_synchronized_folders unique (path, access_type, user_id);
+    add constraint unique_synchronized_folders unique (path, user_id);

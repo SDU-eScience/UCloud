@@ -82,8 +82,8 @@ class SynchronizationService(
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
-        db.withSession { session ->
-            request.items.forEach { folder ->
+        val affectedRows: Long = db.withSession { session ->
+            request.items.map { folder ->
                 val internalFile = File(fsPath, folder.path)
                 if (CephFsFastDirectoryStats.getRecursiveFileCount(internalFile) > 1_000_000) {
                     throw RPCException(
@@ -126,16 +126,18 @@ class SynchronizationService(
                             :access
                         )
                     """
-                )
-            }
+                ).rowsAffected
+            }.sum()
         }
 
-        syncthing.writeConfig()
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
-        db.withSession { session ->
-            request.items.forEach { item ->
+        val affectedRows = db.withSession { session ->
+            request.items.map { item ->
                 session.sendPreparedStatement(
                     {
                         setParameter("id", item.id)
@@ -145,16 +147,18 @@ class SynchronizationService(
                         delete from storage.synchronized_folders
                         where id = :id and user_id = :user
                     """
-                )
-            }
+                ).rowsAffected
+            }.sum()
         }
 
-        syncthing.writeConfig()
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
-        db.withSession { session ->
-            request.items.forEach { item ->
+        val affectedRows = db.withSession { session ->
+            request.items.map { item ->
                 if (syncthing.config.devices.any { it.id == item.id }) {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
@@ -173,16 +177,18 @@ class SynchronizationService(
                             :user
                         )
                     """
-                )
-            }
+                ).rowsAffected
+            }.sum()
         }
 
-        syncthing.writeConfig()
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     suspend fun removeDevice(actor: Actor, request: SynchronizationRemoveDeviceRequest) {
-        db.withSession { session ->
-            request.items.forEach { item ->
+        val affectedRows = db.withSession { session ->
+            request.items.map { item ->
                 session.sendPreparedStatement(
                     {
                         setParameter("id", item.id)
@@ -192,11 +198,13 @@ class SynchronizationService(
                         delete from storage.user_devices
                         where device_id = :id and user_id = :user
                     """
-                )
-            }
+                ).rowsAffected
+            }.sum()
         }
 
-        syncthing.writeConfig()
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     suspend fun browseDevices(actor: Actor, request: SynchronizationBrowseDevicesRequest): PageV2<SynchronizationDevice> {
@@ -232,18 +240,17 @@ class SynchronizationService(
                         select id, path, device_id
                         from storage.synchronized_folders
                         where user_id = :user and path = :path
-                        limit 100
                     """
-            ).rows
+            ).rows.singleOrNull()
 
-            if (folder.isEmpty()) {
+            if (folder.isNullOrEmpty()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
 
             SynchronizedFolder(
-                id = folder.first().getField(SynchronizedFoldersTable.id),
+                id = folder.getField(SynchronizedFoldersTable.id),
                 path = path,
-                device_id = folder.first().getField(SynchronizedFoldersTable.device)
+                device_id = folder.getField(SynchronizedFoldersTable.device)
             )
         }
     }
