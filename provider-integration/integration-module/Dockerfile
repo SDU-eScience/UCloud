@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS base
+FROM ubuntu:20.04 AS BASE
 
 # Dependencies
 RUN apt-get update
@@ -16,15 +16,9 @@ RUN mkdir -p /var/run/ucloud/envoy
 RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
-# Init system
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
 
 
-
-FROM base as development
+FROM BASE AS DEVELOPMENT
 
 RUN useradd --user-group testuser 
 RUN apt-get install -y vim
@@ -33,16 +27,11 @@ RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module
 COPY default_config /opt/ucloud-default-config
 RUN chmod +x /opt/ucloud-default-config/config_installer.sh 
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
-
-# RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
-# RUN mv /tmp/kubectl /usr/bin/kubectl
-# RUN chmod +x /usr/bin/kubectl
-
 WORKDIR /opt/ucloud
 
 
-# SLURM setup
-FROM development as slurm
-RUN apt-get update
+
+FROM DEVELOPMENT AS SLURM
+
 RUN apt-get -qq -y install munge slurm-client 
 WORKDIR /opt/ucloud
