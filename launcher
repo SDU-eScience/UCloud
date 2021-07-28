@@ -169,6 +169,9 @@ print()
 
 subprocess.run(command)
 
+sleep(5)
+
+
 
 
 if slurm:
@@ -182,6 +185,8 @@ if slurm:
 	sleep(15)
 	os.system("docker exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld ")
 	print("registered...")
+	sleep(10)
+	os.system("""docker-compose exec integration-module bash -c "chown munge:munge -R /etc/munge; service munge start ; " """)
 	print()
 	print(header("Instructions:"))
 	print("Interact with " + code("docker-compose exec slurmctld bash") )
