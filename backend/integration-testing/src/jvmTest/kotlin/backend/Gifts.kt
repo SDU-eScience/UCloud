@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.CommonErrorMessage
@@ -132,3 +133,6 @@ class GiftTests : IntegrationTest() {
         ) { !it.statusCode.isSuccess() }
     }
 }
+
+
+ */

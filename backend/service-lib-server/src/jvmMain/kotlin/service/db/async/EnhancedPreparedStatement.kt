@@ -70,6 +70,12 @@ class EnhancedPreparedStatement(
         parameters = Array(parameterIndex) { null }
     }
 
+    fun retain(vararg names: String) {
+        val newMap = rawParameters.filterKeys { it in names }
+        rawParameters.clear()
+        rawParameters.putAll(newMap)
+    }
+
     fun setParameterAsNull(name: String) {
         setParameterUntyped(name, null)
     }

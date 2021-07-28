@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.integration.backend.createUser
@@ -23,3 +24,6 @@ class ExampleE2ETest : EndToEndTest() {
         driver.goToFiles()
     }
 }
+
+
+ */

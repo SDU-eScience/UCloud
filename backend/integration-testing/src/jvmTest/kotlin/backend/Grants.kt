@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.RetrieveBalanceRequest
@@ -294,3 +295,6 @@ class GrantTest : IntegrationTest() {
         ) { !it.statusCode.isSuccess() }
     }
 }
+
+
+ */

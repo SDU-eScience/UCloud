@@ -6,19 +6,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@Deprecated("APIs will switch to WalletOwner instead")
 enum class WalletOwnerType {
     USER,
     PROJECT
 }
-
-@Serializable
-data class WalletBalance(
-    val wallet: Wallet,
-    val balance: Long,
-    val allocated: Long,
-    val used: Long,
-    val area: ProductType
-)
 
 @Serializable
 data class Wallet(
@@ -42,9 +34,11 @@ enum class AllocationSelectorPolicy{
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
-    @UCloudApiDoc("""A path, starting from the top, through the allocations that will be charged, when a charge is made
+    @UCloudApiDoc("""
+        A path, starting from the top, through the allocations that will be charged, when a charge is made
 
-Note that this allocation path will always include, as its last element, this allocation.""")
+        Note that this allocation path will always include, as its last element, this allocation.
+    """)
     val allocationPath: List<String>,
     @UCloudApiDoc("A reference to the wallet that this allocation belongs to")
     val associatedWith: String?,
@@ -85,7 +79,7 @@ object Wallets : CallDescriptionContainer("wallets") {
         httpUpdate(baseContext, "push")
     }
 
-    val browseWallets = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browseWallets") {
+    val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browseWallets") {
         httpBrowse(baseContext)
     }
 }
@@ -107,11 +101,12 @@ sealed class WalletOwner {
 data class ChargeWalletRequestItem(
     @UCloudApiDoc("The payer of this charge")
     val payer: WalletOwner,
-    @UCloudApiDoc("""The number of units that this charge is about
+    @UCloudApiDoc("""
+        The number of units that this charge is about
         
-The unit itself is defined by the product. The unit can, for example, describe that the 'units' describe the number of
-minutes/hours/days.
-""")
+        The unit itself is defined by the product. The unit can, for example, describe that the 'units' describe the
+        number of minutes/hours/days.
+    """)
     val units: Long,
     @UCloudApiDoc("The number of products involved in this charge, for example the number of nodes")
     val numberOfProducts: Long,
@@ -136,14 +131,19 @@ data class DepositToWalletRequestItem(
     val amount: Long,
     @UCloudApiDoc("A description of this change. This is used purely for presentation purposes.")
     val description: String,
-    @UCloudApiDoc("""A timestamp for when this deposit should become valid
+    @UCloudApiDoc("""
+        A timestamp for when this deposit should become valid
         
-This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
-immediately.""")
+        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
+        immediately.
+    """)
     val startDate: Long? = null,
-    @UCloudApiDoc("""A timestamp for when this deposit should become invalid
+    @UCloudApiDoc("""
+        A timestamp for when this deposit should become invalid
         
-This value must overlap with the source allocation. A value of null indicates that the allocation will never expire.""")
+        This value must overlap with the source allocation. A value of null indicates that the allocation will never
+        expire.
+    """)
     val endDate: Long? = null,
 )
 
@@ -172,6 +172,17 @@ data class UpdateAllocationRequestItem(
 )
 
 typealias UpdateAllocationResponse = Unit
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("See `DepositToWalletRequestItem`")
+data class RootDepositRequestItem(
+    val categoryId: ProductCategoryId,
+    val recipient: WalletOwner,
+    val amount: Long,
+    val description: String,
+    val startDate: Long? = null,
+    val endDate: Long? = null
+)
 
 object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
@@ -224,5 +235,9 @@ object Accounting : CallDescriptionContainer("accounting") {
                 transaction message, and as a result, the description will never be used.
             """.trimIndent()
         }
+    }
+
+    val rootDeposit = call<BulkRequest<RootDepositRequestItem>, Unit, CommonErrorMessage>("rootDeposit") {
+        httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
     }
 }

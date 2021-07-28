@@ -29,6 +29,10 @@ class AccountingController(
         implement(Accounting.updateAllocation) {
             ok(accounting.updateAllocation(actorAndProject, request))
         }
+
+        implement(Accounting.rootDeposit) {
+            ok(accounting.rootDeposit(actorAndProject, request))
+        }
         return@with
     }
 }

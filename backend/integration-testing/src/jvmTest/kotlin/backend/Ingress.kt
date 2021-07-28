@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -149,3 +150,6 @@ class Ingress : IntegrationTest() {
         ) { responses.drop(1).all { it.statusCode == HttpStatusCode.Conflict } }
     }
 }
+
+
+ */

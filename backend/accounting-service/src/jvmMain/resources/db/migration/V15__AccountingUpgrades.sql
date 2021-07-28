@@ -92,7 +92,7 @@ create unique index wallet_owner_uniq on accounting.wallet_owner (coalesce(usern
 
 insert into accounting.wallet_owner (username)
 select id from auth.principals
-where role = 'USER' or role = 'ADMIN';
+where role = 'USER' or role = 'ADMIN'; -- TODO dtype?
 
 insert into accounting.wallet_owner (project_id)
 select id from project.projects;
@@ -128,6 +128,7 @@ create table accounting.wallet_allocations(
 ---- Additions to transactions ----
 
 create table accounting.new_transactions(
+    -- TODO Add a unique ID for the initiator transaction
     id bigserial primary key,
     type accounting.transaction_type not null,
     created_at timestamptz not null default now(),
@@ -203,21 +204,21 @@ on conflict do nothing;
 with new_allocations as (
     insert into accounting.wallet_allocations
         (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path)
-        select
-            nextval('accounting.wallet_allocations_id_seq'),
-            w.id,
-            w.balance,
-            w.balance,
-            now(),
-            null,
-            currval('accounting.wallet_allocations_id_seq')::text::ltree
-        from
-            accounting.wallet_owner wo join
-            accounting.wallets w on
-                        wo.username = w.account_id and
-                        w.account_type = 'USER' and
-                        wo.username is not null
-        returning id, balance
+    select
+        nextval('accounting.wallet_allocations_id_seq'),
+        w.id,
+        w.balance,
+        w.balance,
+        now(),
+        null,
+        currval('accounting.wallet_allocations_id_seq')::text::ltree
+    from
+        accounting.wallet_owner wo join
+        accounting.wallets w on
+            wo.username = w.account_id and
+            w.account_type = 'USER' and
+            wo.username is not null
+    returning id, balance
 )
 insert into accounting.new_transactions
     (type, affected_allocation_id, action_performed_by, change, description, start_date)
@@ -243,9 +244,8 @@ with new_allocations as (
     from
         accounting.wallet_owner wo join
         accounting.wallets w on
-            wo.username = w.account_id and
-            w.account_type = 'PROJECT' and
-            wo.project_id is not null
+            wo.project_id = w.account_id and
+            w.account_type = 'PROJECT'
     returning id, balance
 )
 insert into accounting.new_transactions
@@ -300,7 +300,7 @@ $$ language plpgsql;
 
 create constraint trigger allocation_path_check
 after insert or update of allocation_path on accounting.wallet_allocations
-for each row execute function accounting.allocation_path_check();
+for each row execute procedure accounting.allocation_path_check();
 
 create or replace function accounting.allocation_date_check() returns trigger as $$
 declare
@@ -348,7 +348,7 @@ $$ language plpgsql;
 
 create constraint trigger allocation_date_check
 after insert or update of start_date, end_date on accounting.wallet_allocations
-for each row execute function accounting.allocation_date_check();
+for each row execute procedure accounting.allocation_date_check();
 
 
 ---- /Verify allocation updates ----
@@ -441,6 +441,7 @@ begin
             product_and_price as (
                 select
                     p.id product_id,
+                    pc.id product_category,
                     request.units * request.number_of_products * p.price_per_unit as payment_required,
                     request.*
                 from
@@ -484,7 +485,9 @@ begin
                             sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
                         from
                             accounting.wallet_allocations alloc join
-                            accounting.wallets w on alloc.associated_wallet = w.id join
+                            accounting.wallets w on
+                                alloc.associated_wallet = w.id and
+                                w.category = p.product_category join
                             accounting.wallet_owner wo on w.owned_by = wo.id
                         where
                             (
@@ -598,7 +601,9 @@ begin
             accounting.wallet_allocations source_alloc join
             accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
             accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
-            project.project_members pm on source_owner.project_id = pm.project_id and pm.role = 'ADMIN' left join
+            project.project_members pm on
+                source_owner.project_id = pm.project_id and
+                (pm.role = 'ADMIN' or pm.role = 'PI') left join
 
             accounting.wallet_owner target_owner on
                 (request.recipient_is_project and target_owner.project_id = request.recipient) or
@@ -663,6 +668,7 @@ begin
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
+    -- TODO USE THE ACTUAL DESCRIPTION AND NOT INITIAL BALANCE
 end;
 $$;
 
@@ -701,7 +707,7 @@ begin
         project.project_members pm on
             parent_owner.project_id = pm.project_id and
             pm.username = req.performed_by and
-            pm.role = 'ADMIN' left join
+            (pm.role = 'ADMIN' or pm.role = 'PI') left join
 
         -- NOTE(Dan): Find descendants with non-overlapping allocation periods
         accounting.wallet_allocations descendant on

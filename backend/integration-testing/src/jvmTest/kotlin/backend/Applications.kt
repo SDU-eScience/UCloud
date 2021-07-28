@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.FindByStringId
@@ -497,3 +498,6 @@ class ApplicationTest : IntegrationTest() {
         assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
     }
 }
+
+
+ */

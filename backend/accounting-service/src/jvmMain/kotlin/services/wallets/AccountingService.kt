@@ -168,6 +168,117 @@ class AccountingService(
         }
     }
 
+    suspend fun rootDeposit(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<RootDepositRequestItem>
+    ) {
+        db.withSession(remapExceptions = true, transactionMode) { session ->
+            val parameters: EnhancedPreparedStatement.() -> Unit = {
+                val productCategories by parameterList<String>()
+                val productProviders by parameterList<String>()
+                val usernames by parameterList<String?>()
+                val projectIds by parameterList<String?>()
+                val startDates by parameterList<Long?>()
+                val endDates by parameterList<Long?>()
+                val balances by parameterList<Long?>()
+                val descriptions by parameterList<String?>()
+                setParameter("actor", actorAndProject.actor.safeUsername())
+                for (req in request.items) {
+                    productCategories.add(req.categoryId.name)
+                    productProviders.add(req.categoryId.provider)
+                    usernames.add((req.recipient as? WalletOwner.User)?.username)
+                    projectIds.add((req.recipient as? WalletOwner.Project)?.projectId)
+                    startDates.add(req.startDate?.let { it / 1000 })
+                    endDates.add(req.endDate?.let { it / 1000 })
+                    balances.add(req.amount)
+                    descriptions.add(req.description)
+                }
+            }
+
+            session.sendPreparedStatement(
+                {
+                    parameters()
+                    retain("usernames", "project_ids")
+                },
+                """
+                    insert into accounting.wallet_owner (username, project_id) 
+                    values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
+                    on conflict do nothing
+                """
+            )
+            session.sendPreparedStatement(
+                {
+                    parameters()
+                    retain("product_categories", "product_providers", "usernames", "project_ids")
+                },
+                """
+                    with requests as (
+                        select
+                            unnest(:product_categories::text[]) product_category,
+                            unnest(:product_providers::text[]) product_provider,
+                            unnest(:usernames::text[]) username,
+                            unnest(:project_ids::text[]) project_id
+                    )
+                    insert into accounting.wallets (category, owned_by) 
+                    select pc.id, wo.id
+                    from
+                        requests req join
+                        accounting.product_categories pc on
+                            req.product_category = pc.category and
+                            req.product_provider = pc.provider join
+                        accounting.wallet_owner wo on
+                            req.username = wo.username or
+                            req.project_id = wo.project_id
+                    on conflict do nothing
+                """
+            )
+           session.sendPreparedStatement(
+                parameters,
+                """
+                    with 
+                        requests as (
+                            select 
+                                nextval('accounting.wallet_allocations_id_seq') alloc_id,
+                                unnest(:product_categories::text[]) product_category,
+                                unnest(:product_providers::text[]) product_provider,
+                                unnest(:usernames::text[]) username,
+                                unnest(:project_ids::text[]) project_id,
+                                unnest(:start_dates::text[]) start_date,
+                                unnest(:end_dates::text[]) end_date,
+                                unnest(:balances::text[]) balance,
+                                unnest(:descriptions::text[]) description,
+                                :actor actor
+                        ),
+                        new_allocations as (
+                            insert into accounting.wallet_allocations
+                                (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path) 
+                            select
+                                req.alloc_id,
+                                w.id, req.balance, req.balance, coalesce(req.start_date, now()), req.end_date,
+                                req.alloc_id::text::ltree
+                            from
+                                requests req join
+                                accounting.product_categories pc on
+                                    req.product_category = pc.category and
+                                    req.product_provider = pc.provider join
+                                accounting.wallets w on w.category = pc.id join
+                                accounting.wallet_owner wo on
+                                    w.owned_by = wo.id and
+                                    req.username = wo.username or
+                                    req.project_id = wo.project_id
+                            returning id, balance
+                        )
+                    insert into accounting.transactions
+                        (type, affected_allocation_id, action_performed_by, change, description, start_date)
+                    select 'deposit', alloc.id, r.actor, alloc.balance, r.description, coalesce(r.start_date, now())
+                    from
+                        new_allocations alloc join
+                        requests r on alloc.id = r.alloc_id
+                """
+            )
+        }
+    }
+
     suspend fun transfer(
         actorAndProject: ActorAndProject,
         request: BulkRequest<TransferToWalletRequestItem>,

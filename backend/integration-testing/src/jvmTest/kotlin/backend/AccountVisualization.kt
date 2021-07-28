@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.UsageRequest
@@ -146,3 +147,5 @@ class AccountVisualizationTest : IntegrationTest() {
         private const val AN_HOUR = 3600L * 1000
     }
 }
+
+ */

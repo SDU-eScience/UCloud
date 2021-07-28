@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.e2e
 
 import org.openqa.selenium.By
@@ -11,3 +12,5 @@ suspend fun WebDriver.login(username: String, password: String) {
     form.findElement(By.tagName("button")).click()
     await { !currentUrl.contains("login") }
 }
+
+ */

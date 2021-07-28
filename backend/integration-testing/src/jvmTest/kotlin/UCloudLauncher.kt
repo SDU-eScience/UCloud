@@ -30,6 +30,8 @@ import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.SystemTimeProvider
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -37,15 +39,11 @@ import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.test.UCloudTest
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
@@ -70,6 +68,7 @@ fun findPreferredOutgoingIp(): String {
     }
 }
 
+/*
 class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
     val hostIp: String
 
@@ -108,6 +107,7 @@ class K3sContainer : GenericContainer<K3sContainer?>("rancher/k3s:v1.16.13-rc3-k
         withFileSystemBind(UCloudLauncher.cephfsHome, UCloudLauncher.cephfsHome)
     }
 }
+ */
 
 object UCloudLauncher : Loggable {
     init {
@@ -125,7 +125,7 @@ object UCloudLauncher : Loggable {
 
     var isK8sRunning: Boolean = false
         private set
-    private lateinit var k3sContainer: K3sContainer
+//    private lateinit var k3sContainer: K3sContainer
 
     private val tempDir = if (Platform.isMac()) {
         File(System.getProperty("user.home"), "temp-integration").also { it.deleteOnExit() }
@@ -136,8 +136,8 @@ object UCloudLauncher : Loggable {
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro
     private lateinit var redisServer: RedisServer
-    private lateinit var elasticSearch: ElasticsearchContainer
-    private lateinit var ceph: CephContainer
+//    private lateinit var elasticSearch: ElasticsearchContainer
+//    private lateinit var ceph: CephContainer
     private var isRunningCeph = false
     private var localSudoPassword: String? = null
     private lateinit var refreshToken: String
@@ -173,7 +173,7 @@ object UCloudLauncher : Loggable {
     }
 
     private fun initializeDatabases() {
-        @Suppress("BlockingMethodInNonBlockingContext") val job = GlobalScope.launch {
+        @Suppress("BlockingMethodInNonBlockingContext") val job = GlobalScope.async {
             coroutineScope {
                 launch {
                     // Postgres
@@ -212,16 +212,20 @@ object UCloudLauncher : Loggable {
                     redisServer.start()
                 }
 
+                /*
                 launch {
                     // ElasticSearch
                     elasticSearch = ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:7.6.0")
                     elasticSearch.start()
                 }
 
+                 */
+
                 launch {
                     // Ceph or normal file system
                     File(cephfsHome).mkdirs()
 
+                    /*
                     if (Platform.isLinux() && shouldRunCeph) {
                         isRunningCeph = true
 
@@ -263,11 +267,12 @@ object UCloudLauncher : Loggable {
                             )!!.waitFor() != 0
                         ) throw IllegalStateException()
                     }
+                     */
                 }
             }
         }
 
-        runBlocking { job.join() }
+        runBlocking { job.await() }
     }
 
     private fun createConfiguration(): File {
@@ -317,6 +322,7 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
+        /*
         File(dir, "elasticsearch.yml").writeText(
             """
                 ---
@@ -326,6 +332,7 @@ object UCloudLauncher : Loggable {
                     port: ${elasticSearch.getMappedPort(9200)}
             """.trimIndent()
         )
+         */
 
         File(dir, "ceph.yml").writeText(
             """
@@ -368,13 +375,13 @@ object UCloudLauncher : Loggable {
     }
 
     private fun shutdown() {
-        elasticSearch.close()
+//        elasticSearch.close()
         redisServer.stop()
         TestDB.db.close()
-        if (isRunningCeph) {
-            sudo("umount", "-f", cephfsHome)
-            ceph.close()
-        }
+//        if (isRunningCeph) {
+//            sudo("umount", "-f", cephfsHome)
+//            ceph.close()
+//        }
     }
 
     suspend fun wipeDatabases() {
@@ -406,7 +413,7 @@ object UCloudLauncher : Loggable {
                 .sendPreparedStatement(
                     {},
                     """
-                        insert into principals 
+                        insert into auth.principals 
                             (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
                             phone_number, title, hashed_password, salt, org_id, email) 
                             values 
@@ -419,7 +426,7 @@ object UCloudLauncher : Loggable {
                 .sendPreparedStatement(
                     parameters,
                     """
-                        insert into refresh_tokens 
+                        insert into auth.refresh_tokens 
                             (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
                             expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
                             values
@@ -545,6 +552,7 @@ object UCloudLauncher : Loggable {
     @OptIn(ExperimentalStdlibApi::class)
     fun requireK8s() {
         if (isK8sRunning) return
+        /*
         k3sContainer = K3sContainer()
         k3sContainer.start()
         while (true) {
@@ -640,11 +648,16 @@ object UCloudLauncher : Loggable {
         isK8sRunning = true
         integrationTestingKubernetesFilePath = target.absolutePath
         integrationTestingIsKubernetesReady = true
+         */
     }
 }
 
-abstract class IntegrationTest {
+abstract class IntegrationTest : UCloudTest() {
     init {
         UCloudLauncher.launch()
+        perCasePreparation = {
+            Time.provider = SystemTimeProvider
+            UCloudLauncher.wipeDatabases()
+        }
     }
 }

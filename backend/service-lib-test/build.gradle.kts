@@ -51,10 +51,12 @@ kotlin {
                 api(project(":service-lib"))
                 api(project(":service-lib-server"))
 
-                api("junit:junit:4.12")
+                api("org.junit.jupiter:junit-jupiter-api:5.7.2")
+                implementation("org.junit.jupiter:junit-jupiter-engine:5.7.2")
 
                 api("io.ktor:ktor-server-test-host:$ktorVersion") {
                     exclude(group = "ch.qos.logback", module = "logback-classic")
+                    exclude(group = "junit", module = "junit")
                 }
                 api("io.mockk:mockk:1.9.3")
                 api("io.zonky.test:embedded-postgres:1.2.6")
@@ -63,7 +65,7 @@ kotlin {
 
         val jvmTest by getting {
             dependencies {
-                implementation(kotlin("test-junit"))
+                implementation(kotlin("test-junit5"))
             }
         }
 

@@ -1,24 +1,17 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.UCloudLauncher.requireK8s
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
-import org.junit.Ignore
-import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 
 suspend fun addFundsToPersonalProject(
@@ -27,18 +20,11 @@ suspend fun addFundsToPersonalProject(
     product: ProductCategoryId = sampleCompute.category,
     amount: Long = 10_000.DKK
 ) {
-    Wallets.transferToPersonal.call(
-        TransferToPersonalRequest(
-            listOf(
-                SingleTransferRequest(
-                    "_UCloud",
-                    amount,
-                    Wallet(rootProject, WalletOwnerType.PROJECT, product),
-                    Wallet(username, WalletOwnerType.USER, product)
-                )
-            )
+    Accounting.transfer.call(
+        bulkRequestOf(
+            TransferToWalletRequestItem(product, WalletOwner.User(username), amount)
         ),
-        serviceClient
+        serviceClient.withProject(rootProject)
     ).orThrow()
 }
 
@@ -46,100 +32,142 @@ suspend fun findPersonalWallet(
     username: String,
     client: AuthenticatedClient,
     product: ProductCategoryId
-): WalletBalance? {
-    return Wallets.retrieveBalance
-        .call(
-            RetrieveBalanceRequest(username, WalletOwnerType.USER),
-            client
-        ).orThrow()
-        .wallets.find { it.wallet.paysFor == product }
+): Wallet? {
+    return Wallets.browse.call(
+        WalletBrowseRequest(),
+        client
+    ).orThrow().items.find { it.paysFor == product }
 }
 
 suspend fun findProjectWallet(
     projectId: String,
     client: AuthenticatedClient,
     product: ProductCategoryId
-): WalletBalance? {
-    return Wallets.retrieveBalance
-        .call(
-            RetrieveBalanceRequest(projectId, WalletOwnerType.PROJECT),
-            client
-        ).orThrow()
-        .wallets.find { it.wallet.paysFor == product }
-}
-
-suspend fun reserveCredits(
-    wallet: Wallet,
-    amount: Long,
-    product: Product = sampleCompute,
-    chargeImmediately: Boolean = false
-): String {
-    val id = UUID.randomUUID().toString()
-    Wallets.reserveCredits.call(
-        ReserveCreditsRequest(
-            id,
-            amount,
-            Time.now() + 1000 * 60,
-            wallet,
-            "_UCloud",
-            product.name,
-            amount / product.pricePerUnit,
-            chargeImmediately = chargeImmediately,
-            transactionType = TransactionType.PAYMENT
-        ),
-        serviceClient
-    ).orThrow()
-    return id
+): Wallet? {
+    return Wallets.browse.call(
+        WalletBrowseRequest(),
+        client.withProject(projectId)
+    ).orThrow().items.find { it.paysFor == product }
 }
 
 class AccountingTest : IntegrationTest() {
+    override fun defineTests() {
+        run {
+            class In(
+                val walletBelongsToProject: Boolean,
+                val initialBalance: Long,
+                val units: Long,
+                val numberOfProducts: Long = 1,
+                val product: Product = sampleCompute
+            )
+
+            class Out(
+                val newBalance: Long
+            )
+
+            test<In, Out>("Deposit and charge") {
+                execute {
+                    val owner: WalletOwner
+                    val client: AuthenticatedClient
+                    val createdUser = createUser("${title}_$testId")
+
+                    if (input.walletBelongsToProject) {
+                        val id = Projects.create.call(
+                            CreateProjectRequest(
+                                "${title}_$testId",
+                                null,
+                                principalInvestigator = createdUser.username
+                            ),
+                            serviceClient
+                        ).orThrow().id
+
+                        owner = WalletOwner.Project(id)
+                        client = serviceClient.withProject(id)
+                    } else {
+                        client = createdUser.client
+                        owner = WalletOwner.User(createdUser.username)
+                    }
+
+                    Accounting.rootDeposit.call(
+                        bulkRequestOf(
+                            RootDepositRequestItem(
+                                input.product.category,
+                                owner,
+                                input.initialBalance,
+                                "Initial deposit"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    val initialWallets = Wallets.browse.call(WalletBrowseRequest(), client).orThrow().items
+
+                    assertThatInstance(initialWallets, "has a single wallet with correct parameters") {
+                        it.size == 1 && it.single().paysFor == input.product.category &&
+                                it.single().allocations.size == 1
+                    }
+
+                    assertThatInstance(initialWallets.single().allocations.single(), "has a valid allocation") {
+                        it.balance == input.initialBalance &&
+                                it.initialBalance == input.initialBalance &&
+                                it.endDate == null &&
+                                it.associatedWith == null
+                    }
+
+                    Accounting.charge.call(
+                        bulkRequestOf(
+                            ChargeWalletRequestItem(
+                                owner,
+                                input.units,
+                                input.numberOfProducts,
+                                input.product.toReference(),
+                                createdUser.username,
+                                "Test charge"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    val walletsAfterCharge = Wallets.browse.call(WalletBrowseRequest(), client).orThrow().items
+                    val newAllocation = walletsAfterCharge.singleOrNull()?.allocations?.singleOrNull()
+                        ?: error("newAllocation is null")
+
+                    Out(newAllocation.balance)
+                }
+
+                listOf(true, false).forEach { isProject ->
+                    val name = if (isProject) "Project" else "User"
+
+                    case("$name with enough credits") {
+                        input(In(isProject, 1000.DKK, 10.DKK))
+                        check {
+                            assertEquals(990.DKK, output.newBalance)
+                        }
+                    }
+
+                    case("$name with over-charge") {
+                        input(In(isProject, 10.DKK, 20.DKK))
+                        check {
+                            assertEquals(0.DKK, output.newBalance)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*
     @Test
     fun `test simple case accounting`() = t {
         createSampleProducts()
         val root = initializeRootProject(initializeWallet = false)
-        val wallet = Wallet(root, WalletOwnerType.PROJECT, sampleCompute.category)
-        val initialBalance = 1000.DKK
-        val reservation = 10.DKK
 
-        Wallets.setBalance.call(
-            SetBalanceRequest(
-                wallet,
-                0L,
-                initialBalance
-            ),
-            serviceClient
-        ).orThrow()
-
-        assertThatInstance(
-            Wallets.retrieveBalance.call(
-                RetrieveBalanceRequest(wallet.id, wallet.type, false),
-                serviceClient
-            ).orThrow(),
-            "has the new balance"
-        ) { it.wallets.find { it.wallet == wallet }!!.balance == initialBalance }
-
-        val reservationId = reserveCredits(wallet, reservation, sampleCompute)
-
-        assertThatInstance(
-            Wallets.retrieveBalance.call(
-                RetrieveBalanceRequest(wallet.id, wallet.type, false),
-                serviceClient
-            ).orThrow(),
-            "has the initial balance"
-        ) { it.wallets.find { it.wallet == wallet }!!.balance == initialBalance }
-
-        Wallets.chargeReservation.call(
-            ChargeReservationRequest(reservationId, reservation, reservation / sampleCompute.pricePerUnit),
-            serviceClient
-        ).orThrow()
-
-        assertThatInstance(
-            Wallets.retrieveBalance.call(
-                RetrieveBalanceRequest(wallet.id, wallet.type, false),
-                serviceClient
-            ).orThrow(),
-            "has the updated balance"
-        ) { it.wallets.find { it.wallet == wallet }!!.balance == initialBalance - reservation }
+        // Create products
+        // Initialize a root project
+        // Set the balance at the root
+        // Retrieve current balance
+        // Perform a charge
+        // Check that the balance has been updated
     }
 
     @Test
@@ -148,42 +176,38 @@ class AccountingTest : IntegrationTest() {
         val transferAmount = 600.DKK
         val product = sampleCompute.category
 
-        val root = initializeRootProject(amount = initialBalance)
-        val user = createUser()
-        assertThatInstance(
-            findPersonalWallet(user.username, user.client, product),
-            "is empty"
-        ) { it == null || it.balance == 0L }
-
-        val transferRequest = TransferToPersonalRequest(
-            listOf(
-                SingleTransferRequest(
-                    "_UCloud",
-                    transferAmount,
-                    Wallet(root, WalletOwnerType.PROJECT, product),
-                    Wallet(user.username, WalletOwnerType.USER, product)
-                )
-            )
-        )
-
-        Wallets.transferToPersonal.call(transferRequest, serviceClient).orThrow()
-
-        assertThatInstance(
-            findPersonalWallet(user.username, user.client, product),
-            "has received the funds"
-        ) { it != null && it.balance == transferAmount }
-
-        assertThatInstance(
-            findProjectWallet(root, serviceClient, product),
-            "has had funds subtracted"
-        ) { it != null && it.balance == initialBalance - transferAmount }
-
-        assertThatInstance(
-            Wallets.transferToPersonal.call(transferRequest, serviceClient),
-            "fails due to lack of funds"
-        ) { it.statusCode == HttpStatusCode.PaymentRequired }
+        // Check initial balance in personal workspace
+        // Attempt to transfer balance from the root project
+        // Check that the balance has been transferred correctly
     }
 
+    data class TestInput(...)
+    data class TestOutput(...)
+
+    test {
+        prepare {
+            ...
+        }
+
+        execute {
+            TestOutput(...)
+        }
+
+        case("Test something") {
+            input(TestInput(...))
+
+            expectFailure {
+                it is RPCException
+            }
+
+            check {
+                output.fie == "dog"
+            }
+        }
+    }
+     */
+
+    /*
     @Test
     fun `test charging a reservation of too large size`() = t {
         val initialBalance = 1000.DKK
@@ -361,4 +385,5 @@ class AccountingTest : IntegrationTest() {
             assertEquals(HttpStatusCode.PaymentRequired, ex.httpStatusCode)
         }
     }
+     */
 }

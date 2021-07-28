@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.integration.*
@@ -65,3 +66,6 @@ class FilesTest : EndToEndTest() {
         driver.navigateThroughFolders(listOf(folder1, folder2, folder3))
     }
 }
+
+
+ */

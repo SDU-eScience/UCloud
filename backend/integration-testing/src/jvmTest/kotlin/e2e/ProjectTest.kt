@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.calls.client.call
@@ -142,3 +143,5 @@ class ProjectTest : EndToEndTest() {
         driver.awaitNoElements(By.xpath("//a[text()='UCloud']"))
     }
 }
+
+ */

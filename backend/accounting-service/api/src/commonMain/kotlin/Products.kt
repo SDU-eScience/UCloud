@@ -106,9 +106,9 @@ sealed class Product {
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
-        override val version: Int,
-        override val freeToUse: Boolean,
-        override val unitOfPrice: ProductPriceUnit,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_DAY,
     ) : Product() {
         override val productType: ProductType = ProductType.STORAGE
         init {
@@ -130,9 +130,9 @@ sealed class Product {
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
         val gpu: Int? = null,
-        override val version: Int,
-        override val freeToUse: Boolean,
-        override val unitOfPrice: ProductPriceUnit,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_MINUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.COMPUTE
 
@@ -156,9 +156,9 @@ sealed class Product {
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
-        override val version: Int,
-        override val freeToUse: Boolean,
-        override val unitOfPrice: ProductPriceUnit,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
     ) : Product() {
         override val productType: ProductType = ProductType.INGRESS
         init {
@@ -178,9 +178,9 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
-        override val version: Int,
-        override val freeToUse: Boolean,
-        override val unitOfPrice: ProductPriceUnit,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
     ) : Product() {
         override val productType: ProductType = ProductType.LICENSE
         init {
@@ -199,9 +199,9 @@ sealed class Product {
         override val description: String = "",
         override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
-        override val version: Int,
-        override val freeToUse: Boolean,
-        override val unitOfPrice: ProductPriceUnit,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
         init {

@@ -1,6 +1,6 @@
 drop function file_orchestrator.metadata_template_to_json(template file_orchestrator.metadata_templates, spec file_orchestrator.metadata_template_specs);
 alter table file_orchestrator.metadata_documents drop constraint metadata_documents_template_id_fkey;
-alter table file_orchestrator.metadata_documents drop constraint metadata_documents_template_id_template_version_fkey;
+alter table file_orchestrator.metadata_documents drop constraint if exists metadata_documents_template_id_template_version_fkey;
 delete from file_orchestrator.metadata_documents where true;
 
 alter table file_orchestrator.metadata_documents drop column template_id;
