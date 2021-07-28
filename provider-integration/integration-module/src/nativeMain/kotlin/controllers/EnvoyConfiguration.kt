@@ -50,8 +50,6 @@ class EnvoyConfigurationService(
             listOf(
                 "/usr/local/bin/getenvoy",
                 "run",
-                "standard:1.18.2",
-                "--",
                 "--config-path",
                 "$configDir/$configFile"
             ),

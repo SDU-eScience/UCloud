@@ -8,7 +8,7 @@ RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     yes | sdk i java 11.0.11.hs-adpt && \
     yes | sdk i gradle 6.9"
-RUN curl -L https://getenvoy.io/cli | bash -s -- -b /usr/local/bin
+RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
 
 # Test users
 RUN addgroup ucloud
@@ -23,7 +23,10 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 ENTRYPOINT ["/tini", "--"]
 
+
+
 FROM base as development
+
 RUN adduser testuser --gecos "TestUser,,," --disabled-password
 RUN addgroup testuser ucloud
 RUN apt-get install -y vim
@@ -32,9 +35,17 @@ RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module
 COPY default_config /opt/ucloud-default-config
 RUN chmod +x /opt/ucloud-default-config/config_installer.sh
 
+COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 
-RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
-RUN mv /tmp/kubectl /usr/bin/kubectl
-RUN chmod +x /usr/bin/kubectl
+# RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
+# RUN mv /tmp/kubectl /usr/bin/kubectl
+# RUN chmod +x /usr/bin/kubectl
 
+WORKDIR /opt/ucloud
+
+
+# SLURM setup
+FROM development as slurm
+RUN apt-get update
+RUN apt-get -qq -y install munge slurm-client 
 WORKDIR /opt/ucloud
