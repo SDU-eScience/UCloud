@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
-import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -53,38 +52,26 @@ class SynchronizationService(
     }
 
     private suspend fun chooseFolderDevice(session: AsyncDBConnection): LocalSyncthingDevice {
-        val resolvedDevice = folderDeviceCache.get(Unit)
-
-        if (resolvedDevice != null) {
-            return resolvedDevice
-        } else {
-            val deviceLookup = syncthing.config.devices.minByOrNull { device ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("device", device.id)
-                    },
-                    """
-                            select path
-                            from synchronized_folders
-                            where device_id = :device
-                        """
-                ).rows.sumOf {
-                    CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
-                }
-            }
-            if (deviceLookup != null) {
-                folderDeviceCache.insert(Unit, deviceLookup)
-                return deviceLookup
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "No internal device found")
-            }
-        }
+        return folderDeviceCache.get(Unit)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
         val affectedRows: Long = db.withSession { session ->
-            request.items.map { folder ->
+            request.items.sumOf { folder ->
                 val internalFile = File(fsPath, folder.path)
+                if (!internalFile.exists() || !internalFile.isDirectory) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
+
+                val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
+                    SynchronizationType.SEND_RECEIVE
+                } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
+                    SynchronizationType.SEND_ONLY
+                } else {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                }
+
                 if (CephFsFastDirectoryStats.getRecursiveFileCount(internalFile) > 1_000_000) {
                     throw RPCException(
                         "Number of files in directory exceeded for synchronization",
@@ -94,14 +81,6 @@ class SynchronizationService(
 
                 val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
-
-                val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
-                    SynchronizationType.SEND_RECEIVE
-                } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
-                    SynchronizationType.SEND_ONLY
-                } else {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                }
 
                 session.sendPreparedStatement(
                     {
@@ -127,7 +106,7 @@ class SynchronizationService(
                         )
                     """
                 ).rowsAffected
-            }.sum()
+            }
         }
 
         if (affectedRows > 0) {
@@ -137,18 +116,16 @@ class SynchronizationService(
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
         val affectedRows = db.withSession { session ->
-            request.items.map { item ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", item.id)
-                        setParameter("user", actor.username)
-                    },
-                    """
-                        delete from storage.synchronized_folders
-                        where id = :id and user_id = :user
-                    """
-                ).rowsAffected
-            }.sum()
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", request.items.map { it.id })
+                    setParameter("user", actor.username)
+                },
+                """
+                    delete from storage.synchronized_folders
+                    where id in (select unnest(:ids::text[])) and user_id = :user
+                """
+            ).rowsAffected
         }
 
         if (affectedRows > 0) {
@@ -157,8 +134,14 @@ class SynchronizationService(
     }
 
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
+        request.items.forEach { item ->
+            if (syncthing.config.devices.any { it.id == item.id }) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+        }
+
         val affectedRows = db.withSession { session ->
-            request.items.map { item ->
+            request.items.sumOf { item ->
                 if (syncthing.config.devices.any { it.id == item.id }) {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
@@ -178,7 +161,7 @@ class SynchronizationService(
                         )
                     """
                 ).rowsAffected
-            }.sum()
+            }
         }
 
         if (affectedRows > 0) {
@@ -188,7 +171,7 @@ class SynchronizationService(
 
     suspend fun removeDevice(actor: Actor, request: SynchronizationRemoveDeviceRequest) {
         val affectedRows = db.withSession { session ->
-            request.items.map { item ->
+            request.items.sumOf { item ->
                 session.sendPreparedStatement(
                     {
                         setParameter("id", item.id)
@@ -199,7 +182,7 @@ class SynchronizationService(
                         where device_id = :id and user_id = :user
                     """
                 ).rowsAffected
-            }.sum()
+            }
         }
 
         if (affectedRows > 0) {
