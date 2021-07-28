@@ -11,8 +11,7 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
 RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
 
 # Test users
-RUN addgroup ucloud
-RUN adduser ucloud --system
+RUN useradd --system --user-group ucloud 
 RUN mkdir -p /var/run/ucloud/envoy
 RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
@@ -27,14 +26,12 @@ ENTRYPOINT ["/tini", "--"]
 
 FROM base as development
 
-RUN adduser testuser --gecos "TestUser,,," --disabled-password
-RUN addgroup testuser ucloud
+RUN useradd --user-group testuser 
 RUN apt-get install -y vim
 WORKDIR /usr/bin
 RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe ucloud
 COPY default_config /opt/ucloud-default-config
-RUN chmod +x /opt/ucloud-default-config/config_installer.sh
-
+RUN chmod +x /opt/ucloud-default-config/config_installer.sh 
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 
 # RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
