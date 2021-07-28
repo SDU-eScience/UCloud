@@ -203,7 +203,7 @@ data class MinDiskFree(
 
 @Serializable
 data class Versioning(
-    val cleanupIntervalS: Int = 0,
+    val cleanupIntervalS: Int = 3600,
     val fsPath: String = "",
     val fsType: String = "basic",
     val params: VersioningParams = Unit,
@@ -230,18 +230,6 @@ class SyncthingClient(
     }
     private val mutex = Mutex()
 
-    private suspend fun readConfig(device: LocalSyncthingDevice): SyncthingConfig {
-        val requestPath = "http://" + device.hostname + "/rest/config"
-        val resp = httpClient.get<HttpResponse>(requestPath) {
-            headers {
-                append("X-API-Key", device.apiKey)
-            }
-        }
-
-        val config = resp.content.toByteArray().toString(Charsets.UTF_8)
-        return defaultMapper.decodeFromString(config)
-    }
-
     suspend fun writeConfig() {
         mutex.withLock {
             val result = db.withSession { session ->
@@ -256,9 +244,7 @@ class SyncthingClient(
             }.rows
 
             config.devices.forEach { device ->
-                val oldConfig = readConfig(device)
-
-                val newConfig = oldConfig.copy(
+                val newConfig = SyncthingConfig(
                     devices = result
                         .filter {
                             it.getString("local_device_id") == device.id
@@ -287,7 +273,14 @@ class SyncthingClient(
                                     },
                                 path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
                             )
-                        }
+                        },
+                    defaults = SyncthingDefaults(),
+                    gui = SyncthingGui(
+                        address = device.hostname,
+                        apiKey = device.apiKey
+                    ),
+                    ldap = SyncthingLdap(),
+                    options = SyncthingOptions()
                 )
 
                 val resp = httpClient.put<HttpResponse>("http://" + device.hostname + "/rest/config") {
