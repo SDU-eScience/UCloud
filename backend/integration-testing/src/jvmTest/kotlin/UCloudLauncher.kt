@@ -300,16 +300,18 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
+        val dbConfig = TestDB.getFeatureConfig()
         File(dir, "db.yml").writeText(
             """
                 ---
                 database:
                   profile: PERSISTENT_POSTGRES
-                  hostname: localhost
-                  port: ${TestDB.db.port}
+                  hostname: ${dbConfig.hostname}
+                  port: ${dbConfig.port}
+                  database: ${dbConfig.database}
                   credentials:
-                    username: postgres
-                    password: postgres
+                    username: ${dbConfig.credentials?.username}
+                    password: ${dbConfig.credentials?.password}
             """.trimIndent()
         )
 
@@ -377,7 +379,7 @@ object UCloudLauncher : Loggable {
     private fun shutdown() {
 //        elasticSearch.close()
         redisServer.stop()
-        TestDB.db.close()
+        TestDB.close()
 //        if (isRunningCeph) {
 //            sudo("umount", "-f", cephfsHome)
 //            ceph.close()

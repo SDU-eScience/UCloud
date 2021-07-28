@@ -110,8 +110,7 @@ class AccountingTest : IntegrationTest() {
                     assertThatInstance(initialWallets.single().allocations.single(), "has a valid allocation") {
                         it.balance == input.initialBalance &&
                                 it.initialBalance == input.initialBalance &&
-                                it.endDate == null &&
-                                it.associatedWith == null
+                                it.endDate == null
                     }
 
                     Accounting.charge.call(

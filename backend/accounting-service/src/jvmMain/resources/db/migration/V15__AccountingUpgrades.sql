@@ -1,4 +1,4 @@
-create extension if not exists ltree;
+create extension if not exists ltree schema public;
 create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
 create type accounting.product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
@@ -271,6 +271,7 @@ where
 alter table accounting.wallets drop column account_id;
 alter table accounting.wallets drop column account_type;
 alter table accounting.wallets alter column owned_by set not null;
+create unique index on accounting.wallets (owned_by, category);
 
 ---- /Add wallet owners to wallets ----
 
@@ -766,6 +767,58 @@ begin
         u.start_date, u.end_date
     from update_result u;
 end;
+$$;
+
+create or replace function accounting.wallet_owner_to_json(
+    owner_in accounting.wallet_owner
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'type', case
+            when owner_in.username is not null then 'user'
+            else 'project'
+        end,
+        'username', owner_in.username,
+        'projectId', owner_in.project_id
+    );
+$$;
+
+create or replace function accounting.product_category_to_json(
+    category_in accounting.product_categories
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'name', category_in.category,
+        'provider', category_in.provider
+    );
+$$;
+
+create or replace function accounting.wallet_allocation_to_json(
+    allocation_in accounting.wallet_allocations
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'id', allocation_in.id::text,
+        'allocationPath', regexp_split_to_array(allocation_in.allocation_path::text, '\.'),
+        'balance', allocation_in.balance,
+        'initialBalance', allocation_in.initial_balance,
+        'startDate', floor(extract(epoch from allocation_in.start_date) * 1000),
+        'endDate', floor(extract(epoch from allocation_in.end_date) * 1000)
+    );
+$$;
+
+create or replace function accounting.wallet_to_json(
+    wallet_in accounting.wallets,
+    owner_in accounting.wallet_owner,
+    allocations_in accounting.wallet_allocations[],
+    category_in accounting.product_categories
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'owner', accounting.wallet_owner_to_json(owner_in),
+        'paysFor', accounting.product_category_to_json(category_in),
+        'chargePolicy', wallet_in.allocation_selector_policy,
+        'allocations', (
+            select coalesce(jsonb_agg(accounting.wallet_allocation_to_json(alloc)), '[]'::jsonb)
+            from unnest(allocations_in) alloc
+        )
+    )
 $$;
 
 ---- /Procedures ----

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
@@ -32,6 +33,10 @@ class AccountingController(
 
         implement(Accounting.rootDeposit) {
             ok(accounting.rootDeposit(actorAndProject, request))
+        }
+
+        implement(Wallets.browse) {
+            ok(accounting.browseWallets(actorAndProject, request))
         }
         return@with
     }

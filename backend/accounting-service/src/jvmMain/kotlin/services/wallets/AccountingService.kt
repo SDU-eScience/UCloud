@@ -2,14 +2,30 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
+import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
+import dk.sdu.cloud.accounting.api.RootDepositRequestItem
+import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
+import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletBrowseRequest
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
+import dk.sdu.cloud.service.db.async.TransactionMode
+import dk.sdu.cloud.service.db.async.paginateV2
+import dk.sdu.cloud.service.db.async.parameterList
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
+import kotlinx.serialization.decodeFromString
 
 class AccountingService(
     val db: DBContext,
@@ -232,7 +248,7 @@ class AccountingService(
                     on conflict do nothing
                 """
             )
-           session.sendPreparedStatement(
+            session.sendPreparedStatement(
                 parameters,
                 """
                     with 
@@ -243,9 +259,9 @@ class AccountingService(
                                 unnest(:product_providers::text[]) product_provider,
                                 unnest(:usernames::text[]) username,
                                 unnest(:project_ids::text[]) project_id,
-                                unnest(:start_dates::text[]) start_date,
-                                unnest(:end_dates::text[]) end_date,
-                                unnest(:balances::text[]) balance,
+                                to_timestamp(unnest(:start_dates::bigint[])) start_date,
+                                to_timestamp(unnest(:end_dates::bigint[])) end_date,
+                                unnest(:balances::bigint[]) balance,
                                 unnest(:descriptions::text[]) description,
                                 :actor actor
                         ),
@@ -323,5 +339,42 @@ class AccountingService(
                 """
             )
         }
+    }
+
+    suspend fun browseWallets(
+        actorAndProject: ActorAndProject,
+        request: WalletBrowseRequest
+    ): PageV2<Wallet> {
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("user", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                    },
+                    """
+                        declare c cursor for
+                        select accounting.wallet_to_json(w, wo, array_agg(alloc), pc)
+                        from
+                            accounting.wallets w join
+                            accounting.wallet_owner wo on w.owned_by = wo.id join
+                            accounting.wallet_allocations alloc on w.id = alloc.associated_wallet join
+                            accounting.product_categories pc on w.category = pc.id left join
+                            project.project_members pm on wo.project_id = pm.project_id
+                        where
+                            wo.username = :user or
+                            (pm.username = :user and pm.project_id = :project::text)
+                        group by w.*, wo.*, pc.*, pc.provider, pc.category
+                        order by
+                            pc.provider, pc.category
+                    """
+                )
+            },
+            mapper = { _, rows ->
+                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+            }
+        )
     }
 }

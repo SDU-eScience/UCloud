@@ -40,8 +40,6 @@ data class WalletAllocation(
         Note that this allocation path will always include, as its last element, this allocation.
     """)
     val allocationPath: List<String>,
-    @UCloudApiDoc("A reference to the wallet that this allocation belongs to")
-    val associatedWith: String?,
     @UCloudApiDoc("The current balance of this wallet allocation")
     val balance: Long,
     @UCloudApiDoc("The initial balance which was granted to this allocation")
@@ -79,7 +77,7 @@ object Wallets : CallDescriptionContainer("wallets") {
         httpUpdate(baseContext, "push")
     }
 
-    val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browseWallets") {
+    val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
     }
 }
@@ -175,6 +173,7 @@ typealias UpdateAllocationResponse = Unit
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
+@Serializable
 data class RootDepositRequestItem(
     val categoryId: ProductCategoryId,
     val recipient: WalletOwner,
@@ -186,6 +185,13 @@ data class RootDepositRequestItem(
 
 object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
+
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(WalletOwner.User.serializer()),
+            serializerEntry(WalletOwner.Project.serializer())
+        )
+    }
 
     val charge = call<BulkRequest<ChargeWalletRequestItem>, ChargeWalletResponse, CommonErrorMessage>(
         "charge"

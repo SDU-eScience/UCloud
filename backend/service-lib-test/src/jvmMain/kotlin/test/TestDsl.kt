@@ -139,10 +139,10 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
     fun check(message: String? = null, fn: suspend OutputContext<In, Out>.() -> Unit) {
         checks.add { out, throwable ->
             if (throwable != null) {
-                throw IllegalStateException(
-                    "$parentTitle/$subtitle: Is not supposed to fail. ${message ?: ""}",
-                    throwable
-                )
+//                throw IllegalStateException(
+//                    "$parentTitle/$subtitle: Is not supposed to fail. ${message ?: ""}",
+                    throw throwable
+//                )
             }
 
             @Suppress("UNCHECKED_CAST")
