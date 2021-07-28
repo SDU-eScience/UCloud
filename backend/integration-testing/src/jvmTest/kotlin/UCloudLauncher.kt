@@ -372,8 +372,7 @@ object UCloudLauncher : Loggable {
     private fun migrateAll() {
         val username = "postgres"
         val password = "postgres"
-        val jdbcUrl = TestDB.getEmbeddedPostgresInfo()
-        DatabaseConfig(jdbcUrl, username, password, "public", false, false).migrateAll()
+        TestDB.getBaseConfig().migrateAll()
     }
 
     private fun shutdown() {
@@ -465,6 +464,27 @@ object UCloudLauncher : Loggable {
             )
 
             micro = reg.rootMicro
+            TestDB.dbSessionFactory("public").withSession { session ->
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create or replace function drop_schemas() returns void as $$
+                        declare
+                            statements cursor for
+                                select schemaname, tablename from pg_tables
+                                where schemaname != 'public' and schemaname != 'pg_catalog';
+                        begin
+                            for stmt in statements loop
+                                execute 'drop schema ' || quote_ident(stmt.schemaname) || '.' || 
+                                    quote_ident(stmt.tablename) || ' cascade;';
+                            end loop;
+                        end;
+                        $$ language plpgsql
+                    """
+                )
+
+                session.sendQuery("select drop_schemas()")
+            }
             migrateAll()
             run {
                 // TODO Deal with elasticsearch

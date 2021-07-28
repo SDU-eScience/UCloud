@@ -91,8 +91,4 @@ object TestDB {
             getBaseConfig().copy(defaultSchema = defaultSchema)
         )
     }
-
-    fun getEmbeddedPostgresInfo(): String {
-        return db.getJdbcUrl("postgres", "postgres")
-    }
 }
