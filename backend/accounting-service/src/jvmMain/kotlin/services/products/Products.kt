@@ -1,24 +1,17 @@
 package dk.sdu.cloud.accounting.services.products
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
-import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.parameterList
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import java.sql.ResultSet
 
 class ProductService(
     private val db: DBContext,
@@ -124,14 +117,102 @@ class ProductService(
         actorAndProject: ActorAndProject,
         request: ProductsRetrieveRequest
     ): Product {
-        TODO()
+        return db.withSession { session ->
+            val (params, query) = queryProducts(actorAndProject, request)
+            session.sendPreparedStatement(
+                params,
+                query
+            ).rows
+                .singleOrNull()
+                ?.let { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
     }
 
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ProductsBrowseRequest
     ): PageV2<Product> {
-        TODO()
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                val (params, query) = queryProducts(actorAndProject, request)
+                session.sendPreparedStatement(
+                    params
+                    ,
+                    """
+                        declare c cursor for 
+                        $query
+                    """
+                )
+            },
+            mapper = {_, rows ->
+                rows.map { defaultMapper.decodeFromString(it.getString(0)!!)}
+            }
+        )
+    }
+
+
+    private fun queryProducts(actorAndProject: ActorAndProject, flags: ProductFlags): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("name_filter", flags.filterName)
+                setParameter("provider_filter", flags.filterProvider)
+                setParameter("product_filter", flags.filterArea?.name)
+                setParameter("category_filter", flags.filterCategory)
+                setParameter("include_balance", flags.includeBalance == true)
+                setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
+                setParameter("account_is_project", actorAndProject.project != null)
+                setParameter("usable_filter", flags.filterUsable == true)
+            },
+            """
+                with my_wallets as(
+                    select *
+                    from accounting.wallets wa join 
+                        accounting.wallet_owner wo on wo.id = wa.owned_by join 
+                        accounting.product_categories pc on pc.id = wa.category left join 
+                        (
+                            select sum(walloc.balance) balance, wa.id 
+                            from 
+                                accounting.wallets wa join 
+                                accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
+                            group by wa.id
+                        ) as balances on (:include_balance and balances.id = wa.id)
+                    where 
+                        (
+                            (not :account_is_project and wo.username = :accountId) or 
+                            (:account_is_project and wo.project_id = :accountId)
+                        ) and
+                        (
+                            :category_filter is null or 
+                            pc.category = :category_filter
+                        ) and
+                        (
+                            :provider_filter is null or 
+                            pc.provider = :provider_filter
+                        )
+                )
+                select product_to_json(p, pc2, balance)
+                from accounting.products p join product_categories pc2 on pc2.id = p.category
+                    left outer join my_wallets mw 
+                        on (p.category = mw.category and pc2.provider = mw.provider)
+                where
+                    (
+                        :category_filter is null or 
+                        pc2.category = :category_filter
+                    ) and
+                    (
+                        :provider_filter is null or 
+                        pc2.provider = :provider_filter
+                    ) and 
+                    (
+                        (mw.balance is not null and mw.balance > 0) or 
+                        (p.free_to_use)
+                    )
+                order by pc2.provider, pc2.category
+            """
+        )
     }
 
     private fun requirePermission(actor: Actor, providerId: String, readOnly: Boolean) {
