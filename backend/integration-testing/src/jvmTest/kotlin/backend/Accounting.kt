@@ -2,15 +2,14 @@ package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.Accounting
 import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
+import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.RootDepositRequestItem
-import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -24,20 +23,17 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
 import java.util.*
+import kotlin.math.max
 import kotlin.test.assertEquals
 
-suspend fun addFundsToPersonalProject(
-    rootProject: String,
-    username: String,
-    product: ProductCategoryId = sampleCompute.category,
-    amount: Long = 10_000.DKK
-) {
-    Accounting.transfer.call(
-        bulkRequestOf(
-            TransferToWalletRequestItem(product, WalletOwner.User(username), amount)
-        ),
-        serviceClient.withProject(rootProject)
-    ).orThrow()
+suspend fun findWallet(
+    client: AuthenticatedClient,
+    product: ProductCategoryId
+): Wallet? {
+    return Wallets.browse.call(
+        WalletBrowseRequest(),
+        client
+    ).orThrow().items.find { it.paysFor == product }
 }
 
 suspend fun findPersonalWallet(
@@ -226,6 +222,193 @@ class AccountingTest : IntegrationTest() {
                         input(In(isProject, 100.DKK, 0))
                         expectStatusCode(HttpStatusCode.BadRequest)
                     }
+                }
+            }
+        }
+
+        run {
+            class Allocation(val isProject: Boolean, val amount: Long)
+
+            class In(
+                val rootBalance: Long,
+                val chainFromRoot: List<Allocation>,
+                val units: Long,
+                val numberOfProducts: Long = 1,
+                val product: Product = sampleCompute,
+                val skipCreationOfLeaf: Boolean = false
+            )
+
+            class Out(
+                val balancesFromRoot: List<Long>
+            )
+
+            test<In, Out>("Deposit and charge") {
+                execute {
+                    val rootPi = createUser()
+                    val rootProject = initializeRootProject(rootPi.username, amount = input.rootBalance)
+
+                    data class UserAndClient(
+                        val username: String, val projectId: String?,
+                        val client: AuthenticatedClient, val balance: Long
+                    ) {
+                        val owner: WalletOwner = if (projectId == null) {
+                            WalletOwner.User(username)
+                        } else {
+                            WalletOwner.Project(projectId)
+                        }
+                    }
+
+                    val leaves = ArrayList<UserAndClient>()
+                    for ((index, allocOwner) in input.chainFromRoot.withIndex()) {
+                        if (allocOwner.isProject) {
+                            val user = createUser()
+                            val project = Projects.create.call(
+                                CreateProjectRequest("P$index", principalInvestigator = user.username),
+                                serviceClient
+                            ).orThrow()
+
+                            leaves.add(
+                                UserAndClient(
+                                    user.username,
+                                    project.id,
+                                    user.client.withProject(project.id),
+                                    allocOwner.amount
+                                )
+                            )
+                        } else {
+                            val user = createUser()
+                            leaves.add(UserAndClient(user.username, null, user.client, allocOwner.amount))
+                        }
+                    }
+
+                    var previousAllocation: String =
+                        findProjectWallet(rootProject, rootPi.client, input.product.category)!!.allocations.single().id
+                    var previousPi: AuthenticatedClient = rootPi.client
+                    val expectedAllocationPath = arrayListOf(previousAllocation)
+                    for ((index, leaf) in leaves.withIndex()) {
+                        if (index == leaves.lastIndex && input.skipCreationOfLeaf) break
+
+                        Accounting.deposit.call(
+                            bulkRequestOf(
+                                DepositToWalletRequestItem(
+                                    leaf.owner,
+                                    previousAllocation,
+                                    leaf.balance,
+                                    "Transfer"
+                                )
+                            ),
+                            previousPi
+                        ).orThrow()
+
+                        val alloc = findWallet(leaf.client, input.product.category)!!.allocations.single()
+                        previousAllocation = alloc.id
+                        previousPi = leaf.client
+
+                        expectedAllocationPath.add(alloc.id)
+                        assertEquals(alloc.allocationPath, expectedAllocationPath)
+                        assertEquals(alloc.balance, leaf.balance)
+                        assertEquals(alloc.initialBalance, leaf.balance)
+                    }
+
+                    Accounting.charge.call(
+                        bulkRequestOf(
+                            ChargeWalletRequestItem(
+                                leaves.last().owner,
+                                input.units,
+                                input.numberOfProducts,
+                                input.product.toReference(),
+                                leaves.last().username,
+                                "Test charge"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    Out(leaves.map {
+                        findWallet(it.client, input.product.category)?.allocations?.singleOrNull()?.balance ?: 0L
+                    })
+                }
+
+                fun balanceWasDeducted(input: In, output: Out) {
+                    val paymentRequired = input.product.pricePerUnit * input.units * input.numberOfProducts
+
+                    output.balancesFromRoot.forEachIndexed { index, balance ->
+                        assertEquals(
+                            max(0, input.chainFromRoot[index].amount - paymentRequired),
+                            balance,
+                            "New balance of $index should match expected value"
+                        )
+                    }
+                }
+
+                listOf(true, false).forEach { isProject ->
+                    val name = if (isProject) "project" else "user"
+
+                    (1..3).forEach { nlevels ->
+                        case("$nlevels-level(s) of $name") {
+                            input(In(
+                                rootBalance = 1000.DKK,
+                                chainFromRoot = (0 until nlevels).map { Allocation(isProject, 1000.DKK) },
+                                units = 1L
+                            ))
+
+                            check { balanceWasDeducted(input, output) }
+                        }
+                    }
+                }
+
+                (3..6).forEach { nlevels ->
+                    case("$nlevels-levels of mixed users/projects") {
+                        input(In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = (0 until nlevels).map { Allocation(it % 2 == 0, 1000.DKK) },
+                            units = 1L
+                        ))
+
+                        check { balanceWasDeducted(input, output) }
+                    }
+                }
+
+                case("negative units") {
+                    input(In(
+                        rootBalance = 1000.DKK,
+                        chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                        units = -1L
+                    ))
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("negative numberOfProducts") {
+                    input(In(
+                        rootBalance = 1000.DKK,
+                        chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                        units = 1L,
+                        numberOfProducts = -1L
+                    ))
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("very large charge") {
+                    input(In(
+                        rootBalance = 1000.DKK,
+                        chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                        units = Int.MAX_VALUE.toLong() * 2
+                    ))
+
+                    check { balanceWasDeducted(input, output) }
+                }
+
+                case("Charge missing payer") {
+                    input(In(
+                        rootBalance = 1000.DKK,
+                        chainFromRoot = (0 until 3).map { Allocation(true, 1000.DKK) },
+                        units = 100L,
+                        skipCreationOfLeaf = true
+                    ))
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
                 }
             }
         }

@@ -1,36 +1,50 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.RootDepositRequestItem
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.api.AcceptInviteRequest
+import dk.sdu.cloud.project.api.AddGroupMemberRequest
+import dk.sdu.cloud.project.api.ChangeUserRoleRequest
+import dk.sdu.cloud.project.api.CreateGroupRequest
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.DeleteMemberRequest
+import dk.sdu.cloud.project.api.InviteRequest
+import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.Projects
 import kotlin.random.Random
 
 suspend fun initializeRootProject(
+    principalInvestigator: String,
     initializeWallet: Boolean = true,
-    amount: Long = 10_000_000.DKK
+    amount: Long = 10_000_000.DKK,
 ): String {
     if (initializeWallet) {
         createSampleProducts()
     }
 
     val id = Projects.create.call(
-        CreateProjectRequest("UCloud", null),
+        CreateProjectRequest("UCloud", principalInvestigator = principalInvestigator),
         serviceClient
     ).orThrow().id
 
+    /*
     Grants.setEnabledStatus.call(
-        SetEnabledStatusRequest(
-            id,
-            true
-        ),
+        SetEnabledStatusRequest(id, true),
         serviceClient
     ).orThrow()
+     */
 
     if (initializeWallet) {
         initializeWallets(id, amount)
@@ -40,31 +54,26 @@ suspend fun initializeRootProject(
     return id
 }
 
-suspend fun initializePersonalWallets(username: String, rootProject: String, amount: Long = 10_000.DKK) {
-    sampleProducts.forEach { product ->
-        addFundsToPersonalProject(rootProject, username, product = product.category)
-    }
-}
-
-suspend fun initializeAllPersonalFunds(username: String, rootProject: String) {
-    initializePersonalWallets(username, rootProject)
-    // setPersonalQuota(rootProject, username, 10.GiB)
-}
-
 suspend fun initializeWallets(projectId: String, amount: Long = 1_000_000 * 10_000_000L) {
-    TODO("Not yet implemented")
-    /*
-    sampleProducts.forEach { product ->
-        Wallets.setBalance.call(
-            SetBalanceRequest(
-                Wallet(projectId, WalletOwnerType.PROJECT, product.category),
-                0L,
-                amount
-            ),
-            serviceClient
-        ).orThrow()
-    }
-     */
+    initializeWallets(WalletOwner.Project(projectId), amount)
+}
+
+suspend fun initializeWallets(
+    owner: WalletOwner,
+    amount: Long = 1_000_000 * 10_000_000L,
+    products: List<Product> = sampleProducts
+) {
+    Accounting.rootDeposit.call(
+        BulkRequest(products.map { product ->
+            RootDepositRequestItem(
+                product.category,
+                owner,
+                amount,
+                "Initial balance"
+            )
+        }),
+        serviceClient
+    ).orThrow()
 }
 
 data class GroupInitialization(

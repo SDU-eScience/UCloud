@@ -40,6 +40,12 @@ abstract class UCloudTest {
             for (case in suite.cases) {
                 definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
                     runBlocking {
+                        repeat(3) { println() }
+                        println(String(CharArray(80) { '=' }))
+                        println("${suite.title}/${case.subtitle}")
+                        println(String(CharArray(80) { '=' }))
+                        println()
+
                         @Suppress("UNCHECKED_CAST")
                         suite as UCloudTestSuite<Any?, Any?>
                         @Suppress("UNCHECKED_CAST")

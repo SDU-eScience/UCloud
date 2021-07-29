@@ -442,6 +442,8 @@ create type accounting.charge_request as (
 create or replace function accounting.process_charge_requests(
     requests accounting.charge_request[]
 ) returns void language plpgsql as $$
+declare
+    charge_count bigint;
 begin
     create temporary table charge_result on commit drop as
         with
@@ -534,6 +536,11 @@ begin
     from
         leaf_charges leaves join
         accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
+
+    select count(distinct local_request_id) into charge_count from charge_result;
+    if charge_count != cardinality(requests) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+    end if;
 end;
 $$;
 
@@ -594,11 +601,18 @@ create type accounting.deposit_request as (
 );
 
 create or replace function accounting.deposit(
-    request accounting.deposit_request
+    requests accounting.deposit_request[]
 ) returns void language plpgsql as $$
+declare
+    deposit_count bigint;
 begin
     create temporary table deposit_result on commit drop as
         -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
+        with unpacked_requests as (
+            select initiated_by, recipient, recipient_is_project, source_allocation, desired_balance, start_date,
+                   end_date, description
+            from unnest(requests)
+        )
         select
             -- NOTE(Dan): we pre-allocate the IDs to make it easier to connect the data later
             nextval('accounting.wallet_allocations_id_seq') idx,
@@ -608,13 +622,14 @@ begin
             target_wallet.id target_wallet,
             request.recipient,
             request.recipient_is_project,
-            coalesce(request.start_date, now()),
+            coalesce(request.start_date, now()) start_date,
             request.end_date,
             request.desired_balance,
             request.initiated_by,
             source_wallet.category
         from
-            accounting.wallet_allocations source_alloc join
+            unpacked_requests request join
+            accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
             accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
             accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
             project.project_members pm on
@@ -625,11 +640,16 @@ begin
                 (request.recipient_is_project and target_owner.project_id = request.recipient) or
                 (not request.recipient_is_project and target_owner.username = request.recipient) left join
             accounting.wallets target_wallet on
-                target_wallet.owned_by = target_owner and
+                target_wallet.owned_by = target_owner.id and
                 target_wallet.category = source_wallet.category
         where
             request.initiated_by = source_owner.username or
             request.initiated_by = pm.username;
+
+    select count(*) into deposit_count from deposit_result;
+    if deposit_count != cardinality(requests) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+    end if;
 
     -- NOTE(Dan): We don't know for sure that the wallet_owner doesn't exist, but it might not exist since there is
     -- no wallet.
@@ -678,7 +698,7 @@ begin
         where r.target_wallet is not null
         returning id, balance
     )
-    insert into accounting.new_transactions
+    insert into accounting.transactions
     (type, affected_allocation_id, action_performed_by, change, description, start_date)
     select 'deposit', alloc.id, r.initiated_by, alloc.balance, 'Initial balance', now()
     from

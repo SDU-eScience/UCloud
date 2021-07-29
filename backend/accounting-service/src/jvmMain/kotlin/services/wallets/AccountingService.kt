@@ -150,6 +150,7 @@ class AccountingService(
                     val desiredBalance by parameterList<Long>()
                     val startDates by parameterList<Long?>()
                     val endDates by parameterList<Long?>()
+                    val descriptions by parameterList<String>()
                     for (req in request.items) {
                         initiatedBy.add(actorAndProject.actor.safeUsername())
                         when (val recipient = req.recipient) {
@@ -166,6 +167,7 @@ class AccountingService(
                         desiredBalance.add(req.amount)
                         startDates.add(req.startDate?.let { it / 1000 })
                         endDates.add(req.endDate?.let { it / 1000 })
+                        descriptions.add(req.description)
                     }
                 },
                 """
