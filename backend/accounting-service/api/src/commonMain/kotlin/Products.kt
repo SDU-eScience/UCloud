@@ -239,11 +239,12 @@ typealias ProductsBrowseResponse = PageV2<Product>
 
 @Serializable
 data class ProductsRetrieveRequest(
-    override val filterName: String? = null,
+    override val filterName: String,
+    override val filterCategory: String,
+    override val filterProvider: String,
+
     override val filterArea: ProductType? = null,
-    override val filterProvider: String? = null,
     override val filterUsable: Boolean? = null,
-    override val filterCategory: String? = null,
     override val includeBalance: Boolean? = null,
 ) : ProductFlags
 
