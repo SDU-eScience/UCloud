@@ -67,25 +67,18 @@ data class ProductReference(
     val provider: String,
 )
 
-typealias CreateProductRequest = Product
-typealias CreateProductResponse = Unit
-
-typealias UpdateProductRequest = Product
-typealias UpdateProductResponse = Unit
-
 @Serializable
 sealed class Product {
     abstract val category: ProductCategoryId
     abstract val pricePerUnit: Long
     abstract val name: String
     abstract val description: String
-    abstract val hiddenInGrantApplications: Boolean
     abstract val priority: Int
     abstract val version: Int
     abstract val freeToUse: Boolean
     abstract val productType: ProductType
     abstract val unitOfPrice: ProductPriceUnit
-
+    abstract val chargeType: ChargeType
 
     @Deprecated("Replace with name", ReplaceWith("name"))
     val id: String get() = name
@@ -104,11 +97,11 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_DAY,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.STORAGE
         init {
@@ -125,7 +118,6 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
@@ -133,6 +125,7 @@ sealed class Product {
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_MINUTE,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.COMPUTE
 
@@ -154,11 +147,11 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.INGRESS
         init {
@@ -175,12 +168,12 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.LICENSE
         init {
@@ -197,11 +190,11 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val hiddenInGrantApplications: Boolean = false,
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
         init {
@@ -212,45 +205,11 @@ sealed class Product {
     }
 }
 
-@Serializable
-data class FindProductRequest(
-    val provider: String,
-    val productCategory: String,
-    val product: String
-)
-
-typealias FindProductResponse = Product
-
-@Serializable
-data class ListProductsRequest(
-    val provider: String,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias ListProductsResponse = Page<Product>
-
-@Serializable
-data class ListProductsByAreaRequest(
-    val provider: String,
-    val area: ProductArea,
-    val showHidden: Boolean = true,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias ListProductsByAreaResponse = Page<Product>
-
-@Serializable
-data class RetrieveAllFromProviderRequest(val provider: String, val showHidden: Boolean = true)
-typealias RetrieveAllFromProviderResponse = List<Product>
-
-interface ProductFilters {
-    val filterArea: ProductArea?
+interface ProductFlags {
+    val filterArea: ProductType?
     val filterProvider: String?
     val filterUsable: Boolean?
     val filterCategory: String?
-}
-
-interface ProductFlags {
     val includeBalance: Boolean?
 }
 
@@ -262,13 +221,22 @@ data class ProductsBrowseRequest(
     override val itemsToSkip: Long? = null,
 
     override val filterProvider: String? = null,
-    override val filterArea: ProductArea? = null,
+    override val filterArea: ProductType? = null,
     override val filterUsable: Boolean? = null,
     override val filterCategory: String? = null,
 
     override val includeBalance: Boolean? = null
-) : WithPaginationRequestV2, ProductFilters, ProductFlags
+) : WithPaginationRequestV2, ProductFlags
 typealias ProductsBrowseResponse = PageV2<Product>
+
+@Serializable
+data class ProductsRetrieveRequest(
+    override val filterArea: ProductType? = null,
+    override val filterProvider: String? = null,
+    override val filterUsable: Boolean? = null,
+    override val filterCategory: String? = null,
+    override val includeBalance: Boolean? = null,
+) : ProductFlags
 
 @OptIn(ExperimentalStdlibApi::class)
 @ThreadLocal
@@ -281,122 +249,13 @@ object Products : CallDescriptionContainer("products") {
         )
     }
 
-    /**
-     * Creates a new [Product]
-     *
-     * Note that only the provider themselves are allowed to push a new [Product] to the database. A matching
-     * [ProductCategory] is automatically created when the first [Product] in that category is created.
-     */
-    val createProduct = call<CreateProductRequest, CreateProductResponse, CommonErrorMessage>("createProduct") {
+    val create = call<BulkRequest<Product>, Unit, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
     }
 
-    val updateProduct = call<UpdateProductRequest, UpdateProductResponse, CommonErrorMessage>("updateProduct") {
-        httpUpdate(baseContext, "update", roles = Roles.AUTHENTICATED)
-    }
-
-    val findProduct = call<FindProductRequest, FindProductResponse, CommonErrorMessage>("findProduct") {
+    val retrieve = call<ProductsRetrieveRequest, Product, CommonErrorMessage>("retrieve") {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
     }
-
-    @Deprecated("Switch to `browse`")
-    val listProductsByType =
-        call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>(
-            "listProductionsByType",
-            {
-                auth {
-                    access = AccessRight.READ
-                    roles = Roles.PUBLIC
-                }
-
-                http {
-                    method = HttpMethod.Get
-
-                    path {
-                        using(baseContext)
-                        +"listByArea"
-                    }
-
-                    params {
-                        +boundTo(ListProductsByAreaRequest::provider)
-                        +boundTo(ListProductsByAreaRequest::area)
-                        +boundTo(ListProductsByAreaRequest::itemsPerPage)
-                        +boundTo(ListProductsByAreaRequest::page)
-                        +boundTo(ListProductsByAreaRequest::showHidden)
-                    }
-                }
-            },
-            ListProductsByAreaRequest.serializer(),
-            Page.serializer(Product.serializer()),
-            CommonErrorMessage.serializer(),
-            typeOf<ListProductsByAreaRequest>(),
-            typeOf<ListProductsByAreaResponse>(),
-            typeOf<CommonErrorMessage>()
-        )
-
-    @Deprecated("Switch to `browse`")
-    val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>(
-        "listProducts",
-        {
-            auth {
-                access = AccessRight.READ
-                roles = Roles.AUTHENTICATED
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"list"
-                }
-
-                params {
-                    +boundTo(ListProductsRequest::provider)
-                    +boundTo(ListProductsRequest::itemsPerPage)
-                    +boundTo(ListProductsRequest::page)
-                }
-            }
-        },
-        ListProductsRequest.serializer(),
-        Page.serializer(Product.serializer()),
-        CommonErrorMessage.serializer(),
-        typeOf<ListProductsRequest>(),
-        typeOf<ListProductsResponse>(),
-        typeOf<CommonErrorMessage>()
-    )
-
-    @Deprecated("Use with caution. This call will likely be replaced with a paginated call (i.e. `browse`)")
-    val retrieveAllFromProvider =
-        call<RetrieveAllFromProviderRequest, RetrieveAllFromProviderResponse, CommonErrorMessage>(
-            "retrieveAllFromProvider",
-            {
-                auth {
-                    access = AccessRight.READ
-                    roles = Roles.AUTHENTICATED
-                }
-
-                http {
-                    method = HttpMethod.Get
-
-                    path {
-                        using(baseContext)
-                        +"retrieve"
-                    }
-
-                    params {
-                        +boundTo(RetrieveAllFromProviderRequest::provider)
-                        +boundTo(RetrieveAllFromProviderRequest::showHidden)
-                    }
-                }
-            },
-            RetrieveAllFromProviderRequest.serializer(),
-            ListSerializer(Product.serializer()),
-            CommonErrorMessage.serializer(),
-            typeOf<RetrieveAllFromProviderRequest>(),
-            typeOf<RetrieveAllFromProviderResponse>(),
-            typeOf<CommonErrorMessage>()
-        )
 
     val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>(
         "browse",

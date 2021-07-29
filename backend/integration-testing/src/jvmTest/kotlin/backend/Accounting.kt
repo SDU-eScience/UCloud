@@ -67,6 +67,8 @@ class AccountingTest : IntegrationTest() {
 
             test<In, Out>("Deposit and charge") {
                 execute {
+                    createSampleProducts()
+
                     val owner: WalletOwner
                     val client: AuthenticatedClient
                     val createdUser = createUser("${title}_$testId")

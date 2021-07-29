@@ -3,7 +3,6 @@ package dk.sdu.cloud.service.test
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.DatabaseConfigurationFeature
-import dk.sdu.cloud.micro.postgresJdbcUrl
 import dk.sdu.cloud.micro.safeSchemaName
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
@@ -18,66 +17,26 @@ object TestDB {
             schemas(safeSchemaName(serviceDescription))
         }.load()
         flyway.migrate()
-        return Pair(dbSessionFactory(safeSchemaName(serviceDescription)), db)
+        return Pair<AsyncDBSessionFactory, EmbeddedPostgres>(
+            AsyncDBSessionFactory(
+                DatabaseConfig(
+                    jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
+                    defaultSchema = safeSchemaName(serviceDescription),
+                    recreateSchema = false,
+                    username = "postgres",
+                    password = "postgres"
+                )
+            ),
+            db
+        )
     }
-
-    private var baseConfigFromEnv: DatabaseConfig? = null
-    private var dbConfigForFeature: DatabaseConfigurationFeature.Feature.Config? = null
-
-    const val ENV = "INTEGRATION_TEST_POSTGRES_"
-    const val CONFIG_HOSTNAME = ENV + "HOSTNAME"
-    const val CONFIG_USERNAME = ENV + "USERNAME"
-    const val CONFIG_PASSWORD = ENV + "PASSWORD"
-    const val CONFIG_PORT = ENV + "PORT"
-    const val CONFIG_DATABASE = ENV + "DATABASE"
 
     fun initializeWithoutService() {
-        val hostname = System.getenv(CONFIG_HOSTNAME)
-        val username = System.getenv(CONFIG_USERNAME)
-        val password = System.getenv(CONFIG_PASSWORD)
-        val port = System.getenv(CONFIG_PORT)
-        val database = System.getenv(CONFIG_DATABASE)
-        if (hostname != null && username != null && password != null) {
-            val portToUse = port?.toIntOrNull() ?: 5432
-            val databaseToUse = database ?: "postgres"
-
-            baseConfigFromEnv = DatabaseConfig(
-                jdbcUrl = postgresJdbcUrl(hostname, databaseToUse, portToUse),
-                username = username,
-                password = password,
-                defaultSchema = "public",
-                recreateSchema = true
-            )
-
-            dbConfigForFeature = DatabaseConfigurationFeature.Feature.Config(
-                hostname = hostname,
-                database = databaseToUse,
-                credentials = DatabaseConfigurationFeature.Feature.Credentials(username, password),
-                port = portToUse
-            )
-        } else {
-            db = EmbeddedPostgres.start()
-            dbConfigForFeature = DatabaseConfigurationFeature.Feature.Config(
-                hostname = "localhost",
-                port = db.port,
-                credentials = DatabaseConfigurationFeature.Feature.Credentials("postgres", "postgres"),
-                database = "postgres"
-            )
-        }
-    }
-
-    fun close() {
-        if (this::db.isInitialized) {
-            db.close()
-        }
-    }
-
-    fun getFeatureConfig(): DatabaseConfigurationFeature.Feature.Config {
-        return dbConfigForFeature ?: error("Not yet initialized")
+        db = EmbeddedPostgres.start()
     }
 
     fun getBaseConfig(): DatabaseConfig {
-        return baseConfigFromEnv ?: DatabaseConfig(
+        return DatabaseConfig(
             jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
             defaultSchema = "public",
             recreateSchema = false,
@@ -86,9 +45,28 @@ object TestDB {
         )
     }
 
+    fun getConfigForFeature(): DatabaseConfigurationFeature.Feature.Config {
+        return DatabaseConfigurationFeature.Feature.Config(
+            hostname = "localhost",
+            port = db.port,
+            credentials = DatabaseConfigurationFeature.Feature.Credentials("postgres", "postgres"),
+            database = "postgres"
+        )
+    }
+
+    fun close() {
+        if (this::db.isInitialized) {
+            db.close()
+        }
+    }
+
     fun dbSessionFactory(defaultSchema: String): AsyncDBSessionFactory {
         return AsyncDBSessionFactory(
             getBaseConfig().copy(defaultSchema = defaultSchema)
         )
+    }
+
+    fun getEmbeddedPostgresInfo(): String {
+        return db.getJdbcUrl("postgres", "postgres")
     }
 }

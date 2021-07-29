@@ -155,3 +155,4 @@ logs/
 fs/
 
 backend/envoy/
+.compose/

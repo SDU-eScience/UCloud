@@ -22,6 +22,21 @@ alter table accounting.product_categories drop column area;
 
 alter table accounting.products drop column area;
 
+alter table accounting.products drop column availability;
+
+create or replace function accounting.require_immutable_product_category() returns trigger language plpgsql as $$
+begin
+    if old.charge_type != new.charge_type or old.product_type != new.product_type then
+        raise exception 'Cannot change the definition of a category after its initial creation';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_immutable_product_category
+after insert or update of charge_type, product_type on accounting.product_categories
+for each row execute procedure accounting.require_immutable_product_category();
+
 ---- /Changes to product_categories ----
 
 ---- Update storage products ----
