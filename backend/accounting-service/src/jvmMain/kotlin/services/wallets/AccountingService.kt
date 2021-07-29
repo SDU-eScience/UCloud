@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
@@ -17,9 +18,12 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
+import dk.sdu.cloud.service.db.async.PostgresErrorCodes
 import dk.sdu.cloud.service.db.async.TransactionMode
+import dk.sdu.cloud.service.db.async.errorCode
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -211,17 +215,24 @@ class AccountingService(
                 }
             }
 
-            session.sendPreparedStatement(
-                {
-                    parameters()
-                    retain("usernames", "project_ids")
-                },
-                """
+            try {
+                session.sendPreparedStatement(
+                    {
+                        parameters()
+                        retain("usernames", "project_ids")
+                    },
+                    """
                     insert into accounting.wallet_owner (username, project_id) 
                     values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
                     on conflict do nothing
                 """
-            )
+                )
+            } catch (ex: GenericDatabaseException) {
+                if (ex.errorCode == PostgresErrorCodes.FOREIGN_KEY_VIOLATION) {
+                    throw RPCException("No such payer exists", HttpStatusCode.BadRequest)
+                }
+            }
+
             session.sendPreparedStatement(
                 {
                     parameters()
@@ -248,7 +259,8 @@ class AccountingService(
                     on conflict do nothing
                 """
             )
-            session.sendPreparedStatement(
+
+            val rowsAffected = session.sendPreparedStatement(
                 parameters,
                 """
                     with 
@@ -291,7 +303,11 @@ class AccountingService(
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
                 """
-            )
+            ).rowsAffected
+
+            if (rowsAffected != request.items.size.toLong()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
         }
     }
 
@@ -376,5 +392,9 @@ class AccountingService(
                 rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
             }
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
