@@ -21,5 +21,6 @@ object PostgresErrorCodes {
     const val UNIQUE_VIOLATION = "23505"
     const val EXCLUSION_VIOLATION = "23P01"
     const val RAISE_EXCEPTION = "P0001"
+    const val FOREIGN_KEY_VIOLATION = "23503"
 }
 

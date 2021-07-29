@@ -2,13 +2,11 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
-import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
@@ -17,7 +15,6 @@ import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.AvatarService
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
@@ -34,7 +31,6 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
-import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
@@ -47,7 +43,6 @@ import io.ktor.server.netty.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import org.apache.logging.log4j.Level
 import java.io.File
 import kotlin.system.exitProcess
@@ -212,29 +207,27 @@ suspend fun main(args: Array<String>) {
                 """.trimIndent()
             )
 
-            Products.createProduct.call(
-                Product.Compute(
-                    "u1-standard-1",
-                    1000L,
-                    ProductCategoryId("u1-standard", providerId),
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0,
-                    unitOfPrice = ProductPriceUnit.PER_MINUTE,
-                    freeToUse = false,
-                    version = 1,
-                ),
-                userClient
-            ).orThrow()
-
-            Products.createProduct.call(
-                Product.Storage(
-                    "u1-cephfs",
-                    0L,
-                    ProductCategoryId("u1-cephfs", providerId),
-                    unitOfPrice = ProductPriceUnit.PER_DAY,
-                    version = 1,
-                    freeToUse = false
+            Products.create.call(
+                bulkRequestOf(
+                    Product.Compute(
+                        "u1-standard-1",
+                        1000L,
+                        ProductCategoryId("u1-standard", providerId),
+                        cpu = 1,
+                        memoryInGigs = 1,
+                        gpu = 0,
+                        unitOfPrice = ProductPriceUnit.PER_MINUTE,
+                        freeToUse = false,
+                        version = 1,
+                    ),
+                    Product.Storage(
+                        "u1-cephfs",
+                        0L,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        unitOfPrice = ProductPriceUnit.PER_DAY,
+                        version = 1,
+                        freeToUse = false
+                    )
                 ),
                 userClient
             ).orThrow()

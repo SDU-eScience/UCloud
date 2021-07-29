@@ -473,7 +473,7 @@ object UCloudLauncher : Loggable {
             services.forEach { objectInstance ->
                 if (objectInstance !in blacklist) {
                     try {
-                        log.info("Registering ${objectInstance.javaClass.canonicalName}")
+                        log.trace("Registering ${objectInstance.javaClass.canonicalName}")
                         reg.register(objectInstance)
                     } catch (ex: Throwable) {
                         log.error("Caught error: ${ex.stackTraceToString()}")
