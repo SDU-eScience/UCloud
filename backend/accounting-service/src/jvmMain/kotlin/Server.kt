@@ -33,7 +33,7 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val productService = ProductService()
+        val productService = ProductService(db)
 
         val accountingService = AccountingService(db)
 
@@ -76,7 +76,7 @@ class Server(
         with(micro.server) {
             configureControllers(
                 AccountingController(accountingService),
-                ProductController(db, productService),
+                ProductController(productService),
                 Docs(),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService, db),

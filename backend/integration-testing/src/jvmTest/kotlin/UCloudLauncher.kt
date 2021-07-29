@@ -11,6 +11,8 @@ import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
+import dk.sdu.cloud.auth.api.JwtRefresher
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -82,6 +84,8 @@ object UCloudLauncher : Loggable {
     private lateinit var dbConfig: DatabaseConfig
 
     lateinit var serviceClient: AuthenticatedClient
+    lateinit var adminClient: AuthenticatedClient
+    private val adminRefreshToken = UUID.randomUUID().toString()
 
     private val tempDir = if (Platform.isMac()) {
         File(System.getProperty("user.home"), "temp-integration").also { it.deleteOnExit() }
@@ -271,7 +275,7 @@ object UCloudLauncher : Loggable {
                             (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
                             phone_number, title, hashed_password, salt, org_id, email) 
                             values 
-                            ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
+                            ('SERVICE', '_ucloud', now(), now(), 'SERVICE', 'Admin', 'Dev', null, null, null, 
                             E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
                    """
                 )
@@ -284,7 +288,36 @@ object UCloudLauncher : Loggable {
                             (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
                             expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
                             values
-                            (:refreshToken, 'admin@dev', 'csrf', 'initial', null, :scopes::jsonb, 
+                            (:refreshToken, '_ucloud', 'csrf', 'initial', null, :scopes::jsonb, 
+                            31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
+                    """
+                )
+
+            session
+                .sendPreparedStatement(
+                    {},
+                    """
+                        insert into auth.principals 
+                            (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
+                            phone_number, title, hashed_password, salt, org_id, email) 
+                            values 
+                            ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
+                            E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
+                   """
+                )
+
+            session
+                .sendPreparedStatement(
+                    {
+                        parameters()
+                        setParameter("refreshToken", adminRefreshToken)
+                    },
+                    """
+                        insert into auth.refresh_tokens 
+                            (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
+                            expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
+                            values
+                            (:refreshToken, 'admin@dev', 'csrf', 'someothereuniquereference', null, :scopes::jsonb, 
                             31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
                     """
                 )
@@ -404,6 +437,8 @@ object UCloudLauncher : Loggable {
             val m = micro.createScope()
             m.install(AuthenticatorFeature)
             serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
+            adminClient = RefreshingJWTAuthenticator(m.client, JwtRefresher.Normal(adminRefreshToken))
+                .authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(
                 // The following 'services' are all essentially scripts that run in UCloud

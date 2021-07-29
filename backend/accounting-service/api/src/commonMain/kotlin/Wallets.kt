@@ -114,7 +114,12 @@ data class ChargeWalletRequestItem(
     val performedBy: String,
     @UCloudApiDoc("A description of the charge this is used purely for presentation purposes")
     val description: String
-)
+) {
+    init {
+        checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
+        checkMinimumValue(this::units, units, 1)
+    }
+}
 
 typealias ChargeWalletResponse = Unit
 

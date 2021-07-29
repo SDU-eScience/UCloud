@@ -77,8 +77,8 @@ class LicenseService(
                     set(LicenseServerTable.description, license.description)
                 }
 
-                val resp = Products.createProduct.call(
-                    license.toProduct(),
+                val resp = Products.create.call(
+                    bulkRequestOf(license.toProduct()),
                     k8.serviceClient
                 )
 
@@ -166,8 +166,8 @@ class LicenseService(
 
                 if (!success) throw RPCException("License does not exist: ${newLicense.id}", HttpStatusCode.NotFound)
 
-                Products.updateProduct.call(
-                    newLicense.toProduct(),
+                Products.create.call(
+                    bulkRequestOf(newLicense.toProduct()),
                     k8.serviceClient
                 ).orThrow()
             }
@@ -180,7 +180,7 @@ class LicenseService(
             pricePerUnit,
             ProductCategoryId(id, UCLOUD_PROVIDER),
             description = "Software license",
-            hiddenInGrantApplications,
+            hiddenInGrantApplications = hiddenInGrantApplications,
             tags = tags,
             priority = priority,
             version = 1,
@@ -202,11 +202,11 @@ class LicenseService(
                 ProductCategoryId(it.getField(LicenseServerTable.id), UCLOUD_PROVIDER),
                 it.getField(LicenseServerTable.pricePerUnit),
                 it.getField(LicenseServerTable.description),
-                Products.findProduct.call(
-                    FindProductRequest(
-                        UCLOUD_PROVIDER,
-                        it.getField(LicenseServerTable.id),
-                        it.getField(LicenseServerTable.id)
+                Products.retrieve.call(
+                    ProductsRetrieveRequest(
+                        filterProvider = UCLOUD_PROVIDER,
+                        filterCategory = it.getField(LicenseServerTable.id),
+                        filterName = it.getField(LicenseServerTable.id)
                     ),
                     k8.serviceClient
                 ).orThrow().hiddenInGrantApplications,

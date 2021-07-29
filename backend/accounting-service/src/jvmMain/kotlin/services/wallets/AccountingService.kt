@@ -37,7 +37,7 @@ class AccountingService(
         request: BulkRequest<ChargeWalletRequestItem>,
     ) {
         val actor = actorAndProject.actor
-        if (actor != Actor.System || (actor is Actor.User && actor.principal.role != Role.SERVICE)) {
+        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
@@ -70,7 +70,7 @@ class AccountingService(
         request: BulkRequest<ChargeWalletRequestItem>,
     ): BulkResponse<Boolean> {
         val actor = actorAndProject.actor
-        if (actor != Actor.System || (actor is Actor.User && actor.principal.role != Role.SERVICE)) {
+        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 

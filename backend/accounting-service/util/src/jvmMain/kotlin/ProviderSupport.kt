@@ -1,9 +1,9 @@
 package dk.sdu.cloud.accounting.util
 
-import dk.sdu.cloud.accounting.api.FindProductRequest
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.RPCException
@@ -21,8 +21,8 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
     private val productCache = SimpleCache<ProductReference, P>(
         maxAge = 60_000 * 15,
         lookup = { ref ->
-            val productResp = Products.findProduct.call(
-                FindProductRequest(ref.provider, ref.category, ref.id),
+            val productResp = Products.retrieve.call(
+                ProductsRetrieveRequest(filterProvider = ref.provider, filterCategory = ref.category, filterName = ref.id),
                 serviceClient
             )
 

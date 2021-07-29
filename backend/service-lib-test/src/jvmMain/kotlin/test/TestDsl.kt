@@ -1,5 +1,8 @@
 package dk.sdu.cloud.test
 
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -133,6 +136,14 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
             }
 
             ExceptionContext(throwable).fn()
+        }
+    }
+
+    fun expectStatusCode(statusCode: HttpStatusCode) {
+        expectFailure {
+             assertThatInstance(exception, "should have status code $statusCode") {
+                 it is RPCException && it.httpStatusCode == statusCode
+             }
         }
     }
 

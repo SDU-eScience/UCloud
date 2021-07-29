@@ -561,10 +561,13 @@ class JobManagement(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
+        TODO()
+        /*
         Products.retrieveAllFromProvider.call(
             RetrieveAllFromProviderRequest(UCLOUD_PROVIDER),
             k8.serviceClient
         ).orThrow().filterIsInstance<Product.Compute>()
+         */
     })
 
     suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {

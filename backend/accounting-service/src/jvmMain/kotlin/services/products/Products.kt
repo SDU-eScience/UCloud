@@ -49,8 +49,11 @@ class ProductService(
                 """
                     insert into accounting.product_categories
                         (provider, category, product_type, charge_type) 
-                    select unnest(:names::text[]), unnest(:categories::text[]), unnest(:product_types::text[]),
-                           unnest(:charge_types::text[])
+                    select
+                        unnest(:providers::text[]),
+                        unnest(:categories::text[]),
+                        unnest(:product_types::accounting.product_type[]),
+                        unnest(:charge_types::accounting.charge_type[])
                     on conflict (provider, category)
                     do update set
                         charge_type = excluded.charge_type,
@@ -87,14 +90,14 @@ class ProductService(
                 """
                     with requests as (
                         select
-                            unnest(:names::text[]) name,
+                            unnest(:names::text[]) uname,
                             unnest(:prices_per_unit::bigint[]) price_per_unit,
                             unnest(:cpus::int[]) cpu,
                             unnest(:gpus::int[]) gpu,
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
                             unnest(:categories::text[]) category,
                             unnest(:providers::text[]) provider,
-                            unnest(:units_of_price::text[]) unit_of_price,
+                            unnest(:units_of_price::accounting.product_price_unit[]) unit_of_price,
                             unnest(:free_to_use::boolean[]) free_to_use,
                             unnest(:license_tags::jsonb[]) license_tags
                     )
@@ -102,7 +105,7 @@ class ProductService(
                         (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
                          unit_of_price, free_to_use, version) 
                     select
-                        req.name, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
+                        req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
                         pc.id, req.unit_of_price, req.free_to_use, coalesce(existing.version + 1, 1)
                     from
                         requests req join
@@ -110,7 +113,7 @@ class ProductService(
                             req.category = pc.category and
                             req.provider = pc.provider left join
                         accounting.products existing on
-                            req.name = existing.name and
+                            req.uname = existing.name and
                             existing.category = pc.id
                 """
             )
@@ -120,8 +123,8 @@ class ProductService(
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProductsRetrieveRequest
-    ) {
-
+    ): Product {
+        TODO()
     }
 
     suspend fun browse(

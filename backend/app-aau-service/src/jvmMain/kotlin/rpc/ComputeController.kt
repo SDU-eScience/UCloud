@@ -5,7 +5,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.aau.services.ResourceCache
@@ -270,10 +269,13 @@ class ComputeController(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
+        TODO()
+        /*
         Products.retrieveAllFromProvider.call(
             RetrieveAllFromProviderRequest("aau"),
             client.client
         ).orThrow().filterIsInstance<Product.Compute>()
+         */
     })
 
     /*

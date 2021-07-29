@@ -826,7 +826,8 @@ begin
            'productType', category_in.product_type,
            'unitOfPrice', product_in.unit_of_price,
            'chargeType', category_in.charge_type,
-           'balance', balance
+           'balance', balance,
+           'hiddenInGrantApplications', product_in.hidden_in_grant_applications
        )
     );
     if category_in.product_type = 'STORAGE' then

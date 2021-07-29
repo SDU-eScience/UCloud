@@ -1,10 +1,16 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher.adminClient
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.provider.api.ProviderSpecification
+import dk.sdu.cloud.provider.api.Providers
+import org.elasticsearch.client.Requests.bulkRequest
 
 val sampleIngress = Product.Ingress(
     "u1-ingress",
@@ -38,12 +44,22 @@ val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleN
  * Creates a sample catalog of products
  */
 suspend fun createSampleProducts() {
-    sampleProducts.forEach { product ->
-        Products.createProduct.call(
-            product,
-            serviceClient
-        ).orThrow()
-    }
+    Providers.create.call(
+        bulkRequestOf(
+            ProviderSpecification(
+                UCLOUD_PROVIDER,
+                "localhost",
+                https = false,
+                port = 8080
+            )
+        ),
+        adminClient
+    ).orThrow()
+
+    Products.create.call(
+        BulkRequest(sampleProducts),
+        serviceClient
+    ).orThrow()
 }
 
 fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)

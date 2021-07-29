@@ -79,6 +79,7 @@ sealed class Product {
     abstract val productType: ProductType
     abstract val unitOfPrice: ProductPriceUnit
     abstract val chargeType: ChargeType
+    abstract val hiddenInGrantApplications: Boolean
 
     @Deprecated("Replace with name", ReplaceWith("name"))
     val id: String get() = name
@@ -102,6 +103,7 @@ sealed class Product {
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_DAY,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.STORAGE
         init {
@@ -126,6 +128,7 @@ sealed class Product {
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_MINUTE,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.COMPUTE
 
@@ -152,6 +155,7 @@ sealed class Product {
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.INGRESS
         init {
@@ -174,6 +178,7 @@ sealed class Product {
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.LICENSE
         init {
@@ -195,6 +200,7 @@ sealed class Product {
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
         init {
@@ -206,6 +212,7 @@ sealed class Product {
 }
 
 interface ProductFlags {
+    val filterName: String?
     val filterArea: ProductType?
     val filterProvider: String?
     val filterUsable: Boolean?
@@ -220,6 +227,7 @@ data class ProductsBrowseRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 
+    override val filterName: String? = null,
     override val filterProvider: String? = null,
     override val filterArea: ProductType? = null,
     override val filterUsable: Boolean? = null,
@@ -231,6 +239,7 @@ typealias ProductsBrowseResponse = PageV2<Product>
 
 @Serializable
 data class ProductsRetrieveRequest(
+    override val filterName: String? = null,
     override val filterArea: ProductType? = null,
     override val filterProvider: String? = null,
     override val filterUsable: Boolean? = null,

@@ -125,9 +125,7 @@ class EnhancedPreparedStatement(
     }
 
     fun setParameterUntyped(name: String, value: Any?) {
-        val indices = parameterNamesToIndex[name] ?: return run {
-            log.debug("Unused parameter '$name'")
-        }
+        val indices = parameterNamesToIndex[name] ?: return
         for (index in indices) {
             parameters[index] = value
         }

@@ -1,6 +1,16 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.RootDepositRequestItem
+import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletBrowseRequest
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -12,6 +22,8 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.http.*
+import java.util.*
 import kotlin.test.assertEquals
 
 suspend fun addFundsToPersonalProject(
@@ -54,6 +66,48 @@ class AccountingTest : IntegrationTest() {
     override fun defineTests() {
         run {
             class In(
+                val owner: WalletOwner,
+                val createProducts: Boolean = true,
+                val createUser: String? = null
+            )
+
+            test<In, Unit>("Bad uses of rootDeposit") {
+                execute {
+                    if (input.createProducts) {
+                        createSampleProducts()
+                    }
+
+                    val username = input.createUser
+                    if (username != null) createUser(username)
+
+                    Accounting.rootDeposit.call(
+                        bulkRequestOf(
+                            RootDepositRequestItem(sampleCompute.category, input.owner, 100.DKK, "Initial balance")
+                        ),
+                        serviceClient
+                    ).orThrow()
+                }
+
+                case("Bad user") {
+                    input(In(WalletOwner.User("BADUSER"), createProducts = true))
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("Bad project") {
+                    input(In(WalletOwner.Project("BADPROJECT"), createProducts = true))
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("Bad product") {
+                    val id = UUID.randomUUID().toString()
+                    input(In(WalletOwner.User(id), createProducts = false, createUser = id))
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+            }
+        }
+
+        run {
+            class In(
                 val walletBelongsToProject: Boolean,
                 val initialBalance: Long,
                 val units: Long,
@@ -65,7 +119,7 @@ class AccountingTest : IntegrationTest() {
                 val newBalance: Long
             )
 
-            test<In, Out>("Deposit and charge") {
+            test<In, Out>("Root deposit and charge") {
                 execute {
                     createSampleProducts()
 
@@ -84,7 +138,7 @@ class AccountingTest : IntegrationTest() {
                         ).orThrow().id
 
                         owner = WalletOwner.Project(id)
-                        client = serviceClient.withProject(id)
+                        client = createdUser.client.withProject(id)
                     } else {
                         client = createdUser.client
                         owner = WalletOwner.User(createdUser.username)
@@ -139,18 +193,38 @@ class AccountingTest : IntegrationTest() {
                 listOf(true, false).forEach { isProject ->
                     val name = if (isProject) "Project" else "User"
 
+                    fun balanceWasDeducted(input: In, output: Out) {
+                        assertEquals(
+                            input.initialBalance - (input.product.pricePerUnit * input.units * input.numberOfProducts),
+                            output.newBalance
+                        )
+                    }
+
                     case("$name with enough credits") {
-                        input(In(isProject, 1000.DKK, 10.DKK))
-                        check {
-                            assertEquals(990.DKK, output.newBalance)
-                        }
+                        input(In(isProject, 1000.DKK, 1))
+                        check { balanceWasDeducted(input, output) }
                     }
 
                     case("$name with over-charge") {
                         input(In(isProject, 10.DKK, 20.DKK))
                         check {
-                            assertEquals(0.DKK, output.newBalance)
+                            assertEquals(0, output.newBalance)
                         }
+                    }
+
+                    case("$name with negative units") {
+                        input(In(isProject, 100.DKK, -100))
+                        expectStatusCode(HttpStatusCode.BadRequest)
+                    }
+
+                    case("$name with negative number of products") {
+                        input(In(isProject, 100.DKK, 1, -1))
+                        expectStatusCode(HttpStatusCode.BadRequest)
+                    }
+
+                    case("$name with no products involved") {
+                        input(In(isProject, 100.DKK, 0))
+                        expectStatusCode(HttpStatusCode.BadRequest)
                     }
                 }
             }
