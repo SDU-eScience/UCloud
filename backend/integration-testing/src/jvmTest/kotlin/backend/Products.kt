@@ -19,6 +19,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+const val OTHER_PROVIDER = "NewProvider"
+
 val sampleIngress = Product.Ingress(
     "u1-ingress",
     0,
@@ -33,10 +35,28 @@ val sampleCompute = Product.Compute(
     memoryInGigs = 1
 )
 
+val sampleCompute2 = sampleCompute.copy(
+    name = "u1-standard-2",
+    cpu = 2,
+    memoryInGigs = 2
+)
+
+val sampleComputeOtherProvider = sampleCompute.copy(
+    category = ProductCategoryId("standard", OTHER_PROVIDER)
+)
+
 val sampleStorage = Product.Storage(
     "u1-cephfs",
     100_000,
     ProductCategoryId("cephfs", UCLOUD_PROVIDER)
+)
+
+val sampleStorage2 = sampleStorage.copy(
+    name = "u2-cephfs"
+)
+
+val sampleStorageOtherProvider = sampleStorage.copy(
+    category = ProductCategoryId("cephfs", OTHER_PROVIDER)
 )
 
 val sampleNetworkIp = Product.NetworkIP(
@@ -46,6 +66,7 @@ val sampleNetworkIp = Product.NetworkIP(
 )
 
 val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp)
+val sampleProductsOtherProvider = listOf(sampleComputeOtherProvider, sampleStorageOtherProvider)
 
 suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
     Providers.create.call(
@@ -69,6 +90,27 @@ suspend fun createSampleProducts() {
 
     Products.create.call(
         BulkRequest(sampleProducts),
+        serviceClient
+    ).orThrow()
+}
+
+suspend fun createAdditionalProductsFromUcloudProvider() {
+    createProvider()
+
+    Products.create.call(
+        bulkRequestOf(
+            sampleCompute2,
+            sampleStorage2
+        ),
+        serviceClient
+    ).orThrow()
+}
+
+suspend fun createSampleProductsOtherProducts() {
+    createProvider(providerName = OTHER_PROVIDER)
+
+    Products.create.call(
+        BulkRequest(sampleProductsOtherProvider),
         serviceClient
     ).orThrow()
 }
