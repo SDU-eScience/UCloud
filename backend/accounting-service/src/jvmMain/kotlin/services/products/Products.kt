@@ -164,51 +164,74 @@ class ProductService(
                 setParameter("include_balance", flags.includeBalance == true)
                 setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                 setParameter("account_is_project", actorAndProject.project != null)
-                setParameter("usable_filter", flags.filterUsable == true)
             },
             """
                 with my_wallets as(
-                    select *
-                    from accounting.wallets wa join 
-                        accounting.wallet_owner wo on wo.id = wa.owned_by join 
-                        accounting.product_categories pc on pc.id = wa.category left join 
+                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                    from accounting.wallets wa join
+                        accounting.wallet_owner wo on wo.id = wa.owned_by join
+                        accounting.products p2 on wa.category = p2.category join
+                        accounting.product_categories pc on pc.id = wa.category left join
                         (
-                            select sum(walloc.balance) balance, wa.id 
-                            from 
-                                accounting.wallets wa join 
+                            select sum(walloc.balance) balance, wa.id
+                            from
+                                accounting.wallets wa join
                                 accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
                             group by wa.id
                         ) as balances on (:include_balance and balances.id = wa.id)
-                    where 
+                    where
                         (
-                            (not :account_is_project and wo.username = :accountId) or 
+                            (not :account_is_project and wo.username = :accountId) or
                             (:account_is_project and wo.project_id = :accountId)
                         ) and
                         (
-                            :category_filter is null or 
+                            :category_filter::text is null or
                             pc.category = :category_filter
                         ) and
                         (
-                            :provider_filter is null or 
+                            :provider_filter::text is null or
                             pc.provider = :provider_filter
+                        ) and
+                        (
+                            :product_filter::accounting.product_type is null or
+                            pc.product_type = :product_filter
+                        ) and
+                        (
+                            :name_filter::text is null or
+                            p2.name = :name_filter
                         )
                 )
-                select product_to_json(p, pc2, balance)
-                from accounting.products p join product_categories pc2 on pc2.id = p.category
-                    left outer join my_wallets mw 
-                        on (p.category = mw.category and pc2.provider = mw.provider)
+                select accounting.product_to_json(
+                    p,
+                    pc2,
+                    (CASE WHEN :include_balance= true THEN (coalesce(balance::bigint, 0)) END)
+                )
+                from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
+                    left outer join my_wallets mw
+                        on (pc2.id = mw.wallet_category and pc2.provider = mw.provider)
                 where
                     (
-                        :category_filter is null or 
+                        :category_filter::text is null or
                         pc2.category = :category_filter
                     ) and
                     (
-                        :provider_filter is null or 
+                        :provider_filter::text is null or
                         pc2.provider = :provider_filter
-                    ) and 
+                    ) and
+
                     (
-                        (mw.balance is not null and mw.balance > 0) or 
-                        (p.free_to_use)
+                        :product_filter::accounting.product_type is null or
+                        pc2.product_type = :product_filter
+                    ) and
+                    (
+                        :name_filter::text is null or
+                        p.name = :name_filter
+                    ) and
+                    (
+                        :include_balance and (
+                            (mw.balance is not null and mw.balance > 0) or
+                            (p.free_to_use)
+                        ) or true
                     )
                 order by pc2.provider, pc2.category
             """
