@@ -1,13 +1,16 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A transaction log-entry describes a change made to a wallet (allocation)")
+@Serializable
 sealed class Transaction {
     @UCloudApiDoc("""
         A change in balance of the affected allocation
@@ -32,8 +35,8 @@ sealed class Transaction {
     @UCloudApiDoc("A timestamp indicating when this change was made")
     abstract val timestamp: Long
 
-    @UCloudApiDoc("The `Wallet` which owns the affected allocation")
-    abstract val resolvedWallet: Wallet?
+    @UCloudApiDoc("The product category which this transaction belongs to")
+    abstract val resolvedCategory: ProductCategoryId
 
     @Serializable
     @SerialName("charge")
@@ -77,15 +80,14 @@ sealed class Transaction {
         override val actionPerformedBy: String,
         override val description: String,
         override val timestamp: Long,
-        override val resolvedWallet: Wallet?,
-        val resolvedProduct: Product?,
+        override val resolvedCategory: ProductCategoryId,
     ) : Transaction()
 
     @Serializable
     @SerialName("deposit")
     data class Deposit(
         @UCloudApiDoc("The source allocation which the affected allocation is created from")
-        val sourceAllocationId: String,
+        val sourceAllocationId: String?,
         @UCloudApiDoc("Timestamp for when the affected allocation becomes valid (`null` indicates none)")
         val startDate: Long?,
         @UCloudApiDoc("Timestamp for when the affected allocation no longer is valid (`null` indicates none)")
@@ -96,7 +98,7 @@ sealed class Transaction {
         override val description: String,
         override val affectedAllocationId: String,
         override val timestamp: Long,
-        override val resolvedWallet: Wallet?,
+        override val resolvedCategory: ProductCategoryId,
     ) : Transaction()
 
     @Serializable
@@ -114,7 +116,7 @@ sealed class Transaction {
         override val description: String,
         override val affectedAllocationId: String,
         override val timestamp: Long,
-        override val resolvedWallet: Wallet?,
+        override val resolvedCategory: ProductCategoryId,
     ) : Transaction()
 
     @Serializable
@@ -130,6 +132,33 @@ sealed class Transaction {
         override val description: String,
         override val affectedAllocationId: String,
         override val timestamp: Long,
-        override val resolvedWallet: Wallet?,
+        override val resolvedCategory: ProductCategoryId,
     ) : Transaction()
+}
+
+@Serializable
+data class TransactionsBrowseRequest(
+    val filterCategory: String? = null,
+    val filterProvider: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+
+object Transactions : CallDescriptionContainer("accounting.transactions") {
+    const val baseContext = "/api/accounting/transactions"
+
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(Transaction.Deposit.serializer()),
+            serializerEntry(Transaction.AllocationUpdate.serializer()),
+            serializerEntry(Transaction.Transfer.serializer()),
+            serializerEntry(Transaction.Charge.serializer()),
+        )
+    }
+
+    val browse = call<TransactionsBrowseRequest, PageV2<Transaction>, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
+    }
 }
