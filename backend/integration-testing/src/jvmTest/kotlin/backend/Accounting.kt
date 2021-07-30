@@ -9,7 +9,9 @@ import dk.sdu.cloud.accounting.api.RootDepositRequestItem
 import dk.sdu.cloud.accounting.api.Transaction
 import dk.sdu.cloud.accounting.api.Transactions
 import dk.sdu.cloud.accounting.api.TransactionsBrowseRequest
+import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
 import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletAllocation
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.Wallets
@@ -23,6 +25,7 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import io.ktor.http.*
@@ -230,9 +233,97 @@ class AccountingTest : IntegrationTest() {
             }
         }
 
-        run {
-            class Allocation(val isProject: Boolean, val amount: Long)
+        class Allocation(
+            val isProject: Boolean,
+            val amount: Long,
+            val startDate: Long? = null,
+            val endDate: Long? = null
+        )
 
+        data class AllocationResult(
+            val username: String,
+            val projectId: String?,
+            val client: AuthenticatedClient,
+            val balance: Long
+        ) {
+            val owner: WalletOwner = if (projectId == null) {
+                WalletOwner.User(username)
+            } else {
+                WalletOwner.Project(projectId)
+            }
+        }
+
+        suspend fun prepareProjectChain(
+            rootBalance: Long,
+            chainFromRoot: List<Allocation>,
+            productCategory: ProductCategoryId,
+            skipCreationOfLeaf: Boolean = false,
+        ): List<AllocationResult> {
+            val rootPi = createUser()
+            val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
+            val irrelevantUser = createUser()
+
+            val leaves = ArrayList<AllocationResult>()
+
+            for ((index, allocOwner) in chainFromRoot.withIndex()) {
+                if (allocOwner.isProject) {
+                    val user = createUser()
+                    val project = Projects.create.call(
+                        CreateProjectRequest("P$index", principalInvestigator = user.username),
+                        serviceClient
+                    ).orThrow()
+
+                    leaves.add(
+                        AllocationResult(
+                            user.username,
+                            project.id,
+                            user.client.withProject(project.id),
+                            allocOwner.amount
+                        )
+                    )
+                } else {
+                    val user = createUser()
+                    leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount))
+                }
+            }
+
+            var previousAllocation: String =
+                findProjectWallet(rootProject, rootPi.client, productCategory)!!.allocations.single().id
+            var previousPi: AuthenticatedClient = rootPi.client
+            val expectedAllocationPath = arrayListOf(previousAllocation)
+            for ((index, leaf) in leaves.withIndex()) {
+                if (index == leaves.lastIndex && skipCreationOfLeaf) break
+
+                val request = bulkRequestOf(
+                    DepositToWalletRequestItem(
+                        leaf.owner,
+                        previousAllocation,
+                        leaf.balance,
+                        "Transfer",
+                        chainFromRoot[index].startDate,
+                        chainFromRoot[index].endDate
+                    )
+                )
+                Accounting.deposit.call(request, previousPi).orThrow()
+
+                assertThatInstance(
+                    Accounting.deposit.call(request, irrelevantUser.client),
+                    "Should fail because they are not a part of the project"
+                ) { it.statusCode.value in 400..499 }
+
+                val alloc = findWallet(leaf.client, productCategory)!!.allocations.single()
+                previousAllocation = alloc.id
+                previousPi = leaf.client
+
+                expectedAllocationPath.add(alloc.id)
+                assertEquals(alloc.allocationPath, expectedAllocationPath)
+                assertEquals(alloc.balance, leaf.balance)
+                assertEquals(alloc.initialBalance, leaf.balance)
+            }
+            return leaves
+        }
+
+        run {
             class In(
                 val rootBalance: Long,
                 val chainFromRoot: List<Allocation>,
@@ -251,78 +342,11 @@ class AccountingTest : IntegrationTest() {
                 val hasEnoughCredits: Boolean
             )
 
-            data class UserAndClient(
-                val username: String, val projectId: String?,
-                val client: AuthenticatedClient, val balance: Long
-            ) {
-                val owner: WalletOwner = if (projectId == null) {
-                    WalletOwner.User(username)
-                } else {
-                    WalletOwner.Project(projectId)
-                }
-            }
-
-            suspend fun prepare(input: In): List<UserAndClient> {
-                val rootPi = createUser()
-                val rootProject = initializeRootProject(rootPi.username, amount = input.rootBalance)
-                val irrelevantUser = createUser()
-
-                val leaves = ArrayList<UserAndClient>()
-
-                for ((index, allocOwner) in input.chainFromRoot.withIndex()) {
-                    if (allocOwner.isProject) {
-                        val user = createUser()
-                        val project = Projects.create.call(
-                            CreateProjectRequest("P$index", principalInvestigator = user.username),
-                            serviceClient
-                        ).orThrow()
-
-                        leaves.add(
-                            UserAndClient(
-                                user.username,
-                                project.id,
-                                user.client.withProject(project.id),
-                                allocOwner.amount
-                            )
-                        )
-                    } else {
-                        val user = createUser()
-                        leaves.add(UserAndClient(user.username, null, user.client, allocOwner.amount))
-                    }
-                }
-
-                var previousAllocation: String =
-                    findProjectWallet(rootProject, rootPi.client, input.product.category)!!.allocations.single().id
-                var previousPi: AuthenticatedClient = rootPi.client
-                val expectedAllocationPath = arrayListOf(previousAllocation)
-                for ((index, leaf) in leaves.withIndex()) {
-                    if (index == leaves.lastIndex && input.skipCreationOfLeaf) break
-
-                    val request = bulkRequestOf(
-                        DepositToWalletRequestItem(
-                            leaf.owner,
-                            previousAllocation,
-                            leaf.balance,
-                            "Transfer"
-                        )
-                    )
-                    Accounting.deposit.call(request, previousPi).orThrow()
-
-                    assertThatInstance(
-                        Accounting.deposit.call(request, irrelevantUser.client),
-                        "Should fail because they are not a part of the project"
-                    ) { it.statusCode.value in 400..499 }
-
-                    val alloc = findWallet(leaf.client, input.product.category)!!.allocations.single()
-                    previousAllocation = alloc.id
-                    previousPi = leaf.client
-
-                    expectedAllocationPath.add(alloc.id)
-                    assertEquals(alloc.allocationPath, expectedAllocationPath)
-                    assertEquals(alloc.balance, leaf.balance)
-                    assertEquals(alloc.initialBalance, leaf.balance)
-                }
-                return leaves
+            suspend fun prepare(input: In): List<AllocationResult> {
+                return prepareProjectChain(
+                    input.rootBalance, input.chainFromRoot, input.product.category,
+                    input.skipCreationOfLeaf
+                )
             }
 
             test<In, ChargeOutput>("Deposit and charge") {
@@ -616,6 +640,163 @@ class AccountingTest : IntegrationTest() {
                     )
 
                     check { assertEquals(false, output.hasEnoughCredits) }
+                }
+            }
+        }
+
+        run {
+            class In(
+                val chainFromRoot: List<Allocation>,
+                val updateIndex: Int,
+                val newBalance: Long,
+                val newStartDate: Long,
+                val newEndDate: Long?,
+                val product: Product = sampleCompute,
+            )
+
+            class Out(
+                val allocationsFromRoot: List<WalletAllocation>,
+                val transactionsFromRoot: List<List<Transaction>>,
+            )
+
+            test<In, Out>("Update allocations") {
+                execute {
+                    val leaves = prepareProjectChain(10_000.DKK, input.chainFromRoot, input.product.category)
+                    val alloc =
+                        findWallet(leaves[input.updateIndex].client, input.product.category)!!.allocations.single()
+
+                    val request = bulkRequestOf(
+                        UpdateAllocationRequestItem(
+                            alloc.id,
+                            input.newBalance,
+                            input.newStartDate,
+                            input.newEndDate,
+                            "Change"
+                        )
+                    )
+                    Accounting.updateAllocation.call(request, leaves[max(0, input.updateIndex - 1)].client).orThrow()
+                    assertThatInstance(
+                        Accounting.updateAllocation.call(request, leaves.last().client),
+                        "Should not be able to update this allocation"
+                    ) { it.statusCode.value in 400..499 }
+
+                    Out(
+                        leaves.map {
+                            findWallet(it.client, input.product.category)!!.allocations.single()
+                        },
+                        leaves.map {
+                            Transactions.browse.call(
+                                TransactionsBrowseRequest(
+                                    input.product.category.name,
+                                    input.product.category.provider
+                                ),
+                                it.client
+                            ).orThrow().items
+                        }
+                    )
+                }
+
+                // NOTE(Dan): We don't store millisecond precision hence this weird calculation
+                val initialStartDate = ((Time.now() + (1000 * 60 * 60 * 24 * 7)) / 1000) * 1000
+
+                listOf(true, false).forEach { isProject ->
+                    val name = if (isProject) "project" else "user"
+                    (2..4).forEach { nlevels ->
+                        (1 until nlevels).forEach { updateIdx ->
+                            case("${nlevels}-levels of $name (updateIdx = $updateIdx)") {
+                                val initialBalance = 1000.DKK
+                                val newBalance = 500.DKK
+
+                                input(
+                                    In(
+                                        (0 until nlevels).map { Allocation(isProject, initialBalance, initialStartDate) },
+                                        updateIdx,
+                                        newBalance,
+                                        initialStartDate,
+                                        null
+                                    )
+                                )
+
+                                check {
+                                    output.allocationsFromRoot.forEachIndexed { idx, alloc ->
+                                        if (idx == updateIdx) {
+                                            assertThatPropertyEquals(alloc, { it.balance }, newBalance, "balance")
+                                            assertThatPropertyEquals(alloc, { it.initialBalance }, newBalance,
+                                                "initialBalance")
+                                        } else {
+                                            assertThatPropertyEquals(alloc, { it.balance }, initialBalance, "balance")
+                                            assertThatPropertyEquals(alloc, { it.initialBalance }, initialBalance,
+                                                "initialBalance")
+                                        }
+                                    }
+                                }
+
+                                check {
+                                    output.transactionsFromRoot.forEachIndexed { index, transactions ->
+                                        val updates = transactions.filterIsInstance<Transaction.AllocationUpdate>()
+                                        if (index != updateIdx) {
+                                            assertThatInstance(updates, "should be empty") { it.isEmpty() }
+                                        } else {
+                                            assertThatInstance(updates, "has only one update") { it.size == 1 }
+                                            val update = updates.single()
+                                            assertThatPropertyEquals(update, { it.change }, -(initialBalance - newBalance))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                case("update self should fail") {
+                    input(
+                        In(
+                            listOf(Allocation(true, 1000.DKK, initialStartDate)),
+                            0,
+                            1_000_000.DKK,
+                            initialStartDate,
+                            null
+                        )
+                    )
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("update affects children allocation period") {
+                    val newEndDate = initialStartDate + (1000 * 60 * 60 * 24)
+
+                    input(
+                        In(
+                            listOf(
+                                Allocation(true, 1000.DKK, initialStartDate),
+                                Allocation(true, 1000.DKK, initialStartDate),
+                                Allocation(true, 1000.DKK, initialStartDate),
+                                Allocation(true, 1000.DKK, initialStartDate),
+                            ),
+                            1,
+                            1000.DKK,
+                            initialStartDate,
+                            newEndDate
+                        )
+                    )
+
+                    check {
+                        output.allocationsFromRoot.drop(1).forEach { alloc ->
+                            assertThatPropertyEquals(alloc, { it.startDate }, initialStartDate, "startDate")
+                            assertThatPropertyEquals(alloc, { it.endDate }, newEndDate, "endDate")
+                        }
+
+                        output.transactionsFromRoot.forEachIndexed { index, transactions ->
+                            if (index >= 1) {
+                                val updates = transactions.filterIsInstance<Transaction.AllocationUpdate>()
+                                assertThatInstance(updates, "has only one update") { it.size == 1 }
+                                val update = updates.single()
+                                assertThatPropertyEquals(update, { it.change }, 0)
+                                assertThatPropertyEquals(update, { it.startDate }, initialStartDate)
+                                assertThatPropertyEquals(update, { it.endDate }, newEndDate)
+                            }
+                        }
+                    }
                 }
             }
         }

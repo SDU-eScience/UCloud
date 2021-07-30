@@ -325,46 +325,56 @@ begin
     select bool_or(valid) into is_valid
     from (
         select
-            (ancestor.start_date <= new.start_date) and
+            (ancestor.start_date <= updated.start_date) and
             (
                 ancestor.end_date is null or
-                ancestor.end_date >= new.end_date
+                ancestor.end_date >= updated.end_date
             ) is true as valid
-        from accounting.wallet_allocations ancestor
-        where
-            ancestor.allocation_path @> new.allocation_path and
-            ancestor.id != new.id
+        from
+            new_table updated join
+            accounting.wallet_allocations ancestor on
+                ancestor.allocation_path @> updated.allocation_path and
+                ancestor.id != updated.id
     ) checks;
 
     if not is_valid then
-        raise exception 'Update would extend allocation period';
+        raise exception 'Update would extend allocation period (caused by ancestor constraint)';
     end if;
 
     select bool_or(valid) into is_valid
     from (
         select
-            (new.start_date <= descendant.start_date) and
+            (updated.start_date <= coalesce(updated_descendant.start_date, descendant.start_date)) and
             (
-                new.end_date is null or
-                new.end_date >= descendant.end_date
+                updated.end_date is null or
+                updated.end_date >= coalesce(updated_descendant.end_date, descendant.end_date)
             ) is true as valid
-        from accounting.wallet_allocations descendant
-        where
-            new.allocation_path @> descendant.allocation_path and
-            descendant.id != new.id
+        from
+            new_table updated join
+            accounting.wallet_allocations descendant on
+                updated.allocation_path @> descendant.allocation_path and
+                descendant.id != updated.id left join
+            new_table updated_descendant on descendant.id = updated_descendant.id
     ) checks;
 
+
     if not is_valid then
-        raise exception 'Update would extend allocation period';
+        raise exception 'Update would extend allocation period (caused by descendant constraint)';
     end if;
 
     return null;
 end;
 $$ language plpgsql;
 
-create constraint trigger allocation_date_check
-after insert or update of start_date, end_date on accounting.wallet_allocations
-for each row execute procedure accounting.allocation_date_check();
+create trigger allocation_date_check_insert
+after insert on accounting.wallet_allocations
+referencing new table as new_table
+for each statement execute procedure accounting.allocation_date_check();
+
+create trigger allocation_date_check_update
+after update on accounting.wallet_allocations
+referencing new table as new_table
+for each statement execute procedure accounting.allocation_date_check();
 
 
 ---- /Verify allocation updates ----
@@ -720,13 +730,13 @@ create or replace function accounting.update_allocations(
 begin
     create temporary table update_result on commit drop as
     with requests as (
-        select performed_by, allocation_id, start_date, end_date, description, balance
+        select performed_by, allocation_id, start_date, end_date, description, balance, row_number() over () request_idx
         from unnest(request)
     )
     select
         alloc.id as alloc_id, parent.id as parent_id, descendant.id as descandant_id,
         alloc.balance as alloc_balance, descendant.balance as descendant_balance,
-        req.performed_by, req.start_date, req.end_date, req.description, req.balance
+        req.performed_by, req.start_date, req.end_date, req.description, req.balance, request_idx
     from
         requests req join
         accounting.wallet_allocations alloc on allocation_id = alloc.id join
@@ -746,14 +756,22 @@ begin
         accounting.wallet_allocations descendant on
             alloc.allocation_path @> descendant.allocation_path and
             (
-                (req.start_date >= descendant.start_date) or
+                (req.start_date > descendant.start_date) or
                 (req.end_date is not null and descendant.end_date is null) or
-                (req.end_date is not null and req.end_date >= descendant.end_date)
+                (req.end_date is not null and req.end_date > descendant.end_date)
+            ) and
+            (
+                descendant.start_date is distinct from req.start_date or
+                descendant.end_date is distinct from req.end_date
             )
     where
         -- NOTE(Dan): Check that we are allowed to act on the parent's behalf
         req.performed_by = pm.username or
         req.performed_by = parent_owner.username;
+
+    if (select count(distinct request_idx) from update_result) != cardinality(request) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+    end if;
 
     -- NOTE(Dan): Update the descendants. This needs to happen bottom-up.
     with update_table as (
@@ -766,6 +784,7 @@ begin
     set
         start_date = update_table.start_date,
         end_date = update_table.end_date
+    from update_table
     where
         alloc.id = update_table.descandant_id;
 
@@ -778,25 +797,27 @@ begin
     set
         start_date = update_table.start_date,
         end_date = update_table.end_date,
-        balance = update_table.balance
+        balance = update_table.balance,
+        initial_balance = update_table.balance
     from update_table
     where alloc.id = update_table.alloc_id;
 
     -- NOTE(Dan): Insert transactions for all descendants
     insert into accounting.transactions
-        (type, affected_allocation_id, action_performed_by, change, description, source_allocation_id,
+        (type, affected_allocation_id, action_performed_by, change, description,
         start_date, end_date)
-    select 'allocation_update', u.descandant_id, u.performed_by, 0, u.description, u.parent_id, u.start_date, u.end_date
+    select 'allocation_update'::accounting.transaction_type, u.descandant_id, u.performed_by, 0, u.description,
+           u.start_date, u.end_date
     from update_result u
-    where u.descandant_id is not null;
+    where u.descandant_id is not null and u.descandant_id != u.alloc_id;
 
     -- NOTE(Dan): Insert transactions for all target allocations
     insert into accounting.transactions
-        (type, affected_allocation_id, action_performed_by, change, description, source_allocation_id,
+        (type, affected_allocation_id, action_performed_by, change, description,
         start_date, end_date)
     select distinct
-        'allocation_update', u.alloc_id, u.performed_by, u.balance - u.alloc_balance, u.description, u.parent_id,
-        u.start_date, u.end_date
+        'allocation_update'::accounting.transaction_type, u.alloc_id, u.performed_by, u.balance - u.alloc_balance,
+        u.description, u.start_date, u.end_date
     from update_result u;
 end;
 $$;

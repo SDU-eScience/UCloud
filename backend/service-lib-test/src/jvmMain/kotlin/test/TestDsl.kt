@@ -25,6 +25,7 @@ abstract class UCloudTest {
     private val allTests = ArrayList<UCloudTestSuite<*, *>>()
     protected var perCasePreparation: suspend () -> Unit = {}
     protected var perCaseCleanup: suspend () -> Unit = {}
+    var testFilter: (title: String, subtitle: String) -> Boolean = { _, _ -> true }
 
     fun <In, Out> test(title: String, builder: UCloudTestSuiteBuilder<In, Out>.() -> Unit): UCloudTestSuite<In, Out> {
         val testSuite = UCloudTestSuiteBuilder<In, Out>(title).also(builder).build()
@@ -38,45 +39,47 @@ abstract class UCloudTest {
         defineTests()
         for (suite in allTests) {
             for (case in suite.cases) {
-                definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
-                    runBlocking {
-                        repeat(3) { println() }
-                        println(String(CharArray(80) { '=' }))
-                        println("${suite.title}/${case.subtitle}")
-                        println(String(CharArray(80) { '=' }))
-                        println()
+                if (testFilter(suite.title, case.subtitle)) {
+                    definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
+                        runBlocking {
+                            repeat(3) { println() }
+                            println(String(CharArray(80) { '=' }))
+                            println("${suite.title}/${case.subtitle}")
+                            println(String(CharArray(80) { '=' }))
+                            println()
 
-                        @Suppress("UNCHECKED_CAST")
-                        suite as UCloudTestSuite<Any?, Any?>
-                        @Suppress("UNCHECKED_CAST")
-                        case as UCloudTestCase<Any?, Any?>
+                            @Suppress("UNCHECKED_CAST")
+                            suite as UCloudTestSuite<Any?, Any?>
+                            @Suppress("UNCHECKED_CAST")
+                            case as UCloudTestCase<Any?, Any?>
 
-                        try {
                             try {
-                                perCasePreparation()
-                            } catch (ex: Throwable) {
-                                throw IllegalStateException(
-                                    "${suite.title}/${case.subtitle}: Exception during preparation",
-                                    ex
-                                )
-                            }
+                                try {
+                                    perCasePreparation()
+                                } catch (ex: Throwable) {
+                                    throw IllegalStateException(
+                                        "${suite.title}/${case.subtitle}: Exception during preparation",
+                                        ex
+                                    )
+                                }
 
-                            val res = runCatching {
-                                suite.execution(case.input)
-                            }
+                                val res = runCatching {
+                                    suite.execution(case.input)
+                                }
 
-                            val output = res.getOrNull()
-                            val exception = res.exceptionOrNull()
+                                val output = res.getOrNull()
+                                val exception = res.exceptionOrNull()
 
-                            for (check in case.checks) {
-                                check(output, exception)
+                                for (check in case.checks) {
+                                    check(output, exception)
+                                }
+                            } finally {
+                                perCaseCleanup()
+                                suite.cleanup(case.input)
                             }
-                        } finally {
-                            perCaseCleanup()
-                            suite.cleanup(case.input)
                         }
-                    }
-                })
+                    })
+                }
             }
         }
         return definedTests
