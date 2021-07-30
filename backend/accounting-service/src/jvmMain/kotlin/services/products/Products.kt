@@ -170,7 +170,7 @@ class ProductService(
                     select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
                     from accounting.wallets wa join
                         accounting.wallet_owner wo on wo.id = wa.owned_by join
-                        products p2 on wa.category = p2.category join
+                        accounting.products p2 on wa.category = p2.category join
                         accounting.product_categories pc on pc.id = wa.category left join
                         (
                             select sum(walloc.balance) balance, wa.id
@@ -193,7 +193,7 @@ class ProductService(
                             pc.provider = :provider_filter
                         ) and
                         (
-                            :product_filter::product_type is null or
+                            :product_filter::accounting.product_type is null or
                             pc.product_type = :product_filter
                         ) and
                         (
@@ -201,7 +201,11 @@ class ProductService(
                             p2.name = :name_filter
                         )
                 )
-                select accounting.product_to_json(p, pc2, balance::bigint)
+                select accounting.product_to_json(
+                    p,
+                    pc2,
+                    (CASE WHEN :include_balance= true THEN (coalesce(balance::bigint, 0)) END)
+                )
                 from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
                     left outer join my_wallets mw
                         on (pc2.id = mw.wallet_category and pc2.provider = mw.provider)
@@ -216,7 +220,7 @@ class ProductService(
                     ) and
 
                     (
-                        :product_filter::product_type is null or
+                        :product_filter::accounting.product_type is null or
                         pc2.product_type = :product_filter
                     ) and
                     (

@@ -82,7 +82,8 @@ class ProductTest : IntegrationTest() {
                 val createZeroProducts: Boolean = false,
                 val createSingleProduct: Boolean = false,
                 val createMultipleProducts: Boolean = false,
-                val request: ProductsBrowseRequest = ProductsBrowseRequest()
+                val request: ProductsBrowseRequest = ProductsBrowseRequest(),
+                val createWallet: Boolean = true
             )
 
             class Out(
@@ -110,18 +111,20 @@ class ProductTest : IntegrationTest() {
                     if (input.request.includeBalance == true) {
                         val createdUser = createUser("${title}_$testId")
                         client = createdUser.client
-                        val owner = WalletOwner.User(createdUser.username)
-                        Accounting.rootDeposit.call(
-                            bulkRequestOf(
-                                RootDepositRequestItem(
-                                    sampleStorage.category,
-                                    owner,
-                                    1000000,
-                                    "Initial deposit"
-                                )
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        if (input.createWallet) {
+                            val owner = WalletOwner.User(createdUser.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleStorage.category,
+                                        owner,
+                                        1000000,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
                     } else {
                         client = adminClient
                     }
@@ -163,11 +166,42 @@ class ProductTest : IntegrationTest() {
                         )
                     )
                     check {
+                        assertEquals(sampleProducts.size, output.page.items.size)
+
                         val first = output.page.items.first()
-                        println(output.page)
                         assertNotNull(first.balance)
                         assertEquals(1000000, first.balance)
                         assertEquals(sampleStorage, first)
+
+                        val last = output.page.items.last()
+                        assertNotNull(last.balance)
+                        assertEquals(0, last.balance)
+                        assertEquals(sampleCompute, last)
+                    }
+                }
+
+                case("include balance but no wallet") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                includeBalance = true
+                            ),
+                            createWallet = false
+                        )
+                    )
+                    check {
+                        assertEquals(sampleProducts.size, output.page.items.size)
+
+                        val first = output.page.items.first()
+                        assertNotNull(first.balance)
+                        assertEquals(0, first.balance)
+                        assertEquals(sampleStorage, first)
+
+                        val last = output.page.items.last()
+                        assertNotNull(last.balance)
+                        assertEquals(0, last.balance)
+                        assertEquals(sampleCompute, last)
                     }
                 }
 
@@ -231,6 +265,106 @@ class ProductTest : IntegrationTest() {
                     check {
                         assertEquals(1, output.page.items.size)
                         assertEquals(sampleStorage, output.page.items.first())
+                    }
+                }
+
+                case("bad filter name") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterName = "something Wrong"
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.page.items.size)
+                    }
+                }
+
+                case("bad filter category") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterCategory = "something Wrong"
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.page.items.size)
+                    }
+                }
+
+                case("bad filter provider") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = "something wrong"
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.page.items.size)
+                    }
+                }
+            }
+        }
+        run {
+            class In(
+                val request: ProductsRetrieveRequest,
+            )
+
+            class Out(
+                val product: Product
+            )
+
+            test<In, Out>("retrieving products") {
+                execute {
+                    createSampleProducts()
+
+                    val client: AuthenticatedClient
+
+                    if (input.request.includeBalance == true) {
+                        val createdUser = createUser("${title}_$testId")
+                        client = createdUser.client
+                        val owner = WalletOwner.User(createdUser.username)
+                        Accounting.rootDeposit.call(
+                            bulkRequestOf(
+                                RootDepositRequestItem(
+                                    sampleStorage.category,
+                                    owner,
+                                    1000000,
+                                    "Initial deposit"
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
+                    } else {
+                        client = adminClient
+                    }
+
+                    val product = Products.retrieve.call(
+                        input.request,
+                        client
+                    ).orThrow()
+
+                    Out(product = product)
+                }
+
+                case("retrieve without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = sampleIngress.category.name,
+                                filterProvider = sampleIngress.category.provider
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(sampleIngress, output.product)
                     }
                 }
             }
