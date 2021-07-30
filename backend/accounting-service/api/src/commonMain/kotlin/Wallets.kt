@@ -68,13 +68,13 @@ data class WalletBrowseRequest(
 
 typealias PushWalletChangeResponse = Unit
 
-object Wallets : CallDescriptionContainer("wallets") {
+object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
     val push = call<BulkRequest<PushWalletChangeRequestItem>, PushWalletChangeResponse, CommonErrorMessage>(
         "push"
     ) {
-        httpUpdate(baseContext, "push")
+        httpUpdate(baseContext, "push", roles = Roles.SERVICE)
     }
 
     val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
