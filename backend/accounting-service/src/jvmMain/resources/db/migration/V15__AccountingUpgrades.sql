@@ -571,20 +571,17 @@ $$;
 -- noinspection SqlResolve
 create or replace function accounting.credit_check(
     requests accounting.charge_request[]
-) returns boolean language plpgsql as $$
+) returns setof boolean language plpgsql as $$
 begin
     perform accounting.process_charge_requests(requests);
-    return (
-        select bool_and(has_enough_credits)
+    return query (
+        select sum(group_subtraction)::bigint = payment_required has_enough_credits
         from (
-            select sum(group_subtraction)::bigint = payment_required has_enough_credits
-            from (
-                select min(local_subtraction) group_subtraction, payment_required, local_request_id
-                from charge_result
-                group by leaf_id, payment_required, local_request_id
-            ) min_per_group
-            group by local_request_id, payment_required
-        ) credit_check
+            select min(local_subtraction) group_subtraction, payment_required, local_request_id
+            from charge_result
+            group by leaf_id, payment_required, local_request_id
+        ) min_per_group
+        group by local_request_id, payment_required
     );
 end;
 $$;

@@ -24,7 +24,6 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import io.ktor.http.*
 import java.util.*
@@ -243,83 +242,92 @@ class AccountingTest : IntegrationTest() {
                 val skipCreationOfLeaf: Boolean = false
             )
 
-            class Out(
+            class ChargeOutput(
                 val balancesFromRoot: List<Long>,
                 val transactionsFromRoot: List<List<Transaction>>
             )
 
-            test<In, Out>("Deposit and charge") {
-                execute {
-                    val rootPi = createUser()
-                    val rootProject = initializeRootProject(rootPi.username, amount = input.rootBalance)
+            class CheckOutput(
+                val hasEnoughCredits: Boolean
+            )
 
-                    val irrelevantUser = createUser()
+            data class UserAndClient(
+                val username: String, val projectId: String?,
+                val client: AuthenticatedClient, val balance: Long
+            ) {
+                val owner: WalletOwner = if (projectId == null) {
+                    WalletOwner.User(username)
+                } else {
+                    WalletOwner.Project(projectId)
+                }
+            }
 
-                    data class UserAndClient(
-                        val username: String, val projectId: String?,
-                        val client: AuthenticatedClient, val balance: Long
-                    ) {
-                        val owner: WalletOwner = if (projectId == null) {
-                            WalletOwner.User(username)
-                        } else {
-                            WalletOwner.Project(projectId)
-                        }
-                    }
+            suspend fun prepare(input: In): List<UserAndClient> {
+                val rootPi = createUser()
+                val rootProject = initializeRootProject(rootPi.username, amount = input.rootBalance)
+                val irrelevantUser = createUser()
 
-                    val leaves = ArrayList<UserAndClient>()
-                    for ((index, allocOwner) in input.chainFromRoot.withIndex()) {
-                        if (allocOwner.isProject) {
-                            val user = createUser()
-                            val project = Projects.create.call(
-                                CreateProjectRequest("P$index", principalInvestigator = user.username),
-                                serviceClient
-                            ).orThrow()
+                val leaves = ArrayList<UserAndClient>()
 
-                            leaves.add(
-                                UserAndClient(
-                                    user.username,
-                                    project.id,
-                                    user.client.withProject(project.id),
-                                    allocOwner.amount
-                                )
-                            )
-                        } else {
-                            val user = createUser()
-                            leaves.add(UserAndClient(user.username, null, user.client, allocOwner.amount))
-                        }
-                    }
+                for ((index, allocOwner) in input.chainFromRoot.withIndex()) {
+                    if (allocOwner.isProject) {
+                        val user = createUser()
+                        val project = Projects.create.call(
+                            CreateProjectRequest("P$index", principalInvestigator = user.username),
+                            serviceClient
+                        ).orThrow()
 
-                    var previousAllocation: String =
-                        findProjectWallet(rootProject, rootPi.client, input.product.category)!!.allocations.single().id
-                    var previousPi: AuthenticatedClient = rootPi.client
-                    val expectedAllocationPath = arrayListOf(previousAllocation)
-                    for ((index, leaf) in leaves.withIndex()) {
-                        if (index == leaves.lastIndex && input.skipCreationOfLeaf) break
-
-                        val request = bulkRequestOf(
-                            DepositToWalletRequestItem(
-                                leaf.owner,
-                                previousAllocation,
-                                leaf.balance,
-                                "Transfer"
+                        leaves.add(
+                            UserAndClient(
+                                user.username,
+                                project.id,
+                                user.client.withProject(project.id),
+                                allocOwner.amount
                             )
                         )
-                        Accounting.deposit.call(request, previousPi).orThrow()
-
-                        assertThatInstance(
-                            Accounting.deposit.call(request, irrelevantUser.client),
-                            "Should fail because they are not a part of the project"
-                        ) { it.statusCode.value in 400..499 }
-
-                        val alloc = findWallet(leaf.client, input.product.category)!!.allocations.single()
-                        previousAllocation = alloc.id
-                        previousPi = leaf.client
-
-                        expectedAllocationPath.add(alloc.id)
-                        assertEquals(alloc.allocationPath, expectedAllocationPath)
-                        assertEquals(alloc.balance, leaf.balance)
-                        assertEquals(alloc.initialBalance, leaf.balance)
+                    } else {
+                        val user = createUser()
+                        leaves.add(UserAndClient(user.username, null, user.client, allocOwner.amount))
                     }
+                }
+
+                var previousAllocation: String =
+                    findProjectWallet(rootProject, rootPi.client, input.product.category)!!.allocations.single().id
+                var previousPi: AuthenticatedClient = rootPi.client
+                val expectedAllocationPath = arrayListOf(previousAllocation)
+                for ((index, leaf) in leaves.withIndex()) {
+                    if (index == leaves.lastIndex && input.skipCreationOfLeaf) break
+
+                    val request = bulkRequestOf(
+                        DepositToWalletRequestItem(
+                            leaf.owner,
+                            previousAllocation,
+                            leaf.balance,
+                            "Transfer"
+                        )
+                    )
+                    Accounting.deposit.call(request, previousPi).orThrow()
+
+                    assertThatInstance(
+                        Accounting.deposit.call(request, irrelevantUser.client),
+                        "Should fail because they are not a part of the project"
+                    ) { it.statusCode.value in 400..499 }
+
+                    val alloc = findWallet(leaf.client, input.product.category)!!.allocations.single()
+                    previousAllocation = alloc.id
+                    previousPi = leaf.client
+
+                    expectedAllocationPath.add(alloc.id)
+                    assertEquals(alloc.allocationPath, expectedAllocationPath)
+                    assertEquals(alloc.balance, leaf.balance)
+                    assertEquals(alloc.initialBalance, leaf.balance)
+                }
+                return leaves
+            }
+
+            test<In, ChargeOutput>("Deposit and charge") {
+                execute {
+                    val leaves = prepare(input)
 
                     Accounting.charge.call(
                         bulkRequestOf(
@@ -335,7 +343,7 @@ class AccountingTest : IntegrationTest() {
                         serviceClient
                     ).orThrow()
 
-                    Out(
+                    ChargeOutput(
                         leaves.map {
                             findWallet(it.client, input.product.category)?.allocations?.singleOrNull()?.balance ?: 0L
                         },
@@ -348,7 +356,7 @@ class AccountingTest : IntegrationTest() {
                     )
                 }
 
-                fun balanceWasDeducted(input: In, output: Out) {
+                fun balanceWasDeducted(input: In, output: ChargeOutput) {
                     val paymentRequired = input.product.pricePerUnit * input.units * input.numberOfProducts
 
                     output.balancesFromRoot.forEachIndexed { index, balance ->
@@ -366,8 +374,18 @@ class AccountingTest : IntegrationTest() {
                         }
 
                         val deposit = deposits.single()
-                        assertThatPropertyEquals(deposit, { it.resolvedCategory }, input.product.category, "resolvedCategory[$index]")
-                        assertThatPropertyEquals(deposit, { it.change }, input.chainFromRoot[index].amount, "change[$index]")
+                        assertThatPropertyEquals(
+                            deposit,
+                            { it.resolvedCategory },
+                            input.product.category,
+                            "resolvedCategory[$index]"
+                        )
+                        assertThatPropertyEquals(
+                            deposit,
+                            { it.change },
+                            input.chainFromRoot[index].amount,
+                            "change[$index]"
+                        )
                         assertThatInstance(deposit, "startDate[$index]") { it.startDate != null }
                         assertThatPropertyEquals(deposit, { it.endDate }, null, "endDate[$index]")
                     }
@@ -382,9 +400,19 @@ class AccountingTest : IntegrationTest() {
                         val expectedChange = expectedNewBalance - input.chainFromRoot[index].amount
                         val charge = charges.single()
                         assertThatPropertyEquals(charge, { it.units }, input.units, "units[$index]")
-                        assertThatPropertyEquals(charge, { it.numberOfProducts }, input.numberOfProducts, "numberOfProducts[$index]")
+                        assertThatPropertyEquals(
+                            charge,
+                            { it.numberOfProducts },
+                            input.numberOfProducts,
+                            "numberOfProducts[$index]"
+                        )
                         assertThatPropertyEquals(charge, { it.productId }, input.product.name, "productId[$index]")
-                        assertThatPropertyEquals(charge, { it.resolvedCategory }, input.product.category, "resolvedCategory[$index]")
+                        assertThatPropertyEquals(
+                            charge,
+                            { it.resolvedCategory },
+                            input.product.category,
+                            "resolvedCategory[$index]"
+                        )
                         assertThatPropertyEquals(charge, { it.change }, expectedChange, "change[$index]")
                     }
                 }
@@ -471,77 +499,125 @@ class AccountingTest : IntegrationTest() {
                     expectStatusCode(HttpStatusCode.BadRequest)
                 }
             }
+
+            test<In, CheckOutput>("Deposit and check") {
+                execute {
+                    val leaves = prepare(input)
+                    CheckOutput(
+                        Accounting.check.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    leaves.last().owner,
+                                    input.units,
+                                    input.numberOfProducts,
+                                    input.product.toReference(),
+                                    leaves.last().username,
+                                    "Test charge"
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow().responses.single()
+                    )
+                }
+
+                listOf(true, false).forEach { isProject ->
+                    val name = if (isProject) "project" else "user"
+
+                    (1..3).forEach { nlevels ->
+                        case("$nlevels-level(s) of $name") {
+                            input(
+                                In(
+                                    rootBalance = 1000.DKK,
+                                    chainFromRoot = (0 until nlevels).map { Allocation(isProject, 1000.DKK) },
+                                    units = 1L
+                                )
+                            )
+
+                            check { assertEquals(true, output.hasEnoughCredits) }
+                        }
+                    }
+                }
+
+                (3..6).forEach { nlevels ->
+                    case("$nlevels-levels of mixed users/projects") {
+                        input(
+                            In(
+                                rootBalance = 1000.DKK,
+                                chainFromRoot = (0 until nlevels).map { Allocation(it % 2 == 0, 1000.DKK) },
+                                units = 1L
+                            )
+                        )
+
+                        check { assertEquals(true, output.hasEnoughCredits) }
+                    }
+                }
+
+                case("negative units") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                            units = -1L
+                        )
+                    )
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("negative numberOfProducts") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                            units = 1L,
+                            numberOfProducts = -1L
+                        )
+                    )
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("very large charge") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(Allocation(true, 1000.DKK)),
+                            units = Int.MAX_VALUE.toLong() * 2
+                        )
+                    )
+
+                    check { assertEquals(false, output.hasEnoughCredits) }
+                }
+
+                case("Charge missing payer") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = (0 until 3).map { Allocation(true, 1000.DKK) },
+                            units = 100L,
+                            skipCreationOfLeaf = true
+                        )
+                    )
+
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("Missing payment in a non-leaf") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(
+                                Allocation(true, 1000.DKK),
+                                Allocation(true, 0.DKK),
+                                Allocation(true, 1000.DKK)
+                            ),
+                            units = 100L
+                        )
+                    )
+
+                    check { assertEquals(false, output.hasEnoughCredits) }
+                }
+            }
         }
     }
-
-    /*
-
-    @Test
-    fun `test funds are checked locally`() = t {
-        val initialBalance = 1000.DKK
-        val charge = 500.DKK
-        val r = initializeNormalProject(initializeRootProject(), amount = initialBalance)
-        val parents = arrayListOf(r.projectId)
-        val category = sampleCompute.category
-
-        repeat(5) {
-            val element = Projects.create.call(
-                CreateProjectRequest("T$it", parents.last()),
-                r.piClient
-            ).orThrow().id
-            parents.add(element)
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(Wallet(element, WalletOwnerType.PROJECT, category), 0L, initialBalance),
-                r.piClient
-            ).orThrow()
-        }
-
-        Wallets.setBalance.call(
-            SetBalanceRequest(Wallet(parents.last(), WalletOwnerType.PROJECT, category), initialBalance, 0L),
-            r.piClient
-        ).orThrow()
-
-        try {
-            reserveCredits(Wallet(parents.last(), WalletOwnerType.PROJECT, category), charge)
-            assert(false)
-        } catch (ex: RPCException) {
-            assertEquals(HttpStatusCode.PaymentRequired, ex.httpStatusCode)
-        }
-    }
-
-    @Test
-    fun `test funds are checked in ancestors`() = t {
-        val initialBalance = 1000.DKK
-        val r = initializeNormalProject(initializeRootProject(), amount = initialBalance)
-        val parents = arrayListOf(r.projectId)
-        val category = sampleCompute.category
-
-        repeat(5) {
-            val element = Projects.create.call(
-                CreateProjectRequest("T$it", parents.last()),
-                r.piClient
-            ).orThrow().id
-            parents.add(element)
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(Wallet(element, WalletOwnerType.PROJECT, category), 0L, initialBalance),
-                r.piClient
-            ).orThrow()
-        }
-
-        Wallets.setBalance.call(
-            SetBalanceRequest(Wallet(parents.last(), WalletOwnerType.PROJECT, category), initialBalance,
-                initialBalance * 10),
-            r.piClient
-        ).orThrow()
-
-        try {
-            reserveCredits(Wallet(parents.last(), WalletOwnerType.PROJECT, category), initialBalance * 2)
-            assert(false)
-        } catch (ex: RPCException) {
-            assertEquals(HttpStatusCode.PaymentRequired, ex.httpStatusCode)
-        }
-    }
-     */
 }
