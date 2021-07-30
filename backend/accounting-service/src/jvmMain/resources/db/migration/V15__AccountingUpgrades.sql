@@ -34,7 +34,7 @@ end;
 $$;
 
 create trigger require_immutable_product_category
-after insert or update of charge_type, product_type on accounting.product_categories
+after update of charge_type, product_type on accounting.product_categories
 for each row execute procedure accounting.require_immutable_product_category();
 
 ---- /Changes to product_categories ----
