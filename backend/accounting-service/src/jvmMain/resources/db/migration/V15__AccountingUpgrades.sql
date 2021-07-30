@@ -838,7 +838,7 @@ begin
         select jsonb_build_object(
            'category', accounting.product_category_to_json(category_in),
            'pricePerUnit', product_in.price_per_unit,
-           'name', product_in.price_per_unit,
+           'name', product_in.name,
            'description', product_in.description,
            'priority', product_in.priority,
            'version', product_in.version,
