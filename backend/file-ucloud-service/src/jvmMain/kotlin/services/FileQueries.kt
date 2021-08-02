@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.DistributedStateFactory
@@ -8,7 +9,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.create
 import io.ktor.http.*
-import io.ktor.util.date.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -67,7 +67,7 @@ class FileQueries(
         flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
         sortBy: FilesSortBy?,
-        sortOrder: SortOrder?,
+        sortOrder: SortDirection?,
     ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
@@ -158,14 +158,14 @@ class FileQueries(
 fun sortFiles(
     nativeFs: NativeFS,
     sortBy: FilesSortBy?,
-    sortOrder: SortOrder?,
+    sortOrder: SortDirection?,
     foundFiles: List<InternalFile>,
     foundFilesToStat: HashMap<String, NativeStat>
 ): List<InternalFile> {
     if (sortBy == null) return foundFiles
     if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
     val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
-    val comparator = when (sortBy) {
+    var comparator = when (sortBy) {
         FilesSortBy.PATH -> pathComparator
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
             ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
@@ -175,6 +175,6 @@ fun sortFiles(
             ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
         }.thenComparing(pathComparator)
     }
-    if (sortOrder != SortOrder.ASCENDING) comparator.reversed()
+    if (sortOrder != SortDirection.ascending) comparator = comparator.reversed()
     return foundFiles.sortedWith(comparator)
 }
