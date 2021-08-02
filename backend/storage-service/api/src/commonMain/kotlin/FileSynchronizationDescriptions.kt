@@ -1,9 +1,7 @@
 package dk.sdu.cloud.file.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.calls.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 enum class SynchronizationType(val syncthingValue: String) {
