@@ -13,7 +13,6 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {Operation, Operations} from "ui-components/Operation";
 import {addStandardDialog} from "UtilityComponents";
 
-
 const entityName = "Provider";
 
 function Browse(): JSX.Element | null {

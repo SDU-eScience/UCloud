@@ -66,7 +66,7 @@ class FileQueries(
         file: UCloudFile,
         flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
-        sortBy: FilesSortBy?,
+        sortBy: FilesSortBy,
         sortOrder: SortDirection?,
     ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
@@ -157,12 +157,11 @@ class FileQueries(
 
 fun sortFiles(
     nativeFs: NativeFS,
-    sortBy: FilesSortBy?,
+    sortBy: FilesSortBy,
     sortOrder: SortDirection?,
     foundFiles: List<InternalFile>,
     foundFilesToStat: HashMap<String, NativeStat>
 ): List<InternalFile> {
-    if (sortBy == null) return foundFiles
     if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
     val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
     var comparator = when (sortBy) {

@@ -19,16 +19,6 @@ interface WithPath {
     val id: String
 }
 
-enum class SortOrder {
-    ASCENDING,
-    DESCENDING
-}
-
-interface WithSorting<E : Enum<E>> {
-    val sortBy: E?
-    val sortOrder: SortOrder?
-}
-
 interface WithPathMoving {
     val oldId: String
     val newId: String
@@ -55,40 +45,6 @@ enum class FilesSortBy {
     CREATED_AT,
     MODIFIED_AT
 }
-
-// ---
-
-@Serializable
-data class FilesBrowseRequest(
-    override val id: String,
-    val path: String,
-    val includePermissions: Boolean? = null,
-    val includeTimestamps: Boolean? = null,
-    val includeSizes: Boolean? = null,
-    val includeUnixInfo: Boolean? = null,
-    val includeMetadata: Boolean? = null,
-    val allowUnsupportedInclude: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val sortBy: FilesSortBy? = null,
-    override val sortOrder: SortOrder? = null
-) : WithPaginationRequestV2, WithPath, WithSorting<FilesSortBy>
-typealias FilesBrowseResponse = PageV2<UFile>
-
-@Serializable
-data class FilesRetrieveRequest(
-    override val id: String,
-    val path: String,
-    val includePermissions: Boolean? = null,
-    val includeTimestamps: Boolean? = null,
-    val includeSizes: Boolean? = null,
-    val includeUnixInfo: Boolean? = null,
-    val includeMetadata: Boolean? = null,
-    val allowUnsupportedInclude: Boolean? = null,
-) : WithPath
-typealias FilesRetrieveResponse = UFile
 
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
 
