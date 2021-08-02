@@ -10,15 +10,15 @@ class MountController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Mounts.mount) {
-            ok(mountService.mount())
+            ok(mountService.mount(request))
         }
 
         implement(Mounts.unmount) {
-            ok(mountService.unmount())
+            ok(mountService.unmount(request))
         }
 
         implement(Mounts.state) {
-            ok(mountService.state())
+            ok(mountService.state(request))
         }
     }
 }
