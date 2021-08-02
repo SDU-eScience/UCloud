@@ -4,10 +4,6 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
-import dk.sdu.cloud.activity.api.type
-import dk.sdu.cloud.app.orchestrator.api.Jobs
-import dk.sdu.cloud.app.orchestrator.api.JobsCreateRequest
-import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -16,7 +12,6 @@ import dk.sdu.cloud.service.Page
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
@@ -26,10 +21,6 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.search.MatchQuery
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
-import java.time.Instant
-import java.time.format.DateTimeFormatter
-import java.util.*
-import kotlin.collections.ArrayList
 
 @Serializable
 data class AuditEntry<E>(

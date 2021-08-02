@@ -1,11 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -15,20 +12,19 @@ import io.ktor.util.date.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
+const val PERSONAL_REPOSITORY = "Members' Files"
+
 class FileQueries(
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
+    private val cephStats: CephFsFastDirectoryStats,
 ) {
-    suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
-
+    suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
         val internalFile = pathConverter.ucloudToInternal(file)
         val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(internalFile, nativeStat, myself)
+        return convertNativeStatToUFile(internalFile, nativeStat)
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
@@ -49,38 +45,30 @@ class FileQueries(
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
-        myself: Set<FilePermission>,
-    ): UFile {
-        return UFile(
+    ): PartialUFile {
+        return PartialUFile(
             pathConverter.internalToUCloud(file).path,
-            nativeStat.fileType,
-            findIcon(file),
-            UFile.Stats(
-                nativeStat.size,
-                null, // TODO
-                nativeStat.modifiedAt,
-                null, // TODO Not supported
-                nativeStat.modifiedAt,
-                nativeStat.mode,
-                nativeStat.ownerUid,
-                nativeStat.ownerGid
+            UFileStatus(
+                nativeStat.fileType,
+                findIcon(file),
+                sizeInBytes = nativeStat.size,
+                sizeIncludingChildrenInBytes = runCatching { cephStats.getRecursiveSize(file) }.getOrNull(),
+                modifiedAt = nativeStat.modifiedAt,
+                unixMode = nativeStat.mode,
+                unixOwner = nativeStat.ownerUid,
+                unixGroup = nativeStat.ownerGid,
             ),
-            UFile.Permissions(
-                myself.toList(),
-                aclService.fetchOtherPermissions(pathConverter.internalToUCloud(file))
-            ),
-            null
+            nativeStat.modifiedAt,
         )
     }
 
     suspend fun browseFiles(
-        actor: Actor,
         file: UCloudFile,
-        flags: FilesIncludeFlags,
+        flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
         sortBy: FilesSortBy?,
         sortOrder: SortOrder?,
-    ): PageV2<UFile> {
+    ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
         // 1. The first part contains the current offset in the list. This allows a user to restart the search.
@@ -89,9 +77,6 @@ class FileQueries(
         // This token is used for storing state in Redis which contains a complete list of files found in this
         // directory. This allows the user to search a consistent snapshot of the files. If any files are removed
         // between calls then this endpoint will simply skip it.
-
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
 
         val next = pagination.next
         var foundFiles: List<InternalFile>? = null
@@ -113,7 +98,7 @@ class FileQueries(
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
-        val items = ArrayList<UFile>()
+        val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
@@ -122,14 +107,14 @@ class FileQueries(
                 items.add(
                     convertNativeStatToUFile(
                         nextInternalFile,
-                        // For some cases we already have this stat'ed the files, so we risk duplicate work
-                        foundFilesToStat[nextInternalFile.path] ?: nativeFs.stat(nextInternalFile),
-                        myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
+                        nativeFs.stat(nextInternalFile),
                     )
                 )
             } catch (ex: FSException.NotFound) {
                 // NOTE(Dan): File might have gone away between these two calls
                 didSkipFiles = true
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
             }
         }
 

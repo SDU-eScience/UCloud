@@ -1,11 +1,11 @@
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "ui-components/index";
-import {PropsWithChildren, useCallback, useState} from "react";
+import {PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "ui-components/ClickableDropdown";
-import {preventDefault} from "UtilityFunctions";
+import {doNothing, preventDefault} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {ThemeColor} from "ui-components/theme";
@@ -38,6 +38,7 @@ export interface Operation<T, R = undefined> {
     primary?: boolean;
     canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
+    tag?: string;
 }
 
 export function defaultOperationType(
@@ -128,20 +129,15 @@ interface OperationProps<T, R = undefined> {
     showSelectedCount?: boolean;
     displayTitle?: boolean;
     all?: T[];
+    openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
 }
 
 type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
     JSX.Element | null;
 
 export const Operations: OperationsType = props => {
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const closeDropdown = useCallback(() => {
-        setDropdownOpen(false);
-    }, [setDropdownOpen]);
-    const openDropdown = useCallback(() => {
-        setDropdownOpen(true);
-    }, [setDropdownOpen]);
-    if (props.operations.length === 0) return null;
+    const closeDropdownRef = useRef<() => void>(doNothing);
+    const closeDropdown = () => closeDropdownRef.current();
 
     // Don't render anything if we are in row and we have selected something
     if (props.selected.length > 0 && props.location === "IN_ROW") return null;
@@ -200,11 +196,10 @@ export const Operations: OperationsType = props => {
 
     const dropdownProps: ClickableDropdownProps<unknown> = {
         width: "220px",
-        left: "-200px",
-        open: dropdownOpen,
-        onTriggerClick: openDropdown,
         keepOpenOnClick: true,
-        onClose: closeDropdown,
+        useMousePositioning: true,
+        closeFnRef: closeDropdownRef,
+        openFnRef: props.openFnRef,
         trigger: (
             <Icon
                 onClick={preventDefault}

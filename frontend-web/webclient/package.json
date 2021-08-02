@@ -16,7 +16,7 @@
         "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {
-        "@ginkgo-bioworks/react-json-schema-form-builder": "^2.4.2",
+        "@ginkgo-bioworks/react-json-schema-form-builder": "^2.5.0",
         "@novnc/novnc": "^1.2.0",
         "@rjsf/core": "^2.5.1",
         "@svgr/cli": "^5.5.0",
@@ -28,9 +28,9 @@
         "react": "17.0.2",
         "react-datepicker": "3.8.0",
         "react-dom": "17.0.2",
-        "react-dropzone": "^11.3.2",
+        "react-dropzone": "^11.3.4",
         "react-markdown": "^5.0.3",
-        "react-modal": "^3.14.2",
+        "react-modal": "^3.14.3",
         "react-redux": "^7.2.4",
         "react-router": "5.2.0",
         "react-router-dom": "5.2.0",
@@ -43,7 +43,7 @@
         "styled-system": "^5.1.5",
         "svgi": "^1.1.0",
         "ua-parser-js": "^0.7.28",
-        "xterm": "^4.12.0",
+        "xterm": "^4.13.0",
         "xterm-addon-fit": "^0.5.0"
     },
     "devDependencies": {

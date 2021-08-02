@@ -12,14 +12,14 @@ import kotlinx.serialization.Serializable
 data class ResourceDoc(
     override val id: String,
     override val createdAt: Long,
-    override val status: ResourceStatus,
+    override val status: ResourceStatus<@Contextual Nothing, @Contextual Nothing>,
     override val updates: List<ResourceUpdate>,
     override val specification: ResourceSpecification,
     override val billing: ResourceBilling,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
+    override val acl: List<ResourceAclEntry>? = null,
     override val permissions: ResourcePermissions? = null
-) : Resource<Nothing?> {
+) : Resource<Nothing, Nothing> {
     init {
         error("Used only for documentation. Do not instantiate.")
     }

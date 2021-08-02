@@ -224,6 +224,7 @@ class NativeFS(
                 conflictPolicy
             } else {
                 val relativeFile = pathConverter.internalToRelative(internalDestination)
+                val components = relativeFile.components()
                 if (isPersonalWorkspace(relativeFile)) {
                     // /home/$USERNAME should never be renamed
                     if (relativeFile.components().size == 2) {
@@ -242,6 +243,9 @@ class NativeFS(
                     } else {
                         conflictPolicy
                     }
+                } else if (components[0] == PathConverter.COLLECTION_DIRECTORY) {
+                    if (components.size == 1) WriteConflictPolicy.REJECT
+                    else conflictPolicy
                 } else {
                     throw RPCException("Unexpected file", HttpStatusCode.InternalServerError)
                 }

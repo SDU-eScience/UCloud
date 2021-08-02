@@ -1,20 +1,20 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
+import dk.sdu.cloud.file.ucloud.api.UCloudFilesDownloadRequest
 import dk.sdu.cloud.file.ucloud.services.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.actorAndProject
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -25,7 +25,7 @@ class FilesController(
     private val fileQueries: FileQueries,
     private val taskSystem: TaskSystem,
     private val chunkedUploadService: ChunkedUploadService,
-    private val aclService: AclService,
+    private val downloadService: DownloadService,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
@@ -33,20 +33,20 @@ class FilesController(
         implement(UCloudFiles.retrieve) {
             ok(
                 fileQueries.retrieve(
-                    Actor.SystemOnBehalfOfUser(request.username),
-                    UCloudFile.create(request.request.path),
-                    request.request
+                    UCloudFile.create(request.retrieve.id),
+                    request.retrieve.flags
                 )
             )
         }
 
         implement(UCloudFiles.browse) {
+            val path = request.browse.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             ok(
                 fileQueries.browseFiles(
-                    Actor.SystemOnBehalfOfUser(request.username),
-                    UCloudFile.create(request.request.path),
-                    request.request,
-                    request.request.normalize(),
+                    UCloudFile.create(path),
+                    request.browse.flags,
+                    request.browse.normalize(),
                     request.request.sortBy,
                     request.request.sortOrder
                 )
@@ -56,9 +56,8 @@ class FilesController(
         implement(UCloudFiles.copy) {
             ok(
                 BulkResponse(
-                    request.request.items.map { reqItem ->
+                    request.items.map { reqItem ->
                         taskSystem.submitTask(
-                            Actor.SystemOnBehalfOfUser(request.username),
                             Files.copy.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
@@ -68,18 +67,16 @@ class FilesController(
         }
 
         implement(UCloudFiles.createUpload) {
-            val actor = Actor.SystemOnBehalfOfUser(request.username)
-            for (reqItem in request.request.items) {
+            for (reqItem in request.items) {
                 if (UploadProtocol.CHUNKED !in reqItem.supportedProtocols) {
                     throw RPCException("No protocols supported", HttpStatusCode.BadRequest)
                 }
             }
 
             val responses = ArrayList<FilesCreateUploadResponseItem>()
-            for (reqItem in request.request.items) {
+            for (reqItem in request.items) {
                 val id = chunkedUploadService.createSession(
-                    actor,
-                    UCloudFile.create(reqItem.path),
+                    UCloudFile.create(reqItem.id),
                     reqItem.conflictPolicy
                 )
 
@@ -92,9 +89,8 @@ class FilesController(
         implement(UCloudFiles.move) {
             ok(
                 BulkResponse(
-                    request.request.items.map { reqItem ->
+                    request.items.map { reqItem ->
                         taskSystem.submitTask(
-                            Actor.SystemOnBehalfOfUser(request.username),
                             Files.move.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
@@ -106,12 +102,13 @@ class FilesController(
         implement(UCloudFiles.delete) {
             ok(
                 BulkResponse(
-                    request.request.items.map { reqItem ->
+                    request.items.map { reqItem ->
                         taskSystem.submitTask(
-                            Actor.SystemOnBehalfOfUser(request.username),
                             Files.delete.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
+
+                        Unit // TODO This is kind of annoying. LongRunningTasks as natively supported maybe?
                     }
                 )
             )
@@ -120,9 +117,8 @@ class FilesController(
         implement(UCloudFiles.trash) {
             ok(
                 BulkResponse(
-                    request.request.items.map { reqItem ->
+                    request.items.map { reqItem ->
                         taskSystem.submitTask(
-                            Actor.SystemOnBehalfOfUser(request.username),
                             Files.trash.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
@@ -134,9 +130,8 @@ class FilesController(
         implement(UCloudFiles.createFolder) {
             ok(
                 BulkResponse(
-                    request.request.items.map { reqItem ->
+                    request.items.map { reqItem ->
                         taskSystem.submitTask(
-                            Actor.SystemOnBehalfOfUser(request.username),
                             Files.createFolder.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
                         )
@@ -146,8 +141,7 @@ class FilesController(
         }
 
         implement(UCloudFiles.updateAcl) {
-            aclService.updateAcl(Actor.SystemOnBehalfOfUser(request.username), request.request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(chunkedProtocol.uploadChunk) {
@@ -160,7 +154,18 @@ class FilesController(
                 ok(Unit)
             }
         }
+
+        implement(UCloudFiles.createDownload) {
+            ok(downloadService.createSessions(request))
+        }
+
+        implement(UCloudFileDownload.download) {
+            withContext<HttpCall> {
+                audit(Unit)
+                downloadService.download(request.token, ctx)
+                okContentAlreadyDelivered()
+            }
+        }
         return@with
     }
-
 }

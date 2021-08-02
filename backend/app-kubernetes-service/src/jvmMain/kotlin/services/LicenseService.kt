@@ -9,8 +9,8 @@ import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseBrowseRequest
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseUpdateRequest
 import dk.sdu.cloud.app.orchestrator.api.License
 import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.LicenseControlUpdateRequestItem
 import dk.sdu.cloud.app.orchestrator.api.LicenseState
+import dk.sdu.cloud.app.orchestrator.api.LicenseUpdate
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -18,7 +18,9 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
@@ -91,6 +93,24 @@ class LicenseService(
                 }
             }
         }
+    }
+
+    private val supportedProductCache = SimpleCache<Unit, List<Product.License>>(
+        lookup = { _ ->
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {},
+                        "select * from app_kubernetes.license_servers"
+                    )
+                    .let { mapRows(it.rows) }
+                    .map { it.toProduct() }
+            }
+        }
+    )
+    suspend fun fetchAllSupportedProducts(): List<Product.License> {
+        return supportedProductCache.get(Unit)
+            ?: throw RPCException("Could not fetch supported products", HttpStatusCode.InternalServerError)
     }
 
     suspend fun browseServers(request: KubernetesLicenseBrowseRequest): PageV2<KubernetesLicense> {
@@ -222,7 +242,10 @@ class LicenseService(
 
             LicenseControl.update.call(
                 bulkRequestOf(request.items.map {
-                    LicenseControlUpdateRequestItem(it.id, LicenseState.READY, "License is ready for use")
+                    ResourceUpdateAndId(it.id, LicenseUpdate(
+                        state = LicenseState.READY,
+                        status = "License is ready for use"
+                    ))
                 }),
                 k8.serviceClient
             ).orThrow()

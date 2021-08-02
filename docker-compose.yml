@@ -36,6 +36,9 @@ volumes:
   ucloudFiles: {}
   k3sConfig: {}
   k3sData: {}
+  k3sCni: {}
+  k3sKubelet: {}
+  k3sEtc: {}
   imData: {}
   imGradle: {}
   imKonan: {}

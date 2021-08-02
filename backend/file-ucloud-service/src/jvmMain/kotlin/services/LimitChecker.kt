@@ -3,19 +3,14 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 
 class LimitChecker(
-    private val db: DBContext,
-    private val aclService: AclService,
-    private val projectCache: ProjectCache,
-    private val serviceClient: AuthenticatedClient,
 ) {
+    /*
     suspend fun checkLimitAndQuota(path: String) {
         /*
         runnerFactory.withContext(SERVICE_USER) { fsCtx ->
@@ -35,7 +30,7 @@ class LimitChecker(
          */
     }
 
-    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): FileCollection.Quota {
+    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Nothing {
         /*
         return ctx.withSession { session ->
             when (actor) {
@@ -468,4 +463,7 @@ class LimitChecker(
     companion object : Loggable {
         override val log = logger()
     }
+
+
+     */
 }

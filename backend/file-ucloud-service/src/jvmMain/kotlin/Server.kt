@@ -6,14 +6,12 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.services.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclServiceImpl
 import dk.sdu.cloud.file.ucloud.services.acl.MetadataDao
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import java.io.File
-import java.util.*
 
 class Server(
     override val micro: Micro,
@@ -43,16 +41,15 @@ class Server(
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
-        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
+        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), authenticatedClient)
         val nativeFs = NativeFS(pathConverter)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
-        val metadataDao = MetadataDao()
-        val projectCache = ProjectCache(authenticatedClient)
-        val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
         val trashService = TrashService(pathConverter)
-        val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory, nativeFs, trashService)
-        val chunkedUploadService = ChunkedUploadService(db, aclService, pathConverter, nativeFs)
-        val taskSystem = TaskSystem(db, aclService, pathConverter, nativeFs, micro.backgroundScope).apply {
+        val cephStats = CephFsFastDirectoryStats(nativeFs)
+        val fileQueries = FileQueries(pathConverter, distributedStateFactory, nativeFs, trashService, cephStats)
+        val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
+        val downloadService = DownloadService(db, pathConverter, nativeFs)
+        val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())
             install(MoveTask())
@@ -60,10 +57,8 @@ class Server(
             install(TrashTask(trashService))
         }
         val fileCollectionService = FileCollectionsService(
-            aclService,
             pathConverter,
             db,
-            projectCache,
             taskSystem,
             nativeFs
         )
@@ -71,7 +66,7 @@ class Server(
         taskSystem.launchScheduler(micro.backgroundScope)
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService, aclService),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
         )
 

@@ -6,11 +6,11 @@ import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {PointerInput} from "Applications/Jobs/Widgets/Peer";
-import * as Licenses from "Applications/Licenses";
 import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
-import License = compute.License;
 import {largeModalStyle} from "Utilities/ModalUtilities";
+import {LicenseBrowse} from "Applications/Licenses";
+import {License} from "UCloud/LicenseApi";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -39,11 +39,11 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             ariaHideApp={false}
             shouldCloseOnEsc
         >
-            <Licenses.Browse
+            <LicenseBrowse
                 tagged={props.parameter.tagged}
                 // TODO Provider
-                standalone={false}
-                onUse={onUse}
+                embedded={true}
+                onSelect={onUse}
             />
         </ReactModal>
         <PointerInput

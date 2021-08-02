@@ -28,7 +28,10 @@ data class IntegrationProviderConnectRequest(val username: String)
 data class IntegrationProviderConnectResponse(val redirectTo: String)
 
 @Serializable
-data class IntegrationProviderWelcomeRequest(val token: String, val createdProvider: Provider)
+data class ProviderWelcomeTokens(val refreshToken: String, val publicKey: String)
+
+@Serializable
+data class IntegrationProviderWelcomeRequest(val token: String, val createdProvider: ProviderWelcomeTokens)
 typealias IntegrationProviderWelcomeResponse = Unit
 
 @UCloudApiDoc("Provider interface for the integration module")

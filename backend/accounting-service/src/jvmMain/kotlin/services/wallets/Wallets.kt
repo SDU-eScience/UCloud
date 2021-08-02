@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.wallets
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.products.ProductCategoryTable
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -19,43 +20,13 @@ import java.util.*
 object WalletTable : SQLTable("accounting.wallets") {
     val accountId = text("account_id", notNull = true)
     val accountType = text("account_type", notNull = true)
-    val productCategory = text("product_category", notNull = true)
-    val productProvider = text("product_provider", notNull = true)
+    val category = long("category", notNull = true)
     val balance = long("balance", notNull = true)
     val lowFundsNotificationSend = bool("low_funds_notifications_send", notNull = true)
 
     // The following fields are managed by triggers
     val allocated = long("allocated", notNull = true)
     val used = long("used", notNull = true)
-}
-
-object TransactionTable : SQLTable("accounting.transactions") {
-    val accountId = text("account_id", notNull = true)
-    val accountType = text("account_type", notNull = true)
-    val productCategory = text("product_category", notNull = true)
-    val productProvider = text("product_provider", notNull = true)
-
-    /**
-     * The original account id
-     *
-     * This is used in case of projects. The original account id will be the leaf project which was actually charged.
-     * A transaction entry for all ancestors is also created, they can look up the original charge by looking at
-     * the [originalAccountId].
-     *
-     * It is implied that the type of this account matches [accountType].
-     */
-    val originalAccountId = text("original_account_id", notNull = true)
-
-    val id = text("id")
-
-    val productId = text("product_id")
-    val units = long("units")
-    val amount = long("amount")
-    val isReserved = bool("is_reserved")
-    val initiatedBy = text("initiated_by")
-    val completedAt = timestamp("completed_at")
-    val expiresAt = timestamp("expires_at")
-    val transactionComment = text("transaction_comment")
 }
 
 const val CREDITS_NOTIFY_LIMIT = 5000000
@@ -161,8 +132,8 @@ class BalanceService(
                         setParameter("projectIds", projectIds)
                     },
                     """
-                        SELECT * 
-                        FROM accounting.wallets
+                        SELECT w.* , pc.category, pc.provider
+                        FROM accounting.wallets w join accounting.product_categories pc on w.category = pc.id
                         WHERE account_id IN (SELECT unnest(:projectIds::text[]))
                     """
                 ).rows
@@ -171,8 +142,8 @@ class BalanceService(
                         it.getField(WalletTable.accountId),
                         WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
                         ProductCategoryId(
-                            it.getField(WalletTable.productCategory),
-                            it.getField(WalletTable.productProvider)
+                            it.getField(ProductCategoryTable.category),
+                            it.getField(ProductCategoryTable.provider)
                         )
                     )
                 }
@@ -206,19 +177,18 @@ class BalanceService(
                         setParameter("showHidden", showHidden)
                     },
                     """
-                        select w.*, pc.area
-                        from accounting.wallets w, accounting.product_categories pc
+                        select w.*, pc.area, pc.category, pc.provider
+                        from accounting.wallets w join accounting.product_categories pc on w.category = pc.id
                         where 
                             w.account_id in (select unnest(:accountIds::text[])) and 
                             w.account_type = :accountType and
-                            pc.category = w.product_category and
-                            pc.provider = w.product_provider and (
-                                select count(*)
+                            exists(
+                                select 1
                                 from accounting.products p
                                 where
-                                    pc.category = p.category and
+                                    pc.id = p.category and
                                     (p.hidden_in_grant_applications is false or :showHidden is true)
-                            ) > 0
+                            )
                     """
                 )
                 .rows
@@ -228,8 +198,8 @@ class BalanceService(
                             it.getField(WalletTable.accountId),
                             accountOwnerType,
                             ProductCategoryId(
-                                it.getField(WalletTable.productCategory),
-                                it.getField(WalletTable.productProvider)
+                                it.getField(ProductCategoryTable.category),
+                                it.getField(ProductCategoryTable.provider)
                             )
                         ),
                         it.getField(WalletTable.balance),
@@ -260,12 +230,12 @@ class BalanceService(
                     },
                     """
                         select balance 
-                        from accounting.wallets 
+                        from accounting.wallets w join accounting.product_categories pc on w.category = pc.id
                         where 
-                            account_id = :accountId and 
-                            account_type = :accountType and
-                            product_category = :productCategory and
-                            product_provider = :productProvider
+                            w.account_id = :accountId and 
+                            w.account_type = :accountType and
+                            pc.category = :productCategory and
+                            pc.provider = :productProvider
                     """
                 )
                 .rows
@@ -304,38 +274,38 @@ class BalanceService(
                         HttpStatusCode.Conflict
                     )
                 }
-
-                session.insert(WalletTable) {
-                    set(WalletTable.accountId, account.id)
-                    set(WalletTable.accountType, account.type.name)
-                    set(WalletTable.productCategory, account.paysFor.id)
-                    set(WalletTable.productProvider, account.paysFor.provider)
-                    set(WalletTable.balance, amount)
-                    set(WalletTable.lowFundsNotificationSend, false)
-                }
-
-                return@withSession
             }
 
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("amount", amount)
-                        setParameter("accountId", account.id)
-                        setParameter("accountType", account.type.name)
-                        setParameter("productCategory", account.paysFor.id)
-                        setParameter("productProvider", account.paysFor.provider)
-                    },
-                    """
-                        update accounting.wallets
-                        set balance = :amount
-                        where 
-                            account_id = :accountId and 
-                            account_type = :accountType and 
-                            product_category = :productCategory and
-                            product_provider = :productProvider
-                    """
-                )
+            session.sendPreparedStatement(
+                {
+                    setParameter("account_id", account.id)
+                    setParameter("account_type", account.type.name)
+                    setParameter("product_category", account.paysFor.id)
+                    setParameter("product_provider", account.paysFor.provider)
+                    setParameter("balance", amount)
+                },
+                """
+                    insert into accounting.wallets 
+                    (account_id, account_type, category, balance, low_funds_notifications_send) 
+                    values (
+                        :account_id,
+                        :account_type,
+                        (
+                            select id 
+                            from accounting.product_categories pc
+                            where
+                                pc.category = :product_category and
+                                pc.provider = :product_provider
+                        ),
+                        :balance,
+                        false
+                    )
+                    on conflict (account_id, account_type, category) 
+                    do update set 
+                        balance = excluded.balance, 
+                        low_funds_notifications_send = false 
+                """
+            )
         }
         resetLowFundsNotificationIfNeeded(ctx, account)
     }
@@ -345,54 +315,32 @@ class BalanceService(
         account: Wallet
     ) {
         ctx.withSession { session ->
-            val wallet = session
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("id", account.id)
                         setParameter("type", account.type.name)
                         setParameter("category", account.paysFor.id)
                         setParameter("provider", account.paysFor.provider)
+                        setParameter("limit", CREDITS_NOTIFY_LIMIT)
                     },
                     """
-                        SELECT * 
-                        FROM accounting.wallets
-                        WHERE account_id = :id 
-                            AND account_type = :type 
-                            AND product_provider = :provider 
-                            AND product_category = :category
+                        update accounting.wallets w
+                        set low_funds_notifications_send = false
+                        where
+                            account_id = :id and 
+                            account_type = :type and
+                            category = (
+                                select pc.id 
+                                from accounting.product_categories pc
+                                where
+                                    pc.category = :category and
+                                    pc.provider = :provider and
+                                    w.category = pc.id
+                            ) and
+                            balance > :limit
                     """
                 )
-                .rows
-                .singleOrNull()
-                ?: throw RPCException.fromStatusCode(
-                    HttpStatusCode.NotFound,
-                    "Not able to get balance"
-                )
-            val balance = wallet.getField(WalletTable.balance)
-            val notified = wallet.getField(WalletTable.lowFundsNotificationSend)
-
-            if (balance >= CREDITS_NOTIFY_LIMIT && notified) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", account.id)
-                            setParameter("type", account.type.name)
-                            setParameter("category", account.paysFor.id)
-                            setParameter("provider", account.paysFor.provider)
-                            setParameter("status", false)
-                        },
-                        """
-                            UPDATE accounting.wallets   
-                            SET low_funds_notifications_send = :status
-                            WHERE account_id = :id 
-                            AND account_type = :type 
-                            AND product_provider = :provider 
-                            AND product_category = :category
-                        """
-                    )
-            } else {
-                //DO Nothing since balance is high and notification does not need to be reset.
-            }
         }
     }
 
@@ -414,13 +362,19 @@ class BalanceService(
                         setParameter("productProvider", account.paysFor.provider)
                     },
                     """
-                        update accounting.wallets  
+                        update accounting.wallets w
                         set balance = balance + :amount
                         where 
                             account_id = :accountId and 
                             account_type = :accountType and
-                            product_category = :productCategory and
-                            product_provider = :productProvider
+                            category = (
+                                select pc.id
+                                from accounting.product_categories pc
+                                where
+                                    w.category = pc.id and
+                                    pc.category = :productCategory and
+                                    pc.provider = :productProvider
+                            )
                     """
                 )
                 .rowsAffected
@@ -448,12 +402,20 @@ class BalanceService(
                 .sendPreparedStatement(
                     params,
                     """
-                        delete from accounting.transactions 
+                        delete from accounting.transactions t
                         where
-                            account_id = :accountId and
-                            account_type = :accountType and
-                            product_category = :productCategory and
-                            product_provider = :productProvider and
+                            wallet = (
+                                select w.id
+                                from 
+                                    accounting.wallets w join 
+                                    accounting.product_categories pc on w.category = pc.id
+                                where 
+                                    t.wallet = w.id and
+                                    account_id = :accountId and
+                                    account_type = :accountType and
+                                    pc.category = :productCategory and
+                                    pc.provider = :productProvider
+                            ) and
                             is_reserved = true and
                             expires_at is not null and
                             expires_at < timezone('utc', now())
@@ -465,13 +427,15 @@ class BalanceService(
                     params,
                     """
                         select sum(amount)::bigint
-                        from accounting.transactions
+                        from 
+                            accounting.transactions t join accounting.wallets w on t.wallet = w.id join
+                            accounting.product_categories pc on w.category = pc.id
                         where
-                            account_id = :accountId and
-                            account_type = :accountType and
-                            product_category = :productCategory and
-                            product_provider = :productProvider and
-                            is_reserved = true
+                            w.account_id = :accountId and
+                            w.account_type = :accountType and
+                            pc.category = :productCategory and
+                            pc.provider = :productProvider and
+                            t.is_reserved = true
                     """
                 )
                 .rows
@@ -527,7 +491,7 @@ class BalanceService(
                 }
 
                 if (request.skipIfExists) {
-                    val exists = (session
+                    val exists = session
                         .sendPreparedStatement(
                             {
                                 setParameter("id", jobId)
@@ -535,11 +499,17 @@ class BalanceService(
                                 setParameter("accType", wallet.type.name)
                             },
                             """
-                                select count(id)::bigint from accounting.transactions 
-                                where id = :id and account_id = :accId and account_type = :accType
+                                select exists(
+                                    select 1
+                                    from accounting.transactions t join accounting.wallets w on t.wallet = w.id
+                                    where 
+                                        t.id = :id and 
+                                        w.account_id = :accId and 
+                                        w.account_type = :accType
+                                )
                             """
                         )
-                        .rows.single().getLong(0) ?: 0L) > 0L
+                        .rows.single().getBoolean(0)!!
 
                     if (exists) {
                         return@withSession // bail out
@@ -547,22 +517,60 @@ class BalanceService(
                 }
 
                 if (!discardAfterLimitCheck) {
-                    session.insert(TransactionTable) {
-                        set(TransactionTable.accountId, wallet.id)
-                        set(TransactionTable.accountType, wallet.type.name)
-                        set(TransactionTable.productCategory, wallet.paysFor.id)
-                        set(TransactionTable.productProvider, wallet.paysFor.provider)
-                        set(TransactionTable.amount, amount)
-                        set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                        set(TransactionTable.initiatedBy, initiatedBy)
-                        set(TransactionTable.isReserved, true)
-                        set(TransactionTable.productId, productId)
-                        set(TransactionTable.units, productUnits)
-                        set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                        set(TransactionTable.originalAccountId, originalWallet.id)
-                        set(TransactionTable.id, jobId)
-                        set(TransactionTable.transactionComment, transactionComment(amount, wallet.id, transactionType))
-                    }
+                    session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("account_id", wallet.id)
+                                setParameter("account_type", wallet.type.name)
+                                setParameter("product_category", wallet.paysFor.id)
+                                setParameter("product_provider", wallet.paysFor.provider)
+                                setParameter("amount", amount)
+                                setParameter("expires_at", expiresAt)
+                                setParameter("initiated_by", initiatedBy)
+                                setParameter("product_id", productId)
+                                setParameter("units", productUnits)
+                                setParameter("original_account_id", originalWallet.id)
+                                setParameter("job_id", jobId)
+                                setParameter("transaction_comment", transactionComment(amount, wallet.id,
+                                    transactionType))
+                            },
+                            """
+                                insert into accounting.transactions
+                                (id, units, amount, initiated_by, completed_at, original_account_id, expires_at, 
+                                 transaction_comment, wallet, product) 
+                                values(
+                                    :job_id,
+                                    :units,
+                                    :amount,
+                                    :initiated_by,
+                                    now(),
+                                    :original_account_id,
+                                    to_timestamp(:expires_at / 1000),
+                                    :transaction_comment,
+                                    (
+                                        select w.id
+                                        from 
+                                            accounting.wallets w join accounting.product_categories pc
+                                                on w.category = pc.id
+                                        where
+                                            pc.category = :product_category and
+                                            pc.provider = :product_provider and
+                                            w.account_id = :account_id and
+                                            w.account_type = :account_type
+                                    ),
+                                    (
+                                        select p.id
+                                        from
+                                            accounting.products p join accounting.product_categories pc 
+                                                on p.category = pc.id
+                                        where
+                                            pc.category = :product_category and
+                                            pc.provider = :product_provider and
+                                            p.name = :product_id
+                                    )
+                                )
+                            """
+                        )
                 }
 
                 ancestorWallets.forEach { ancestor ->
@@ -656,11 +664,11 @@ class BalanceService(
                         setParameter("reservationId", reservationId)
                     },
                     """
-                        update accounting.wallets
+                        update accounting.wallets w
                         set balance = greatest(0, balance - :amount)
                         where
-                            (account_id, account_type, product_category, product_provider) in (
-                                select t.account_id, t.account_type, t.product_category, t.product_provider
+                            w.id = (
+                                select t.wallet
                                 from accounting.transactions t
                                 where t.id = :reservationId
                             )
@@ -701,12 +709,24 @@ class BalanceService(
                         setParameter("amount", request.amount)
                         setParameter("prodCategory", request.destinationAccount.paysFor.id)
                         setParameter("prodProvider", request.destinationAccount.paysFor.provider)
-                        setParameter("sent", false)
                     },
                     """
-                        insert into accounting.wallets (account_id, account_type, product_category, product_provider, balance, low_funds_notifications_send) 
-                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount, :sent)
-                        on conflict (account_id, account_type, product_category, product_provider)
+                        insert into accounting.wallets 
+                        (account_id, account_type, category, balance, low_funds_notifications_send) 
+                        values (
+                            :destId, 
+                            'USER', 
+                            (
+                                select pc.id
+                                from accounting.product_categories pc
+                                where
+                                    pc.category = :prodCategory and
+                                    pc.provider = :prodProvider
+                            ),
+                            :amount, 
+                            false
+                        )
+                        on conflict (account_id, account_type, category)
                         do update set balance = wallets.balance + excluded.balance
                     """
                 )

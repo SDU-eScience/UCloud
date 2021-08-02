@@ -244,6 +244,8 @@ private fun writeSpecification(
 
                 for (call in calls) {
                     val http = call.httpOrNull ?: continue
+                    if (call.containerRef.javaClass.annotations.any { it is TSSkipCodegen }) continue
+                    if (call.containerRef.javaClass.superclass?.annotations?.any { it is TSSkipCodegen } == true) continue
 
                     if (tags.none { it.name == call.containerRef.namespace }) {
                         tags.add(Tag().apply {

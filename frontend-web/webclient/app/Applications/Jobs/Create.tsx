@@ -1,12 +1,11 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import * as UCloud from "UCloud";
-import {compute} from "UCloud";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {useHistory, useRouteMatch} from "react-router";
+import {useHistory} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {AppHeader} from "Applications/View";
-import {Box, Button, ContainerForText, Flex, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
+import {Box, Button, ContainerForText, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
 import Link from "ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
 import * as Heading from "ui-components/Heading";
@@ -29,9 +28,11 @@ import {FavoriteToggle} from "Applications/FavoriteToggle";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import JobSpecification = compute.JobSpecification;
 import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "DefaultObjects";
+import {getQueryParam} from "Utilities/URIUtilities";
+import {default as JobsApi, JobSpecification} from "UCloud/JobsApi";
+import {BulkResponse, FindByStringId} from "UCloud";
 
 interface InsufficientFunds {
     why?: string;
@@ -39,7 +40,14 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+    const history = useHistory();
+    const appName = getQueryParam(history.location.search, "app");
+    const appVersion = getQueryParam(history.location.search, "version");
+
+    if (!appName || !appVersion) {
+        history.push("/");
+        return null;
+    }
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
@@ -73,7 +81,6 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
-    const history = useHistory();
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
@@ -159,7 +166,7 @@ export const Create: React.FunctionComponent = () => {
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0
         ) {
-            const request: UCloud.compute.JobSpecification = {
+            const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
                 parameters: values,
@@ -171,18 +178,18 @@ export const Create: React.FunctionComponent = () => {
             };
 
             try {
-                const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
-                    UCloud.compute.jobs.create(bulkRequestOf(request)),
+                const response = await invokeCommand<BulkResponse<FindByStringId | null>>(
+                    JobsApi.create(bulkRequestOf(request)),
                     {defaultErrorHandler: false}
                 );
 
-                const ids = response?.ids;
+                const ids = response?.responses;
                 if (!ids || ids.length === 0) {
                     snackbarStore.addFailure("UCloud failed to submit the job", false);
                     return;
                 }
 
-                history.push(`/applications/jobs/${ids[0]}?app=${application.metadata.name}`);
+                history.push(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
             } catch (e) {
                 const code = extractErrorCode(e);
                 if (code === 409) {

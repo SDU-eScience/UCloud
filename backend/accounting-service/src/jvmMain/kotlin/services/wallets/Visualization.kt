@@ -80,36 +80,37 @@ class VisualizationService(
                         setParameter("accountType", accountType.name)
                     },
                     """
+                        with timestamps as (
+                            select generate_series(
+                                to_timestamp(:periodStart)::timestamp,
+                                to_timestamp(:periodEnd)::timestamp,
+                                :bucketSize::interval
+                            ) as ts
+                        )
                         select
                             t.original_account_id,
-                            t.product_provider,
-                            t.product_category,
+                            pc.provider,
+                            pc.category,
                             sum(t.amount)::bigint,
                             extract(epoch from timestamps.ts)::bigint,
                             pc.area
                         from
-                            (
-                                select generate_series(
-                                    to_timestamp(:periodStart)::timestamp,
-                                    to_timestamp(:periodEnd)::timestamp,
-                                    :bucketSize::interval
-                                ) as ts
-                            ) as timestamps left outer join transactions t on (
+                            timestamps left outer join 
+                            transactions t on (
                                 t.completed_at >= timestamps.ts and
                                 t.completed_at <= timestamps.ts + :bucketSize and
-                                t.is_reserved = false and
-                                t.account_id = :accountId and
-                                t.account_type = :accountType
-                            ),
-                            accounting.product_categories pc
+                                t.is_reserved = false
+                            ) join
+                            accounting.wallets w on t.wallet = w.id join
+                            accounting.product_categories pc on w.category = pc.id
                         where
-                            pc.category = t.product_category and
-                            pc.provider = t.product_provider
+                            w.account_id = :accountId and
+                            w.account_type = :accountType
                         group by
                             timestamps.ts,
                             t.original_account_id,
-                            t.product_provider,
-                            t.product_category,
+                            pc.provider,
+                            pc.category,
                             pc.area
                     """
                 )

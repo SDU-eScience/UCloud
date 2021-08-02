@@ -27,6 +27,7 @@ import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
 import {useProjectId} from "Project";
 import {Client} from "Authentication/HttpClientInstance";
+import ResourceDoc = provider.ResourceDoc;
 
 const entityName = "Provider";
 
@@ -94,25 +95,26 @@ function View(): JSX.Element | null {
                 <ResourcePage
                     entityName={entityName}
                     aclOptions={[{icon: "edit", name: "EDIT", title: "Edit"}]}
-                    entity={provider.data}
+                    entity={provider.data as ResourceDoc}
                     reload={reload}
                     showMissingPermissionHelp={false}
                     stats={[
                         {
                             title: "Domain",
                             render: t => {
+                                const f = t as any;
                                 let stringBuilder = "";
-                                if (t.specification.https) {
+                                if (f.specification.https) {
                                     stringBuilder += "https://"
                                 } else {
                                     stringBuilder += "http://"
                                 }
 
-                                stringBuilder += t.specification.domain;
+                                stringBuilder += f.specification.domain;
 
-                                if (t.specification.port) {
+                                if (f.specification.port) {
                                     stringBuilder += ":";
-                                    stringBuilder += t.specification.port;
+                                    stringBuilder += f.specification.port;
                                 }
 
                                 return stringBuilder;
@@ -121,13 +123,13 @@ function View(): JSX.Element | null {
                         {
                             title: "Refresh Token",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={t.refreshToken} rows={3} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).refreshToken} rows={3} onChange={doNothing}/>,
                             inline: false,
                         },
                         {
                             title: "Certificate",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={t.publicKey} rows={10} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).publicKey} rows={10} onChange={doNothing}/>,
                             inline: false,
                         },
                     ]}

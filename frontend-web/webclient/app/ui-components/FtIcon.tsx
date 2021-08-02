@@ -185,7 +185,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
 };
 
 // File type icon component
-const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
+export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
     <svg
         viewBox="0 0 43 56"
         fillRule="evenodd"

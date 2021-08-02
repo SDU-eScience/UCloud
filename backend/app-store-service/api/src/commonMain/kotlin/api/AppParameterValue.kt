@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.UCloudApiDoc
@@ -138,21 +139,19 @@ Internally this uses a big decimal type and there are no defined limits.
 """)
     @Serializable
     @SerialName("license_server")
-    data class License(
-        val id: String,
-    ) : AppParameterValue()
+    data class License(override val id: String) : AppParameterValue(), WithStringId
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage (Not yet implemented)")
     @Serializable
     @SerialName("block_storage")
-    data class BlockStorage(val id: String) : AppParameterValue()
+    data class BlockStorage(override val id: String) : AppParameterValue(), WithStringId
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage (Not yet implemented)")
     @Serializable
     @SerialName("network")
-    data class Network(val id: String) : AppParameterValue()
+    data class Network(override val id: String) : AppParameterValue(), WithStringId
 
     @UCloudApiDoc("""A reference to an HTTP ingress, registered locally at the provider
     
@@ -165,7 +164,7 @@ Internally this uses a big decimal type and there are no defined limits.
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @Serializable
     @SerialName("ingress")
-    data class Ingress(val id: String) : AppParameterValue()
+    data class Ingress(override val id: String) : AppParameterValue(), WithStringId
 }
 
 private val hostNameRegex =

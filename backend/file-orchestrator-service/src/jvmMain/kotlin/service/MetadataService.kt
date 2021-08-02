@@ -3,51 +3,106 @@ package dk.sdu.cloud.file.orchestrator.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.SimpleResourceOwner
-import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.LocalDateTime
 import java.util.*
 
 class MetadataService(
     private val db: DBContext,
-    private val projects: ProjectCache,
-    private val templateService: MetadataTemplates,
+    private val collections: FileCollectionService,
+    private val templates: MetadataTemplateNamespaces,
 ) {
+    suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    val newPaths by parameterList<String>()
+                    for (item in batch) {
+                        oldPaths.add(item.oldId.normalize())
+                        newPaths.add(item.newId.normalize())
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.metadata_documents
+                    set
+                        path = e.new_path || substring(path, length(e.old_path) + 1),
+                        parent_path = file_orchestrator.parent_file(e.new_path || substring(path, length(e.old_path) + 1))
+                    from entries e
+                    where
+                        (path = e.old_path or path like e.old_path || '/%');
+                """
+            )
+        }
+    }
+
+    suspend fun onFilesDeleted(batch: List<FindByStringId>) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val paths by parameterList<String>()
+                    for (item in batch) paths.add(item.id.normalize())
+                },
+                """
+                    with entries as (
+                        select unnest(:paths::text[]) path
+                    )
+                    delete from file_orchestrator.metadata_documents d
+                    using entries e
+                    where
+                        (e.path = d.path or d.path like e.path || '/%')
+                """
+            )
+        }
+    }
+
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: FileMetadataAddMetadataRequest,
         ctx: DBContext = this.db,
     ) {
-        // TODO We cannot verify if a user is actually allowed to write to any given file
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername()).userStatus
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-        if (actorAndProject.project != null) {
-            val isMember = projectStatus.membership.any { it.projectId == actorAndProject.project }
-            if (!isMember) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
-            for (reqItem in request.items) {
-                val template = templateService.retrieve(
-                    actorAndProject,
-                    FileMetadataTemplatesRetrieveRequest(reqItem.metadata.templateId),
-                    session
-                )
+            // NOTE(Dan): Confirm that the user, at least, has edit permissions for the collection. This doesn't
+            // guarantee that the user can actually change the affected file but UCloud simply has no way of knowing
+            // if this is possible. Maybe we can introduce a verification step later which is done by the provider.
+            // For the initial version I think this is enough.
+            val collectionIds = request.items.map { extractPathMetadata(it.fileId).collection }
+            collections.retrieveBulk(
+                actorAndProject,
+                collectionIds,
+                listOf(Permission.Edit),
+                ctx = session,
+                useProject = true
+            )
 
-                val schema = jacksonMapper.readTree(defaultMapper.encodeToString(template.specification.schema))
+            val templateVersions =
+                request.items.map { FileMetadataTemplateAndVersion(it.metadata.templateId, it.metadata.version) }
+            val templates = templates.retrieveTemplate(actorAndProject, BulkRequest(templateVersions), ctx = session)
+                .responses.associateBy { FileMetadataTemplateAndVersion(it.namespaceId, it.version) }
+
+            // TODO(Dan): Performance could be made a lot better by batching requests together and making fewer
+            //  sql queries
+
+            for ((index, reqItem) in request.items.withIndex()) {
+                val template = templates[templateVersions[index]]
+                    ?: error("`templates` value is not correct! ${templates} ${templateVersions} $index")
+                val schema = jacksonMapper.readTree(defaultMapper.encodeToString(template.schema))
                 val encodedDocument = defaultMapper.encodeToString(reqItem.metadata.document)
                 val document = jacksonMapper.readTree(encodedDocument)
 
@@ -56,19 +111,19 @@ class MetadataService(
                     throw RPCException("Supplied metadata is not valid", HttpStatusCode.BadRequest)
                 }
 
-                val workspace = when (template.specification.namespaceType) {
+                val workspace = when (template.namespaceType) {
                     FileMetadataTemplateNamespaceType.PER_USER -> actorAndProject.actor.safeUsername()
                     else -> actorAndProject.project ?: actorAndProject.actor.safeUsername()
                 }
 
                 val isWorkspaceProject = actorAndProject.project != null &&
-                    template.specification.namespaceType != FileMetadataTemplateNamespaceType.PER_USER
+                    template.namespaceType != FileMetadataTemplateNamespaceType.PER_USER
 
-                if (!template.specification.requireApproval) {
+                if (!template.requireApproval) {
                     session
                         .sendPreparedStatement(
                             {
-                                setParameter("path", reqItem.path.normalize())
+                                setParameter("path", reqItem.fileId.normalize())
                                 setParameter("workspace", workspace)
                                 setParameter("is_workspace_project", isWorkspaceProject)
                             },
@@ -87,11 +142,10 @@ class MetadataService(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("id", UUID.randomUUID().toString())
-                            setParameter("path", reqItem.path.normalize())
-                            setParameter("parent_path", reqItem.path.parent().normalize())
+                            setParameter("path", reqItem.fileId.normalize())
+                            setParameter("parent_path", reqItem.fileId.parent().normalize())
                             setParameter("template_id", reqItem.metadata.templateId)
-                            setParameter("template_version", template.specification.version)
+                            setParameter("template_version", template.version)
                             setParameter("document", encodedDocument)
                             setParameter("change_log", reqItem.metadata.changeLog)
                             setParameter("created_by", actorAndProject.actor.safeUsername())
@@ -100,16 +154,18 @@ class MetadataService(
                             setParameter("is_workspace_project", isWorkspaceProject)
                             setParameter(
                                 "approval_type",
-                                if (template.specification.requireApproval) "pending"
+                                if (template.requireApproval) "pending"
                                 else "not_required"
                             )
-                            setParameter("is_latest", !template.specification.requireApproval)
+                            setParameter("is_latest", !template.requireApproval)
                         },
                         """
                             insert into file_orchestrator.metadata_documents
+                            (path, parent_path, template_id, template_version, is_deletion, document, change_log,
+                             created_by, workspace, is_workspace_project, latest, approval_type, created_at,
+                             approval_updated_by)
                             values
                             (
-                                :id,
                                 :path,
                                 :parent_path,
                                 :template_id,
@@ -122,8 +178,8 @@ class MetadataService(
                                 :is_workspace_project,
                                 :is_latest,
                                 :approval_type,
-                                null,
-                                now()
+                                now(),
+                                null
                             )
                         """
                     )
@@ -136,17 +192,14 @@ class MetadataService(
         parentPath: String,
         ctx: DBContext = this.db,
     ): List<FileMetadataAttached> {
-        // TODO We cannot verify if a user is actually allowed to write to any given file
-        val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername()).userStatus
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-        if (actorAndProject.project != null) {
-            val isMember = projectStatus.membership.any { it.projectId == actorAndProject.project }
-            if (!isMember) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         return ctx.withSession { session ->
             val normalizedPath = parentPath.normalize()
+            collections.retrieveBulk(
+                actorAndProject,
+                listOf(extractPathMetadata(normalizedPath).collection),
+                listOf(Permission.Read),
+                ctx = session
+            )
             session
                 .sendPreparedStatement(
                     {
@@ -201,6 +254,12 @@ class MetadataService(
         val parent = parentPath.normalize()
         val normalizedParentPath = parent.removeSuffix("/") + "/"
         return ctx.withSession { session ->
+            collections.retrieveBulk(
+                actorAndProject,
+                listOf(extractPathMetadata(parent).collection),
+                listOf(Permission.Read),
+                ctx = session
+            )
             val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
             val templates = HashMap<String, FileMetadataTemplate>()
 
@@ -216,13 +275,12 @@ class MetadataService(
                         select 
                             d.path,
                             file_orchestrator.metadata_document_to_json(d) as document,
-                            file_orchestrator.metadata_template_to_json(mt, mts) as template
+                            file_orchestrator.metadata_template_to_json(ns, mt) as template
                         from 
                             file_orchestrator.metadata_documents d join 
-                            metadata_template_specs mts on 
-                                mts.template_id = d.template_id and 
-                                mts.version = d.template_version join 
-                            metadata_templates mt on mt.id = d.template_id
+                            file_orchestrator.metadata_template_namespaces ns on ns.resource = d.template_id join
+                            file_orchestrator.metadata_templates mt
+                                on ns.resource = mt.namespace and mt.uversion = d.template_version
                         where
                             (
                                 :paths::text[] is null or 
@@ -242,7 +300,7 @@ class MetadataService(
                                 )
                             )
                             
-                        order by d.created_at desc
+                        order by d.path, d.latest desc, d.created_at desc
                     """
                 )
                 .rows
@@ -252,17 +310,55 @@ class MetadataService(
                         defaultMapper.decodeFromString<FileMetadataOrDeleted>(row.getString("document")!!)
                     val template = defaultMapper.decodeFromString<FileMetadataTemplate>(row.getString("template")!!)
 
-                    templates[template.id] = template
+                    templates[template.namespaceId] = template
 
                     val existing = metadata[path] ?: HashMap()
-                    val existingHistory = existing[template.id] ?: ArrayList()
+                    val existingHistory = existing[template.namespaceId] ?: ArrayList()
 
                     existingHistory.add(metadataOrDeleted)
-                    existing[template.id] = existingHistory
+                    existing[template.namespaceId] = existingHistory
                     metadata[path] = existing
                 }
 
             RetrieveWithHistory(templates, metadata)
+        }
+    }
+
+    suspend fun move(
+        actorAndProject: ActorAndProject,
+        request: FileMetadataMoveRequest,
+        ctx: DBContext = this.db
+    ) {
+        ctx.withSession(remapExceptions = true) { session ->
+            // NOTE(Dan): System user is allowed to move the metadata. This can be triggered by a normal user's move of
+            // a file.
+            if (actorAndProject.actor != Actor.System) {
+                val allCollections = (request.items.map { extractPathMetadata(it.oldFileId).collection } +
+                    request.items.map { extractPathMetadata(it.newFileId).collection }).toSet()
+
+                // NOTE(Dan): Admin is required because approval status is copied as is.
+                collections.retrieveBulk(actorAndProject, allCollections, listOf(Permission.Admin), ctx = session)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    val newPaths by parameterList<String>()
+                    for (reqItem in request.items) {
+                        oldPaths.add(reqItem.oldFileId)
+                        newPaths.add(reqItem.newFileId)
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) as old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.metadata_documents
+                    set path = e.new_path
+                    from entries e
+                    where path = e.old_path
+                """
+            )
         }
     }
 
@@ -271,18 +367,164 @@ class MetadataService(
         request: FileMetadataDeleteRequest,
         ctx: DBContext = this.db
     ) {
-        ctx.withSession { session ->
-            for (reqItem in request.items) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("template_id", reqItem.templateId)
-                        },
-                        """
-                            
-                        """
+        data class DeletionResult(
+            val path: String, val templateId: Long, val docId: Int,
+            val workspace: String, val approvalRequired: Boolean
+        )
+
+        ctx.withSession(remapExceptions = true) { session ->
+            val deletionResult = session.sendPreparedStatement(
+                {
+                    setParameter("changed_by", actorAndProject.actor.safeUsername())
+                    val ids by parameterList<Long>()
+                    val changeLogs by parameterList<String>()
+                    request.items.forEach {
+                        ids.add(it.id.toLongOrNull() ?: throw RPCException("Unknown document", HttpStatusCode.NotFound))
+                        changeLogs.add(it.changeLog)
+                    }
+                },
+                """
+                    insert into file_orchestrator.metadata_documents
+                    (path, parent_path, template_id, template_version, is_deletion, document, change_log,
+                     created_by, workspace, is_workspace_project, latest, approval_type, created_at,
+                     approval_updated_by)
+                     
+                    with entries as (
+                        select unnest(:ids::bigint[]) id, unnest(:change_logs::text[]) change_log
                     )
+                    select
+                        docs.path, docs.parent_path, temps.namespace, temps.uversion, true, null, e.change_log,
+                        :changed_by, docs.workspace, docs.is_workspace_project, not temps.require_approval,
+                        case 
+                            when temps.require_approval = true then 'pending'
+                            else 'not_required'
+                        end, now(), null
+                    from
+                        entries e join
+                        file_orchestrator.metadata_documents docs on e.id = docs.id join
+                        file_orchestrator.metadata_templates temps on
+                            docs.template_id = temps.namespace and
+                            docs.template_version = temps.uversion
+                    returning path, template_id, id, workspace, latest
+                """
+            ).rows.map {
+                DeletionResult(
+                    it.getString(0)!!, it.getLong(1)!!, it.getInt(2)!!, it.getString(3)!!,
+                    !it.getBoolean(4)!!
+                )
             }
+
+            val collectionsAffected = deletionResult.map { extractPathMetadata(it.path).collection }
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Edit), ctx = session)
+
+            if (deletionResult.any { !it.approvalRequired }) {
+                session.sendPreparedStatement(
+                    {
+                        val ids by parameterList<Long>()
+                        val paths by parameterList<String>()
+                        val newDocs by parameterList<Int>()
+                        val workspaces by parameterList<String>()
+                        for (res in deletionResult) {
+                            if (!res.approvalRequired) {
+                                ids.add(res.templateId)
+                                paths.add(res.path)
+                                newDocs.add(res.docId)
+                                workspaces.add(res.workspace)
+                            }
+                        }
+                    },
+                    """
+                        with entries as (
+                            select unnest(:ids::bigint[]) template_id, unnest(:new_docs::bigint[]) doc_id,
+                                   unnest(:paths::text[]) path, unnest(:workspaces::text[]) workspace
+                        )
+                        update file_orchestrator.metadata_documents d
+                        set latest = false
+                        from entries e
+                        where
+                            e.path = d.path and
+                            e.template_id = d.template_id and
+                            e.doc_id != d.id and
+                            e.workspace = d.workspace
+                    """
+                )
+            }
+        }
+    }
+
+    suspend fun approve(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = this.db
+    ) {
+        setApproval(ctx, actorAndProject, "approved", becomesLatest = true, request)
+    }
+
+    suspend fun reject(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = this.db
+    ) {
+        setApproval(ctx, actorAndProject, "rejected", becomesLatest = false, request)
+    }
+
+    private suspend fun setApproval(
+        ctx: DBContext,
+        actorAndProject: ActorAndProject,
+        approvalType: String,
+        becomesLatest: Boolean,
+        request: BulkRequest<FindByStringId>
+    ) {
+        ctx.withSession(remapExceptions = true) { session ->
+            val pathsAffected = session.sendPreparedStatement(
+                {
+                    setParameter("approved_by", actorAndProject.actor.safeUsername())
+                    setParameter("approval_type", approvalType)
+                    setParameter("latest", becomesLatest)
+
+                    val ids by parameterList<Long>()
+                    request.items.forEach {
+                        ids.add(
+                            it.id.toLongOrNull()
+                                ?: throw RPCException("Unknown metadata document", HttpStatusCode.NotFound)
+                        )
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:ids::int[]) id, true latest
+                    )
+                    update file_orchestrator.metadata_documents other_docs
+                    set
+                        latest = case
+                            when :latest then other_docs.id = some(:ids::int[])
+                            else other_docs.latest
+                        end,
+                        approval_type = case
+                            when other_docs.id = some(:ids::int[]) then :approval_type
+                            else other_docs.approval_type
+                        end,
+                        approval_updated_by = case
+                            when other_docs.id = some(:ids::int[]) then :approved_by
+                            else other_docs.approval_updated_by
+                        end
+                    from
+                        entries e left join
+                        file_orchestrator.metadata_documents d on true
+                    where
+                        d.id = e.id and
+                        d.approval_type = 'pending' and
+                        d.workspace = other_docs.workspace and d.template_id = other_docs.template_id
+                    returning other_docs.path
+                """
+            ).rows.map { it.getString(0)!! }.toSet()
+
+            if (pathsAffected.size != request.items.size) {
+                throw RPCException("Unknown metadata document", HttpStatusCode.NotFound)
+            }
+
+            val collectionsAffected = pathsAffected.map { extractPathMetadata(it).collection }
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Admin), ctx = session)
         }
     }
 

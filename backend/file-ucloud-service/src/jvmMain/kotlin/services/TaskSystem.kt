@@ -1,12 +1,15 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.FilesControl
+import dk.sdu.cloud.file.orchestrator.api.FilesControlAddUpdateRequestItem
+import dk.sdu.cloud.file.orchestrator.api.FilesControlMarkAsCompleteRequestItem
 import dk.sdu.cloud.file.orchestrator.api.LongRunningTask
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.micro.BackgroundScope
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -29,7 +32,6 @@ data class StorageTask(
     val requirements: TaskRequirements?,
     val rawRequest: JsonObject,
     val progress: JsonObject?,
-    val owner: String,
     val lastUpdate: Long,
 )
 
@@ -41,45 +43,43 @@ data class TaskRequirements(
 
 class TaskSystem(
     private val db: DBContext,
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val nativeFs: NativeFS,
     private val backgroundScope: BackgroundScope,
+    private val client: AuthenticatedClient,
 ) {
-    private val taskContext = TaskContext(aclService, pathConverter, nativeFs, backgroundScope)
+    private val taskContext = TaskContext(pathConverter, nativeFs, backgroundScope)
     private val handlers = ArrayList<TaskHandler>()
 
     fun install(handler: TaskHandler) {
         handlers.add(handler)
     }
 
-    suspend fun submitTask(actor: Actor, name: String, request: JsonObject): LongRunningTask {
-        val handler = handlers.find { with(it) { taskContext.canHandle(actor, name, request) } } ?: run {
+    suspend fun submitTask(name: String, request: JsonObject): LongRunningTask {
+        val handler = handlers.find { with(it) { taskContext.canHandle(name, request) } } ?: run {
             log.warn("Unable to handle request: $name $request")
             throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
         }
 
         with (handler) {
-            val requirements = taskContext.collectRequirements(actor, name, request, REQUIREMENT_MAX_TIME_MS)
-            if (requirements == null || requirements.scheduleInBackground) {
-                return scheduleInBackground(actor, name, request, requirements)
+            val requirements = taskContext.collectRequirements(name, request, REQUIREMENT_MAX_TIME_MS)
+            return if (requirements == null || requirements.scheduleInBackground) {
+                scheduleInBackground(name, request, requirements)
             } else {
                 val taskId = UUID.randomUUID().toString()
                 taskContext.execute(
-                    actor,
-                    StorageTask(taskId, name, requirements, request, null, actor.safeUsername(), Time.now())
+                    StorageTask(taskId, name, requirements, request, null, Time.now())
                 )
-                return LongRunningTask.Complete()// (Unit)
+                LongRunningTask.Complete()
             }
         }
     }
 
     private suspend fun scheduleInBackground(
-        actor: Actor,
         name: String,
         request: JsonObject,
         requirements: TaskRequirements?,
-    ): LongRunningTask.ContinuesInBackground<Unit> {
+    ): LongRunningTask.ContinuesInBackground {
         val id = UUID.randomUUID().toString()
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -89,12 +89,11 @@ class TaskSystem(
                     setParameter("request", defaultMapper.encodeToString(request))
                     setParameter("requirements", defaultMapper.encodeToString(requirements))
                     setParameter("progress", null as String?)
-                    setParameter("owner", actor.safeUsername())
                 },
                 """
                     insert into file_ucloud.tasks
-                    (id, request_name, requirements, request, progress, owner, last_update, processor_id) 
-                    values (:id, :request_name, :requirements, :request, :progress, :owner, null, null) 
+                    (id, request_name, requirements, request, progress, last_update, processor_id) 
+                    values (:id, :request_name, :requirements, :request, :progress, null, null) 
                 """
             )
         }
@@ -134,7 +133,6 @@ class TaskSystem(
                                             it.getString("requirements")?.let { defaultMapper.decodeFromString(it) },
                                             it.getString("request")!!.let { defaultMapper.decodeFromString(it) },
                                             it.getString("progress")?.let { defaultMapper.decodeFromString(it) },
-                                            it.getString("owner")!!,
                                             it.getAs<LocalDateTime?>("last_update")
                                                 ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
                                         )
@@ -174,16 +172,15 @@ class TaskSystem(
                         }
 
                         if (task == null) {
-                            delay(1000)
+                            delay(10_000)
                             continue
                         }
 
                         taskInProgress = task.taskId
 
-                        val actor = Actor.SystemOnBehalfOfUser(task.owner)
                         val handler = handlers.find {
                             with(it) {
-                                taskContext.canHandle(actor, task.requestName, task.rawRequest)
+                                taskContext.canHandle(task.requestName, task.rawRequest)
                             }
                         } ?: run {
                             log.warn("Unable to handle request: ${task}")
@@ -192,11 +189,26 @@ class TaskSystem(
 
                         with(handler) {
                             val requirements = task.requirements
-                                ?: (taskContext.collectRequirements(actor, task.requestName, task.rawRequest, null)
+                                ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
                                     ?: error("Handler returned no requirements $task"))
 
                             log.debug("Starting work of $task")
-                            taskContext.execute(actor, task.copy(requirements = requirements))
+                            FilesControl.addUpdate.call(
+                                bulkRequestOf(
+                                    FilesControlAddUpdateRequestItem(
+                                        task.taskId,
+                                        "Resuming work on task..."
+                                    )
+                                ),
+                                client
+                            )
+                            taskContext.execute(task.copy(requirements = requirements))
+                            FilesControl.markAsComplete.call(
+                                bulkRequestOf(
+                                    FilesControlMarkAsCompleteRequestItem(task.taskId)
+                                ),
+                                client
+                            )
                             log.debug("Completed the execution of $task")
 
                             markJobAsComplete(db, task.taskId)
@@ -227,14 +239,13 @@ class TaskSystem(
 }
 
 data class TaskContext(
-    val aclService: AclService,
     val pathConverter: PathConverter,
     val nativeFs: NativeFS,
     val backgroundScope: BackgroundScope
 )
 
 interface TaskHandler {
-    fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean
-    suspend fun TaskContext.collectRequirements(actor: Actor, name: String, request: JsonObject, maxTime: Long?): TaskRequirements?
-    suspend fun TaskContext.execute(actor: Actor, task: StorageTask)
+    fun TaskContext.canHandle(name: String, request: JsonObject): Boolean
+    suspend fun TaskContext.collectRequirements(name: String, request: JsonObject, maxTime: Long?): TaskRequirements?
+    suspend fun TaskContext.execute(task: StorageTask)
 }

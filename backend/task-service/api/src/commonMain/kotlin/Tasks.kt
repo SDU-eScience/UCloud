@@ -111,6 +111,7 @@ object Tasks : CallDescriptionContainer("task") {
 
             path {
                 using(baseContext)
+                +"postStatus"
             }
 
             body { bindEntireRequestFromBody() }
@@ -130,6 +131,7 @@ object Tasks : CallDescriptionContainer("task") {
 
             path {
                 using(baseContext)
+                +"markAsComplete"
             }
 
             body { bindEntireRequestFromBody() }

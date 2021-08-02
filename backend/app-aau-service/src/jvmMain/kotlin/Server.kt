@@ -23,7 +23,6 @@ data class ClientHolder(var client: AuthenticatedClient)
 class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
     override val log = logger()
 
-    private var requireTokenInit = false
     private lateinit var client: ClientHolder
 
     override fun start() {
@@ -33,7 +32,6 @@ class Server(override val micro: Micro, private val configuration: Configuration
                 if (!micro.developmentModeEnabled) {
                     throw IllegalStateException("Missing configuration at app.kubernetes.providerRefreshToken")
                 }
-                requireTokenInit = true
                 Pair("REPLACED_LATER", InternalTokenValidationJWT.withSharedSecret(UUID.randomUUID().toString()))
             } else {
                 Pair(
@@ -60,62 +58,5 @@ class Server(override val micro: Micro, private val configuration: Configuration
         }
         
         startServices()
-    }
-
-    override fun onKtorReady() {
-        if (requireTokenInit) {
-            log.warn("Initializing a provider for UCloud in development mode")
-            runBlocking {
-                val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-                val project = Projects.create.call(
-                    CreateProjectRequest("UCloudProviderForAauTemp"),
-                    serviceClient
-                ).orThrow()
-
-                Providers.create.call(
-                    bulkRequestOf(
-                        ProviderSpecification(
-                            "aau",
-                            "localhost",
-                            false,
-                            8080
-                        )
-                    ),
-                    serviceClient.withProject(project.id)
-                ).orRethrowAs {
-                    throw IllegalStateException("Could not register a provider for development mode!")
-                }
-
-                val retrievedResponse = Providers.retrieve.call(
-                    ProvidersRetrieveRequest("aau"),
-                    serviceClient.withProject(project.id)
-                ).orThrow()
-
-                if (micro.developmentModeEnabled) {
-                    val defaultConfigDir = File(System.getProperty("user.home"), "ucloud").also { it.mkdirs() }
-                    val configFile = File(defaultConfigDir, "ucloud-aau-compute-config.yml")
-                    log.warn("Provider configuration is stored at: ${configFile.absolutePath}")
-                    configFile.writeText(
-                        //language=yaml
-                        """
-                          ---
-                          app:
-                            aau:
-                              providerRefreshToken: ${retrievedResponse.refreshToken}
-                              ucloudCertificate: ${retrievedResponse.publicKey}
-                        """.trimIndent()
-                    )
-                }
-
-                @Suppress("UNCHECKED_CAST")
-                micro.providerTokenValidation = InternalTokenValidationJWT
-                    .withPublicCertificate(retrievedResponse.publicKey) as TokenValidation<Any>
-
-                client.client = RefreshingJWTAuthenticator(
-                    micro.client,
-                    JwtRefresher.Provider(retrievedResponse.refreshToken)
-                ).authenticateClient(OutgoingHttpCall)
-            }
-        }
     }
 }

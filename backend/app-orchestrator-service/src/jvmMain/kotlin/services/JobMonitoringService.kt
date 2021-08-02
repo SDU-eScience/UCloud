@@ -1,31 +1,14 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.app.orchestrator.api.JobDataIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
 class JobMonitoringService(
-    private val db: DBContext,
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
-    private val verificationService: JobVerificationService,
-    private val jobOrchestrator: JobOrchestrator,
-    private val providers: Providers,
-    private val queryService: JobQueryService,
 ) {
     suspend fun initialize() {
         scope.launch {
@@ -47,6 +30,7 @@ class JobMonitoringService(
     }
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock) {
+        /*
         var nextScan = 0L
 
         while (isActive) {
@@ -82,7 +66,7 @@ class JobMonitoringService(
                         .toSet()
                         .let {
                             queryService
-                                .retrievePrivileged(session, it, JobDataIncludeFlags(includeParameters = true))
+                                .retrievePrivileged(session, it, JobIncludeFlags(includeParameters = true))
                                 .values
                         }
 
@@ -136,6 +120,7 @@ class JobMonitoringService(
                 break
             }
         }
+         */
     }
 
     companion object : Loggable {
