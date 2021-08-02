@@ -95,8 +95,6 @@ suspend fun createSampleProducts() {
 }
 
 suspend fun createAdditionalProductsFromUcloudProvider() {
-    createProvider()
-
     Products.create.call(
         bulkRequestOf(
             sampleCompute2,
@@ -106,7 +104,7 @@ suspend fun createAdditionalProductsFromUcloudProvider() {
     ).orThrow()
 }
 
-suspend fun createSampleProductsOtherProducts() {
+suspend fun createSampleProductsOtherProvider() {
     createProvider(providerName = OTHER_PROVIDER)
 
     Products.create.call(
@@ -125,7 +123,8 @@ class ProductTest : IntegrationTest() {
                 val createSingleProduct: Boolean = false,
                 val createMultipleProducts: Boolean = false,
                 val request: ProductsBrowseRequest = ProductsBrowseRequest(),
-                val createWallet: Boolean = true
+                val createWallet: Boolean = true,
+                val additionalProvider: Boolean = false
             )
 
             class Out(
@@ -148,6 +147,9 @@ class ProductTest : IntegrationTest() {
                         input.createMultipleProducts -> {
                             createSampleProducts()
                         }
+                    }
+                    if (input.additionalProvider) {
+                        createSampleProductsOtherProvider()
                     }
                     val client: AuthenticatedClient
                     if (input.request.includeBalance == true) {
@@ -262,6 +264,42 @@ class ProductTest : IntegrationTest() {
                         assertTrue(output.page.items.contains(sampleIngress))
                         assertTrue(output.page.items.contains(sampleNetworkIp))
                         assertTrue(output.page.items.contains(sampleStorage))
+                    }
+                }
+
+                case("filter by provider, multiple providers $UCLOUD_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleNetworkIp.category.provider
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(4, output.page.items.size)
+                        assertTrue(output.page.items.contains(sampleCompute))
+                        assertTrue(output.page.items.contains(sampleIngress))
+                        assertTrue(output.page.items.contains(sampleNetworkIp))
+                        assertTrue(output.page.items.contains(sampleStorage))
+                    }
+                }
+
+                case("filter by provider, multiple providers $OTHER_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleComputeOtherProvider.category.provider
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(sampleProductsOtherProvider.size, output.page.items.size)
+                        assertTrue(output.page.items.contains(sampleComputeOtherProvider))
+                        assertTrue(output.page.items.contains(sampleStorageOtherProvider))
                     }
                 }
 
