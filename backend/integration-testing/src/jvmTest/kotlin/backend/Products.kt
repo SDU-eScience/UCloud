@@ -13,6 +13,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.PageV2
+import io.ktor.http.*
 import org.elasticsearch.client.Requests.bulkRequest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -303,6 +304,22 @@ class ProductTest : IntegrationTest() {
                     }
                 }
 
+                case("filter by provider and wrong name, multiple providers $OTHER_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleComputeOtherProvider.category.provider,
+                                filterName =  "cephfs"
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.page.items.size)
+                    }
+                }
+
                 case("filter by category") {
                     input(
                         In(
@@ -394,6 +411,7 @@ class ProductTest : IntegrationTest() {
         run {
             class In(
                 val request: ProductsRetrieveRequest,
+                val createWallet: Boolean = true
             )
 
             class Out(
@@ -409,18 +427,20 @@ class ProductTest : IntegrationTest() {
                     if (input.request.includeBalance == true) {
                         val createdUser = createUser("${title}_$testId")
                         client = createdUser.client
-                        val owner = WalletOwner.User(createdUser.username)
-                        Accounting.rootDeposit.call(
-                            bulkRequestOf(
-                                RootDepositRequestItem(
-                                    sampleStorage.category,
-                                    owner,
-                                    1000000,
-                                    "Initial deposit"
-                                )
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        if (input.createWallet) {
+                            val owner = WalletOwner.User(createdUser.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleStorage.category,
+                                        owner,
+                                        1000000,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
                     } else {
                         client = adminClient
                     }
@@ -445,6 +465,110 @@ class ProductTest : IntegrationTest() {
                     )
                     check {
                         assertEquals(sampleIngress, output.product)
+                    }
+                }
+
+                case("retrieve non-existing (name) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = "not name",
+                                filterCategory = sampleIngress.category.name,
+                                filterProvider = sampleIngress.category.provider
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve non-existing (category) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = "sampleIngress.category.name",
+                                filterProvider = sampleIngress.category.provider
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve non-existing (provider) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = sampleIngress.category.name,
+                                filterProvider = "sampleIngress.category.provider"
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve with filter (productType)") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
+                                filterArea = ProductType.COMPUTE
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(sampleCompute, output.product)
+                    }
+                }
+
+                case("retrieve with wrong (productType) filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = "sampleIngress.category.name",
+                                filterProvider = sampleIngress.category.provider,
+                                filterArea = ProductType.STORAGE
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve with filter (productType) and include balance") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(1000000, output.product.balance)
+                    }
+                }
+
+                case("retrieve with filter (productType) and include balance but no wallet") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            ),
+                            createWallet = false
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.product.balance)
                     }
                 }
             }
