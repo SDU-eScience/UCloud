@@ -13,6 +13,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
 const val PERSONAL_REPOSITORY = "Members' Files"
+const val MAX_FILE_COUNT_FOR_SORTING = 25_000
 
 class FileQueries(
     private val pathConverter: PathConverter,
@@ -93,28 +94,52 @@ class FileQueries(
             }
         }
 
+        // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
+        val allowedSortBy = if (foundFiles.size <= MAX_FILE_COUNT_FOR_SORTING) {
+            sortBy
+        } else {
+            FilesSortBy.PATH
+        }
+
         val foundFilesToStat = HashMap<String, NativeStat>()
-        foundFiles = sortFiles(nativeFs, sortBy, sortOrder, foundFiles, foundFilesToStat)
+        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat)
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
         val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
-        while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-            try {
-                val nextInternalFile = foundFiles[i++]
-                items.add(
-                    convertNativeStatToUFile(
-                        nextInternalFile,
-                        nativeFs.stat(nextInternalFile),
+        when (allowedSortBy) {
+            FilesSortBy.PATH -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    try {
+                        val nextInternalFile = foundFiles[i++]
+
+                        items.add(
+                            convertNativeStatToUFile(
+                                nextInternalFile,
+                                nativeFs.stat(nextInternalFile),
+                            )
+                        )
+                    } catch (ex: FSException.NotFound) {
+                        // NOTE(Dan): File might have gone away between these two calls
+                        didSkipFiles = true
+                    } catch (ex: Throwable) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            else -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    val nextInternalFile = foundFiles[i++]
+
+                    items.add(
+                        convertNativeStatToUFile(
+                            nextInternalFile,
+                            foundFilesToStat[nextInternalFile.path]!!
+                        )
                     )
-                )
-            } catch (ex: FSException.NotFound) {
-                // NOTE(Dan): File might have gone away between these two calls
-                didSkipFiles = true
-            } catch (ex: Throwable) {
-                ex.printStackTrace()
+                }
             }
         }
 
