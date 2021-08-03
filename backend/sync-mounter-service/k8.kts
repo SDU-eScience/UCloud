@@ -8,7 +8,7 @@ bundle {
     withAmbassador() {}
     
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 1
     }
     
     withPostgresMigration(deployment)

@@ -223,7 +223,6 @@ data class SyncthingFolderDevice(
 class SyncthingClient(
     val config: SynchronizationConfiguration,
     val db: DBContext,
-    val fsPath: String
 ) {
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
@@ -271,7 +270,7 @@ class SyncthingClient(
                                     }.map {
                                         SyncthingFolderDevice(it.getField(UserDevicesTable.device))
                                     },
-                                path = File(fsPath, row.getField(SynchronizedFoldersTable.path)).absolutePath
+                                path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.id)).absolutePath
                             )
                         },
                     defaults = SyncthingDefaults(),

@@ -3,14 +3,23 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.sync.mounter.api.*
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.content.*
 import io.ktor.http.*
 import java.io.File
+import java.net.http.HttpResponse
 import java.util.*
 
 object SynchronizedFoldersTable : SQLTable("synchronized_folders") {
@@ -30,7 +39,8 @@ class SynchronizationService(
     private val syncthing: SyncthingClient,
     private val fsPath: String,
     private val db: AsyncDBSessionFactory,
-    private val aclService: AclService
+    private val aclService: AclService,
+    private val authenticatedClient: AuthenticatedClient
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
         db.withSession { session ->
@@ -40,10 +50,10 @@ class SynchronizationService(
                         setParameter("device", device.id)
                     },
                     """
-                                select path
-                                from synchronized_folders
-                                where device_id = :device
-                            """
+                        select path
+                        from synchronized_folders
+                        where device_id = :device
+                    """
                 ).rows.sumOf {
                     CephFsFastDirectoryStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
                 }
@@ -82,6 +92,15 @@ class SynchronizationService(
                 val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
 
+                Mounts.mount.call(
+                    MountRequest(
+                        listOf(MountFolder(id, folder.path))
+                    ),
+                    authenticatedClient
+                ).orRethrowAs {
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
+                }
+
                 session.sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -104,7 +123,7 @@ class SynchronizationService(
                             :user,
                             :access
                         )
-                    """
+                """
                 ).rowsAffected
             }
         }
@@ -126,6 +145,15 @@ class SynchronizationService(
                     where id in (select unnest(:ids::text[])) and user_id = :user
                 """
             ).rowsAffected
+        }
+
+        Mounts.unmount.call(
+            UnmountRequest(
+                request.items.map { MountFolderId(it.id) }
+            ),
+            authenticatedClient
+        ).orRethrowAs {
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
 
         if (affectedRows > 0) {

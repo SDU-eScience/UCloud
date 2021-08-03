@@ -1,16 +1,22 @@
 package dk.sdu.cloud.sync.mounter
 
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.sync.mounter.api.SyncMounterServiceDescription
+
+data class SyncMounterConfiguration(
+    val cephfsBaseMount: String? = null,
+    val syncBaseMount: String? = null
+)
 
 object SyncMounterService : Service {
     override val description = SyncMounterServiceDescription
     
     override fun initializeServer(micro: Micro): CommonServer {
-        micro.install(RefreshingJWTCloudFeature)
-        return Server(micro)
+        micro.install(AuthenticatorFeature)
+        val config = micro.configuration.requestChunkAtOrNull("sync-mount") ?: SyncMounterConfiguration()
+        return Server(micro, config)
     }
 }
 
