@@ -15,7 +15,13 @@ data class SynchronizationDevice(val id: String)
 data class SynchronizedFolder(
     val id: String,
     val path: String,
-    val device_id: String
+    val device: String
+)
+
+@Serializable
+data class SynchronizedFolderBrowseItem(
+    val id: String,
+    val path: String
 )
 
 @Serializable
@@ -27,6 +33,12 @@ data class SynchronizationBrowseDevicesRequest(
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 typealias SynchronizationBrowseDevicesResponse = PageV2<SynchronizationDevice>
+
+@Serializable
+data class SynchronizationBrowseFoldersRequest(
+    val device: String
+)
+typealias SynchronizationBrowseFoldersResponse = List<SynchronizedFolderBrowseItem>
 
 @Serializable
 data class SynchronizationAddFolderItem(
@@ -76,6 +88,11 @@ object FileSynchronization: CallDescriptionContainer("files.synchronization") {
     val addFolder = call<SynchronizationAddFolderRequest, SynchronizationAddFolderResponse,
         CommonErrorMessage>("addFolder") {
         httpCreate(joinPath(baseContext, "folder"), roles = Roles.PRIVILEGED)
+    }
+
+    val browseFolders = call<SynchronizationBrowseFoldersRequest, SynchronizationBrowseFoldersResponse,
+        CommonErrorMessage>("browseFolders") {
+        httpBrowse(joinPath(baseContext, "folder"), roles = Roles.SERVICE)
     }
 
     val removeFolder = call<SynchronizationRemoveFolderRequest, SynchronizationRemoveFolderResponse,

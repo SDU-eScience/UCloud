@@ -2,6 +2,8 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -51,7 +53,7 @@ class SynchronizationService(
                     },
                     """
                         select path
-                        from synchronized_folders
+                        from storage.synchronized_folders
                         where device_id = :device
                     """
                 ).rows.sumOf {
@@ -161,6 +163,33 @@ class SynchronizationService(
         }
     }
 
+    suspend fun browseFolders(
+        principal: SecurityPrincipal,
+        request: SynchronizationBrowseFoldersRequest
+    ): List<SynchronizedFolderBrowseItem> {
+        if (principal.role != Role.SERVICE) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        }
+
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("device", request.device)
+                },
+                """
+                        select id, path
+                        from storage.synchronized_folders
+                        where device_id = :device
+                    """
+            ).rows.map { folder ->
+                SynchronizedFolderBrowseItem(
+                    folder.getField(SynchronizedFoldersTable.id),
+                    folder.getField(SynchronizedFoldersTable.path)
+                )
+            }
+        }
+    }
+
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
         request.items.forEach { item ->
             if (syncthing.config.devices.any { it.id == item.id }) {
@@ -261,7 +290,7 @@ class SynchronizationService(
             SynchronizedFolder(
                 id = folder.getField(SynchronizedFoldersTable.id),
                 path = path,
-                device_id = folder.getField(SynchronizedFoldersTable.device)
+                device = folder.getField(SynchronizedFoldersTable.device)
             )
         }
     }
