@@ -131,7 +131,7 @@ begin
         public_key_in,
         private_key_in,
         generated_refresh_token,
-        '',
+        uuid_generate_v4()::text,
         true
     );
 

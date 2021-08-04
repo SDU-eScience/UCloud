@@ -2,6 +2,7 @@ package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.checkMinimumValue
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -13,6 +14,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.PageV2
+import io.ktor.http.*
 import org.elasticsearch.client.Requests.bulkRequest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -86,8 +88,16 @@ suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
  * Creates a sample catalog of products
  */
 suspend fun createSampleProducts() {
-    createProvider()
-
+    try {
+        createProvider()
+    } catch (ex: RPCException) {
+        if (ex.httpStatusCode == HttpStatusCode.Conflict) {
+            println("Provider already exists")
+        }
+        else {
+            throw ex
+        }
+    }
     Products.create.call(
         BulkRequest(sampleProducts),
         serviceClient
@@ -95,8 +105,6 @@ suspend fun createSampleProducts() {
 }
 
 suspend fun createAdditionalProductsFromUcloudProvider() {
-    createProvider()
-
     Products.create.call(
         bulkRequestOf(
             sampleCompute2,
@@ -106,7 +114,7 @@ suspend fun createAdditionalProductsFromUcloudProvider() {
     ).orThrow()
 }
 
-suspend fun createSampleProductsOtherProducts() {
+suspend fun createSampleProductsOtherProvider() {
     createProvider(providerName = OTHER_PROVIDER)
 
     Products.create.call(
@@ -125,7 +133,8 @@ class ProductTest : IntegrationTest() {
                 val createSingleProduct: Boolean = false,
                 val createMultipleProducts: Boolean = false,
                 val request: ProductsBrowseRequest = ProductsBrowseRequest(),
-                val createWallet: Boolean = true
+                val createWallet: Boolean = true,
+                val additionalProvider: Boolean = false
             )
 
             class Out(
@@ -148,6 +157,9 @@ class ProductTest : IntegrationTest() {
                         input.createMultipleProducts -> {
                             createSampleProducts()
                         }
+                    }
+                    if (input.additionalProvider) {
+                        createSampleProductsOtherProvider()
                     }
                     val client: AuthenticatedClient
                     if (input.request.includeBalance == true) {
@@ -265,6 +277,58 @@ class ProductTest : IntegrationTest() {
                     }
                 }
 
+                case("filter by provider, multiple providers $UCLOUD_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleNetworkIp.category.provider
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(4, output.page.items.size)
+                        assertTrue(output.page.items.contains(sampleCompute))
+                        assertTrue(output.page.items.contains(sampleIngress))
+                        assertTrue(output.page.items.contains(sampleNetworkIp))
+                        assertTrue(output.page.items.contains(sampleStorage))
+                    }
+                }
+
+                case("filter by provider, multiple providers $OTHER_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleComputeOtherProvider.category.provider
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(sampleProductsOtherProvider.size, output.page.items.size)
+                        assertTrue(output.page.items.contains(sampleComputeOtherProvider))
+                        assertTrue(output.page.items.contains(sampleStorageOtherProvider))
+                    }
+                }
+
+                case("filter by provider and wrong name, multiple providers $OTHER_PROVIDER") {
+                    input(
+                        In(
+                            createMultipleProducts = true,
+                            request = ProductsBrowseRequest(
+                                filterProvider = sampleComputeOtherProvider.category.provider,
+                                filterName = "cephfs"
+                            ),
+                            additionalProvider = true
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.page.items.size)
+                    }
+                }
+
                 case("filter by category") {
                     input(
                         In(
@@ -356,6 +420,8 @@ class ProductTest : IntegrationTest() {
         run {
             class In(
                 val request: ProductsRetrieveRequest,
+                val createWallet: Boolean = true,
+                val createMultipleVersions: Boolean = false
             )
 
             class Out(
@@ -366,23 +432,29 @@ class ProductTest : IntegrationTest() {
                 execute {
                     createSampleProducts()
 
+                    if (input.createMultipleVersions) {
+                        createSampleProducts()
+                    }
+
                     val client: AuthenticatedClient
 
                     if (input.request.includeBalance == true) {
                         val createdUser = createUser("${title}_$testId")
                         client = createdUser.client
-                        val owner = WalletOwner.User(createdUser.username)
-                        Accounting.rootDeposit.call(
-                            bulkRequestOf(
-                                RootDepositRequestItem(
-                                    sampleStorage.category,
-                                    owner,
-                                    1000000,
-                                    "Initial deposit"
-                                )
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        if (input.createWallet) {
+                            val owner = WalletOwner.User(createdUser.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleStorage.category,
+                                        owner,
+                                        1000000,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
                     } else {
                         client = adminClient
                     }
@@ -407,6 +479,265 @@ class ProductTest : IntegrationTest() {
                     )
                     check {
                         assertEquals(sampleIngress, output.product)
+                        //simple balance null check
+                        assertNull(output.product.balance)
+                    }
+                }
+
+                case("retrieve non-existing (name) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = "not name",
+                                filterCategory = sampleIngress.category.name,
+                                filterProvider = sampleIngress.category.provider
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve non-existing (category) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = "sampleIngress.category.name",
+                                filterProvider = sampleIngress.category.provider
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve non-existing (provider) without filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = sampleIngress.category.name,
+                                filterProvider = "sampleIngress.category.provider"
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve with filter (productType)") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
+                                filterArea = ProductType.COMPUTE
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(sampleCompute, output.product)
+                    }
+                }
+
+                case("retrieve with wrong (productType) filter") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleIngress.name,
+                                filterCategory = "sampleIngress.category.name",
+                                filterProvider = sampleIngress.category.provider,
+                                filterArea = ProductType.STORAGE
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.NotFound)
+                }
+
+                case("retrieve with filter (productType) and include balance") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(1000000, output.product.balance)
+                    }
+                }
+
+                case("retrieve with filter (productType) and include balance but no wallet") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            ),
+                            createWallet = false
+                        )
+                    )
+                    check {
+                        assertEquals(0, output.product.balance)
+                    }
+                }
+
+                case("retrieve with filter (version)") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
+                                filterVersion = 1
+                            ),
+                            createMultipleVersions = true
+                        )
+                    )
+                    check {
+                        assertEquals(sampleCompute, output.product)
+                        assertEquals(1, output.product.version)
+                    }
+                }
+            }
+        }
+        run {
+            class In(
+                val browseRequest: ProductsBrowseRequest? = null,
+                val retrieveRequest: ProductsRetrieveRequest? = null,
+                val createWallet: Boolean = false
+            )
+
+            class Out(
+                val product: Product?,
+                val page: PageV2<Product>?
+            )
+
+            test<In, Out>("browsing and retrieving newest versions") {
+                execute {
+                    createSampleProducts()
+                    createSampleProducts()
+
+                    val client: AuthenticatedClient
+
+                    if (input.browseRequest?.includeBalance == true
+                        || input.retrieveRequest?.includeBalance == true) {
+                        val createdUser = createUser("${title}_$testId")
+                        client = createdUser.client
+                        if (input.createWallet) {
+                            val owner = WalletOwner.User(createdUser.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleStorage.category,
+                                        owner,
+                                        1000000,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
+                    } else {
+                        client = adminClient
+                    }
+
+                    var retrieveResult: Product? = null
+                    var browseResult: PageV2<Product>? = null
+                    if (input.retrieveRequest != null) {
+                        val request = input.retrieveRequest!!
+                        retrieveResult = Products.retrieve.call(
+                            request,
+                            client
+                        ).orThrow()
+                    }
+                    if (input.browseRequest != null) {
+                        val request = input.browseRequest!!
+                        browseResult = Products.browse.call(
+                            request,
+                            client
+                        ).orThrow()
+                    }
+
+                    Out(product = retrieveResult, page = browseResult)
+                }
+
+                case("browse without filters") {
+                    input(
+                        In(
+                            browseRequest = ProductsBrowseRequest()
+                        )
+                    )
+                    check {
+                        assertNotNull(output.page)
+                        assertEquals(sampleProducts.size, output.page!!.items.size)
+                    }
+                }
+
+                case("browse with balance") {
+                    input(
+                        In(
+                            browseRequest = ProductsBrowseRequest(
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            ),
+                            createWallet = true
+                        )
+                    )
+                    check {
+                        println(output.page)
+                        assertNotNull(output.page)
+                        val page = output.page!!
+                        assertEquals(1, page.items.size)
+                        val item = page.items.first()
+                        assertEquals(1000000, item.balance)
+                        assertEquals(sampleStorage.name, item.name)
+                        assertEquals(2, item.version)
+                    }
+                }
+
+                case("retrieve without additional filters") {
+                    input(
+                        In(
+                            retrieveRequest = ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                            )
+                        )
+                    )
+                    check {
+                        assertNotNull(output.product)
+                        val product = output.product!!
+                        assertEquals(sampleStorage.copy(version = 2), product)
+                    }
+                }
+
+                case("retrieve with balance") {
+                    input(
+                        In(
+                            retrieveRequest = ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                includeBalance = true
+                            ),
+                            createWallet = true
+                        )
+                    )
+                    check {
+                        assertNotNull(output.product)
+                        val product = output.product!!
+                        assertEquals(1000000, product.balance)
+
+                        assertEquals(sampleStorage.name, product.name)
+                        assertEquals(2, product.version)
                     }
                 }
             }
