@@ -24,15 +24,14 @@ Packages needed:
 ```
 #!/usr/bin/bash
 #
-#SBATCH --job-name=test
-#SBATCH --output=res.txt
-#SBATCH --error=error.txt
+#SBATCH --output=res.out
+#SBATCH --error=error.err
 #
 #SBATCH --nodes=1
-#SBATCH --time=00:01:00
 
 srun /usr/bin/echo "hellow_world"
-srun /usr/bin/hostname
+
+
 
 ```
 
@@ -44,7 +43,7 @@ srun /usr/bin/hostname
 
 ## Validate setup for testuser
 
-* Make sure testuser(1000):testuser(1001) exists on SLURM nodes  
+* Make sure testuser(1000):testuser(1000) exists on SLURM nodes  
 * Change owner of /data to testuser:testuser  
 * Create sample job through UCloud  
 * Observe job is successful  
