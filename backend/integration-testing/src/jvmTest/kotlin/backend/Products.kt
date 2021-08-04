@@ -420,7 +420,8 @@ class ProductTest : IntegrationTest() {
         run {
             class In(
                 val request: ProductsRetrieveRequest,
-                val createWallet: Boolean = true
+                val createWallet: Boolean = true,
+                val createMultipleVersions: Boolean = false
             )
 
             class Out(
@@ -430,6 +431,10 @@ class ProductTest : IntegrationTest() {
             test<In, Out>("retrieving products") {
                 execute {
                     createSampleProducts()
+
+                    if (input.createMultipleVersions) {
+                        createSampleProducts()
+                    }
 
                     val client: AuthenticatedClient
 
@@ -582,12 +587,31 @@ class ProductTest : IntegrationTest() {
                         assertEquals(0, output.product.balance)
                     }
                 }
+
+                case("retrieve with filter (version)") {
+                    input(
+                        In(
+                            ProductsRetrieveRequest(
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
+                                filterVersion = 1
+                            ),
+                            createMultipleVersions = true
+                        )
+                    )
+                    check {
+                        assertEquals(sampleCompute, output.product)
+                        assertEquals(1, output.product.version)
+                    }
+                }
             }
         }
         run {
             class In(
                 val browseRequest: ProductsBrowseRequest? = null,
                 val retrieveRequest: ProductsRetrieveRequest? = null,
+                val createWallet: Boolean = false
             )
 
             class Out(
@@ -600,7 +624,30 @@ class ProductTest : IntegrationTest() {
                     createSampleProducts()
                     createSampleProducts()
 
-                    val client = adminClient
+                    val client: AuthenticatedClient
+
+                    if (input.browseRequest?.includeBalance == true
+                        || input.retrieveRequest?.includeBalance == true) {
+                        val createdUser = createUser("${title}_$testId")
+                        client = createdUser.client
+                        if (input.createWallet) {
+                            val owner = WalletOwner.User(createdUser.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleStorage.category,
+                                        owner,
+                                        1000000,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
+                    } else {
+                        client = adminClient
+                    }
+
                     var retrieveResult: Product? = null
                     var browseResult: PageV2<Product>? = null
                     if (input.retrieveRequest != null) {
@@ -632,10 +679,70 @@ class ProductTest : IntegrationTest() {
                         assertEquals(sampleProducts.size, output.page!!.items.size)
                     }
                 }
+
+                case("browse with balance") {
+                    input(
+                        In(
+                            browseRequest = ProductsBrowseRequest(
+                                filterArea = ProductType.STORAGE,
+                                includeBalance = true
+                            ),
+                            createWallet = true
+                        )
+                    )
+                    check {
+                        println(output.page)
+                        assertNotNull(output.page)
+                        val page = output.page!!
+                        assertEquals(1, page.items.size)
+                        val item = page.items.first()
+                        assertEquals(1000000, item.balance)
+                        assertEquals(sampleStorage.name, item.name)
+                        assertEquals(2, item.version)
+                    }
+                }
+
+                case("retrieve without additional filters") {
+                    input(
+                        In(
+                            retrieveRequest = ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                            )
+                        )
+                    )
+                    check {
+                        assertNotNull(output.product)
+                        val product = output.product!!
+                        assertEquals(sampleStorage.copy(version = 2), product)
+                    }
+                }
+
+                case("retrieve with balance") {
+                    input(
+                        In(
+                            retrieveRequest = ProductsRetrieveRequest(
+                                filterName = sampleStorage.name,
+                                filterCategory = sampleStorage.category.name,
+                                filterProvider = sampleStorage.category.provider,
+                                includeBalance = true
+                            ),
+                            createWallet = true
+                        )
+                    )
+                    check {
+                        assertNotNull(output.product)
+                        val product = output.product!!
+                        assertEquals(1000000, product.balance)
+
+                        assertEquals(sampleStorage.name, product.name)
+                        assertEquals(2, product.version)
+                    }
+                }
             }
         }
     }
-
     /*
     @Test
     fun `test product create, read and update`() = t {

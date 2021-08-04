@@ -216,6 +216,7 @@ interface ProductFlags {
     val filterArea: ProductType?
     val filterProvider: String?
     val filterCategory: String?
+    val filterVersion: Int?
     val includeBalance: Boolean?
 }
 
@@ -230,6 +231,8 @@ data class ProductsBrowseRequest(
     override val filterProvider: String? = null,
     override val filterArea: ProductType? = null,
     override val filterCategory: String? = null,
+    override val filterVersion: Int? = null,
+
 
     override val includeBalance: Boolean? = null
 ) : WithPaginationRequestV2, ProductFlags
@@ -242,6 +245,7 @@ data class ProductsRetrieveRequest(
     override val filterProvider: String,
 
     override val filterArea: ProductType? = null,
+    override val filterVersion: Int? = null,
     override val includeBalance: Boolean? = null,
 ) : ProductFlags
 

@@ -161,13 +161,14 @@ class ProductService(
                 setParameter("provider_filter", flags.filterProvider)
                 setParameter("product_filter", flags.filterArea?.name)
                 setParameter("category_filter", flags.filterCategory)
+                setParameter("version_filter", flags.filterVersion)
                 setParameter("include_balance", flags.includeBalance == true)
                 setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                 setParameter("account_is_project", actorAndProject.project != null)
             },
             """
                 with my_wallets as(
-                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance, version
                     from accounting.wallets wa join
                         accounting.wallet_owner wo on wo.id = wa.owned_by join
                         accounting.products p2 on wa.category = p2.category join
@@ -204,13 +205,17 @@ class ProductService(
                 select accounting.product_to_json(
                     p,
                     pc2,
-                    (CASE WHEN :include_balance= true THEN (coalesce(balance::bigint, 0)) END)
+                    (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
                 )
                 from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
                     join
                         (
                             select name, category, max(version) highest_version
                             from accounting.products
+                            where (
+                            :version_filter::bigint is null or
+                            version = :version_filter
+                        )
                             group by name, category
                         ) as highversion on (
                             highversion.name = p.name and
@@ -218,7 +223,7 @@ class ProductService(
                             highversion.highest_version = p.version
                         )
                     left outer join my_wallets mw
-                        on (pc2.id = mw.wallet_category and pc2.provider = mw.provider)
+                        on (pc2.id = mw.wallet_category and pc2.provider = mw.provider and p.version = mw.version)
                 where
                     (
                         :category_filter::text is null or
