@@ -2,6 +2,7 @@ package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.checkMinimumValue
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -87,8 +88,16 @@ suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
  * Creates a sample catalog of products
  */
 suspend fun createSampleProducts() {
-    createProvider()
-
+    try {
+        createProvider()
+    } catch (ex: RPCException) {
+        if (ex.httpStatusCode == HttpStatusCode.Conflict) {
+            println("Provider already exists")
+        }
+        else {
+            throw ex
+        }
+    }
     Products.create.call(
         BulkRequest(sampleProducts),
         serviceClient
@@ -310,7 +319,7 @@ class ProductTest : IntegrationTest() {
                             createMultipleProducts = true,
                             request = ProductsBrowseRequest(
                                 filterProvider = sampleComputeOtherProvider.category.provider,
-                                filterName =  "cephfs"
+                                filterName = "cephfs"
                             ),
                             additionalProvider = true
                         )
@@ -465,6 +474,8 @@ class ProductTest : IntegrationTest() {
                     )
                     check {
                         assertEquals(sampleIngress, output.product)
+                        //simple balance null check
+                        assertNull(output.product.balance)
                     }
                 }
 
@@ -573,7 +584,58 @@ class ProductTest : IntegrationTest() {
                 }
             }
         }
+        run {
+            class In(
+                val browseRequest: ProductsBrowseRequest? = null,
+                val retrieveRequest: ProductsRetrieveRequest? = null,
+            )
+
+            class Out(
+                val product: Product?,
+                val page: PageV2<Product>?
+            )
+
+            test<In, Out>("browsing and retrieving newest versions") {
+                execute {
+                    createSampleProducts()
+                    createSampleProducts()
+
+                    val client = adminClient
+                    var retrieveResult: Product? = null
+                    var browseResult: PageV2<Product>? = null
+                    if (input.retrieveRequest != null) {
+                        val request = input.retrieveRequest!!
+                        retrieveResult = Products.retrieve.call(
+                            request,
+                            client
+                        ).orThrow()
+                    }
+                    if (input.browseRequest != null) {
+                        val request = input.browseRequest!!
+                        browseResult = Products.browse.call(
+                            request,
+                            client
+                        ).orThrow()
+                    }
+
+                    Out(product = retrieveResult, page = browseResult)
+                }
+
+                case("browse without filters") {
+                    input(
+                        In(
+                            browseRequest = ProductsBrowseRequest()
+                        )
+                    )
+                    check {
+                        assertNotNull(output.page)
+                        assertEquals(sampleProducts.size, output.page!!.items.size)
+                    }
+                }
+            }
+        }
     }
+
     /*
     @Test
     fun `test product create, read and update`() = t {

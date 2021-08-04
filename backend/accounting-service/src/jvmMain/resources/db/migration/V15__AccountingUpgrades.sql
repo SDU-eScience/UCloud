@@ -24,6 +24,7 @@ alter table accounting.products drop column area;
 
 alter table accounting.products drop column availability;
 
+
 create or replace function accounting.require_immutable_product_category() returns trigger language plpgsql as $$
 begin
     if old.charge_type != new.charge_type or old.product_type != new.product_type then
@@ -87,6 +88,10 @@ where true;
 alter table accounting.products alter column free_to_use set not null;
 
 alter table accounting.products drop column payment_model;
+
+alter table accounting.products drop constraint products_id_category_key;
+create unique index if not exists products_id
+	on accounting.products (name, category, version);
 
 ---- /Add new columns to products ----
 

@@ -178,7 +178,7 @@ class ProductService(
                                 accounting.wallets wa join
                                 accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
                             group by wa.id
-                        ) as balances on (:include_balance and balances.id = wa.id)
+                        ) as balances on (:include_balance and balances.id = wa.id) 
                     where
                         (
                             (not :account_is_project and wo.username = :accountId) or
@@ -207,6 +207,16 @@ class ProductService(
                     (CASE WHEN :include_balance= true THEN (coalesce(balance::bigint, 0)) END)
                 )
                 from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
+                    join
+                        (
+                            select name, category, max(version) highest_version
+                            from accounting.products
+                            group by name, category
+                        ) as highversion on (
+                            highversion.name = p.name and
+                            highversion.category = p.category and
+                            highversion.highest_version = p.version
+                        )
                     left outer join my_wallets mw
                         on (pc2.id = mw.wallet_category and pc2.provider = mw.provider)
                 where
