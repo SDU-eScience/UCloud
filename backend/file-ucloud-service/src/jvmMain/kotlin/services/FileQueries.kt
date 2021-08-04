@@ -139,6 +139,8 @@ class FileQueries(
                             foundFilesToStat[nextInternalFile.path]!!
                         )
                     )
+
+                    // TODO(jonas): Can we expect exceptions here? We have already stat'ed the file.
                 }
             }
         }
