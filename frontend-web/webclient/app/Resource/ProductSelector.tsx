@@ -61,7 +61,7 @@ export const ProductSelector: React.FunctionComponent<{
                     </Table>
                 }
 
-                
+                {products.length !== 0 ? null : (<>
                     <NoResultsCardBody title={"No products available for use"}>
                         <SmallText>
                             You do not currently have credits for any product which you are able to use here.
@@ -71,7 +71,7 @@ export const ProductSelector: React.FunctionComponent<{
                             <Button fullWidth mb={"4px"}>Apply for resources</Button>
                         </Link>
                     </NoResultsCardBody>
-                
+                </>)}
             </Wrapper>
         </ClickableDropdown>
     )
@@ -82,7 +82,7 @@ const SmallText = styled.span`
     margin-left: 16px;
     margin-right: 33px;
     font-size: 16px;
-`
+`;
 
 const Wrapper = styled.div`
   & > table {
