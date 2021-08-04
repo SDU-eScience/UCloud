@@ -1,518 +1,302 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.grant.api.Application
+import dk.sdu.cloud.grant.api.ApplicationStatus
+import dk.sdu.cloud.grant.api.CreateApplication
+import dk.sdu.cloud.grant.api.EditApplicationRequest
+import dk.sdu.cloud.grant.api.GrantApplicationFilter
+import dk.sdu.cloud.grant.api.GrantRecipient
+import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
+import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.api.TransferApplicationRequest
+import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.paginateV2
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.*
+import kotlinx.serialization.decodeFromString
 
 class GrantApplicationService(
-    private val projects: ProjectCache,
-    private val settings: GrantSettingsService,
+    private val db: DBContext,
     private val notifications: GrantNotificationService,
-    private val serviceClient: AuthenticatedClient
 ) {
-    /*
-    private val productCacheByProvider = SimpleCache<String, List<Product>> {
-        Products.retrieveAllFromProvider.call(
-            RetrieveAllFromProviderRequest(it),
-            serviceClient
-        ).orNull()
-    }
-
     suspend fun retrieveProducts(
-        ctx: DBContext,
-        actor: Actor.User,
-        resourcesOwnedBy: String,
-        grantRecipient: GrantRecipient,
-        showHidden: Boolean
+        actorAndProject: ActorAndProject,
+        request: GrantsRetrieveProductsRequest,
     ): List<Product> {
-        verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
-
-        val balance = Wallets.retrieveBalance.call(
-            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false, showHidden),
-            serviceClient
-        ).orThrow()
-
-        return balance.wallets.flatMap { wb ->
-            val allProducts = productCacheByProvider.get(wb.wallet.paysFor.provider) ?: emptyList()
-            allProducts.filter { it.category.id == wb.wallet.paysFor.id }
-        }
+        return db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("source", request.projectId)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("grant_recipient", request.recipientId)
+                    setParameter("grant_recipient_type", request.recipientType)
+                },
+                """
+                    with can_submit_application as (
+                        select "grant".can_submit_application(:username, :source, :grant_recipient,
+                            :grant_recipient_type) can_submit
+                    )
+                    select accounting.product_to_json(p, pc, null)
+                    from
+                        can_submit_application join
+                        accounting.products p on can_submit join
+                        accounting.product_categories pc on p.category = pc.id join
+                        accounting.wallet_owner wo on wo.project_id = :source join
+                        accounting.wallets w on 
+                            wo.id = w.owned_by and
+                            pc.id = w.category join
+                        accounting.wallet_allocations alloc on
+                            alloc.associated_wallet = w.id and
+                            now() >= alloc.start_date and
+                            (alloc.end_date is null or now() <= alloc.end_date)
+                """
+            )
+        }.rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
     }
 
     suspend fun submit(
-        ctx: DBContext,
-        actor: Actor.User,
-        application: CreateApplication
+        actorAndProject: ActorAndProject,
+        request: CreateApplication
     ): Long {
-        val returnedId = ctx.withSession { session ->
-            verifyCanApplyTo(session, application.resourcesOwnedBy, actor, application.grantRecipient, true)
+        val recipient = request.grantRecipient
+        if (recipient is GrantRecipient.PersonalProject && recipient.username != actorAndProject.actor.safeUsername()) {
+            throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
+        }
 
-            val id = session
-                .sendPreparedStatement(
-                    {
-                        with(application) {
-                            setParameter("status", ApplicationStatus.IN_PROGRESS.name)
-                            setParameter("resources_owned_by", resourcesOwnedBy)
-                            setParameter("requested_by", actor.safeUsername())
-                            setParameter("document", document)
-
-                            val grantRecipient = this.grantRecipient
-                            setParameter(
-                                "grant_recipient", when (grantRecipient) {
-                                    is GrantRecipient.PersonalProject -> grantRecipient.username
-                                    is GrantRecipient.ExistingProject -> grantRecipient.projectId
-                                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                                    else -> error("unknown grant recipient")
-                                }
-                            )
-
-                            setParameter(
-                                "grant_recipient_type", when (grantRecipient) {
-                                    is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
-                                    is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
-                                    is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
-                                    else -> error("unknown grant recipient")
-                                }
-                            )
-                        }
-                    },
-                    //language=sql
-                    """
-                        insert into "grant".applications(
-                            status,
-                            resources_owned_by,
-                            requested_by,
-                            grant_recipient,
-                            grant_recipient_type,
-                            document
-                        ) values (
-                            :status,
-                            :resources_owned_by,
-                            :requested_by,
-                            :grant_recipient,
-                            :grant_recipient_type,
-                            :document
-                        ) returning id
-                    """
+        return db.withSession(remapExceptions = true) { session ->
+            val applicationId = session.sendPreparedStatement(
+                {
+                    setParameter("source", request.resourcesOwnedBy)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("document", request.document)
+                    setParameter("grant_recipient", when (recipient) {
+                        is GrantRecipient.ExistingProject -> recipient.projectId
+                        is GrantRecipient.NewProject -> recipient.projectTitle
+                        is GrantRecipient.PersonalProject -> recipient.username
+                    })
+                    setParameter("grant_recipient_type", when (recipient) {
+                        is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
+                        is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                        is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
+                    })
+                },
+                """
+                    insert into "grant".applications
+                        (status, resources_owned_by, requested_by, grant_recipient, grant_recipient_type, document) 
+                    select
+                        'IN_PROGRESS', :source, :username, :grant_recipient, :grant_recipient_type, :document
+                    where
+                        "grant".can_submit_application(:username, :source, :grant_recipient, :grant_recipient_type)
+                    returning id
+                """
+            ).rows.singleOrNull()?.getLong(0)
+                ?: throw RPCException(
+                    "It looks like you are unable to submit a request to this affiliation. " +
+                            "Contact support if this problem persists.",
+                    HttpStatusCode.Forbidden
                 )
-                .rows
-                .single()
-                .get("id")?.let { (it as Number).toLong() }!!
 
-            insertResources(session, application.requestedResources, id)
+            insertResources(session, applicationId, request.requestedResources)
 
-            id
-        }
+            applicationId
 
-        lateinit var returnedApplication: Application
-        ctx.withSession { session ->
-            returnedApplication = viewApplicationById(session, actor, returnedId).first
-        }
+            // TODO Auto-approve
 
-        if (autoApproveApplication(ctx, actor, returnedApplication)) {
-            // Notifications are sent by autoApprover
-            return returnedId
-        }
-
-        notifications.notify(
-            GrantNotification(
-                returnedApplication,
-                adminMessage = AdminGrantNotificationMessage(
-                    { title -> "New grant application to $title" },
-                    "NEW_GRANT_APPLICATION",
-                    Mail.NewGrantApplicationMail(
-                        actor.safeUsername(),
-                        returnedApplication.grantRecipientTitle
-                    )
-                ),
-                userMessage = null
-            ),
-            actor.safeUsername(),
-            meta = JsonObject(
-                mapOf(
-                    "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
-                    "appId" to JsonPrimitive(returnedApplication.id),
-                )
-            )
-        )
-
-        return returnedId
-    }
-
-    private suspend fun verifyCanApplyTo(
-        ctx: DBContext,
-        resourcesOwnedBy: String,
-        actor: Actor.User,
-        recipient: GrantRecipient,
-        isApplying: Boolean,
-    ) {
-        ctx.withSession { session ->
-            log.debug("verifyCanApplyTo($resourcesOwnedBy, $actor, $recipient, $isApplying)")
-            if (isApplying) {
-                if (recipient is GrantRecipient.PersonalProject) {
-                    if (recipient.username != actor.username) {
-                        throw RPCException(
-                            "You cannot submit an application on behalf of someone else",
-                            HttpStatusCode.Forbidden
+            // TODO send notification
+            /*
+            notifications.notify(
+                GrantNotification(
+                    returnedApplication,
+                    adminMessage = AdminGrantNotificationMessage(
+                        { title -> "New grant application to $title" },
+                        "NEW_GRANT_APPLICATION",
+                        Mail.NewGrantApplicationMail(
+                            actor.safeUsername(),
+                            returnedApplication.grantRecipientTitle
                         )
-                    }
-                }
-            }
-
-            if (!isApplying) {
-                val isAdminInTargetProject = Projects.viewMemberInProject.call(
-                    ViewMemberInProjectRequest(resourcesOwnedBy, actor.username),
-                    serviceClient
-                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
-
-                if (isAdminInTargetProject) return@withSession
-            }
-
-            val recipientProjectId = when (recipient) {
-                is GrantRecipient.PersonalProject -> null
-                is GrantRecipient.ExistingProject -> recipient.projectId
-                is GrantRecipient.NewProject -> null
-                else -> error("unknown grant recipient")
-            }
-
-            if (recipientProjectId != null) {
-                val isAdminInRecipientProject = Projects.viewMemberInProject.call(
-                    ViewMemberInProjectRequest(recipientProjectId, actor.username),
-                    serviceClient
-                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
-
-                if (!isAdminInRecipientProject) {
-                    log.debug("Deny: 1")
-                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
-                }
-            }
-
-            // The parent project if that is what we are applying to
-            val parentProjectOrNull =
-                if (recipientProjectId != null) {
-                    Projects.lookupById.call(
-                        LookupByIdRequest(recipientProjectId),
-                        serviceClient
-                    ).orThrow().parent
-                } else {
-                    null
-                }
-
-            // NOTE(Dan): Not applying to a parent project (of which we are an admin of the child project)
-            if (parentProjectOrNull == null || resourcesOwnedBy != parentProjectOrNull) {
-                val settings = settings.fetchSettings(session, Actor.System, resourcesOwnedBy)
-                val isAllowed = settings.allowRequestsFrom.any { it.matches(actor.principal) }
-                val emailIsBlacklisted = actor.principal.email != null &&
-                    settings.excludeRequestsFrom.any {
-                        actor.principal.email!!.endsWith((it as UserCriteria.EmailDomain).domain)
-                    }
-
-                if (!isAllowed || emailIsBlacklisted) {
-                    log.debug("Deny: 3")
-                    throw RPCException(
-                        "You are not allowed to submit applications to this project",
-                        HttpStatusCode.Forbidden
-                    )
-                }
-            }
-        }
-    }
-
-    private suspend fun autoApproveApplication(
-        ctx: DBContext,
-        actor: Actor.User,
-        application: Application
-    ): Boolean {
-        val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
-        if (actor.principal.email != null && settings.excludeRequestsFrom.any {
-                it as UserCriteria.EmailDomain
-                actor.principal.email!!.endsWith(it.domain)
-            }) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-        val matchesUserCriteria = settings.automaticApproval.from.any { it.matches(actor.principal) }
-        if (settings.automaticApproval.maxResources.isEmpty()) return false
-        if (!matchesUserCriteria) return false
-        val matchesResources = application
-            .requestedResources
-            .all { requested ->
-                settings.automaticApproval.maxResources.any { max ->
-                    val maxCredits = max.creditsRequested
-                    val maxQuota = max.quotaRequested
-                    if (maxCredits != null) {
-                        val creditsRequested = requested.creditsRequested
-                        creditsRequested != null && creditsRequested <= maxCredits
-                    } else {
-                        require(maxQuota != null)
-                        val quotaRequested = requested.quotaRequested
-                        quotaRequested != null && quotaRequested <= maxQuota
-                    }
-                }
-            }
-
-        if (!matchesResources) return false
-
-        try {
-            ctx.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("status", ApplicationStatus.APPROVED.name)
-                            setParameter("id", application.id)
-                            setParameter("changedBy", "automatic-approval")
-                        },
-                        """
-                            update "grant".applications 
-                            set status = :status, status_changed_by = :changedBy
-                            where id = :id
-                        """
-                    )
-
-                onApplicationApproved(
-                    Actor.System,
-                    application
-                )
-            }
-        } catch (ex: Throwable) {
-            log.warn("Failed to automatically approve application\n${ex.stackTraceToString()}")
-            return false
-        }
-
-        notifications.notify(
-            GrantNotification(
-                application,
-                adminMessage = AdminGrantNotificationMessage(
-                    { "Grant application for subproject automatically approved" },
-                    GRANT_APP_RESPONSE,
-                    Mail.GrantAppAutoApproveToAdminsMail(
-                        application.requestedBy,
-                        application.resourcesOwnedByTitle
-                    )
-                ),
-                userMessage = UserGrantNotificationMessage(
-                    { "Grant application approved" },
-                    GRANT_APP_RESPONSE,
-                    Mail.GrantApplicationApproveMail(
-                        application.resourcesOwnedByTitle
                     ),
-                    application.requestedBy
-                )
-            ),
-            "_ucloud",
-            JsonObject(
-                mapOf(
-                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                    "appId" to JsonPrimitive(application.id),
+                    userMessage = null
+                ),
+                actor.safeUsername(),
+                meta = JsonObject(
+                    mapOf(
+                        "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
+                        "appId" to JsonPrimitive(returnedApplication.id),
+                    )
                 )
             )
-        )
-        return true
+             */
+        }
     }
 
     private suspend fun insertResources(
-        ctx: DBContext,
-        requestedResources: List<ResourceRequest>,
-        id: Long
+        session: AsyncDBConnection,
+        applicationId: Long,
+        resources: List<ResourceRequest>
     ) {
-        ctx.withSession { session ->
-            requestedResources.forEach { request ->
-                session.insert(RequestedResourceTable) {
-                    set(RequestedResourceTable.applicationId, id)
-                    set(RequestedResourceTable.productCategory, request.productCategory)
-                    set(RequestedResourceTable.productProvider, request.productProvider)
-                    set(RequestedResourceTable.creditsRequested, request.creditsRequested)
-                    set(RequestedResourceTable.quotaRequestedBytes, request.quotaRequested)
+        session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                resources.split {
+                    into("credits_requested") { it.creditsRequested }
+                    into("quota_requested") { it.quotaRequested }
+                    into("categories") { it.productCategory }
+                    into("providers") { it.productProvider }
                 }
-            }
-        }
-    }
-
-    suspend fun updateApplication(
-        ctx: DBContext,
-        actor: Actor,
-        id: Long,
-        newDocument: String,
-        newResources: List<ResourceRequest>
-    ) {
-        ctx.withSession { session ->
-            val (requestedBy, status) = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", actor.safeUsername())
-                        setParameter("id", id)
-                    },
-                    """select requested_by, status from "grant".my_applications(:username, true, true) where id = :id"""
-                )
-                .rows.singleOrNull()?.let { Pair(it.getString(0)!!, ApplicationStatus.valueOf(it.getString(1)!!)) }
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            if (status != ApplicationStatus.IN_PROGRESS) {
-                throw RPCException("Cannot update a closed application", HttpStatusCode.BadRequest)
-            }
-
-            val isCreator = requestedBy == actor.safeUsername()
-
-            if (isCreator) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", id)
-                            setParameter("document", newDocument)
-                        },
-
-                        """
-                            update "grant".applications
-                            set document = :document
-                            where
-                                id = :id and
-                                (:isProjectAdmin or requested_by = :requestedBy)
-                        """
+            },
+            """
+                    insert into "grant".requested_resources
+                        (application_id, credits_requested, quota_requested_bytes, product_category) 
+                    with requests as (
+                        select :id application_id, unnest(:credits_requested::bigint[]) credits_requested,
+                               unnest(:quota_requested::bigint[]) quota_requested,
+                               unnest(:categories::text[]) category, unnest(:providers::text[]) provider_id
                     )
-            }
-
-            session
-                .sendPreparedStatement(
-                    { setParameter("id", id) },
-                    "delete from \"grant\".requested_resources where application_id = :id"
-                )
-
-            insertResources(session, newResources, id)
-        }
-
-        lateinit var application: Application
-        ctx.withSession { session ->
-            application = viewApplicationById(session, actor, id).first
-        }
-        notifications.notify(
-            GrantNotification(
-                application,
-                adminMessage =
-                AdminGrantNotificationMessage(
-                    { "Grant application updated" },
-                    "GRANT_APPLICATION_UPDATED",
-                    Mail.GrantApplicationUpdatedMailToAdmins(
-                        application.resourcesOwnedByTitle,
-                        application.requestedBy,
-                        application.grantRecipientTitle
-                    )
-                ),
-                userMessage =
-                UserGrantNotificationMessage(
-                    { "Grant application updated" },
-                    "GRANT_APPLICATION_UPDATED",
-                    Mail.GrantApplicationUpdatedMail(
-                        application.resourcesOwnedByTitle,
-                        application.requestedBy
-                    ),
-                    application.requestedBy
-                )
-            ),
-            actor.safeUsername(),
-            meta = JsonObject(
-                mapOf(
-                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                    "appId" to JsonPrimitive(application.id),
-                )
-            )
+                    select
+                        req.application_id, req.credits_requested, req.quota_requested, pc.id
+                    from
+                        requests req join
+                        accounting.product_categories pc on
+                            pc.category = req.category and
+                            pc.provider = req.provider_id
+                """
         )
     }
 
+    suspend fun editApplication(
+        actorAndProject: ActorAndProject,
+        request: EditApplicationRequest
+    ) {
+        db.withSession(remapExceptions = true) { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", request.id)
+                    setParameter("document", request.newDocument)
+                },
+                """
+                    with
+                        permission_check as (
+                            select app.id, pm.username is not null as is_approver, app.document as current_document
+                            from
+                                "grant".applications app left join
+                                project.project_members pm on
+                                    app.resources_owned_by = pm.project_id and
+                                    (pm.role = 'ADMIN' or pm.role = 'PI') and
+                                    pm.username = :username
+                            where 
+                                app.id = :id and
+                                app.status = 'IN_PROGRESS' and
+                                (
+                                    app.requested_by = :username or
+                                    pm.username = :username
+                                )
+                        ),
+                        update_table as (
+                            select id, case when is_approver then :document else current_document end as new_document
+                            from permission_check
+                        )
+                    update "grant".applications app
+                    set document = new_document
+                    from update_table ut
+                    where app.id = ut.id
+                """
+            ).rowsAffected > 0L
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to update application. Has it already been closed?",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                { setParameter("id", request.id) },
+                "delete from \"grant\".requested_resources where application_id = :id"
+            )
+
+            insertResources(session, request.id, request.newResources)
+            // TODO Notify
+        }
+    }
+
     suspend fun updateStatus(
-        ctx: DBContext,
-        actor: Actor,
+        actorAndProject: ActorAndProject,
         id: Long,
         newStatus: ApplicationStatus,
         notifyChange: Boolean? = true
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
+        db.withSession(remapExceptions = true) { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", id)
+                    setParameter("status", newStatus.name)
+                    setParameter("should_be_approver", newStatus != ApplicationStatus.CLOSED)
+                },
+                """
+                    with
+                        permission_check as (
+                            select app.id, pm.username is not null as is_approver
+                            from
+                                "grant".applications app left join
+                                project.project_members pm on
+                                    app.resources_owned_by = pm.project_id and
+                                    (pm.role = 'ADMIN' or pm.role = 'PI') and
+                                    pm.username = :username
+                            where 
+                                app.id = :id and
+                                app.status = 'IN_PROGRESS' and
+                                (
+                                    app.requested_by = :username or
+                                    pm.username = :username
+                                )
+                        ),
+                        update_table as (
+                            select id from permission_check where is_approver = :should_be_approver
+                        )
+                    update "grant".applications app
+                    set
+                        status = :status,
+                        status_changed_by = :username
+                    from update_table ut
+                    where app.id = ut.id
+                """,
+            ).rowsAffected > 0L
 
-        ctx.withSession { session ->
-            val didUpdate = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("status", newStatus.name)
-                        setParameter("username", actor.safeUsername())
-                        setParameter("id", id)
-                    },
-                    """
-                        update "grant".applications
-                        set
-                            status = :status,
-                            status_changed_by = :changedBy
-                        where
-                            id in (
-                                select id
-                                from "grant".my_applications(:username, :status != 'CLOSED', :status = 'CLOSED')
-                                where
-                                    id = :id and
-                                    status = 'IN_PROGRESS'
-                            )
-                    """
+            if (!success) {
+                throw RPCException(
+                    "Unable to update the status. Has the application already been closed?",
+                    HttpStatusCode.BadRequest
                 )
-                .rowsAffected > 0L
-
-            if (!didUpdate) throw RPCException("Could not update grant application", HttpStatusCode.BadRequest)
+            }
 
             if (newStatus == ApplicationStatus.APPROVED) {
-                onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
+                onApplicationApprove(session, actorAndProject.actor.safeUsername(), id)
             }
-        }
-        if (notifyChange == true) {
-            lateinit var application: Application
-            ctx.withSession { session ->
-                application = viewApplicationById(session, actor, id).first
+
+            if (notifyChange == true) {
+                // TODO Notify
             }
-            val statusTitle = when (newStatus) {
-                ApplicationStatus.APPROVED -> "Approved"
-                ApplicationStatus.REJECTED -> "Rejected"
-                ApplicationStatus.CLOSED -> "Closed"
-                ApplicationStatus.IN_PROGRESS -> "In Progress"
-            }
-            notifications.notify(
-                GrantNotification(
-                    application,
-                    adminMessage =
-                    AdminGrantNotificationMessage(
-                        { "Grant application updated ($statusTitle)" },
-                        GRANT_APP_RESPONSE,
-                        Mail.GrantApplicationStatusChangedToAdmin(
-                            newStatus.name,
-                            application.resourcesOwnedByTitle,
-                            application.requestedBy,
-                            application.grantRecipientTitle
-                        )
-                    ),
-                    userMessage =
-                    UserGrantNotificationMessage(
-                        { "Grant application updated ($statusTitle)" },
-                        GRANT_APP_RESPONSE,
-                        when (newStatus) {
-                            ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(application.resourcesOwnedByTitle)
-                            ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(application.resourcesOwnedByTitle)
-                            ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(
-                                application.resourcesOwnedByTitle,
-                                actor.safeUsername()
-                            )
-                            else -> throw IllegalStateException()
-                        },
-                        application.requestedBy
-                    )
-                ),
-                actor.safeUsername(),
-                JsonObject(
-                    mapOf(
-                        "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                        "appId" to JsonPrimitive(application.id),
-                    )
-                )
-            )
         }
     }
 
     suspend fun transferApplication(
-        ctx: DBContext,
-        actor: Actor,
-        currentProject: String?,
-        applicationId: Long,
-        transferToProjectId: String
+        actor: ActorAndProject,
+        request: TransferApplicationRequest
     ) {
+        /*
         ctx.withSession(remapExceptions = true) { session ->
             val mailsToSend = session
                 .sendPreparedStatement(
@@ -539,438 +323,162 @@ class GrantApplicationService(
 
             MailDescriptions.sendBulk.call(SendBulkRequest(mailsToSend), serviceClient)
         }
+         */
     }
 
-    private suspend fun onApplicationApproved(
-        actor: Actor,
-        application: Application
-    ) {
-        when (val grantRecipient = application.grantRecipient) {
-            is GrantRecipient.PersonalProject -> {
-                grantResourcesToProject(
-                    application.resourcesOwnedBy,
-                    application.requestedResources,
-                    grantRecipient.username,
-                    WalletOwnerType.USER,
-                    serviceClient,
-                    actor.safeUsername(),
-                    TransactionType.TRANSFERRED_TO_PERSONAL
-                )
-            }
-
-            is GrantRecipient.ExistingProject -> {
-                grantResourcesToProject(
-                    application.resourcesOwnedBy,
-                    application.requestedResources,
-                    grantRecipient.projectId,
-                    WalletOwnerType.PROJECT,
-                    serviceClient,
-                    actor.safeUsername(),
-                    TransactionType.TRANSFERRED_TO_PROJECT
-                )
-            }
-
-            is GrantRecipient.NewProject -> {
-                //Check that grant receiver has enough resources before creating project
-                checkBalance(
-                    application.requestedResources,
-                    application.resourcesOwnedBy,
-                    serviceClient,
-                    TransactionType.TRANSFERRED_TO_PROJECT
-                )
-
-                val (newProjectId) = Projects.create.call(
-                    CreateProjectRequest(
-                        grantRecipient.projectTitle,
-                        application.resourcesOwnedBy,
-                        principalInvestigator = application.requestedBy
-                    ),
-                    serviceClient
-                ).orThrow()
-
-                grantResourcesToProject(
-                    application.resourcesOwnedBy,
-                    application.requestedResources,
-                    newProjectId,
-                    WalletOwnerType.PROJECT,
-                    serviceClient,
-                    actor.safeUsername(),
-                    TransactionType.TRANSFERRED_TO_PROJECT
-                )
-            }
-        }
-    }
-
-    suspend fun listIngoingApplications(
-        ctx: DBContext,
-        actor: Actor,
-        projectId: String,
-        pagination: NormalizedPaginationRequest?,
+    suspend fun browseIngoingApplications(
+        actorAndProject: ActorAndProject,
+        pagination: WithPaginationRequestV2,
         filter: GrantApplicationFilter
-    ): Page<Application> {
-        if (!projects.isAdminOfProject(projectId, actor)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
-        return ctx.withSession { session ->
-            val itemsInTotal = if (pagination == null) {
-                null
-            } else {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("projectId", projectId)
-                            setParameter("statusFilter", when (filter) {
-                                GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
-                                GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
-                                GrantApplicationFilter.INACTIVE -> listOf(
-                                    ApplicationStatus.CLOSED,
-                                    ApplicationStatus.APPROVED
-                                )
-                            }.map { it.name })
-                        },
-
-                        """
-                            select count(id)::bigint from "grant".applications
-                            where resources_owned_by = :projectId and status in (select unnest(:statusFilter::text[]))
-                        """
-                    ).rows.singleOrNull()?.getLong(0) ?: 0L
-            }
-
-            val items = session
-                .sendPreparedStatement(
+    ): PageV2<Application> {
+        return db.paginateV2(
+            actorAndProject.actor,
+            pagination.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
                     {
-                        setParameter("projectId", projectId)
-                        setParameter("o", pagination?.offset ?: 0)
-                        setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
-                        setParameter("statusFilter", when (filter) {
-                            GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
-                            GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
-                            GrantApplicationFilter.INACTIVE -> listOf(
-                                ApplicationStatus.CLOSED,
-                                ApplicationStatus.APPROVED
-                            )
-                        }.map { it.name })
-                    },
-
-                    """
-                        select *
-                        from "grant".applications a left outer join "grant".requested_resources r on (a.id = r.application_id)
-                        where
-                            a.resources_owned_by = :projectId and
-                            a.status in (select unnest(:statusFilter::text[]))
-                        order by a.updated_at desc
-                        limit :l
-                        offset :o
-                    """
-                )
-                .rows.toApplications()
-
-            Page.forRequest(pagination, itemsInTotal?.toInt(), items.toList())
-        }
-    }
-
-    suspend fun listOutgoingApplications(
-        ctx: DBContext,
-        actor: Actor,
-        pagination: NormalizedPaginationRequest?,
-        filter: GrantApplicationFilter
-    ): Page<Application> {
-        return ctx.withSession { session ->
-            val itemsInTotal = if (pagination == null) {
-                null
-            } else {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("requestedBy", actor.safeUsername())
-                            setParameter("statusFilter", when (filter) {
-                                GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
-                                GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
-                                GrantApplicationFilter.INACTIVE -> listOf(
-                                    ApplicationStatus.CLOSED,
-                                    ApplicationStatus.APPROVED
-                                )
-                            }.map { it.name })
-                        },
-
-                        """
-                            select count(id)::bigint from "grant".applications
-                            where
-                                requested_by = :requestedBy and
-                                status in (select unnest(:statusFilter::text[]))
-                        """
-                    ).rows.singleOrNull()?.getLong(0) ?: 0L
-            }
-
-            val items = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("requestedBy", actor.safeUsername())
-                        setParameter("o", pagination?.offset ?: 0)
-                        setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
-                        setParameter("statusFilter", when (filter) {
-                            GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
-                            GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
-                            GrantApplicationFilter.INACTIVE -> listOf(
-                                ApplicationStatus.CLOSED,
-                                ApplicationStatus.APPROVED,
-                                ApplicationStatus.REJECTED
-                            )
-                        }.map { it.name })
-                    },
-
-                    """
-                        select *
-                        from "grant".applications a, "grant".requested_resources r
-                        where
-                            a.requested_by = :requestedBy and
-                            a.status in (select unnest(:statusFilter::text[])) and
-                            a.id = r.application_id
-                        order by a.updated_at desc
-                        limit :l
-                        offset :o
-                    """
-                )
-                .rows.toApplications()
-
-            Page.forRequest(pagination, itemsInTotal?.toInt(), items.toList())
-        }
-    }
-
-    suspend fun viewApplicationById(ctx: DBContext, actor: Actor, id: Long): Pair<Application, Boolean> {
-        return ctx.withSession { session ->
-            val application = session
-                .sendPreparedStatement(
-                    { setParameter("id", id) },
-                    """
-                        select *
-                        from "grant".applications a left outer join "grant".requested_resources r on a.id = r.application_id
-                        where a.id = :id
-                    """
-                )
-                .rows.toApplications().singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            log.debug("Found application: $application")
-
-            val isApprover = projects.isAdminOfProject(application.resourcesOwnedBy, actor)
-            if (application.requestedBy != actor.safeUsername() && !isApprover) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            }
-
-            Pair(application, isApprover)
-        }
-    }
-
-    @OptIn(ExperimentalStdlibApi::class)
-    private suspend fun Iterable<RowData>.toApplications(): Collection<Application> {
-        return map {
-            val resourcesOwnedBy = it.getField(ApplicationTable.resourcesOwnedBy)
-
-            val grantRecipient = grantRecipientFromTable(
-                it.getField(ApplicationTable.grantRecipient),
-                it.getField(ApplicationTable.grantRecipientType)
-            )
-
-            val requestedBy = it.getField(ApplicationTable.requestedBy)
-
-            Application(
-                ApplicationStatus.valueOf(it.getField(ApplicationTable.status)),
-                resourcesOwnedBy,
-                requestedBy,
-                grantRecipient,
-                it.getField(ApplicationTable.document),
-                buildList {
-                    val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
-                    if (productCategory != null) {
-                        add(
-                            ResourceRequest(
-                                it.getField(RequestedResourceTable.productCategory),
-                                it.getField(RequestedResourceTable.productProvider),
-                                it.getFieldNullable(RequestedResourceTable.creditsRequested),
-                                it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
-                            )
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                        setParameter(
+                            "show_active",
+                            filter == GrantApplicationFilter.ACTIVE || filter == GrantApplicationFilter.SHOW_ALL
                         )
-                    }
-                },
-                it.getField(ApplicationTable.id),
-                projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
-                when (grantRecipient) {
-                    is GrantRecipient.PersonalProject -> grantRecipient.username
-                    is GrantRecipient.ExistingProject ->
-                        projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
-                    is GrantRecipient.NewProject -> requestedBy
-                    else -> error("unknown grant recipient")
-                },
-                when (grantRecipient) {
-                    is GrantRecipient.PersonalProject -> grantRecipient.username
-                    is GrantRecipient.ExistingProject ->
-                        projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
-                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                    else -> error("unknown grant recipient")
-                },
-                it.getField(ApplicationTable.createdAt).toDate().time,
-                it.getField(ApplicationTable.updatedAt).toDate().time,
-                it.getField(ApplicationTable.statusChangedBy)
-            )
-        }
-            .groupingBy { it.id }
-            .reduce { _, accumulator, element ->
-                accumulator.copy(requestedResources = accumulator.requestedResources + element.requestedResources)
-            }
-            .values
+                        setParameter(
+                            "show_inactive",
+                            filter == GrantApplicationFilter.INACTIVE || filter == GrantApplicationFilter.SHOW_ALL
+                        )
+                    },
+                    """
+                        declare c cursor for
+                        select "grant".application_to_json(
+                            apps,
+                            array_agg("grant".resource_request_to_json(request, pc)),
+                            owner_project,
+                            existing_project,
+                            existing_project_pi
+                        )
+                        from
+                            "grant".applications apps join
+                            project.project_members pm on
+                                pm.project_id = apps.resources_owned_by and
+                                pm.username = :username and
+                                (pm.role = 'ADMIN' or pm.role = 'PI') join
+                            "grant".requested_resources request on apps.id = request.application_id join
+                            accounting.product_categories pc on request.product_category = pc.id join
+                            project.projects owner_project on
+                                owner_project.id = apps.resources_owned_by left join
+                            project.projects existing_project on
+                                apps.grant_recipient_type = 'existing_project' and
+                                existing_project.id = apps.grant_recipient left join
+                            project.project_members existing_project_pi on
+                                existing_project_pi.role = 'PI' and
+                                existing_project_pi.project_id = existing_project.id
+                        where
+                            apps.resources_owned_by = :project and
+                            (:showActive or apps.status != 'IN_PROGRESS') and
+                            (:showInactive or apps.status = 'IN_PROGRESS')
+                        group by
+                            apps.*, existing_project.*, existing_project_pi.*, owner_project.*, apps.created_at, apps.id
+                        order by
+                            apps.created_at desc, apps.id
+                    """
+                )
+            },
+            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }}
+        )
     }
 
-    private fun grantRecipientFromTable(id: String, type: String): GrantRecipient {
-        return when (type) {
-            GrantRecipient.PERSONAL_TYPE -> GrantRecipient.PersonalProject(id)
-            GrantRecipient.EXISTING_PROJECT_TYPE -> GrantRecipient.ExistingProject(id)
-            GrantRecipient.NEW_PROJECT_TYPE -> GrantRecipient.NewProject(id)
-            else -> throw IllegalArgumentException("Unknown type")
-        }
+    suspend fun browseOutgoingApplications(
+        actorAndProject: ActorAndProject,
+        pagination: WithPaginationRequestV2,
+        filter: GrantApplicationFilter
+    ): PageV2<Application> {
+        return db.paginateV2(
+            actorAndProject.actor,
+            pagination.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                        setParameter(
+                            "show_active",
+                            filter == GrantApplicationFilter.ACTIVE || filter == GrantApplicationFilter.SHOW_ALL
+                        )
+                        setParameter(
+                            "show_inactive",
+                            filter == GrantApplicationFilter.INACTIVE || filter == GrantApplicationFilter.SHOW_ALL
+                        )
+                    },
+                    """
+                        declare c cursor for
+                        select "grant".application_to_json(
+                            apps,
+                            array_agg("grant".resource_request_to_json(request, pc)),
+                            owner_project,
+                            existing_project,
+                            existing_project_pi
+                        )
+                        from
+                            "grant".applications apps join
+                            "grant".requested_resources request on apps.id = request.application_id join
+                            accounting.product_categories pc on request.product_category = pc.id join
+                            project.projects owner_project on
+                                apps.resources_owned_by = owner_project.id left join
+                            project.projects existing_project on
+                                apps.grant_recipient_type = 'existing_project' and
+                                existing_project.id = apps.grant_recipient left join
+                            project.project_members existing_project_pi on
+                                existing_project_pi.role = 'PI' and
+                                existing_project_pi.project_id = existing_project.id left join
+                            project.project_members user_role_in_existing on
+                                (user_role_in_existing.role = 'ADMIN' or user_role_in_existing.role = 'PI') and
+                                existing_project.id = user_role_in_existing.project_id and
+                                user_role_in_existing = :username
+                        where
+                            requested_by = :username and
+                            (
+                                (
+                                    grant_recipient_type = 'existing_project' and
+                                    existing_project.id = :project and
+                                    user_role_in_existing.username = :username
+                                ) or 
+                                (
+                                    (
+                                        grant_recipient_type = 'personal' or
+                                        grant_recipient_type = 'new_project'
+                                    )
+                                )
+                            ) and
+                            (:showActive or apps.status != 'IN_PROGRESS') and
+                            (:showInactive or apps.status = 'IN_PROGRESS')
+                        group by
+                            apps.*, existing_project.*, existing_project_pi.*, owner_project.*, apps.created_at, apps.id
+                        order by
+                            apps.created_at desc, apps.id
+                    """
+                )
+            },
+            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }}
+        )
+    }
+
+    private suspend fun onApplicationApprove(
+        session: AsyncDBConnection,
+        approvedBy: String,
+        applicationId: Long
+    ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                setParameter("approved_by", approvedBy)
+            },
+            """select "grant".approve_application(:approved_by, :id)"""
+        )
     }
 
     companion object : Loggable {
         override val log = logger()
         private const val GRANT_APP_RESPONSE = "GRANT_APPLICATION_RESPONSE"
     }
-
-     */
 }
-
-/*
-suspend fun checkBalance(
-    resources: List<ResourceRequest>,
-    projectId: String,
-    serviceClient: AuthenticatedClient,
-    transactionType: TransactionType
-) {
-    val limitCheckId = UUID.randomUUID().toString()
-    val later = Time.now() + (1000 * 60 * 60)
-    Wallets.reserveCreditsBulk.call(
-        ReserveCreditsBulkRequest(
-            resources.mapIndexedNotNull { idx, resource ->
-                val creditsRequested = resource.creditsRequested ?: return@mapIndexedNotNull null
-                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
-                ReserveCreditsRequest(
-                    limitCheckId + idx,
-                    creditsRequested,
-                    later,
-                    Wallet(projectId, WalletOwnerType.PROJECT, paysFor),
-                    productId = "",
-                    productUnits = 0,
-                    jobInitiatedBy = "_ucloud",
-                    discardAfterLimitCheck = true,
-                    transactionType = transactionType
-                )
-            }
-        ),
-        serviceClient
-    ).orThrow()
-}
-
-
-suspend fun grantResourcesToProject(
-    sourceProject: String,
-    resources: List<ResourceRequest>,
-    targetWallet: String,
-    targetWalletType: WalletOwnerType,
-    serviceClient: AuthenticatedClient,
-    initiatedBy: String = "_ucloud",
-    transactionType: TransactionType
-) {
-    // Start by verifying this project has enough resources
-    // TODO This isn't really enough since we still have potential race conditions but this is
-    //  extremely hard to deal with this under this microservice architecture.
-    checkBalance(resources, sourceProject, serviceClient, transactionType)
-    /*
-    val usage = FileDescriptions.retrieveQuota.call(
-        RetrieveQuotaRequest(projectHomeDirectory(sourceProject)),
-        serviceClient
-    ).orThrow()
-
-    val quotaRequested = resources.asSequence()
-        .map { resource -> resource.quotaRequested ?: 0L }
-        .sum()
-
-    if (usage.quotaInBytes - quotaRequested < 0L) {
-        throw RPCException("Insufficient quota available from source project", HttpStatusCode.PaymentRequired)
-    }
-     */
-
-    when (targetWalletType) {
-        WalletOwnerType.PROJECT -> {
-            Wallets.addToBalanceBulk.call(
-                AddToBalanceBulkRequest(resources.mapNotNull { resource ->
-                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
-                    val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
-
-                    AddToBalanceRequest(
-                        Wallet(
-                            targetWallet,
-                            WalletOwnerType.PROJECT,
-                            paysFor
-                        ),
-                        creditsRequested
-                    )
-                }),
-                serviceClient
-            ).orThrow()
-
-            /*
-            resources.forEach { resource ->
-                val quotaRequested = resource.quotaRequested ?: return@forEach
-                FileDescriptions.updateQuota.call(
-                    UpdateQuotaRequest(
-                        projectHomeDirectory(targetWallet),
-                        quotaRequested,
-                        additive = true
-                    ),
-                    serviceClient
-                ).orThrow()
-            }
-             */
-        }
-
-        WalletOwnerType.USER -> {
-            val requests = resources.mapNotNull { resource ->
-                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
-                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
-
-                SingleTransferRequest(
-                    initiatedBy,
-                    creditsRequested,
-                    Wallet(
-                        sourceProject,
-                        WalletOwnerType.PROJECT,
-                        paysFor
-                    ),
-                    Wallet(
-                        targetWallet,
-                        WalletOwnerType.USER,
-                        paysFor
-                    )
-                )
-            }
-
-            Wallets.transferToPersonal.call(
-                TransferToPersonalRequest(requests),
-                serviceClient
-            ).orThrow()
-
-            /*
-            resources.forEach { resource ->
-                val quotaRequested = resource.quotaRequested ?: return@forEach
-                FileDescriptions.transferQuota.call(
-                    TransferQuotaRequest(
-                        homeDirectory(targetWallet),
-                        quotaRequested
-                    ),
-                    serviceClient.withProject(sourceProject)
-                ).orThrow()
-            }
-             */
-        }
-    }
-}
-     */

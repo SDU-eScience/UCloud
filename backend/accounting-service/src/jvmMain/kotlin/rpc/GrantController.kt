@@ -1,249 +1,113 @@
 package dk.sdu.cloud.grant.rpc
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
 import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
 import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.grant.api.ApplicationStatus
+import dk.sdu.cloud.grant.api.FetchDescriptionResponse
+import dk.sdu.cloud.grant.api.Grants
+import dk.sdu.cloud.grant.api.GrantsRetrieveProductsResponse
+import dk.sdu.cloud.grant.api.IsEnabledResponse
+import dk.sdu.cloud.grant.api.SubmitApplicationResponse
+import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
+import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
+import java.io.ByteArrayInputStream
 
 class GrantController(
     private val applications: GrantApplicationService,
     private val comments: GrantCommentService,
     private val settings: GrantSettingsService,
     private val templates: GrantTemplateService,
-    private val serviceClient: AuthenticatedClient,
-    private val db: DBContext
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        /*
         implement(Grants.approveApplication) {
-            applications.updateStatus(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.requestId,
-                ApplicationStatus.APPROVED
-            )
+            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.APPROVED, true)
             ok(Unit)
         }
 
         implement(Grants.rejectApplication) {
-            applications.updateStatus(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.requestId,
-                ApplicationStatus.REJECTED,
-                request.notify
-            )
+            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.REJECTED, request.notify)
             ok(Unit)
         }
 
         implement(Grants.closeApplication) {
-            applications.updateStatus(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.requestId,
-                ApplicationStatus.CLOSED
-            )
-            ok(Unit)
-        }
-
-        implement(Grants.transferApplication) {
-            applications.transferApplication(
-                db,
-                ctx.securityPrincipal.toActor(),
-                ctx.project,
-                request.applicationId,
-                request.transferToProjectId
-            )
-            ok(Unit)
-        }
-
-        implement(Grants.commentOnApplication) {
-            comments.addComment(db, ctx.securityPrincipal.toActor(), request.requestId, request.comment)
-            ok(Unit)
-        }
-
-        implement(Grants.deleteComment) {
-            comments.deleteComment(db, ctx.securityPrincipal.toActor(), request.commentId)
+            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.CLOSED, false)
             ok(Unit)
         }
 
         implement(Grants.submitApplication) {
-            val id = applications.submit(db, ctx.securityPrincipal.toActor(), request)
-            ok(FindByLongId(id))
+            ok(SubmitApplicationResponse(applications.submit(actorAndProject, request)))
         }
 
         implement(Grants.editApplication) {
-            applications.updateApplication(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.id,
-                request.newDocument,
-                request.newResources
-            )
+            applications.editApplication(actorAndProject, request)
             ok(Unit)
-        }
-
-        implement(Grants.uploadTemplates) {
-            templates.uploadTemplates(
-                db,
-                ctx.securityPrincipal.toActor(),
-                ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                request
-            )
-            ok(Unit)
-        }
-
-        implement(Grants.uploadRequestSettings) {
-            db.withSession { session ->
-                val projectId = ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-
-                settings.updateApplicationsFromList(
-                    session,
-                    ctx.securityPrincipal.toActor(),
-                    projectId,
-                    request.allowRequestsFrom
-                )
-
-                settings.updateExclusionsFromList(
-                    session,
-                    ctx.securityPrincipal.toActor(),
-                    projectId,
-                    request.excludeRequestsFrom
-                )
-
-                settings.updateAutomaticApprovalList(
-                    session,
-                    ctx.securityPrincipal.toActor(),
-                    projectId,
-                    request.automaticApproval
-                )
-            }
-            ok(Unit)
-        }
-
-        implement(Grants.readTemplates) {
-            ok(templates.fetchTemplates(db, ctx.securityPrincipal.toActor(), request.projectId))
-        }
-
-        implement(Grants.readRequestSettings) {
-            ok(settings.fetchSettings(db, ctx.securityPrincipal.toActor(), request.projectId))
         }
 
         implement(Grants.ingoingApplications) {
-            ok(
-                applications.listIngoingApplications(
-                    db,
-                    ctx.securityPrincipal.toActor(),
-                    ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                    request.normalize(),
-                    request.filter
-                )
-            )
+            ok(applications.browseIngoingApplications(actorAndProject, request, request.filter))
         }
 
         implement(Grants.outgoingApplications) {
-            ok(
-                applications.listOutgoingApplications(
-                    db,
-                    ctx.securityPrincipal.toActor(),
-                    request.normalize(),
-                    request.filter
-                )
-            )
+            ok(applications.browseOutgoingApplications(actorAndProject, request, request.filter))
+        }
+
+        implement(Grants.retrieveProducts) {
+            ok(GrantsRetrieveProductsResponse(applications.retrieveProducts(actorAndProject, request)))
+        }
+
+        implement(Grants.commentOnApplication) {
+            comments.postComment(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(Grants.deleteComment) {
+            comments.deleteComment(actorAndProject, request)
+            ok(Unit)
         }
 
         implement(Grants.viewApplication) {
-            ok(comments.viewComments(db, ctx.securityPrincipal.toActor(), request.id))
+            ok(comments.viewComments(actorAndProject, request))
+        }
+
+        implement(Grants.uploadRequestSettings) {
+            settings.uploadRequestSettings(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(Grants.readRequestSettings) {
+            ok(settings.fetchSettings(actorAndProject, request.projectId))
         }
 
         implement(Grants.setEnabledStatus) {
-            settings.setEnabledStatus(db, ctx.securityPrincipal.toActor(), request.projectId, request.enabledStatus)
+            settings.setEnabledStatus(actorAndProject, request.projectId, request.enabledStatus)
             ok(Unit)
         }
 
         implement(Grants.isEnabled) {
-            ok(IsEnabledResponse(settings.isEnabled(db, request.projectId)))
+            ok(IsEnabledResponse(settings.isEnabled(request.projectId)))
         }
 
         implement(Grants.browseProjects) {
-            ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
-        }
-
-        implement(Grants.retrieveAffiliations) {
-            val application = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantId)
-            val username = application.first.requestedBy
-            val principal = UserDescriptions.retrievePrincipal.call(
-                GetPrincipalRequest(username),
-                serviceClient
-            ).orThrow()
-            val user = when (principal) {
-                is Person -> {
-                    SecurityPrincipal(
-                        principal.id,
-                        principal.role,
-                        principal.firstNames,
-                        principal.lastName,
-                        principal.uid,
-                        principal.email,
-                        principal.twoFactorAuthentication,
-                        organization = if (principal is Person.ByWAYF) principal.organizationId else null
-                    )
-                }
-                else -> throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "user not found")
-            }
-            val affiliatedProjects = settings.browse(
-                db,
-                user.toActor(),
-                PaginationRequest(request.itemsPerPage, request.page).normalize()
-            )
-            val affiliatedProjectsIds = affiliatedProjects.items.map { it.projectId }
-            //Seems pretty stupid, but works. If all required resources are available in other project -> list it.
-            val wallets = Wallets.retrieveWalletsFromProjects.call(
-                RetrieveWalletsForProjectsRequest(affiliatedProjectsIds),
-                serviceClient
-            ).orThrow()
-            val projectIdAndMatchingResources = mutableMapOf<String, Int>()
-            val resourcesAppliedFor = application.first.requestedResources.filter { it.creditsRequested!=0L }
-            resourcesAppliedFor.forEach {
-                val productCategory = it.productCategory
-                val productProvider = it.productProvider
-                wallets.forEach { wallet ->
-                    if (wallet.paysFor.id==productCategory && wallet.paysFor.provider == productProvider) {
-                        val value = projectIdAndMatchingResources.getOrDefault(wallet.id, 0)
-                        projectIdAndMatchingResources[wallet.id] = value + 1
-                    }
-                }
-            }
-            val projectsIdWithRequestedResources = projectIdAndMatchingResources.filter { it.value == resourcesAppliedFor.count() }
-            val projectsAvailable = affiliatedProjects.items.filter { projectsIdWithRequestedResources.contains(it.projectId) }
-            ok(
-                Page(
-                    projectsAvailable.size,
-                    request.itemsPerPage!!,
-                    request.page!!,
-                    projectsAvailable
-                )
-            )
-        }
-
-        implement(Grants.uploadLogo) {
-            ok(
-                settings.uploadLogo(
-                    db,
-                    ctx.securityPrincipal.toActor(),
-                    request.projectId,
-                    (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
-                    (ctx as HttpCall).call.request.receiveChannel()
-                )
-            )
+            ok(settings.browse(actorAndProject, request))
         }
 
         implement(Grants.fetchLogo) {
-            val logo = settings.fetchLogo(db, request.projectId)
+            val logo = settings.fetchLogo(request.projectId)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             (ctx as HttpCall).call.respond(
@@ -257,48 +121,46 @@ class GrantController(
             okContentAlreadyDelivered()
         }
 
+        implement(Grants.uploadLogo) {
+            ok(
+                settings.uploadLogo(
+                    actorAndProject,
+                    request.projectId,
+                    (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
+                    (ctx as HttpCall).call.request.receiveChannel()
+                )
+            )
+        }
+
         implement(Grants.uploadDescription) {
-            ok(settings.uploadDescription(db, ctx.securityPrincipal.toActor(), request.projectId, request.description))
+            settings.uploadDescription(actorAndProject, request.projectId, request.description)
+            ok(Unit)
         }
 
         implement(Grants.fetchDescription) {
-            ok(
-                FetchDescriptionResponse(
-                    settings.fetchDescription(db, request.projectId)
-                )
-            )
+            ok(FetchDescriptionResponse(settings.fetchDescription(request.projectId)))
         }
 
-        implement(Grants.retrieveProducts) {
-            val recipient = when (request.recipientType) {
-                GrantRecipient.PERSONAL_TYPE -> {
-                    GrantRecipient.PersonalProject(request.recipientId)
-                }
-
-                GrantRecipient.EXISTING_PROJECT_TYPE -> {
-                    GrantRecipient.ExistingProject(request.recipientId)
-                }
-
-                GrantRecipient.NEW_PROJECT_TYPE -> {
-                    GrantRecipient.NewProject(request.recipientId)
-                }
-
-                else -> throw RPCException("Invalid recipientType", HttpStatusCode.BadRequest)
-            }
-
-            ok(
-                GrantsRetrieveProductsResponse(
-                    applications.retrieveProducts(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        request.projectId,
-                        recipient,
-                        request.showHidden
-                    )
-                )
-            )
+        implement(Grants.uploadTemplates) {
+            templates.uploadTemplates(actorAndProject, request)
+            ok(Unit)
         }
 
+        implement(Grants.readTemplates) {
+            ok(templates.fetchTemplates(actorAndProject, request.projectId))
+        }
+
+        implement(Grants.retrieveAffiliations) {
+            val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
+            ok(settings.browse(
+                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application.requestedBy), null),
+                request
+            ))
+        }
+
+        /*
+
+        implement(Grants.transferApplication)
         return@with
          */
     }

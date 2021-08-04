@@ -1,7 +1,8 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.grant.api.*
@@ -9,333 +10,195 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
-object GiftTable : SQLTable("grant.gifts") {
-    val id = long("id", notNull = true)
-    val title = text("title", notNull = true)
-    val description = text("description", notNull = true)
-    val resourcesOwnedBy = text("resources_owned_by", notNull = true)
-}
-
-object GiftUserCriteriaTable : SQLTable("grant.gifts_user_criteria") {
-    val giftId = long("gift_id", notNull = true)
-    val type = text("type", notNull = true)
-    val applicantId = text("applicant_id", notNull = false)
-}
-
-object GiftResourceTable : SQLTable("grant.gift_resources") {
-    val giftId = long("gift_id", notNull = true)
-    val productCategory = text("product_category", notNull = true)
-    val productProvider = text("product_provider", notNull = true)
-    val credits = long("credits", notNull = false)
-    val quota = long("quota", notNull = false)
-}
-
-object GiftClaimedTable : SQLTable("grant.gifts_claimed") {
-    val giftId = long("gift_id", notNull = true)
-    val userId = text("user_id", notNull = true)
-    val claimedAt = timestamp("claimed_at", notNull = true)
-}
-
 class GiftService(
-    private val projects: ProjectCache,
-    private val serviceClient: AuthenticatedClient
+    private val db: DBContext,
 ) {
     suspend fun claimGift(
-        ctx: DBContext,
-        actor: Actor,
-        giftId: Long
+        actorAndProject: ActorAndProject,
+        giftId: Long,
     ) {
-        TODO()
-        /*
-        ctx.withSession { session ->
-            val hasClaimedGift = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", actor.safeUsername())
-                        setParameter("giftId", giftId)
-                    },
-                    "select * from \"grant\".gifts_claimed where user_id = :username and gift_id = :giftId"
-                )
-                .rows
-                .size > 0L
-
-            if (hasClaimedGift) throw RPCException("Gift has already been claimed", HttpStatusCode.BadRequest)
-
-            val gift = findAvailableGifts(session, actor, giftId).singleOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            session.insert(GiftClaimedTable) {
-                set(GiftClaimedTable.giftId, giftId)
-                set(GiftClaimedTable.userId, actor.safeUsername())
-            }
-
-            grantResourcesToProject(
-                gift.resourcesOwnedBy,
-                gift.resources,
-                actor.safeUsername(),
-                WalletOwnerType.USER,
-                serviceClient,
-                transactionType = TransactionType.GIFTED
-            )
-        }
-         */
-    }
-
-    suspend fun findAvailableGifts(
-        ctx: DBContext,
-        actor: Actor,
-        giftId: Long? = null
-    ): List<GiftWithId> {
-        return ctx.withSession { session ->
-            val rows = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("userId", actor.safeUsername())
-                        setParameter("giftId", giftId)
-
-                        if (actor is Actor.User) {
-                            setParameter("wayfId", actor.principal.organization)
-                            setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
-                        } else {
-                            setParameter("wayfId", null as String?)
-                            setParameter("emailDomain", null as String?)
-                        }
-                    },
-
-                    """
-                        -- unclaimed_gifts returns at least one row for every gift which we are eligible to claim
-                        -- NOTE(Dan): This does not take into account email filters
-                        with unclaimed_gifts as (
-                            select g.*
-                            from "grant".gifts g, "grant".gifts_user_criteria uc
+        db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("gift_id", giftId)
+                },
+                """
+                    with
+                        resources_to_be_gifted as (
+                            select
+                                g.id gift_id,
+                                gift_pi.username initiated_by,
+                                :username recipient,
+                                alloc.id allocation_id,
+                                res.credits,
+                                res.quota,
+                                alloc.start_date,
+                                alloc.end_date,
+                                project.title project_title,
+                                row_number() over (partition by pc.id order by alloc.end_date nulls last, alloc.id)
+                                    as alloc_idx
+                            from
+                                -- NOTE(Dan): Fetch data about the gift
+                                "grant".gifts g join
+                                "grant".gifts_user_criteria uc on g.id = uc.gift_id join
+                                "grant".gift_resources res on g.id = res.gift_id join
+                                
+                                -- NOTE(Dan): Lookup the relevant allocations for every resource
+                                accounting.product_categories pc on res.product_category = pc.id join
+                                accounting.wallet_owner wo on wo.project_id = g.resources_owned_by join
+                                accounting.wallets w on
+                                    w.category = pc.id and
+                                    w.owned_by = wo.id join
+                                accounting.wallet_allocations alloc on
+                                    alloc.associated_wallet = w.id and
+                                    now() >= alloc.start_date and
+                                    (alloc.end_date is null or now() <= alloc.end_date) join
+                                    
+                                -- NOTE(Dan): Find information about the gifting project (for transactions)
+                                project.projects project on
+                                    project.id = g.resources_owned_by join
+                                project.project_members gift_pi on
+                                    gift_pi.project_id = g.resources_owned_by and
+                                    gift_pi.role = 'PI'
                             where
-                                -- If giftId is specified it must match the gift we are looking for
-                                (g.id = :giftId::bigint or :giftId::bigint is null) and
-
-                                g.id = uc.gift_id and
+                                g.id = :gift_id and
 
                                 -- User must not have claimed this gift already
                                 not exists(
-                                        select gc.user_id
-                                        from "grant".gifts_claimed gc
-                                        where gc.user_id = :userId and gc.gift_id = g.id
+                                    select gc.user_id
+                                    from "grant".gifts_claimed gc
+                                    where gc.user_id = :username and gc.gift_id = g.id
                                 ) and
 
                                 -- User must match at least one criteria
                                 (
                                     (uc.type = 'anyone') or
                                     (uc.type = 'wayf' and uc.applicant_id = :wayfId::text and :wayfId::text is not null) or
-                                    (uc.type = 'email' and uc.applicant_id = :emailDomain::text and :emailDomain::text is not null)
+                                    (
+                                        uc.type = 'email' and
+                                        uc.applicant_id = :emailDomain::text and
+                                        :emailDomain::text is not null
+                                    )
                                 )
+                        ),
+                        gifts_claimed as (
+                            insert into "grant".gifts_claimed (gift_id, user_id) 
+                            select distinct gift_id, recipient
+                            from resources_to_be_gifted
                         )
-
-                        -- This selects both the gift ID and the resources associated with the gift (This can 
-                        -- potentially return multiple rows per gift if multiple user criteria match our user
-                        select
-                            ug.id, ug.title, ug.description, ug.resources_owned_by,
-                            gr.product_category, gr.product_provider, gr.credits, gr.quota
-                        from
-                            unclaimed_gifts ug,
-                            "grant".gift_resources gr
-                        where
-                              ug.id = gr.gift_id and
-
-                              -- User must not be excluded by email exclude list
-                              not exists(
-                                select project_id
-                                from "grant".exclude_applications_from
-                                where
-                                    email_suffix = :emailDomain::text and
-                                    project_id = ug.resources_owned_by
-                            )
-                    """
-                )
-                .rows
-
-            if (rows.isEmpty()) return@withSession emptyList<GiftWithId>()
-
-            rows
-                .map { row ->
-                    GiftWithId(
-                        row.getField(GiftTable.id),
-                        row.getField(GiftTable.resourcesOwnedBy),
-                        row.getField(GiftTable.title),
-                        row.getField(GiftTable.description),
-                        listOf(
-                            ResourceRequest(
-                                row.getField(GiftResourceTable.productCategory),
-                                row.getField(GiftResourceTable.productProvider),
-                                row.getFieldNullable(GiftResourceTable.credits),
-                                row.getFieldNullable(GiftResourceTable.quota)
-                            )
-                        )
-                    )
-                }
-                .groupBy { it.id }
-                .values
-                .map { rowsForGift ->
-                    rowsForGift.reduce { acc, giftWithId -> acc.copy(resources = acc.resources + giftWithId.resources) }
-                }
-
+                    select accounting.deposit(array_agg(
+                        initiated_by,
+                        recipient,
+                        false,
+                        allocation_id,
+                        coalesce(credits, quota),
+                        start_date,
+                        end_date,
+                        'Gift from ' || project_title
+                    )::accounting.deposit_request)
+                    from resources_to_be_gifted
+                    where alloc_idx = 1
+                """
+            )
         }
     }
 
+    suspend fun findAvailableGifts(
+        actorAndProject: ActorAndProject,
+        giftId: Long? = null
+    ): AvailableGiftsResponse {
+        val actor = actorAndProject.actor
+        return AvailableGiftsResponse(db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("userId", actor.safeUsername())
+                    setParameter("giftId", giftId)
+
+                    if (actor is Actor.User) {
+                        setParameter("wayfId", actor.principal.organization)
+                        setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
+                    } else {
+                        setParameter("wayfId", null as String?)
+                        setParameter("emailDomain", null as String?)
+                    }
+                },
+
+                """
+                    select distinct g.id
+                    from
+                        "grant".gifts g join
+                        "grant".gifts_user_criteria uc on g.id = uc.gift_id
+                    where
+                        -- If giftId is specified it must match the gift we are looking for
+                        (g.id = :giftId::bigint or :giftId::bigint is null) and
+
+                        -- User must not have claimed this gift already
+                        not exists(
+                            select gc.user_id
+                            from "grant".gifts_claimed gc
+                            where gc.user_id = :userId and gc.gift_id = g.id
+                        ) and
+
+                        -- User must match at least one criteria
+                        (
+                            (uc.type = 'anyone') or
+                            (uc.type = 'wayf' and uc.applicant_id = :wayfId::text and :wayfId::text is not null) or
+                            (uc.type = 'email' and uc.applicant_id = :emailDomain::text and :emailDomain::text is not null)
+                        )
+                """
+            ).rows.map { FindByLongId(it.getLong(0)!!) }
+        })
+    }
+
     suspend fun createGift(
-        ctx: DBContext,
-        actor: Actor,
+        actorAndProject: ActorAndProject,
         gift: GiftWithCriteria
     ): Long {
-        if (!projects.isAdminOfProject(gift.resourcesOwnedBy, actor)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
+        return db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("title", gift.title)
+                    setParameter("description", gift.description)
+                    setParameter("resources_owned_by", gift.resourcesOwnedBy)
 
-        return ctx.withSession { session ->
-            val id = session.allocateId("gift_id_sequence")
-            session.insert(GiftTable) {
-                set(GiftTable.id, id)
-                set(GiftTable.title, gift.title)
-                set(GiftTable.description, gift.description)
-                set(GiftTable.resourcesOwnedBy, gift.resourcesOwnedBy)
-            }
+                    gift.criteria.split {
+                        into("criteria_type") { it.type }
+                        into("criteria_id") { it.id }
+                    }
 
-            gift.criteria.forEach { criteria ->
-                session.insert(GiftUserCriteriaTable) {
-                    set(GiftUserCriteriaTable.giftId, id)
-                    set(GiftUserCriteriaTable.type, criteria.toSqlType())
-                    set(GiftUserCriteriaTable.applicantId, criteria.toSqlApplicantId())
-                }
-            }
-
-            gift.resources.forEach { resource ->
-                session.insert(GiftResourceTable) {
-                    set(GiftResourceTable.giftId, id)
-                    set(GiftResourceTable.productCategory, resource.productCategory)
-                    set(GiftResourceTable.productProvider, resource.productProvider)
-                    set(GiftResourceTable.credits, resource.creditsRequested)
-                    set(GiftResourceTable.quota, resource.quotaRequested)
-                }
-            }
-            id
+                    gift.resources.split {
+                        into("resource_cat_name") { it.productCategory }
+                        into("resource_provider") { it.productProvider }
+                        into("credits") { it.creditsRequested }
+                        into("quota") { it.quotaRequested }
+                    }
+                },
+                """
+                    select "grant".create_gift(
+                        :username, :resources_owned_by, :title, :description,
+                        :criteria_type, :criteria_id,
+                        :resource_cat_name, :resource_provider, :credits, :quota
+                    )
+                """
+            ).rows.singleOrNull()?.getLong(0)
+                ?: throw RPCException("unable to create gift", HttpStatusCode.InternalServerError)
         }
     }
 
     suspend fun deleteGift(
-        ctx: DBContext,
-        actor: Actor,
+        actorAndProject: ActorAndProject,
         giftId: Long
     ) {
-        ctx.withSession { session ->
+        db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
-                { setParameter("giftId", giftId )},
-                "delete from \"grant\".gifts_claimed where gift_id = :giftId"
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", giftId)
+                },
+                "select \"grant\".delete_gift(:username, :id)"
             )
-            session.sendPreparedStatement(
-                { setParameter("giftId", giftId )},
-                "delete from \"grant\".gift_resources where gift_id = :giftId"
-            )
-            session.sendPreparedStatement(
-                { setParameter("giftId", giftId )},
-                "delete from \"grant\".gifts_user_criteria where gift_id = :giftId"
-            )
-
-            val projectId = session
-                .sendPreparedStatement(
-                    { setParameter("giftId", giftId) },
-                    "delete from \"grant\".gifts where id = :giftId returning resources_owned_by "
-                )
-                .rows
-                .singleOrNull()
-                ?.getField(GiftTable.resourcesOwnedBy)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            if (!projects.isAdminOfProject(projectId, actor)) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        }
-    }
-
-    suspend fun listGifts(
-        ctx: DBContext,
-        actor: Actor,
-        projectId: String
-    ): List<GiftWithCriteria> {
-        data class GiftRow(val id: Long, val title: String, val description: String)
-
-        fun RowData.toGift(): GiftRow {
-            return GiftRow(
-                getField(GiftTable.id),
-                getField(GiftTable.title),
-                getField(GiftTable.description)
-            )
-        }
-
-        if (!projects.isAdminOfProject(projectId, actor)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
-
-        return ctx.withSession { session ->
-            val resources = session
-                .sendPreparedStatement(
-                    { setParameter("projectId", projectId) },
-                    """
-                        with project_gifts as (
-                            select * from "grant".gifts where resources_owned_by = :projectId
-                        )
-                        
-                        select g.*, gr.* 
-                        from project_gifts g inner join "grant".gift_resources gr on (g.id = gr.gift_id)
-                    """
-                )
-                .rows
-                .map {
-                    it.toGift() to ResourceRequest(
-                        it.getField(GiftResourceTable.productCategory),
-                        it.getField(GiftResourceTable.productProvider),
-                        it.getFieldNullable(GiftResourceTable.credits),
-                        it.getFieldNullable(GiftResourceTable.quota)
-                    )
-                }
-                .groupBy { it.first }
-
-            val criteria = session
-                .sendPreparedStatement(
-                    { setParameter("projectId", projectId) },
-                    """
-                        with project_gifts as (
-                            select * from "grant".gifts where resources_owned_by = :projectId
-                        )
-                        
-                        select g.*, gr.* 
-                        from project_gifts g inner join "grant".gifts_user_criteria gr on (g.id = gr.gift_id)
-                    """
-                )
-                .rows
-                .map { it.toGift() to it.toUserCriteria() }
-                .groupBy { it.first }
-
-            // Note: We are guaranteed that all gifts will appear in both collections
-            resources.keys.map { gift ->
-                val localResources = resources.getValue(gift)
-                val localCriteria = criteria.getValue(gift)
-                GiftWithCriteria(
-                    gift.id,
-                    projectId,
-                    gift.title,
-                    gift.description,
-                    localResources.map { it.second },
-                    localCriteria.map { it.second }
-                )
-            }
-        }
-    }
-
-    private fun RowData.toUserCriteria(): UserCriteria {
-        val id = getField(GiftUserCriteriaTable.applicantId)
-        return when (getField(GiftUserCriteriaTable.type)) {
-            UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone()
-            UserCriteria.EMAIL_TYPE -> UserCriteria.EmailDomain(id)
-            UserCriteria.WAYF_TYPE -> UserCriteria.WayfOrganization(id)
-            else -> throw IllegalArgumentException("Unknown type")
         }
     }
 }
