@@ -196,7 +196,10 @@ fun sortFiles(
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
             ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
         }.thenComparing(pathComparator)
-        FilesSortBy.CREATED_AT -> TODO()
+        FilesSortBy.CREATED_AT -> {
+            // TODO: Needs NativeFS#stat to return created_at field.
+            pathComparator
+        }
         FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
             ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
         }.thenComparing(pathComparator)
