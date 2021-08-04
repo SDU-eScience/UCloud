@@ -2,13 +2,11 @@ import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "../ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {creditFormatter, priceExplainer} from "Project/ProjectUsage";
+import {priceExplainer} from "Project/ProjectUsage";
 import {NoResultsCardBody} from "Dashboard/Dashboard";
 import {Button, Link, theme} from "ui-components";
-import {reservationMachine, setMachineReservation} from "Applications/Jobs/Widgets/Machines";
 import styled from "styled-components";
 import Box from "../ui-components/Box";
-import * as UCloud from "UCloud";
 import {accounting} from "UCloud";
 import Product = accounting.Product;
 import {useEffect, useState} from "react";
@@ -36,9 +34,9 @@ export const ProductSelector: React.FunctionComponent<{
             colorOnHover={false}
             trigger={(
                 <ProductDropdown>
-                    <ProductBox product={selected}/>
+                    <ProductBox product={selected} />
 
-                    <Icon name="chevronDown"/>
+                    <Icon name="chevronDown" />
                 </ProductDropdown>
             )}
         >
@@ -52,30 +50,39 @@ export const ProductSelector: React.FunctionComponent<{
                             </TableRow>
                         </TableHeader>
                         <tbody>
-                        {products.map(machine => {
-                            if (machine === null) return null;
-                            return <TableRow key={machine.id} onClick={() => setSelected(machine)}>
-                                <TableCell pl="6px">{machine.id}</TableCell>
-                                <TableCell>{priceExplainer(machine)}</TableCell>
-                            </TableRow>;
-                        })}
+                            {products.map(machine => {
+                                if (machine === null) return null;
+                                return <TableRow key={machine.id} onClick={() => setSelected(machine)}>
+                                    <TableCell pl="6px">{machine.id}</TableCell>
+                                    <TableCell>{priceExplainer(machine)}</TableCell>
+                                </TableRow>;
+                            })}
                         </tbody>
                     </Table>
                 }
 
-                {products.length !== 0 ? null : (<>
+                
                     <NoResultsCardBody title={"No products available for use"}>
-                        You do not currently have credits for any product which you are able to use here.
+                        <SmallText>
+                            You do not currently have credits for any product which you are able to use here.
+                        </SmallText>
 
                         <Link to={"/project/grants-landing"}>
                             <Button fullWidth mb={"4px"}>Apply for resources</Button>
                         </Link>
                     </NoResultsCardBody>
-                </>)}
+                
             </Wrapper>
         </ClickableDropdown>
     )
 };
+
+const SmallText = styled.span`
+    white-space: initial;
+    margin-left: 16px;
+    margin-right: 33px;
+    font-size: 16px;
+`
 
 const Wrapper = styled.div`
   & > table {
@@ -105,7 +112,7 @@ const ProductBoxWrapper = styled.div`
   }
 `;
 
-const ProductBox: React.FunctionComponent<{ product: Product | null }> = ({product}) => (
+const ProductBox: React.FunctionComponent<{product: Product | null}> = ({product}) => (
     <ProductBoxWrapper>
         {product ? null : (
             <b>No product selected</b>
@@ -113,7 +120,7 @@ const ProductBox: React.FunctionComponent<{ product: Product | null }> = ({produ
 
         {!product ? null : (
             <>
-                <b>{product.id}</b><br/>
+                <b>{product.id}</b><br />
 
                 <ul>
                     <li>Price: {priceExplainer(product)}</li>

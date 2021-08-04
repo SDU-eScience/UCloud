@@ -49,7 +49,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
-    onRename?: (text: String, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
+    onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     navigateToChildren?: (history: H.History, resource: Res) => void;
     emptyPage?: JSX.Element;

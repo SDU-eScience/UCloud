@@ -1,6 +1,6 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
@@ -32,7 +32,7 @@ import ResourceDoc = provider.ResourceDoc;
 const entityName = "Provider";
 
 function View(): JSX.Element | null {
-    const match = useRouteMatch<{ id: string }>();
+    const match = useRouteMatch<{id: string}>();
     const {id} = match.params;
     const [provider, fetchProvider] = useCloudAPI<UCloud.provider.Provider | null>({noop: true}, null);
     const [products, fetchProducts] = useCloudAPI<PageV2<UCloud.accounting.Product>>({noop: true}, emptyPageV2);
@@ -74,7 +74,7 @@ function View(): JSX.Element | null {
     useLoading(provider.loading || commandLoading);
     useTitle(`${id} (Provider)`)
 
-    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner/>}/>;
+    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner />} />;
     if (provider.data == null) return null;
 
     return (
@@ -123,13 +123,13 @@ function View(): JSX.Element | null {
                         {
                             title: "Refresh Token",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={(t as any).refreshToken} rows={3} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).refreshToken} rows={3} onChange={doNothing} />,
                             inline: false,
                         },
                         {
                             title: "Certificate",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={(t as any).publicKey} rows={10} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).publicKey} rows={10} onChange={doNothing} />,
                             inline: false,
                         },
                     ]}
@@ -138,37 +138,37 @@ function View(): JSX.Element | null {
                     beforeUpdates={
                         <>
                             <Heading.h4>Products</Heading.h4>
-                                <List>
-                                    <ListV2
-                                        infiniteScrollGeneration={productGeneration}
-                                        page={products.data}
-                                        pageRenderer={p => isCreatingProduct ? null : p.map(item =>
-                                            <ListRow
-                                                key={item.id}
-                                                left={item.id}
-                                                right={<></>}
-                                                leftSub={
-                                                    <ListStatContainer>
-                                                        <ListRowStat icon={"id"}>{item.category.id}</ListRowStat>
-                                                        <ListRowStat icon={"grant"}>
-                                                            Unit price: {creditFormatter(item.pricePerUnit)}
-                                                        </ListRowStat>
-                                                    </ListStatContainer>
-                                                }
-                                            />
-                                        )}
-                                        loading={products.loading}
-                                        customEmptyPage={
-                                            isCreatingProduct ? <></> :
-                                                <NoResultsCardBody title={"No products"}>
-                                                    <Button onClick={startProductCreation}>New product</Button>
-                                                </NoResultsCardBody>
-                                        }
-                                        onLoadMore={loadMore}
-                                    />
-                                </List>
+                            <List>
+                                <ListV2
+                                    infiniteScrollGeneration={productGeneration}
+                                    page={products.data}
+                                    pageRenderer={p => isCreatingProduct ? null : p.map(item =>
+                                        <ListRow
+                                            key={item.id}
+                                            left={item.id}
+                                            right={<></>}
+                                            leftSub={
+                                                <ListStatContainer>
+                                                    <ListRowStat icon={"id"}>{item.category.id}</ListRowStat>
+                                                    <ListRowStat icon={"grant"}>
+                                                        Unit price: {creditFormatter(item.pricePerUnit)}
+                                                    </ListRowStat>
+                                                </ListStatContainer>
+                                            }
+                                        />
+                                    )}
+                                    loading={products.loading}
+                                    customEmptyPage={
+                                        isCreatingProduct ? <></> :
+                                            <NoResultsCardBody title={"No products"}>
+                                                <Button onClick={startProductCreation}>New product</Button>
+                                            </NoResultsCardBody>
+                                    }
+                                    onLoadMore={loadMore}
+                                />
+                            </List>
                             {!isCreatingProduct ? null :
-                                <ProductCreationForm provider={provider.data} onComplete={onProductAdded}/>
+                                <ProductCreationForm provider={provider.data} onComplete={onProductAdded} />
                             }
                         </>
                     }
@@ -178,7 +178,7 @@ function View(): JSX.Element | null {
     );
 }
 
-const productTypes: { value: PropType<Product, "type">, title: string }[] = [
+const productTypes: {value: PropType<Product, "type">, title: string}[] = [
     {value: "compute", title: "Compute"},
     {value: "network_ip", title: "Public IP"},
     {value: "ingress", title: "Public link"},
@@ -204,7 +204,7 @@ function unitNameFromType(type: PropType<Product, "type">): string {
     return unitName;
 }
 
-const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onComplete: () => void }> = props => {
+const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
     const [type, setType] = useState<PropType<Product, "type">>("compute");
     const onTypeChange = useCallback(e => setType(e.target.value as PropType<Product, "type">), [setType]);
 
@@ -348,44 +348,44 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
 
         <Label>
             Category (e.g. u1-standard)
-            <Input value={category} onChange={onCategoryChange}/>
+            <Input value={category} onChange={onCategoryChange} />
         </Label>
 
         <Label>
             ID (e.g. u1-standard-1)
-            <Input value={id} onChange={onIdChange}/>
+            <Input value={id} onChange={onIdChange} />
         </Label>
 
         <Label>
             Price per {unitName}
             <Flex alignItems={"end"}>
-                <Input type={"number"} value={pricePerUnit} onChange={onPriceChange} mr={"8px"}/>
+                <Input type={"number"} value={pricePerUnit} onChange={onPriceChange} mr={"8px"} />
                 ,
-                <Input type={"number"} value={pricePerUnitDecimal} onChange={onPriceDecimalChange} mx={"8px"}/>
+                <Input type={"number"} value={pricePerUnitDecimal} onChange={onPriceDecimalChange} mx={"8px"} />
                 DKK
             </Flex>
         </Label>
 
         <Label>
-            Description <br/>
-            <TextArea width={"100%"} rows={10} value={description} onChange={onDescriptionChange}/>
+            Description <br />
+            <TextArea width={"100%"} rows={10} value={description} onChange={onDescriptionChange} />
         </Label>
 
         {type !== "compute" ? null :
             <>
                 <Label>
                     vCPU
-                    <Input type={"number"} value={cpu} onChange={onCpuChange}/>
+                    <Input type={"number"} value={cpu} onChange={onCpuChange} />
                 </Label>
 
                 <Label>
                     Memory in GB
-                    <Input type={"number"} value={memoryInGigs} onChange={onMemoryInGigsChange}/>
+                    <Input type={"number"} value={memoryInGigs} onChange={onMemoryInGigsChange} />
                 </Label>
 
                 <Label>
                     Number of GPUs
-                    <Input type={"number"} value={gpus} onChange={onGpusChange}/>
+                    <Input type={"number"} value={gpus} onChange={onGpusChange} />
                 </Label>
             </>
         }
