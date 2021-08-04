@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, BulkResponse, file} from "UCloud/index";
+import {accounting, BulkRequest, BulkResponse} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
@@ -33,9 +33,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
 
-export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
-
-}
+export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
 export interface UFileStatus extends ResourceStatus {
     type: FileType;
@@ -111,7 +109,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         this.sortEntries = [];
         this.sortEntries.push({
             column: "PATH",
-            icon: "search",
+            icon: "id",
             title: "Filename",
             helpText: "By the file's name"
         }, // TODO
@@ -127,7 +125,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             helpText: "When the file was last modified"
         }, {
             column: "SIZE",
-            icon: "edit",
+            icon: "fullscreen",
             title: "Size",
             helpText: "By size of the file"
         });
