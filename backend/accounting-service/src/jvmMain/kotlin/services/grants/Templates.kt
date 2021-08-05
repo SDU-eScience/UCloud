@@ -16,7 +16,7 @@ class GrantTemplateService(
         templates: UploadTemplatesRequest
     ) {
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
+            val success = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("projectId", actorAndProject.project)
@@ -38,7 +38,12 @@ class GrantTemplateService(
                         existing_project = excluded.existing_project,
                         new_project = excluded.new_project
                 """
-            )
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException("Unable to upload templates. Do you have the correct permissions?",
+                    HttpStatusCode.BadRequest)
+            }
         }
     }
 
@@ -59,20 +64,27 @@ class GrantTemplateService(
                         t.new_project,
                         t.existing_project
                     from
-                        "grant".templates t
+                        "grant".templates t left join
+                        project.project_members pm on
+                            pm.username = :username and
+                            pm.project_id = :project_id and
+                            (pm.role = 'PI' or pm.role = 'ADMIN')
                     where
                         t.project_id = :project_id and
-                        "grant".can_submit_application(
-                            :username,
-                            :project_id,
-                            case
-                                when :active_project::text is null then :username
-                                else :active_project::text
-                            end,
-                            case
-                                when :active_project::text is null then 'personal'
-                                else 'existing_project'
-                            end
+                        (
+                            pm.username is not null or 
+                            "grant".can_submit_application(
+                                :username,
+                                :project_id,
+                                case
+                                    when :active_project::text is null then :username
+                                    else :active_project::text
+                                end,
+                                case
+                                    when :active_project::text is null then 'personal'
+                                    else 'existing_project'
+                                end
+                            )
                         )
                 """
             ).rows.map { ReadTemplatesResponse(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }.singleOrNull()

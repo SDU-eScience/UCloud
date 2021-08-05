@@ -4,9 +4,12 @@ import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.base64Encode
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.ApplicationWithComments
@@ -18,6 +21,9 @@ import dk.sdu.cloud.grant.api.CommentOnApplicationRequest
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.grant.api.DeleteCommentRequest
 import dk.sdu.cloud.grant.api.EditApplicationRequest
+import dk.sdu.cloud.grant.api.FetchDescriptionRequest
+import dk.sdu.cloud.grant.api.FetchDescriptionResponse
+import dk.sdu.cloud.grant.api.FetchLogoRequest
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.Grants
 import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
@@ -25,11 +31,15 @@ import dk.sdu.cloud.grant.api.IngoingApplicationsRequest
 import dk.sdu.cloud.grant.api.IsEnabledRequest
 import dk.sdu.cloud.grant.api.OutgoingApplicationsRequest
 import dk.sdu.cloud.grant.api.ReadRequestSettingsRequest
+import dk.sdu.cloud.grant.api.ReadTemplatesRequest
 import dk.sdu.cloud.grant.api.RejectApplicationRequest
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.SetEnabledStatusRequest
 import dk.sdu.cloud.grant.api.SubmitApplicationRequest
+import dk.sdu.cloud.grant.api.UploadDescriptionRequest
+import dk.sdu.cloud.grant.api.UploadLogoRequest
 import dk.sdu.cloud.grant.api.UploadRequestSettingsRequest
+import dk.sdu.cloud.grant.api.UploadTemplatesRequest
 import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.integration.IntegrationTest
@@ -50,8 +60,12 @@ import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.test.UCloudTestCaseBuilder
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.util.*
+import io.ktor.utils.io.*
 import java.util.*
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class GrantTest : IntegrationTest() {
@@ -62,7 +76,7 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
-//        testFilter = { t, s -> s == "happy path (outcome = CLOSED, recipient = NewProject(projectTitle=MyProject), numberOfAdmins = 0, numberOfComments = 0)"}
+        testFilter = { t, s -> !t.contains("expected flow") }
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
 
@@ -283,7 +297,7 @@ class GrantTest : IntegrationTest() {
                             evilUser.client
                         ).orThrow(),
                         "is empty"
-                    ) { it.items.isEmpty()}
+                    ) { it.items.isEmpty() }
 
                     // Create and delete a single comment (it shouldn't affect the output)
                     Grants.commentOnApplication.call(
@@ -736,6 +750,91 @@ class GrantTest : IntegrationTest() {
                     )
 
                     expectStatusCode(HttpStatusCode.Forbidden)
+                }
+            }
+        }
+
+        run {
+            class In(
+                val description: String,
+                val personalTemplate: String,
+                val newTemplate: String,
+                val existingTemplate: String
+            )
+            class Out()
+
+            test<In, Out>("Grant applications, metadata") {
+                execute {
+                    val grantPi = createUser("pi-${UUID.randomUUID()}")
+                    val evilUser = createUser("evil-${UUID.randomUUID()}")
+                    val createdProject = initializeRootProject(grantPi.username)
+                    // NOTE(Dan): This is a valid 1x1 gif
+                    val logo = Base64.getDecoder().decode("R0lGODdhAQABAIAAABpkzhpkziwAAAAAAQABAAACAkQBADs=")
+                    // NOTE(Dan): The evil logo is red
+                    val evilLogo = Base64.getDecoder().decode("R0lGODdhAQABAIABAM4aGgAAACwAAAAAAQABAAACAkQBADs=")
+
+                    Grants.setEnabledStatus.call(SetEnabledStatusRequest(createdProject, true), serviceClient).orThrow()
+                    Grants.fetchDescription.call(FetchDescriptionRequest(createdProject), grantPi.client).orThrow()
+                    Grants.uploadDescription.call(
+                        UploadDescriptionRequest(createdProject, input.description),
+                        grantPi.client
+                    ).orThrow()
+                    Grants.uploadDescription.call(
+                        UploadDescriptionRequest(createdProject, "Evil!"),
+                        evilUser.client
+                    ).assertUserError()
+                    val description =
+                        Grants.fetchDescription.call(FetchDescriptionRequest(createdProject), grantPi.client).orThrow()
+                    assertEquals(input.description, description.description)
+
+                    Grants.fetchLogo.call(FetchLogoRequest(createdProject), grantPi.client).assertUserError()
+                    Grants.uploadLogo.call(
+                        UploadLogoRequest(createdProject),
+                        grantPi.client.withHttpBody(ContentType.Image.GIF, logo.size.toLong(), ByteReadChannel(logo))
+                    ).orThrow()
+                    Grants.uploadLogo.call(
+                        UploadLogoRequest(createdProject),
+                        evilUser.client.withHttpBody(
+                            ContentType.Image.GIF,
+                            evilLogo.size.toLong(),
+                            ByteReadChannel(evilLogo)
+                        )
+                    ).assertUserError()
+                    val fetchedLogoBytes = (Grants.fetchLogo.call(
+                        FetchLogoRequest(createdProject),
+                        grantPi.client
+                    ).ctx as OutgoingHttpCall).response?.readBytes() ?: ByteArray(0)
+
+                    assertEquals(base64Encode(logo), base64Encode(fetchedLogoBytes))
+
+                    Grants.uploadTemplates.call(
+                        UploadTemplatesRequest(
+                            input.personalTemplate,
+                            input.newTemplate,
+                            input.existingTemplate
+                        ),
+                        grantPi.client.withProject(createdProject)
+                    ).orThrow()
+
+                    Grants.uploadTemplates.call(
+                        UploadTemplatesRequest("Evil 1", "Evil 2", "Evil 3"),
+                        evilUser.client.withProject(createdProject)
+                    ).assertUserError()
+
+                    val fetchedTemplates = Grants.readTemplates.call(
+                        ReadTemplatesRequest(createdProject),
+                        grantPi.client
+                    ).orThrow()
+
+                    assertEquals(input.newTemplate, fetchedTemplates.newProject)
+                    assertEquals(input.existingTemplate, fetchedTemplates.existingProject)
+                    assertEquals(input.personalTemplate, fetchedTemplates.personalProject)
+                    Out()
+                }
+
+                case("Normal data") {
+                    input(In("Some description", "some template", "another template", "more templates"))
+                    check {}
                 }
             }
         }

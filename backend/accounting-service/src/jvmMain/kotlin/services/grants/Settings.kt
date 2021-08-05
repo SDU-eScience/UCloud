@@ -367,7 +367,7 @@ class GrantSettingsService(
                         project.project_members pm
                     where
                         pm.username = :username and
-                        (pm.role = 'PI' and pm.role = 'ADMIN') and
+                        (pm.role = 'PI' or pm.role = 'ADMIN') and
                         pm.project_id = :project_id
                     on conflict (project_id) do update set
                         data = excluded.data
@@ -378,24 +378,6 @@ class GrantSettingsService(
                 throw RPCException("Unable to upload logo", HttpStatusCode.NotFound)
             }
         }
-    }
-}
-
-fun UserCriteria.toSqlApplicantId(): String {
-    return when (this) {
-        is UserCriteria.Anyone -> ""
-        is UserCriteria.EmailDomain -> domain
-        is UserCriteria.WayfOrganization -> org
-        else -> error("unknown user criteria")
-    }
-}
-
-fun UserCriteria.toSqlType(): String {
-    return when (this) {
-        is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
-        is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
-        is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
-        else -> error("unknown user criteria")
     }
 }
 
