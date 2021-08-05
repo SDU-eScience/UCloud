@@ -109,14 +109,17 @@ class GrantSettingsService(
                     )
                     from (
                         select
-                            array_agg(
+                            array_remove(array_agg(
+                                case when exclude_entry.email_suffix is null then null else
                                 jsonb_build_object(
                                     'type', 'email',
                                     'domain', exclude_entry.email_suffix
                                 )
-                            ) exclude_from,
+                                end
+                            ), null) exclude_from,
                             
-                            array_agg(
+                            array_remove(array_agg(
+                                case when allow_entry.type is null then null else
                                 jsonb_build_object('type', allow_entry.type) || case
                                     when allow_entry.type = 'anyone' then '{}'::jsonb
                                     when allow_entry.type = 'email' then
@@ -124,9 +127,11 @@ class GrantSettingsService(
                                     when allow_entry.type = 'wayf' then
                                         jsonb_build_object('org', allow_entry.applicant_id)
                                 end
-                            ) allow_from,
+                                end
+                            ), null) allow_from,
                             
-                            array_agg(
+                            array_remove(array_agg(
+                                case when auto_users.type is null then null else 
                                 jsonb_build_object('type', auto_users.type) || case
                                     when allow_entry.type = 'anyone' then '{}'::jsonb
                                     when allow_entry.type = 'email' then
@@ -134,16 +139,19 @@ class GrantSettingsService(
                                     when allow_entry.type = 'wayf' then
                                         jsonb_build_object('org', auto_users.applicant_id)
                                 end
-                            ) auto_approve_from,
+                                end
+                            ), null) auto_approve_from,
                             
-                            array_agg(
+                            array_remove(array_agg(
+                                case when pc.category is null then null else 
                                 jsonb_build_object(
                                     'productCategory', pc.category,
                                     'productProvider', pc.provider,
                                     'creditsRequested', auto_limits.maximum_credits,
                                     'quotaRequested', auto_limits.maximum_quota_bytes
                                 )
-                            ) auto_limit
+                                end
+                            ), null) auto_limit
                             
                         from
                             project.project_members pm left join
@@ -264,7 +272,7 @@ class GrantSettingsService(
                                     preliminary_list requesting_user left join
                                     "grant".exclude_applications_from exclude_entry on 
                                         requesting_user.email like '%@' || exclude_entry.email_suffix and
-                                        exclude_entry.project_id = requesting_user.project_id = exclude_entry.project_id
+                                        exclude_entry.project_id = requesting_user.project_id
                                 group by
                                     requesting_user.project_id
                                 having

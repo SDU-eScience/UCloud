@@ -1,20 +1,30 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.ApproveApplicationRequest
 import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
+import dk.sdu.cloud.grant.api.BrowseProjectsRequest
 import dk.sdu.cloud.grant.api.CloseApplicationRequest
 import dk.sdu.cloud.grant.api.CommentOnApplicationRequest
 import dk.sdu.cloud.grant.api.DKK
+import dk.sdu.cloud.grant.api.DeleteCommentRequest
+import dk.sdu.cloud.grant.api.EditApplicationRequest
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.Grants
+import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
+import dk.sdu.cloud.grant.api.IngoingApplicationsRequest
+import dk.sdu.cloud.grant.api.IsEnabledRequest
+import dk.sdu.cloud.grant.api.OutgoingApplicationsRequest
+import dk.sdu.cloud.grant.api.ReadRequestSettingsRequest
 import dk.sdu.cloud.grant.api.RejectApplicationRequest
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.SetEnabledStatusRequest
@@ -42,6 +52,7 @@ import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.test.UCloudTestCaseBuilder
 import io.ktor.http.*
 import java.util.*
+import kotlin.test.assertTrue
 
 class GrantTest : IntegrationTest() {
     sealed class CommentPoster {
@@ -51,7 +62,7 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
-        testFilter = { t, s -> !s.contains("happy path") }
+//        testFilter = { t, s -> s == "happy path (outcome = CLOSED, recipient = NewProject(projectTitle=MyProject), numberOfAdmins = 0, numberOfComments = 0)"}
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
 
@@ -59,7 +70,7 @@ class GrantTest : IntegrationTest() {
                 val outcome: ApplicationStatus?,
                 val grantRecipient: GrantRecipient,
                 val resourcesRequested: List<ResourceRequest>,
-                val allowList: List<UserCriteria> = listOf(UserCriteria.Anyone()),
+                val allowList: List<UserCriteria> = listOf(UserCriteria.Anyone),
                 val excludeList: List<UserCriteria> = listOf(),
                 val numberOfProjectAdmins: Int = 0,
                 val comments: List<Comment> = emptyList(),
@@ -67,7 +78,8 @@ class GrantTest : IntegrationTest() {
                 val username: String? = null,
                 val userOrganization: String? = "ucloud.dk",
                 val userEmail: String = "ucloud@ucloud.dk",
-                val document: String = "This is my document",
+                val initialDocument: String = "This is my document",
+                val document: String = initialDocument,
                 val changeStatusBy: CommentPoster = CommentPoster.Pi,
             )
 
@@ -131,6 +143,23 @@ class GrantTest : IntegrationTest() {
                     }
 
                     Grants.setEnabledStatus.call(SetEnabledStatusRequest(createdProject, true), serviceClient).orThrow()
+                    assertTrue(
+                        Grants.isEnabled.call(IsEnabledRequest(createdProject), grantPi.client).orThrow().enabled
+                    )
+
+                    val initialSettings = Grants.readRequestSettings
+                        .call(ReadRequestSettingsRequest(createdProject), grantPi.client).orThrow()
+
+                    assertThatInstance(initialSettings, "has no default allow") {
+                        it.allowRequestsFrom.isEmpty()
+                    }
+                    assertThatInstance(initialSettings, "has no default auto-approve") {
+                        it.automaticApproval.from.isEmpty() && it.automaticApproval.maxResources.isEmpty()
+                    }
+                    assertThatInstance(initialSettings, "has no default exclude") {
+                        it.excludeRequestsFrom.isEmpty()
+                    }
+
                     val settingsRequest = UploadRequestSettingsRequest(
                         AutomaticApprovalSettings(emptyList(), emptyList()),
                         input.allowList,
@@ -138,22 +167,134 @@ class GrantTest : IntegrationTest() {
                     )
 
                     Grants.uploadRequestSettings.call(settingsRequest, grantPi.client.withProject(createdProject))
-                            .orThrow()
+                        .orThrow()
 
                     Grants.uploadRequestSettings.call(
                         settingsRequest.copy(allowRequestsFrom = listOf(UserCriteria.WayfOrganization("Evil Corp"))),
                         evilUser.client.withProject(createdProject)
                     ).assertUserError()
 
+                    val settingsAfterUpload = Grants.readRequestSettings
+                        .call(ReadRequestSettingsRequest(createdProject), grantPi.client).orThrow()
+
+                    assertThatInstance(settingsAfterUpload, "has the new allow list") {
+                        it.allowRequestsFrom == input.allowList
+                    }
+                    assertThatInstance(settingsAfterUpload, "has no auto-approve") {
+                        it.automaticApproval.from.isEmpty() && it.automaticApproval.maxResources.isEmpty()
+                    }
+                    assertThatInstance(settingsAfterUpload, "has the new exclude") {
+                        it.excludeRequestsFrom == input.excludeList
+                    }
+
+                    val projectsToChoseFrom = Grants.browseProjects.call(
+                        BrowseProjectsRequest(),
+                        normalUser.client
+                    ).orThrow()
+
+                    // NOTE(Dan): Don't throw yet since submitApplication might not work
+                    val productsToChoose = Grants.retrieveProducts.call(
+                        GrantsRetrieveProductsRequest(
+                            createdProject,
+                            when (actualRecipient) {
+                                is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
+                                is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                                is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
+                            },
+                            when (actualRecipient) {
+                                is GrantRecipient.ExistingProject -> actualRecipient.projectId
+                                is GrantRecipient.NewProject -> actualRecipient.projectTitle
+                                is GrantRecipient.PersonalProject -> actualRecipient.username
+                            }
+                        ),
+                        normalUser.client
+                    )
+
                     val applicationId = Grants.submitApplication.call(
                         SubmitApplicationRequest(
                             createdProject,
                             actualRecipient,
-                            input.document,
+                            input.initialDocument,
                             input.resourcesRequested
                         ),
                         normalUser.client
                     ).orThrow().id
+
+                    // If we manage to submit the application then we must be able to see the project in
+                    // `browseProjects`
+                    assertThatInstance(projectsToChoseFrom, "has the project") { page ->
+                        page.items.any { it.projectId == createdProject }
+                    }
+
+                    // Also check that the products were visible
+                    val allProducts = productsToChoose.orThrow().availableProducts.groupBy { it.category }
+                    for (request in input.resourcesRequested) {
+                        assertThatInstance(allProducts, "has the product for $request") {
+                            allProducts[ProductCategoryId(request.productCategory, request.productProvider)] != null
+                        }
+                    }
+
+                    // Verify that the application is visible as an ingoing and as an outgoing application
+                    assertThatInstance(
+                        Grants.ingoingApplications.call(
+                            IngoingApplicationsRequest(),
+                            grantPi.client.withProject(createdProject)
+                        ).orThrow().items,
+                        "has the ingoing application"
+                    ) {
+                        it.size == 1 && it.single().requestedBy == normalUser.username &&
+                                it.single().id == applicationId
+                    }
+
+                    assertThatInstance(
+                        Grants.outgoingApplications.call(
+                            OutgoingApplicationsRequest(),
+                            normalUser.client.let {
+                                val projectIdMaybe = (actualRecipient as? GrantRecipient.ExistingProject)?.projectId
+                                if (projectIdMaybe != null) it.withProject(projectIdMaybe)
+                                else it
+                            }
+                        ).orThrow().items,
+                        "has the outgoing application"
+                    ) {
+                        it.size == 1 && it.single().requestedBy == normalUser.username &&
+                                it.single().id == applicationId
+                    }
+
+                    assertThatInstance(
+                        Grants.ingoingApplications.call(
+                            IngoingApplicationsRequest(),
+                            evilUser.client.withProject(createdProject)
+                        ).orNull()?.items ?: emptyList(),
+                        "is empty or fails"
+                    ) { it.isEmpty() }
+
+                    assertThatInstance(
+                        Grants.ingoingApplications.call(
+                            IngoingApplicationsRequest(),
+                            evilUser.client
+                        ).orThrow(),
+                        "is empty"
+                    ) { it.items.isEmpty() }
+
+                    assertThatInstance(
+                        Grants.outgoingApplications.call(
+                            OutgoingApplicationsRequest(),
+                            evilUser.client
+                        ).orThrow(),
+                        "is empty"
+                    ) { it.items.isEmpty()}
+
+                    // Create and delete a single comment (it shouldn't affect the output)
+                    Grants.commentOnApplication.call(
+                        CommentOnApplicationRequest(applicationId, "To be deleted!"),
+                        grantPi.client
+                    ).orThrow()
+
+                    val commentId = Grants.viewApplication.call(ViewApplicationRequest(applicationId), grantPi.client)
+                        .orThrow().comments.singleOrNull()?.id ?: error("found no comment")
+                    Grants.deleteComment.call(DeleteCommentRequest(commentId), evilUser.client).assertUserError()
+                    Grants.deleteComment.call(DeleteCommentRequest(commentId), grantPi.client).orThrow()
 
                     for (comment in input.comments) {
                         Grants.commentOnApplication.call(
@@ -168,6 +309,31 @@ class GrantTest : IntegrationTest() {
 
                     Grants.commentOnApplication.call(
                         CommentOnApplicationRequest(applicationId, "Should fail"),
+                        evilUser.client
+                    ).assertUserError()
+
+                    if (input.initialDocument != input.document) {
+                        Grants.editApplication.call(
+                            EditApplicationRequest(applicationId, input.document, emptyList()),
+                            normalUser.client
+                        ).orThrow()
+                    }
+
+                    Grants.editApplication.call(
+                        EditApplicationRequest(
+                            applicationId,
+                            "Totally wrong document which should not be updated",
+                            input.resourcesRequested
+                        ),
+                        grantPi.client
+                    ).orThrow()
+
+                    Grants.editApplication.call(
+                        EditApplicationRequest(
+                            applicationId,
+                            "Evil document",
+                            input.resourcesRequested.map { it.copy(creditsRequested = 1337.DKK) }
+                        ),
                         evilUser.client
                     ).assertUserError()
 
@@ -257,11 +423,13 @@ class GrantTest : IntegrationTest() {
                         for ((inputComment, outputComment) in inputComments.zip(outputComments)) {
                             assertThatPropertyEquals(outputComment, { it.comment }, inputComment.commentToPost)
                             assertThatInstance(outputComment, "should match poster") {
-                                it.postedBy.startsWith(when(inputComment.poster) {
-                                    is CommentPoster.Admin -> "admin-"
-                                    CommentPoster.User -> "user-"
-                                    CommentPoster.Pi -> "pi-"
-                                })
+                                it.postedBy.startsWith(
+                                    when (inputComment.poster) {
+                                        is CommentPoster.Admin -> "admin-"
+                                        CommentPoster.User -> "user-"
+                                        CommentPoster.Pi -> "pi-"
+                                    }
+                                )
                             }
                         }
                     }
@@ -278,11 +446,13 @@ class GrantTest : IntegrationTest() {
                             if (input.outcome == null || input.outcome == ApplicationStatus.IN_PROGRESS) {
                                 true
                             } else {
-                                it.application.statusChangedBy?.startsWith(when(input.changeStatusBy) {
-                                    is CommentPoster.Admin -> "admin-"
-                                    CommentPoster.Pi -> "pi-"
-                                    CommentPoster.User -> "user-"
-                                }) == true
+                                it.application.statusChangedBy?.startsWith(
+                                    when (input.changeStatusBy) {
+                                        is CommentPoster.Admin -> "admin-"
+                                        CommentPoster.Pi -> "pi-"
+                                        CommentPoster.User -> "user-"
+                                    }
+                                ) == true
                             }
                         }
                     }
@@ -425,14 +595,22 @@ class GrantTest : IntegrationTest() {
                 case("organization requirement") {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.WayfOrganization(organization)),
-                        userOrganization = organization
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.WayfOrganization(organization)),
+                            userOrganization = organization
+                        )
+                    )
 
                     checkSuccess()
                 }
@@ -441,14 +619,22 @@ class GrantTest : IntegrationTest() {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
                     val otherOrganization = "sdu.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.WayfOrganization(organization)),
-                        userOrganization = otherOrganization
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.WayfOrganization(organization)),
+                            userOrganization = otherOrganization
+                        )
+                    )
 
                     expectStatusCode(HttpStatusCode.Forbidden)
                 }
@@ -456,14 +642,22 @@ class GrantTest : IntegrationTest() {
                 case("email requirement") {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.EmailDomain(organization)),
-                        userEmail = "user@$organization"
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.EmailDomain(organization)),
+                            userEmail = "user@$organization"
+                        )
+                    )
 
                     checkSuccess()
                 }
@@ -472,14 +666,22 @@ class GrantTest : IntegrationTest() {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
                     val otherOrganization = "sdu.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.EmailDomain(organization)),
-                        userEmail = "user@$otherOrganization"
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.EmailDomain(organization)),
+                            userEmail = "user@$otherOrganization"
+                        )
+                    )
 
                     expectStatusCode(HttpStatusCode.Forbidden)
                 }
@@ -488,16 +690,24 @@ class GrantTest : IntegrationTest() {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
                     val otherOrganization = "sdu.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.WayfOrganization(organization)),
-                        excludeList = listOf(UserCriteria.EmailDomain(otherOrganization)),
-                        userOrganization = organization,
-                        userEmail = "user@$organization"
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.WayfOrganization(organization)),
+                            excludeList = listOf(UserCriteria.EmailDomain(otherOrganization)),
+                            userOrganization = organization,
+                            userEmail = "user@$organization"
+                        )
+                    )
 
                     checkSuccess()
                 }
@@ -506,185 +716,28 @@ class GrantTest : IntegrationTest() {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
                     val otherOrganization = "sdu.dk"
-                    input(In(
-                        ApplicationStatus.APPROVED,
-                        GrantRecipient.PersonalProject(username),
-                        listOf(ResourceRequest(sampleCompute.category.name, sampleCompute.category.provider, 100.DKK)),
-                        username = username,
-                        allowList = listOf(UserCriteria.WayfOrganization(organization)),
-                        excludeList = listOf(UserCriteria.EmailDomain("student.$organization")),
-                        userOrganization = organization,
-                        userEmail = "user@student.$organization"
-                    ))
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            username = username,
+                            allowList = listOf(UserCriteria.WayfOrganization(organization)),
+                            excludeList = listOf(UserCriteria.EmailDomain("student.$organization")),
+                            userOrganization = organization,
+                            userEmail = "user@student.$organization"
+                        )
+                    )
 
                     expectStatusCode(HttpStatusCode.Forbidden)
                 }
             }
         }
     }
-
-    /*
-    @Test
-    fun `test simple application and core assumptions`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        enableGrants(project.projectId)
-
-        val requestSettings = Grants.readRequestSettings.call(
-            ReadRequestSettingsRequest(project.projectId),
-            project.piClient
-        ).orThrow()
-
-        assertThatInstance(requestSettings, "automatic approval is empty by default") {
-            it.automaticApproval.maxResources.isEmpty()
-        }
-        assertThatInstance(requestSettings, "allow requests from is empty by default") {
-            it.allowRequestsFrom.isEmpty()
-        }
-
-        // We just want to check that we can read the templates. Contents doesn't really matter.
-        Grants.readTemplates.call(
-            ReadTemplatesRequest(project.projectId),
-            project.piClient
-        ).orThrow()
-
-        val imada = createUser(username = "a", email = "a@imada.sdu.dk")
-
-        allowGrantsFrom(project.projectId, project.piClient, UserCriteria.EmailDomain("imada.sdu.dk"))
-
-        val id = submitGrantApplication(project.projectId, imada.username, imada.client)
-
-        assertThatInstance(
-            Grants.ingoingApplications.call(
-                IngoingApplicationsRequest(),
-                project.piClient.withProject(project.projectId)
-            ).orThrow(),
-            "should contain our application"
-        ) { it.items.any { it.id == id } }
-
-        approveGrantApplication(id, project.piClient, imada.client)
-
-        assertThatInstance(
-            Grants.ingoingApplications.call(
-                IngoingApplicationsRequest(),
-                project.piClient.withProject(project.projectId)
-            ).orThrow(),
-            "should not contain our application"
-        ) { it.items.none { it.id == id } }
-    }
-
-    @Test
-    fun `test grant application fail when not allowed`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        enableGrants(project.projectId)
-        val user = createUser()
-        try {
-            submitGrantApplication(project.projectId, user.username, user.client)
-            assert(false)
-        } catch (ex: RPCException) {
-            assertEquals(HttpStatusCode.Forbidden, ex.httpStatusCode)
-        }
-    }
-
-    @Test
-    fun `test that anyone can apply when enabled`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        enableGrants(project.projectId)
-        allowGrantsFrom(project.projectId, project.piClient, UserCriteria.Anyone())
-        val user = createUser()
-        submitGrantApplication(project.projectId, user.username, user.client)
-    }
-
-    @Test
-    fun `test uploading templates`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        enableGrants(project.projectId)
-
-        val personal = "personal"
-        val existing = "existing"
-        val new = "new"
-        Grants.uploadTemplates.call(
-            UploadTemplatesRequest(personal, new, existing),
-            project.piClient.withProject(project.projectId)
-        ).orThrow()
-
-        val templates = Grants.readTemplates.call(
-            ReadTemplatesRequest(project.projectId),
-            project.piClient
-        ).orThrow()
-
-        assertEquals(personal, templates.personalProject)
-        assertEquals(existing, templates.existingProject)
-        assertEquals(new, templates.newProject)
-    }
-
-    @Test
-    fun `test browsing a project`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        enableGrants(project.projectId)
-        val user = createUser()
-
-        assertThatInstance(
-            Grants.browseProjects.call(BrowseProjectsRequest(), user.client).orThrow(),
-            "has no projects"
-        ) { it.items.isEmpty() }
-
-        allowGrantsFrom(project.projectId, project.piClient, UserCriteria.Anyone())
-
-        assertThatInstance(
-            Grants.browseProjects.call(BrowseProjectsRequest(), user.client).orThrow(),
-            "has a we can apply to"
-        ) { it.items.single().projectId == project.projectId }
-    }
-
-    @Test
-    fun `test editing an application is only doable by participants`() = t {
-        val grantApprover = initializeRootProject()
-        val childProject = initializeNormalProject(grantApprover)
-        val adminUser = createUser()
-        val outsideUser = createUser()
-        addMemberToProject(childProject.projectId, childProject.piClient, adminUser.client, adminUser.username)
-        Projects.changeUserRole.call(
-            ChangeUserRoleRequest(childProject.projectId, adminUser.username, ProjectRole.ADMIN),
-            childProject.piClient
-        ).orThrow()
-
-        allowGrantsFrom(grantApprover, serviceClient, UserCriteria.Anyone())
-
-        val id = submitGrantApplication(
-            grantApprover,
-            childProject.piUsername,
-            childProject.piClient,
-            GrantRecipient.ExistingProject(childProject.projectId)
-        )
-
-        // PI should be the only ones who can edit the document
-        val newDoc2 = "a"
-        Grants.editApplication.call(
-            EditApplicationRequest(id, newDoc2, listOf(ResourceRequest.fromProduct(sampleCompute, 1000.DKK))),
-            childProject.piClient
-        ).orThrow()
-        assertEquals(
-            newDoc2,
-            Grants.viewApplication.call(ViewApplicationRequest(id), childProject.piClient).orThrow()
-                .application.document
-        )
-
-        // Everyone else should fail
-        assertThatInstance(
-            Grants.editApplication.call(
-                EditApplicationRequest(id, "bad", emptyList()),
-                adminUser.client
-            ),
-            "should fail"
-        ) { !it.statusCode.isSuccess() }
-
-        assertThatInstance(
-            Grants.editApplication.call(
-                EditApplicationRequest(id, "bad", emptyList()),
-                outsideUser.client
-            ),
-            "should fail"
-        ) { !it.statusCode.isSuccess() }
-    }
- */
 }

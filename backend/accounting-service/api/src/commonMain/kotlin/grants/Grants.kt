@@ -97,7 +97,7 @@ sealed class UserCriteria {
      */
     @Serializable
     @SerialName(UserCriteria.ANYONE_TYPE)
-    class Anyone : UserCriteria()
+    object Anyone : UserCriteria()
 
     /**
      * Matches any user with an email domain equal to [domain]

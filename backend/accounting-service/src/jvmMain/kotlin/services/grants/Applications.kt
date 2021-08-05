@@ -352,10 +352,10 @@ class GrantApplicationService(
                         declare c cursor for
                         select "grant".application_to_json(
                             apps,
-                            array_agg("grant".resource_request_to_json(request, pc)),
+                            array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
                             owner_project,
                             existing_project,
-                            existing_project_pi
+                            existing_project_pi.username
                         )
                         from
                             "grant".applications apps join
@@ -375,10 +375,11 @@ class GrantApplicationService(
                                 existing_project_pi.project_id = existing_project.id
                         where
                             apps.resources_owned_by = :project and
-                            (:showActive or apps.status != 'IN_PROGRESS') and
-                            (:showInactive or apps.status = 'IN_PROGRESS')
+                            (:show_active or apps.status != 'IN_PROGRESS') and
+                            (:show_inactive or apps.status = 'IN_PROGRESS')
                         group by
-                            apps.*, existing_project.*, existing_project_pi.*, owner_project.*, apps.created_at, apps.id
+                            apps.*, existing_project.*, existing_project_pi.username, owner_project.*,
+                            apps.created_at, apps.id
                         order by
                             apps.created_at desc, apps.id
                     """
@@ -414,10 +415,10 @@ class GrantApplicationService(
                         declare c cursor for
                         select "grant".application_to_json(
                             apps,
-                            array_agg("grant".resource_request_to_json(request, pc)),
+                            array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
                             owner_project,
                             existing_project,
-                            existing_project_pi
+                            existing_project_pi.username
                         )
                         from
                             "grant".applications apps join
@@ -434,7 +435,7 @@ class GrantApplicationService(
                             project.project_members user_role_in_existing on
                                 (user_role_in_existing.role = 'ADMIN' or user_role_in_existing.role = 'PI') and
                                 existing_project.id = user_role_in_existing.project_id and
-                                user_role_in_existing = :username
+                                user_role_in_existing.username = :username
                         where
                             requested_by = :username and
                             (
@@ -450,10 +451,11 @@ class GrantApplicationService(
                                     )
                                 )
                             ) and
-                            (:showActive or apps.status != 'IN_PROGRESS') and
-                            (:showInactive or apps.status = 'IN_PROGRESS')
+                            (:show_active or apps.status != 'IN_PROGRESS') and
+                            (:show_inactive or apps.status = 'IN_PROGRESS')
                         group by
-                            apps.*, existing_project.*, existing_project_pi.*, owner_project.*, apps.created_at, apps.id
+                            apps.*, existing_project.*, existing_project_pi.username, owner_project.*,
+                            apps.created_at, apps.id
                         order by
                             apps.created_at desc, apps.id
                     """

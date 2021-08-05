@@ -64,7 +64,7 @@ class GrantCommentService(
                     setParameter("id", request.commentId)
                 },
                 """
-                    delete from "grant".comments
+                    delete from "grant".comments comment
                     using
                         "grant".applications app left join
                         project.project_members pm on
@@ -72,7 +72,8 @@ class GrantCommentService(
                             pm.username = :username and
                             (pm.role = 'PI' or pm.role = 'ADMIN')
                     where
-                        app.id = :id and
+                        comment.id = :id and
+                        comment.application_id = app.id and
                         posted_by = :username and
                         (app.requested_by = :username or pm.username is not null)
                 """
