@@ -92,7 +92,7 @@ object FileSynchronization: CallDescriptionContainer("files.synchronization") {
 
     val browseFolders = call<SynchronizationBrowseFoldersRequest, SynchronizationBrowseFoldersResponse,
         CommonErrorMessage>("browseFolders") {
-        httpBrowse(joinPath(baseContext, "folder"), roles = Roles.SERVICE)
+        httpBrowse(joinPath(baseContext, "folder"), roles = Roles.PRIVILEGED)
     }
 
     val removeFolder = call<SynchronizationRemoveFolderRequest, SynchronizationRemoveFolderResponse,

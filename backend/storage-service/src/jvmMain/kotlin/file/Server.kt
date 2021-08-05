@@ -165,4 +165,19 @@ class Server(
 
         startServices()
     }
+
+    override fun onKtorReady() {
+        runBlocking {
+            val readyFile = File("/mnt/sync/ready")
+            var foldersMounted = false
+            while (!foldersMounted) {
+                foldersMounted = readyFile.exists()
+            }
+
+            val db = AsyncDBSessionFactory(micro.databaseConfig)
+            val syncthingClient = SyncthingClient(syncConfig, db)
+
+            syncthingClient.writeConfig()
+        }
+    }
 }

@@ -21,7 +21,7 @@ typealias MountResponse = Unit
 typealias UnmountRequest = BulkRequest<MountFolderId>
 typealias UnmountResponse = Unit
 
-typealias StateRequest = MountFolderId
+typealias StateRequest = Unit
 typealias StateResponse = Unit
 
 object Mounts: CallDescriptionContainer("sync.mounter") {

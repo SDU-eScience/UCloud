@@ -1,15 +1,13 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.service.SimpleCache
@@ -167,7 +165,7 @@ class SynchronizationService(
         principal: SecurityPrincipal,
         request: SynchronizationBrowseFoldersRequest
     ): List<SynchronizedFolderBrowseItem> {
-        if (principal.role != Role.SERVICE) {
+        if (!Roles.PRIVILEGED.contains(principal.role)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
 
