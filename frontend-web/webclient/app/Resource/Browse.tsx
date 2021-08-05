@@ -226,7 +226,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         renderer.MainTitle = ({resource}) => {
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onProductSelected={onProductSelected}/>
+                    <ProductSelector products={products} onProductSelected={onProductSelected} />
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -239,7 +239,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle resource={resource}/> : null;
+                return NormalMainTitle ? <NormalMainTitle resource={resource} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
@@ -258,7 +258,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                     </ListRowStat>
                 }
             </>}
-            {RemainingStats ? <RemainingStats resource={resource}/> : null}
+            {RemainingStats ? <RemainingStats resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
@@ -307,10 +307,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 
     const main = !inlineInspecting ? <>
         <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={props.embedded != true}/>
+            setRefreshFunction={props.embedded != true} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
-                        closeProperties={closeProperties} {...props.propsForInlineResources}/>
+            closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     if (props.embedded) {
@@ -320,9 +320,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
                         {props.header}
+                        <ResourceFilter
+                            embedded
+                            pills={api.filterPills} filterWidgets={api.filterWidgets}
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            onApplyFilters={reloadRef.current} />
                     </>
                 }
             </StickyBox>
@@ -337,13 +343,13 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
 
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
-                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
-                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        onApplyFilters={reloadRef.current}/>
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            onApplyFilters={reloadRef.current} />
                     </>
             }
         />
