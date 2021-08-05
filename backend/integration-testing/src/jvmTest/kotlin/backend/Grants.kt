@@ -84,7 +84,7 @@ class GrantTest : IntegrationTest() {
                 val outcome: ApplicationStatus?,
                 val grantRecipient: GrantRecipient,
                 val resourcesRequested: List<ResourceRequest>,
-                val allowList: List<UserCriteria> = listOf(UserCriteria.Anyone),
+                val allowList: List<UserCriteria> = listOf(UserCriteria.Anyone()),
                 val excludeList: List<UserCriteria> = listOf(),
                 val numberOfProjectAdmins: Int = 0,
                 val comments: List<Comment> = emptyList(),

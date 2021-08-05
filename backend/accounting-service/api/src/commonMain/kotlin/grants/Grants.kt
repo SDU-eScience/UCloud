@@ -97,7 +97,15 @@ sealed class UserCriteria {
      */
     @Serializable
     @SerialName(UserCriteria.ANYONE_TYPE)
-    object Anyone : UserCriteria()
+    class Anyone : UserCriteria() {
+        override fun equals(other: Any?): Boolean {
+            return other is Anyone
+        }
+
+        override fun hashCode(): Int {
+            return this::class.hashCode()
+        }
+    }
 
     /**
      * Matches any user with an email domain equal to [domain]

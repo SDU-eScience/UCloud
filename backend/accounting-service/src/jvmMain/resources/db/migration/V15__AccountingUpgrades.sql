@@ -1039,6 +1039,14 @@ alter table "grant".gifts add foreign key (resources_owned_by) references projec
 
 alter table "grant".gifts_claimed add foreign key (user_id) references auth.principals(id);
 
+alter table "grant".gifts_user_criteria drop constraint gifts_user_criteria_pkey;
+alter table "grant".gifts_user_criteria alter column applicant_id drop not null;
+update "grant".gifts_user_criteria
+set applicant_id = null
+where type = 'anyone';
+create unique index gifts_user_criteria_uniq on "grant".gifts_user_criteria (gift_id, type, coalesce(applicant_id, ''));
+
+
 alter table "grant".is_enabled add foreign key (project_id) references project.projects(id);
 
 alter table "grant".logos add foreign key (project_id) references project.projects(id);

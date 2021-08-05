@@ -18,7 +18,7 @@ class GiftService(
         giftId: Long,
     ) {
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
+            val giftsClaimed = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("gift_id", giftId)
@@ -60,7 +60,11 @@ class GiftService(
                                     project.id = g.resources_owned_by join
                                 project.project_members gift_pi on
                                     gift_pi.project_id = g.resources_owned_by and
-                                    gift_pi.role = 'PI'
+                                    gift_pi.role = 'PI' join
+                                    
+                                -- NOTE(Dan): Find the user
+                                auth.principals user_info on
+                                    user_info.id = :username
                             where
                                 g.id = :gift_id and
 
@@ -74,11 +78,10 @@ class GiftService(
                                 -- User must match at least one criteria
                                 (
                                     (uc.type = 'anyone') or
-                                    (uc.type = 'wayf' and uc.applicant_id = :wayfId::text and :wayfId::text is not null) or
+                                    (uc.type = 'wayf' and uc.applicant_id is not distinct from user_info.org_id) or
                                     (
                                         uc.type = 'email' and
-                                        uc.applicant_id = :emailDomain::text and
-                                        :emailDomain::text is not null
+                                        user_info.email like '%@' || uc.applicant_id
                                     )
                                 )
                         ),
@@ -86,8 +89,9 @@ class GiftService(
                             insert into "grant".gifts_claimed (gift_id, user_id) 
                             select distinct gift_id, recipient
                             from resources_to_be_gifted
+                            returning gift_id
                         )
-                    select accounting.deposit(array_agg(
+                    select accounting.deposit(array_agg((
                         initiated_by,
                         recipient,
                         false,
@@ -96,11 +100,16 @@ class GiftService(
                         start_date,
                         end_date,
                         'Gift from ' || project_title
-                    )::accounting.deposit_request)
-                    from resources_to_be_gifted
+                    )::accounting.deposit_request)), count(distinct gifts_claimed.gift_id)
+                    from resources_to_be_gifted join gifts_claimed on
+                        resources_to_be_gifted.gift_id = gifts_claimed.gift_id
                     where alloc_idx = 1
                 """
-            )
+            ).rows.singleOrNull()?.getLong(1)
+
+            if (giftsClaimed != 1L) {
+                throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+            }
         }
     }
 
@@ -114,21 +123,14 @@ class GiftService(
                 {
                     setParameter("userId", actor.safeUsername())
                     setParameter("giftId", giftId)
-
-                    if (actor is Actor.User) {
-                        setParameter("wayfId", actor.principal.organization)
-                        setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
-                    } else {
-                        setParameter("wayfId", null as String?)
-                        setParameter("emailDomain", null as String?)
-                    }
                 },
 
                 """
                     select distinct g.id
                     from
                         "grant".gifts g join
-                        "grant".gifts_user_criteria uc on g.id = uc.gift_id
+                        "grant".gifts_user_criteria uc on g.id = uc.gift_id join
+                        auth.principals user_info on user_info.id = :userId
                     where
                         -- If giftId is specified it must match the gift we are looking for
                         (g.id = :giftId::bigint or :giftId::bigint is null) and
@@ -143,8 +145,11 @@ class GiftService(
                         -- User must match at least one criteria
                         (
                             (uc.type = 'anyone') or
-                            (uc.type = 'wayf' and uc.applicant_id = :wayfId::text and :wayfId::text is not null) or
-                            (uc.type = 'email' and uc.applicant_id = :emailDomain::text and :emailDomain::text is not null)
+                            (uc.type = 'wayf' and uc.applicant_id is not distinct from user_info.org_id) or
+                            (
+                                uc.type = 'email' and
+                                user_info.email like '%@' || uc.applicant_id
+                            )
                         )
                 """
             ).rows.map { FindByLongId(it.getLong(0)!!) }
