@@ -1468,4 +1468,61 @@ begin
 end;
 $$;
 
+
+create or replace function "grant".transfer_application(
+    actor_in text,
+    application_id_in bigint,
+    target_project_in text
+) returns void language plpgsql as $$
+declare
+    affected_application record;
+    update_count int;
+begin
+    select
+        resources_owned_by, grant_recipient, grant_recipient_type, requested_by into affected_application
+    from
+        "grant".applications app join
+        project.project_members pm on
+            app.resources_owned_by = pm.project_id and
+            pm.username = actor_in and
+            (pm.role = 'PI' or pm.role = 'ADMIN')
+    where
+        id = application_id_in;
+
+    update "grant".applications
+    set resources_owned_by = target_project_in
+    where
+        "grant".can_submit_application(affected_application.requested_by, target_project_in,
+            affected_application.grant_recipient, affected_application.grant_recipient_type)
+    returning 1 into update_count;
+
+    if update_count is null then
+        raise exception 'Unable to transfer application (Not found or permission denied)';
+    end if;
+
+    if target_project_in = affected_application.resources_owned_by then
+        raise exception 'Unable to transfer application to itself';
+    end if;
+
+    delete from "grant".requested_resources res
+    using
+        "grant".applications app join
+        accounting.wallet_owner source_owner on
+            app.id = res.application_id and
+            source_owner.project_id = app.resources_owned_by join
+        accounting.wallets source_wallet on
+            res.product_category = source_wallet.category  and
+            source_owner.id = source_wallet.owned_by join
+
+        accounting.wallet_owner target_owner on
+            target_owner.project_id = target_project_in left join
+        accounting.wallets target_wallet on
+            source_wallet.category = target_wallet.category and
+            target_owner.project_id = target_wallet.owned_by
+    where
+        res.application_id = application_id_in and
+        target_wallet.id is null;
+end;
+$$
+
 ---- /Grants ----

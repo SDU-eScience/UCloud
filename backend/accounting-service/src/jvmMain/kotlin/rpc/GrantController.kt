@@ -158,10 +158,9 @@ class GrantController(
             ))
         }
 
-        /*
-
-        implement(Grants.transferApplication)
-        return@with
-         */
+        implement(Grants.transferApplication) {
+            applications.transferApplication(actorAndProject, request)
+            ok(Unit)
+        }
     }
 }

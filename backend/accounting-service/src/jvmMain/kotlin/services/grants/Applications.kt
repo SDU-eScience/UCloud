@@ -368,37 +368,21 @@ class GrantApplicationService(
     }
 
     suspend fun transferApplication(
-        actor: ActorAndProject,
+        actorAndProject: ActorAndProject,
         request: TransferApplicationRequest
     ) {
-        /*
-        ctx.withSession(remapExceptions = true) { session ->
-            val mailsToSend = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", actor.safeUsername())
-                        setParameter("id", applicationId)
-                        setParameter("target", transferToProjectId)
-                    },
-                    """
-                        select source_title, destination_title, recipient_title, user_to_notify
-                        from "grant".transfer_application(:username, :id, :target)
-                    """
-                )
-                .rows.map {
-                    SendRequest(
-                        it.getString(3)!!,
-                        Mail.TransferApplicationMail(
-                            it.getString(0)!!,
-                            it.getString(1)!!,
-                            it.getString(2)!!
-                        )
-                    )
-                }
-
-            MailDescriptions.sendBulk.call(SendBulkRequest(mailsToSend), serviceClient)
+        db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", request.applicationId)
+                    setParameter("target", request.transferToProjectId)
+                },
+                """
+                    select "grant".transfer_application(:username, :id, :target)
+                """
+            )
         }
-         */
     }
 
     suspend fun browseIngoingApplications(
