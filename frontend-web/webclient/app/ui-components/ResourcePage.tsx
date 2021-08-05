@@ -1,9 +1,7 @@
-import * as UCloud from "UCloud";
 import * as React from "react";
 import {BulkRequest, provider} from "UCloud";
 import ResourceDoc = provider.ResourceDoc;
 import {IconName} from "ui-components/Icon";
-import {Box} from "ui-components/index";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {ResourcePermissionEditor} from "ui-components/ResourcePermissionEditor";
