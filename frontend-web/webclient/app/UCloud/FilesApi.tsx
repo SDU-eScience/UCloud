@@ -33,9 +33,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
 
-export interface UFile extends Resource<ResourceUpdate, UFileStatus, UFileSpecification> {
-
-}
+export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
 export interface UFileStatus extends ResourceStatus {
     type: FileType;

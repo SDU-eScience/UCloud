@@ -24,7 +24,7 @@ import {StickyBox} from "ui-components/StickyBox";
 import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, EmptyObject, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
@@ -49,7 +49,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
-    onRename?: (text: String, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
+    onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     navigateToChildren?: (history: H.History, resource: Res) => void;
     emptyPage?: JSX.Element;
@@ -88,6 +88,8 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
     const dispatch = useDispatch();
+
+    useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);

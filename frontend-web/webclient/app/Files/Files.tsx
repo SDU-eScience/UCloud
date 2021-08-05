@@ -79,20 +79,22 @@ export const FilesBrowse: React.FunctionComponent<{
         return <>
             <BreadCrumbsBase embedded={props.embedded ?? false}>
                 {breadcrumbs.map((it, idx) => (
-                    <span key={it} test-tag={it} title={it} children={it}
-                          onClick={() => {
-                              navigateToPath(
-                                  history,
-                                  "/" + joinToString(components.slice(0, idx + 1), "/")
-                              );
-                          }}
-                    />
+                    <span key={it} test-tag={it} title={it}
+                        onClick={() => {
+                            navigateToPath(
+                                history,
+                                "/" + joinToString(components.slice(0, idx + 1), "/")
+                            );
+                        }}
+                    >
+                        {it}
+                    </span>
                 ))}
             </BreadCrumbsBase>
         </>;
     }, [path, props.embedded, collection.data]);
 
-    const onRename = useCallback(async (text: String, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
+    const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
             conflictPolicy: "REJECT",
             oldId: res.id,
