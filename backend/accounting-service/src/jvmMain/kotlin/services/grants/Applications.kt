@@ -15,6 +15,7 @@ import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.TransferApplicationRequest
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
@@ -24,6 +25,9 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 
 class GrantApplicationService(
     private val db: DBContext,
@@ -79,16 +83,20 @@ class GrantApplicationService(
                     setParameter("source", request.resourcesOwnedBy)
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("document", request.document)
-                    setParameter("grant_recipient", when (recipient) {
-                        is GrantRecipient.ExistingProject -> recipient.projectId
-                        is GrantRecipient.NewProject -> recipient.projectTitle
-                        is GrantRecipient.PersonalProject -> recipient.username
-                    })
-                    setParameter("grant_recipient_type", when (recipient) {
-                        is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
-                        is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
-                        is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
-                    })
+                    setParameter(
+                        "grant_recipient", when (recipient) {
+                            is GrantRecipient.ExistingProject -> recipient.projectId
+                            is GrantRecipient.NewProject -> recipient.projectTitle
+                            is GrantRecipient.PersonalProject -> recipient.username
+                        }
+                    )
+                    setParameter(
+                        "grant_recipient_type", when (recipient) {
+                            is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
+                            is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                            is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
+                        }
+                    )
                 },
                 """
                     insert into "grant".applications
@@ -108,34 +116,30 @@ class GrantApplicationService(
 
             insertResources(session, applicationId, request.requestedResources)
 
-            applicationId
-
             // TODO Auto-approve
 
-            // TODO send notification
-            /*
             notifications.notify(
+                actorAndProject.actor.safeUsername(),
                 GrantNotification(
-                    returnedApplication,
+                    applicationId,
                     adminMessage = AdminGrantNotificationMessage(
-                        { title -> "New grant application to $title" },
+                        { "New grant application to $projectTitle" },
                         "NEW_GRANT_APPLICATION",
-                        Mail.NewGrantApplicationMail(
-                            actor.safeUsername(),
-                            returnedApplication.grantRecipientTitle
-                        )
+                        { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), projectTitle) },
+                        meta = {
+                            JsonObject(
+                                mapOf(
+                                    "grantRecipient" to defaultMapper.encodeToJsonElement(request.grantRecipient),
+                                    "appId" to JsonPrimitive(applicationId),
+                                )
+                            )
+                        }
                     ),
                     userMessage = null
-                ),
-                actor.safeUsername(),
-                meta = JsonObject(
-                    mapOf(
-                        "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
-                        "appId" to JsonPrimitive(returnedApplication.id),
-                    )
                 )
             )
-             */
+
+            applicationId
         }
     }
 
@@ -226,7 +230,33 @@ class GrantApplicationService(
             )
 
             insertResources(session, request.id, request.newResources)
-            // TODO Notify
+
+            notifications.notify(
+                actorAndProject.actor.safeUsername(),
+                GrantNotification(
+                    request.id,
+                    adminMessage =
+                    AdminGrantNotificationMessage(
+                        { "Grant application updated" },
+                        "GRANT_APPLICATION_UPDATED",
+                        { Mail.GrantApplicationUpdatedMailToAdmins(projectTitle, requestedBy, grantRecipientTitle) }
+                    ),
+                    userMessage =
+                    UserGrantNotificationMessage(
+                        { "Grant application updated" },
+                        "GRANT_APPLICATION_UPDATED",
+                        { Mail.GrantApplicationUpdatedMail(projectTitle, requestedBy) },
+                        meta = {
+                            JsonObject(
+                                mapOf(
+                                    "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                    "appId" to JsonPrimitive(request.id),
+                                )
+                            )
+                        }
+                    )
+                ),
+            )
         }
     }
 
@@ -287,7 +317,52 @@ class GrantApplicationService(
             }
 
             if (notifyChange == true) {
-                // TODO Notify
+                val statusTitle = when (newStatus) {
+                    ApplicationStatus.APPROVED -> "Approved"
+                    ApplicationStatus.REJECTED -> "Rejected"
+                    ApplicationStatus.CLOSED -> "Closed"
+                    ApplicationStatus.IN_PROGRESS -> "In Progress"
+                }
+                notifications.notify(
+                    actorAndProject.actor.safeUsername(),
+                    GrantNotification(
+                        id,
+                        adminMessage =
+                        AdminGrantNotificationMessage(
+                            { "Grant application updated ($statusTitle)" },
+                            GRANT_APP_RESPONSE,
+                            { Mail.GrantApplicationStatusChangedToAdmin(
+                                newStatus.name,
+                                projectTitle,
+                                requestedBy,
+                                grantRecipientTitle
+                            ) }
+                        ),
+                        userMessage =
+                        UserGrantNotificationMessage(
+                            { "Grant application updated ($statusTitle)" },
+                            GRANT_APP_RESPONSE,
+                            {
+                                when (newStatus) {
+                                    ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(projectTitle)
+                                    ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(projectTitle)
+                                    ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(
+                                        projectTitle,
+                                        actorAndProject.actor.safeUsername()
+                                    )
+                                    else -> throw IllegalStateException()
+                                }
+                            },
+                            meta = {
+                                JsonObject(mapOf(
+                                    "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                    "appId" to JsonPrimitive(id),
+                                ))
+                            }
+                        )
+                    ),
+
+                )
             }
         }
     }
@@ -385,7 +460,7 @@ class GrantApplicationService(
                     """
                 )
             },
-            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }}
+            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
         )
     }
 
@@ -461,7 +536,7 @@ class GrantApplicationService(
                     """
                 )
             },
-            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }}
+            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
         )
     }
 

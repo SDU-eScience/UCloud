@@ -76,7 +76,6 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
-        testFilter = { t, s -> !t.contains("expected flow") }
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
 

@@ -43,10 +43,9 @@ class Server(
         val projectGroups = ProjectGroupService(projectService, eventProducer)
         val projectQueryService = ProjectQueryService(projectService)
 
-        val projectsGrants = dk.sdu.cloud.accounting.services.grants.ProjectCache(client)
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
-        val notifications = GrantNotificationService(projectsGrants, client)
+        val notifications = GrantNotificationService(db, client)
         val grantApplicationService = GrantApplicationService(db, notifications)
         val templates = GrantTemplateService(db)
         val comments = GrantCommentService(db)
