@@ -1,6 +1,5 @@
 import * as React from "react";
 import MainContainer from "MainContainer/MainContainer";
-import {Client} from "Authentication/HttpClientInstance";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud"
 import {emptyPageV2} from "DefaultObjects";
