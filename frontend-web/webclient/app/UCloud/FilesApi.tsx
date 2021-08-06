@@ -112,13 +112,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             icon: "id",
             title: "Filename",
             helpText: "By the file's name"
-        }, // TODO
-        /* {
-            column: "CREATED_AT",
-            icon: "newFolder",
-            title: "Creation time",
-            helpText: "When the file was created"
-        }, */ {
+        }, {
             column: "MODIFIED_AT",
             icon: "edit",
             title: "Modified time",

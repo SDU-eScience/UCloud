@@ -42,7 +42,6 @@ sealed class LongRunningTask {
 enum class FilesSortBy {
     PATH,
     SIZE,
-    CREATED_AT,
     MODIFIED_AT
 }
 
