@@ -172,6 +172,7 @@ class Server(
             var foldersMounted = false
             while (!foldersMounted) {
                 foldersMounted = readyFile.exists()
+                // TODO Add delay and timeout
             }
 
             val db = AsyncDBSessionFactory(micro.databaseConfig)

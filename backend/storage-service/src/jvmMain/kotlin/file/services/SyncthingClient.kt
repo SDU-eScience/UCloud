@@ -301,4 +301,18 @@ class SyncthingClient(
             }
         }
     }
+
+    suspend fun isReady(device: LocalSyncthingDevice): Boolean {
+        val resp = httpClient.get<HttpResponse>("http://" + device.hostname + "/rest/system/ping") {
+            headers {
+                append("X-API-Key", device.apiKey)
+            }
+        }
+
+        if (resp.status != HttpStatusCode.OK) {
+            return false
+        }
+
+        return true
+    }
 }

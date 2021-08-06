@@ -67,6 +67,7 @@ class SynchronizationService(
     }
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
+        val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val affectedRows: Long = db.withSession { session ->
             request.items.sumOf { folder ->
                 val internalFile = File(fsPath, folder.path)
@@ -91,6 +92,7 @@ class SynchronizationService(
 
                 val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
+                affectedDevices.add(device)
 
                 Mounts.mount.call(
                     MountRequest(
@@ -125,6 +127,15 @@ class SynchronizationService(
                         )
                 """
                 ).rowsAffected
+            }
+        }
+
+        affectedDevices.forEach { device ->
+            if (!syncthing.isReady(device)) {
+                throw RPCException(
+                    "The synchronization feature is online at the moment. Your folders will be synchronized when it returns online.",
+                    HttpStatusCode.InternalServerError
+                )
             }
         }
 
@@ -189,6 +200,7 @@ class SynchronizationService(
     }
 
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
+        val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         request.items.forEach { item ->
             if (syncthing.config.devices.any { it.id == item.id }) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
