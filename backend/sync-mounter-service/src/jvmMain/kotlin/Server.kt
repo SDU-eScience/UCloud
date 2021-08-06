@@ -63,4 +63,27 @@ class Server(
             File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready")).createNewFile()
         }
     }
+
+    override fun stop() {
+        runBlocking {
+            val mountService = MountService(config)
+
+            File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready")).delete()
+
+            val syncDir = File(joinPath(config.syncBaseMount ?: "/mnt/sync"))
+
+            mountService.mount(
+                MountRequest(
+                    syncDir.listFiles().map { file ->
+                        MountFolder(file.name, file.absolutePath)
+                    }
+                )
+            )
+
+            syncDir.listFiles().forEach { file ->
+                file.delete()
+            }
+        }
+        super.stop()
+    }
 }
