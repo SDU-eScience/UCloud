@@ -74,7 +74,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     useEffect(() => {
         console.log(synchronizedFolder);
         if (synchronizedFolder) {
-            setUcloudDeviceId(synchronizedFolder.device_id);
+            setUcloudDeviceId(synchronizedFolder.device);
         }
     }, [synchronizedFolder]);
 

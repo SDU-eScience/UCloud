@@ -7083,7 +7083,7 @@ export interface VerifyRequest {
 export interface SynchronizedFolder {
     id: string,
     path: string,
-    device_id: string,
+    device: string,
 }
 export interface SynchronizationRetrieveFolderRequest {
     path: string,
