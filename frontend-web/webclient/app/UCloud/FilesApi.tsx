@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, BulkResponse, file} from "UCloud/index";
+import {accounting, BulkRequest, BulkResponse} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
@@ -300,7 +300,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
-                        <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+                        <FilesBrowse embedded pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
