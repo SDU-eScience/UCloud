@@ -15,7 +15,7 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import {PageRenderer} from "Pagination/PaginationV2";
-import {Box, List} from "ui-components";
+import {Absolute, Box, Icon, List, Tooltip} from "ui-components";
 import {ListRowStat} from "ui-components/List";
 import {Operation, Operations} from "ui-components/Operation";
 import {dateToString} from "Utilities/DateUtilities";
@@ -35,6 +35,10 @@ import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
 import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {useAvatars} from "AvataaarLib/hook";
+import {Avatar} from "AvataaarLib";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -253,11 +257,17 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 </>}
             </> : <>
                 <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>
-                <ListRowStat icon={"user"}>{resource.owner.createdBy}</ListRowStat>
+                <Tooltip noDelay omitPositionBox wrapperOffsetLeft="10px" tooltipContentHeight="260px" tooltipContentWidth="350px" trigger={<ListRowStat icon={"user"}>{resource.owner.createdBy}</ListRowStat>}>
+                    <UserBox username={resource.owner.createdBy} />
+                </Tooltip>
                 {resource.specification.product.provider === UCLOUD_CORE ? null :
-                    <ListRowStat icon={"cubeSolid"}>
-                        {resource.specification.product.id} / {resource.specification.product.category}
-                    </ListRowStat>
+                    <Tooltip noDelay omitPositionBox wrapperOffsetLeft="50px" tooltipContentHeight="100px" tooltipContentWidth="350px" trigger={
+                        <ListRowStat icon={"cubeSolid"}>
+                            {resource.specification.product.id} / {resource.specification.product.category}
+                        </ListRowStat>
+                    }>
+                        <DriveBox category={resource.specification.product.category} id={resource.specification.product.id} />
+                    </Tooltip>
                 }
             </>}
             {RemainingStats ? <RemainingStats resource={resource} /> : null}
@@ -351,3 +361,26 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         />
     }
 };
+
+function UserBox(props: {username: string}) {
+    const avatars = useAvatars();
+    const avatar = avatars.cache[props.username] ?? defaultAvatar;
+    return <div style={{marginTop: "-70px"}}>
+        <Avatar style={{width: "150px", marginBottom: "-50px"}} avatarStyle="circle" {...avatar} />
+        <Heading.h3>{props.username}</Heading.h3>
+        <div style={{justifyContent: "left", textAlign: "left"}}>
+            <div><b>INFO:</b> The lifespan of foxes depend on where they live.</div>
+            <div><b>INFO:</b> A fox living in the city, usually lives 3-5 years.</div>
+            <div><b>INFO:</b> A fox living in a forest, usually lives 12-15 years.</div>
+        </div>
+    </div>;
+}
+
+function DriveBox(props: {id: string; category: string;}) {
+    return <div style={{marginLeft: "2px", justifyContent: "left", textAlign: "left"}}>
+        <Icon size="36px" mr="4px" name="ftFileSystem" />{props.id} / {props.category}
+        <div><b>INFO:</b> Kotlin is the name of a small island west of Saint Petersburg.</div>
+        <div><b>INFO:</b> Dan started programming Kotlin before it was released.</div>
+        <div><b>INFO:</b> Kotlin has backends for JS, JVM and Native.</div>
+    </div>
+}

@@ -115,13 +115,13 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     idIsUriEncoded = true;
 
     renderer: ItemRenderer<UFile> = {
-        MainTitle: ({resource}) => <>{resource ? fileName(resource.id) : ""}</>,
-        Icon: (props: { resource?: UFile, size: string }) => {
+        MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
+        Icon(props: {resource?: UFile, size: string}) {
             const file = props.resource;
             const favoriteComponent = parseInt(props.size.replace("px", "")) > 40 ? null :
-                <FileFavoriteToggle file={file}/>;
+                <FileFavoriteToggle file={file} />;
             const icon = !file ?
-                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size}/> :
+                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size} /> :
                 <FtIcon
                     iconHint={file.status.icon}
                     fileIcon={{type: file.status.type, ext: extensionFromPath(fileName(file.id))}}
@@ -147,15 +147,14 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 const file = props.resource as UFile;
                 return <>
                     <DashboardCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
-                        <div><b>Path:</b> <PrettyFilePath path={file.id}/></div>
+                        <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
                             {file.specification.product.id} / {file.specification.product.category}
                         </div>
                         <div><b>Provider: </b> {file.specification.product.provider}</div>
                         <Box mt={"16px"} mb={"8px"}>
-                            <Link
-                                to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                            <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>
                             </Link>
                         </Box>
@@ -194,7 +193,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                     </DashboardCard>
                     {(props.resource as UFile).status.type !== "FILE" ? null :
                         <DashboardCard color={"purple"} title={"Preview"} icon={"search"}>
-                            <FilePreview file={props.resource as UFile}/>
+                            <FilePreview file={props.resource as UFile} />
                         </DashboardCard>
                     }
                 </>
@@ -256,7 +255,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 onClick: (selected, cb) => {
                     if (cb.collection) {
                         dialogStore.addDialog(
-                            <OpenWith file={selected[0]} collection={cb.collection}/>,
+                            <OpenWith file={selected[0]} collection={cb.collection} />,
                             doNothing,
                             true,
                             this.fileSelectorModalStyle
@@ -315,7 +314,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             );
 
                             dialogStore.success();
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -347,7 +346,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             );
 
                             dialogStore.success();
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
