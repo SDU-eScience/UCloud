@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.LocalSyncthingDevice
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.api.AccessRight
@@ -131,9 +132,10 @@ class SynchronizationService(
         }
 
         affectedDevices.forEach { device ->
-            if (!syncthing.isReady(device)) {
+            val mounter = Mounts.ready.call(Unit, authenticatedClient)
+            if (mounter.statusCode != HttpStatusCode.OK || !mounter.orThrow().ready || !syncthing.isReady(device)) {
                 throw RPCException(
-                    "The synchronization feature is online at the moment. Your folders will be synchronized when it returns online.",
+                    "The synchronization feature is offline at the moment. Your folders will be synchronized when it returns online.",
                     HttpStatusCode.InternalServerError
                 )
             }
