@@ -4,6 +4,8 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.http.*
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.*
@@ -22,6 +24,9 @@ import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.file.processors.ProjectProcessor
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.sync.mounter.api.Mounts
+import dk.sdu.cloud.sync.mounter.api.ReadyRequest
+import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.delay
 import org.slf4j.Logger
@@ -169,17 +174,29 @@ class Server(
 
     override fun onKtorReady() {
         runBlocking {
-            val readyFile = File("/mnt/sync/ready")
-            var foldersMounted = false
-            while (!foldersMounted) {
-                foldersMounted = readyFile.exists()
-                delay(1000L)
+            syncConfig.devices.forEach { device ->
+                val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+                var foldersMounted = false
+                while (!foldersMounted) {
+                    delay(1000L)
+
+                    val ready = Mounts.ready.call(
+                        Unit,
+                        client
+                    )
+
+                    if (ready.statusCode == HttpStatusCode.OK) {
+                        if (ready.orThrow().ready) {
+                            foldersMounted = true
+                        }
+                    }
+                }
             }
 
             val db = AsyncDBSessionFactory(micro.databaseConfig)
             val syncthingClient = SyncthingClient(syncConfig, db)
-
             syncthingClient.writeConfig()
+            syncthingClient.rescan()
         }
     }
 }

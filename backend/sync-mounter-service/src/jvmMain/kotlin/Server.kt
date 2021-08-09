@@ -39,6 +39,10 @@ class Server(
 
     override fun onKtorReady() {
         runBlocking {
+            val readyFile = File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready"))
+
+            readyFile.deleteOnExit()
+
             val syncFolder = File(config.syncBaseMount ?: "/mnt/sync")
             if (!syncFolder.exists()) {
                 syncFolder.mkdir()
@@ -60,7 +64,7 @@ class Server(
                 )
             )
 
-            File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready")).createNewFile()
+            readyFile.createNewFile()
         }
     }
 

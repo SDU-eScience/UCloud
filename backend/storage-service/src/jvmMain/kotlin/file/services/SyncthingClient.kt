@@ -315,4 +315,14 @@ class SyncthingClient(
 
         return true
     }
+
+    suspend fun rescan() {
+        config.devices.forEach { device ->
+            httpClient.post<HttpResponse>("http://" + device.hostname + "/rest/db/scan") {
+                headers {
+                    append("X-API-Key", device.apiKey)
+                }
+            }
+        }
+    }
 }

@@ -21,7 +21,7 @@ class MountService(
 
             val target = File(joinPath(config.syncBaseMount ?: "/mnt/sync", item.id))
             if (target.exists()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target already exists")
+                unmount(UnmountRequest(listOf(MountFolderId(item.id))))
             }
 
             if (!target.mkdir()) {
@@ -77,8 +77,11 @@ class MountService(
         return UnmountResponse
     }
 
-    fun state(request: StateRequest): StateResponse {
-        return StateResponse
+    fun ready(): ReadyResponse {
+        if (File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready")).exists()) {
+            return ReadyResponse(true)
+        }
+        return ReadyResponse(false)
     }
 
     private fun joinPath(vararg components: String): String {

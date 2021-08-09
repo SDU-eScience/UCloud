@@ -17,8 +17,8 @@ class MountController(
             ok(mountService.unmount(request))
         }
 
-        implement(Mounts.state) {
-            ok(mountService.state(request))
+        implement(Mounts.ready) {
+            ok(mountService.ready())
         }
     }
 }

@@ -21,8 +21,12 @@ typealias MountResponse = Unit
 typealias UnmountRequest = BulkRequest<MountFolderId>
 typealias UnmountResponse = Unit
 
-typealias StateRequest = Unit
-typealias StateResponse = Unit
+typealias ReadyRequest = Unit
+
+@Serializable
+data class ReadyResponse(
+    val ready: Boolean
+)
 
 object Mounts: CallDescriptionContainer("sync.mounter") {
     private const val baseContext = "/api/sync/mount"
@@ -35,7 +39,7 @@ object Mounts: CallDescriptionContainer("sync.mounter") {
         httpDelete(baseContext, roles = Roles.PRIVILEGED)
     }
 
-    val state = call<StateRequest, StateResponse, CommonErrorMessage>("state") {
+    val ready = call<ReadyRequest, ReadyResponse, CommonErrorMessage>("ready") {
         httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
     }
 }
