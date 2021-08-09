@@ -39,19 +39,6 @@ interface Gift {
 }
 
 /**
- * @see Gift
- * @see Gifts
- */
-@Serializable
-data class GiftWithId(
-    val id: Long,
-    override val resourcesOwnedBy: String,
-    override val title: String,
-    override val description: String,
-    override val resources: List<ResourceRequest>
-) : Gift
-
-/**
  * A [Gift] along with the [criteria] for which that can [Gifts.claimGift] this
  *
  * @see Gift
@@ -85,11 +72,7 @@ typealias DeleteGiftResponse = Unit
 
 typealias AvailableGiftsRequest = Unit
 @Serializable
-data class AvailableGiftsResponse(val gifts: List<GiftWithId>)
-
-typealias ListGiftsRequest = Unit
-@Serializable
-data class ListGiftsResponse(val gifts: List<GiftWithCriteria>)
+data class AvailableGiftsResponse(val gifts: List<FindByLongId>)
 
 /**
  * Gifts provide the system away to grant new and existing users (personal projects) credits from a project
@@ -193,23 +176,6 @@ object Gifts : CallDescriptionContainer("gifts") {
             }
 
             body { bindEntireRequestFromBody() }
-        }
-    }
-
-    /**
-     * Lists the [Gift]s associated with the `Project`
-     */
-    val listGifts = call<ListGiftsRequest, ListGiftsResponse, CommonErrorMessage>("listGifts") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
         }
     }
 }

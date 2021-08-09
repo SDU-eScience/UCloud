@@ -48,8 +48,9 @@ data class CreateSingleUserRequest(
     val password: String? = null,
     val email: String? = null,
     val role: Role? = null,
+    val organization: String? = null
 ) {
-    override fun toString() = "CreateUserRequest(username = $username, role = $role)"
+    override fun toString() = "CreateUserRequest(username = $username, role = $role, organization = $organization)"
 }
 
 typealias CreateUserResponse = List<CreateSingleUserResponse>

@@ -1139,3 +1139,546 @@ end;
 $$;
 
 ---- /Procedures ----
+
+---- Grants ----
+
+drop function "grant".grant_recipient_title(grant_recipient text, grant_recipient_type text);
+drop function "grant".my_applications(username_in text, include_incoming boolean, include_outgoing boolean);
+drop function "grant".transfer_application(actor text, application_id bigint, target_project text);
+
+alter table "grant".allow_applications_from add foreign key (project_id) references project.projects(id);
+alter table "grant".allow_applications_from drop constraint allow_applications_from_pkey;
+alter table "grant".allow_applications_from alter column applicant_id drop not null;
+update "grant".allow_applications_from
+set applicant_id = null
+where type = 'anyone';
+create unique index allow_applications_from_uniq on "grant".allow_applications_from (project_id, type, coalesce(applicant_id, ''));
+
+alter table "grant".applications add foreign key (resources_owned_by) references project.projects(id);
+alter table "grant".applications add foreign key (requested_by) references auth.principals(id);
+alter table "grant".applications add foreign key (status_changed_by) references auth.principals(id);
+
+alter table "grant".automatic_approval_limits add foreign key (project_id) references project.projects(id);
+alter table "grant".automatic_approval_limits add column product_category2 bigint references accounting.product_categories(id);
+update "grant".automatic_approval_limits l
+set product_category2 = pc.id
+from accounting.product_categories pc
+where
+    l.product_category = pc.category and
+    l.product_provider = pc.provider;
+alter table "grant".automatic_approval_limits drop column product_category;
+alter table "grant".automatic_approval_limits drop column product_provider;
+alter table "grant".automatic_approval_limits alter column product_category2 set not null;
+alter table "grant".automatic_approval_limits rename column product_category2 to product_category;
+
+alter table "grant".automatic_approval_users add foreign key (project_id) references project.projects(id);
+
+alter table "grant".comments add foreign key (posted_by) references auth.principals(id);
+
+alter table "grant".descriptions add foreign key (project_id) references project.projects(id);
+
+alter table "grant".exclude_applications_from add foreign key (project_id) references project.projects(id);
+
+alter table "grant".gift_resources add column product_category2 bigint references accounting.product_categories(id);
+update "grant".gift_resources l
+set product_category2 = pc.id
+from accounting.product_categories pc
+where
+    l.product_category = pc.category and
+    l.product_provider = pc.provider;
+alter table "grant".gift_resources drop column product_category;
+alter table "grant".gift_resources drop column product_provider;
+alter table "grant".gift_resources alter column product_category2 set not null;
+alter table "grant".gift_resources rename column product_category2 to product_category;
+
+alter table "grant".gifts add foreign key (resources_owned_by) references project.projects(id);
+
+alter table "grant".gifts_claimed add foreign key (user_id) references auth.principals(id);
+
+alter table "grant".gifts_user_criteria drop constraint gifts_user_criteria_pkey;
+alter table "grant".gifts_user_criteria alter column applicant_id drop not null;
+update "grant".gifts_user_criteria
+set applicant_id = null
+where type = 'anyone';
+create unique index gifts_user_criteria_uniq on "grant".gifts_user_criteria (gift_id, type, coalesce(applicant_id, ''));
+
+
+alter table "grant".is_enabled add foreign key (project_id) references project.projects(id);
+
+alter table "grant".logos add foreign key (project_id) references project.projects(id);
+
+alter table "grant".requested_resources add column product_category2 bigint references accounting.product_categories(id);
+update "grant".requested_resources l
+set product_category2 = pc.id
+from accounting.product_categories pc
+where
+    l.product_category = pc.category and
+    l.product_provider = pc.provider;
+alter table "grant".requested_resources drop column product_category;
+alter table "grant".requested_resources drop column product_provider;
+alter table "grant".requested_resources alter column product_category2 set not null;
+alter table "grant".requested_resources rename column product_category2 to product_category;
+
+alter table "grant".templates add foreign key (project_id) references project.projects(id);
+
+create or replace function "grant".resource_request_to_json(
+    request_in "grant".requested_resources,
+    product_category_in accounting.product_categories
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'productCategory', product_category_in.category,
+        'productProvider', product_category_in.provider,
+        'creditsRequested', request_in.credits_requested,
+        'quotaRequested', request_in.quota_requested_bytes
+    );
+$$;
+
+create or replace function "grant".application_to_json(
+    application_in "grant".applications,
+    resources_in jsonb[],
+    resources_owned_by_in project.projects,
+    project_in project.projects,
+    project_pi_in text
+) returns jsonb language plpgsql as $$
+declare
+    builder jsonb;
+begin
+    builder := jsonb_build_object(
+        'status', application_in.status,
+        'resourcesOwnedBy', application_in.resources_owned_by,
+        'requestedBy', application_in.requested_by,
+        'document', application_in.document,
+        'id', application_in.id,
+        'createdAt', (floor(extract(epoch from application_in.created_at) * 1000)),
+        'updatedAt', (floor(extract(epoch from application_in.updated_at) * 1000)),
+        'statusChangedBy', application_in.status_changed_by,
+        'requestedResources', resources_in,
+        'resourcesOwnedByTitle', resources_owned_by_in.title
+    );
+
+    if application_in.grant_recipient_type = 'personal' then
+        builder := builder || jsonb_build_object(
+            'grantRecipient', jsonb_build_object(
+                'type', application_in.grant_recipient_type,
+                'username', application_in.grant_recipient
+            ),
+            'grantRecipientPi', application_in.grant_recipient,
+            'grantRecipientTitle', application_in.grant_recipient
+        );
+    elseif application_in.grant_recipient_type = 'existing_project' then
+        builder := builder || jsonb_build_object(
+            'grantRecipient', jsonb_build_object(
+                'type', application_in.grant_recipient_type,
+                'projectId', application_in.grant_recipient
+            ),
+            'grantRecipientPi', project_pi_in,
+            'grantRecipientTitle', project_in.title
+        );
+    elseif application_in.grant_recipient_type = 'new_project' then
+        builder := builder || jsonb_build_object(
+            'grantRecipient', jsonb_build_object(
+                'type', application_in.grant_recipient_type,
+                'projectTitle', application_in.grant_recipient
+            ),
+            'grantRecipientPi', application_in.requested_by,
+            'grantRecipientTitle', application_in.grant_recipient
+        );
+    end if;
+
+    return builder;
+end;
+$$;
+
+
+create or replace function "grant".can_submit_application(
+    username_in text,
+    source text,
+    grant_recipient text,
+    grant_recipient_type text
+) returns boolean language sql as $$
+    with
+        non_excluded_user as (
+            select
+                requesting_user.id, requesting_user.email, requesting_user.org_id
+            from
+                auth.principals requesting_user left join
+                "grant".exclude_applications_from exclude_entry on
+                    requesting_user.email like '%@' || exclude_entry.email_suffix and
+                    exclude_entry.project_id = source
+            where
+                requesting_user.id = username_in
+            group by
+                requesting_user.id, requesting_user.email, requesting_user.org_id
+            having
+                count(email_suffix) = 0
+        ),
+        allowed_user as (
+            select user_info.id
+            from
+                non_excluded_user user_info join
+                "grant".allow_applications_from allow_entry on
+                    allow_entry.project_id = source and
+                    (
+                        (
+                            allow_entry.type = 'anyone'
+                        ) or
+
+                        (
+                            allow_entry.type = 'wayf' and
+                            allow_entry.applicant_id = user_info.org_id
+                        ) or
+
+                        (
+                            allow_entry.type = 'email' and
+                            user_info.email like '%@' || allow_entry.applicant_id
+                        )
+                    )
+        ),
+
+        existing_project_is_parent as (
+            select existing_project.id
+            from
+                project.projects source_project join
+                project.projects existing_project on
+                    source_project.id = source and
+                    source_project.id = existing_project.parent and
+                    grant_recipient_type = 'existing_project' and
+                    existing_project.id = grant_recipient join
+                project.project_members pm on
+                    pm.username = username_in and
+                    pm.project_id = existing_project.id and
+                    (
+                        pm.role = 'ADMIN' or
+                        pm.role = 'PI'
+                    )
+        )
+    select coalesce(bool_or(allowed), false)
+    from (
+        select true allowed
+        from
+            allowed_user join
+            "grant".is_enabled on
+                is_enabled.project_id = source
+        where
+            allowed_user.id is not null or
+            exists (select * from existing_project_is_parent)
+    ) t
+$$;
+
+create or replace function "grant".application_status_trigger() returns trigger language plpgsql as $$
+begin
+    if old.status != new.status then
+        if old.status = 'APPROVED' or old.status = 'REJECTED' then
+            raise exception 'Cannot update a closed application';
+        end if;
+    end if;
+    return null;
+end;
+$$;
+
+create trigger application_status_trigger
+after update of status on "grant".applications
+for each row execute procedure "grant".application_status_trigger();
+
+create or replace function "grant".approve_application(
+    approved_by text,
+    application_id_in bigint
+) returns void language plpgsql as $$
+declare
+    created_project text;
+begin
+    -- NOTE(Dan): Start by finding all source allocations and target allocation information.
+    -- NOTE(Dan): We currently pick source allocation using an "expire first" policy. This might need to change in the
+    -- future.
+    create temporary table approve_result on commit drop as
+    select *
+    from (
+        select
+            approved_by,
+            app.id application_id,
+            app.grant_recipient,
+            app.grant_recipient_type,
+            app.requested_by,
+            app.resources_owned_by,
+            alloc.id allocation_id,
+            w.category,
+            resource.quota_requested_bytes,
+            resource.credits_requested,
+            alloc.start_date,
+            alloc.end_date,
+            row_number() over (partition by w.category order by alloc.end_date nulls last, alloc.id) alloc_idx
+        from
+            "grant".applications app join
+            "grant".requested_resources resource on app.id = resource.application_id join
+            accounting.wallet_owner wo on app.resources_owned_by = wo.project_id join
+            accounting.wallets w on wo.id = w.owned_by and w.category = resource.product_category join
+            accounting.wallet_allocations alloc on
+                w.id = alloc.associated_wallet and
+                now() >= alloc.start_date and
+                (alloc.end_date is null or now() <= alloc.end_date)
+        where
+            app.status = 'APPROVED' and
+            app.id = application_id_in
+    ) t
+    where
+        t.alloc_idx = 1;
+
+    -- NOTE(Dan): Create a project, if the grant_recipient_type = 'new_project'
+    insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
+    select uuid_generate_v4()::text, now(), now(), grant_recipient, false, resources_owned_by, null, false
+    from approve_result
+    where grant_recipient_type = 'new_project'
+    limit 1
+    returning id into created_project;
+
+    insert into project.project_members (created_at, modified_at, role, username, project_id)
+    select now(), now(), 'PI', requested_by, created_project
+    from approve_result
+    where grant_recipient_type = 'new_project'
+    limit 1;
+
+    -- NOTE(Dan): Run the normal deposit procedure
+    perform accounting.deposit(array_agg(req))
+    from (
+        select (
+            result.approved_by,
+            case
+                when result.grant_recipient_type = 'new_project' then created_project
+                when result.grant_recipient_type = 'existing_project' then result.grant_recipient
+                else result.grant_recipient
+            end,
+            case
+                when result.grant_recipient_type = 'new_project' then true
+                when result.grant_recipient_type = 'existing_project' then true
+                else false
+            end,
+            allocation_id,
+            coalesce(result.credits_requested, result.quota_requested_bytes),
+            result.start_date,
+            result.end_date,
+            'Grant application approved'
+        )::accounting.deposit_request req
+        from approve_result result
+    ) t;
+end;
+$$;
+
+create or replace function "grant".comment_to_json(
+    comment_in "grant".comments
+) returns jsonb language sql immutable as $$
+    select case when comment_in is null then null else jsonb_build_object(
+        'id', comment_in.id,
+        'postedBy', comment_in.posted_by,
+        'postedAt', (floor(extract(epoch from comment_in.created_at) * 1000)),
+        'comment', comment_in.comment
+    ) end
+$$;
+
+create or replace function "grant".upload_request_settings(
+    actor_in text,
+    project_in text,
+
+    new_exclude_list_in text[],
+
+    new_include_list_type_in text[],
+    new_include_list_entity_in text[],
+
+    auto_approve_from_type_in text[],
+    auto_approve_from_entity_in text[],
+    auto_approve_resource_cat_name_in text[],
+    auto_approve_resource_provider_name_in text[],
+    auto_approve_credits_max_in bigint[],
+    auto_approve_quota_max_in bigint[]
+) returns void language plpgsql as $$
+declare
+    can_update boolean := false;
+begin
+    if project_in is null then
+        raise exception 'Missing project';
+    end if;
+
+    select count(*) > 0 into can_update
+    from
+        project.project_members pm join
+        "grant".is_enabled enabled on pm.project_id = enabled.project_id
+    where
+        pm.username = actor_in and
+        (pm.role = 'ADMIN' or pm.role = 'PI') and
+        pm.project_id = project_in;
+
+    if not can_update then
+        raise exception 'Unable to update this project. Check if you are allowed to perform this operation.';
+    end if;
+
+    delete from "grant".exclude_applications_from
+    where project_id = project_in;
+
+    insert into "grant".exclude_applications_from (project_id, email_suffix)
+    select project_in, unnest(new_exclude_list_in);
+
+    delete from "grant".allow_applications_from
+    where project_id = project_in;
+
+    insert into "grant".allow_applications_from (project_id, type, applicant_id)
+    select project_in, unnest(new_include_list_type_in), unnest(new_include_list_entity_in);
+
+    delete from "grant".automatic_approval_users
+    where project_id = project_in;
+
+    insert into "grant".automatic_approval_users (project_id, type, applicant_id)
+    select project_in, unnest(auto_approve_from_type_in), unnest(auto_approve_from_entity_in);
+
+    delete from "grant".automatic_approval_limits
+    where project_id = project_in;
+
+    insert into "grant".automatic_approval_limits (project_id, maximum_credits, maximum_quota_bytes, product_category)
+    with entries as (
+        select
+            unnest(auto_approve_resource_cat_name_in) category,
+            unnest(auto_approve_resource_provider_name_in) provider,
+            unnest(auto_approve_credits_max_in) credits,
+            unnest(auto_approve_quota_max_in) quota
+    )
+    select project_in, credits, quota, pc.id
+    from entries e join accounting.product_categories pc on e.category = pc.category and e.provider = pc.provider;
+end;
+$$;
+
+create or replace function "grant".create_gift(
+    actor_in text,
+    gift_resources_owned_by_in text,
+    title_in text,
+    description_in text,
+
+    criteria_type_in text[],
+    criteria_entity_in text[],
+
+    resource_cat_name_in text[],
+    resource_provider_name_in text[],
+    resources_credits_in bigint[],
+    resources_quota_in bigint[]
+) returns bigint language plpgsql as $$
+declare
+    can_create_gift boolean := false;
+    created_gift_id bigint;
+begin
+    select count(*) > 0 into can_create_gift
+    from
+        project.project_members pm
+    where
+        pm.project_id = gift_resources_owned_by_in and
+        pm.username = actor_in and
+        (pm.role = 'ADMIN' or pm.role = 'PI');
+
+    if not can_create_gift then
+        raise exception 'Unable to create a gift in this project. Are you an admin?';
+    end if;
+
+    insert into "grant".gifts (resources_owned_by, title, description)
+    values (gift_resources_owned_by_in, title_in, description_in)
+    returning id into created_gift_id;
+
+    insert into "grant".gifts_user_criteria (gift_id, type, applicant_id)
+    select created_gift_id, unnest(criteria_type_in), unnest(criteria_entity_in);
+
+    insert into "grant".gift_resources (gift_id, credits, quota, product_category)
+    with entries as (
+        select unnest(resource_cat_name_in) category, unnest(resource_provider_name_in) provider,
+               unnest(resources_quota_in) quota, unnest(resources_credits_in) credits
+    )
+    select created_gift_id, e.credits, e.quota, pc.id
+    from
+        entries e join
+        accounting.product_categories pc on
+            e.category = pc.category and
+            e.provider = pc.provider;
+
+    return created_gift_id;
+end;
+$$;
+
+create or replace function "grant".delete_gift(
+    actor_in text,
+    gift_id_in bigint
+) returns void language plpgsql as $$
+declare
+    can_delete_gift boolean := false;
+begin
+    select count(*) > 0 into can_delete_gift
+    from
+        project.project_members pm join
+        "grant".gifts gift on
+            gift.id = gift_id_in and
+            pm.project_id = gift.resources_owned_by and
+            pm.username = actor_in and
+            (pm.role = 'PI' or pm.role = 'ADMIN');
+
+    if not can_delete_gift then
+        raise exception 'Unable to delete gift. Are you an admin?';
+    end if;
+
+    delete from "grant".gifts_claimed where gift_id = gift_id_in;
+    delete from "grant".gift_resources where gift_id = gift_id_in;
+    delete from "grant".gifts_user_criteria where gift_id = gift_id_in;
+    delete from "grant".gifts where id = gift_id_in;
+end;
+$$;
+
+
+create or replace function "grant".transfer_application(
+    actor_in text,
+    application_id_in bigint,
+    target_project_in text
+) returns void language plpgsql as $$
+declare
+    affected_application record;
+    update_count int;
+begin
+    select
+        resources_owned_by, grant_recipient, grant_recipient_type, requested_by into affected_application
+    from
+        "grant".applications app join
+        project.project_members pm on
+            app.resources_owned_by = pm.project_id and
+            pm.username = actor_in and
+            (pm.role = 'PI' or pm.role = 'ADMIN')
+    where
+        id = application_id_in;
+
+    update "grant".applications
+    set resources_owned_by = target_project_in
+    where
+        "grant".can_submit_application(affected_application.requested_by, target_project_in,
+            affected_application.grant_recipient, affected_application.grant_recipient_type)
+    returning 1 into update_count;
+
+    if update_count is null then
+        raise exception 'Unable to transfer application (Not found or permission denied)';
+    end if;
+
+    if target_project_in = affected_application.resources_owned_by then
+        raise exception 'Unable to transfer application to itself';
+    end if;
+
+    delete from "grant".requested_resources res
+    using
+        "grant".applications app join
+        accounting.wallet_owner source_owner on
+            app.id = res.application_id and
+            source_owner.project_id = app.resources_owned_by join
+        accounting.wallets source_wallet on
+            res.product_category = source_wallet.category  and
+            source_owner.id = source_wallet.owned_by join
+
+        accounting.wallet_owner target_owner on
+            target_owner.project_id = target_project_in left join
+        accounting.wallets target_wallet on
+            source_wallet.category = target_wallet.category and
+            target_owner.project_id = target_wallet.owned_by
+    where
+        res.application_id = application_id_in and
+        target_wallet.id is null;
+end;
+$$
+
+---- /Grants ----

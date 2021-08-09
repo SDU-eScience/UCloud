@@ -16,7 +16,8 @@ class PersonService(
         role: Role,
         password: String,
         email: String,
-        twoFactorAuthentication: Boolean = false
+        twoFactorAuthentication: Boolean = false,
+        organization: String? = null,
     ): Person.ByPassword {
         val (hashed, salt) = passwordHashingService.hashPassword(password)
         return Person.ByPassword(
@@ -31,7 +32,8 @@ class PersonService(
             password = hashed,
             salt = salt,
             twoFactorAuthentication = twoFactorAuthentication,
-            serviceLicenseAgreement = 0
+            serviceLicenseAgreement = 0,
+            organizationId = organization,
         )
     }
 

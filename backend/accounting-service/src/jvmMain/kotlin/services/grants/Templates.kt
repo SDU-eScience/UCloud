@@ -1,106 +1,94 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
-import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
-object TemplateTable : SQLTable("grant.templates") {
-    val projectId = text("project_id", notNull = true)
-    val personalProject = text("personal_project", notNull = false)
-    val existingProject = text("existing_project", notNull = false)
-    val newProject = text("new_project", notNull = false)
-}
-
 class GrantTemplateService(
-    private val projects: ProjectCache,
-    private val settings: GrantSettingsService,
-    private val defaultApplication: String = ""
+    private val db: DBContext,
 ) {
     suspend fun uploadTemplates(
-        ctx: DBContext,
-        actor: Actor,
-        projectId: String,
+        actorAndProject: ActorAndProject,
         templates: UploadTemplatesRequest
     ) {
-        if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        db.withSession(remapExceptions = true) { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("projectId", actorAndProject.project)
+                    setParameter("personalProject", templates.personalProject)
+                    setParameter("existingProject", templates.existingProject)
+                    setParameter("newProject", templates.newProject)
+                },
 
-        ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                        setParameter("personalProject", templates.personalProject)
-                        setParameter("existingProject", templates.existingProject)
-                        setParameter("newProject", templates.newProject)
-                    },
+                """
+                    insert into "grant".templates (project_id, personal_project, existing_project, new_project) 
+                    select :projectId, :personalProject, :existingProject, :newProject
+                    from project.project_members pm
+                    where
+                        pm.username = :username and
+                        pm.project_id = :projectId and
+                        (pm.role = 'ADMIN' or pm.role = 'PI')
+                    on conflict (project_id) do update set 
+                        personal_project = excluded.personal_project,
+                        existing_project = excluded.existing_project,
+                        new_project = excluded.new_project
+                """
+            ).rowsAffected > 0
 
-                    """
-                        insert into "grant".templates (project_id, personal_project, existing_project, new_project) 
-                        values (
-                                :projectId,
-                                :personalProject,
-                                :existingProject,
-                                :newProject
-                            ) 
-                        on conflict (project_id) do update set 
-                            personal_project = excluded.personal_project,
-                            existing_project = excluded.existing_project,
-                            new_project = excluded.new_project
-                    """
-                )
+            if (!success) {
+                throw RPCException("Unable to upload templates. Do you have the correct permissions?",
+                    HttpStatusCode.BadRequest)
+            }
         }
     }
 
     suspend fun fetchTemplates(
-       ctx: DBContext,
-       actor: Actor,
+       actorAndProject: ActorAndProject,
        projectId: String
     ): ReadTemplatesResponse {
-        val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
-        val isAdminOfChildProject = if (!isProjectAdmin) {
-            projects.memberStatus.get(actor.safeUsername())
-                ?.membership?.any { it.parent == projectId && it.whoami.role.isAdmin() } ?: false
-        } else {
-            false
-        }
-
-        return ctx.withSession { session ->
-            if (!isProjectAdmin && !isAdminOfChildProject) {
-                if (actor is Actor.User) {
-                    val settings = settings.fetchSettings(session, Actor.System, projectId)
-                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) } ||
-                        (actor.principal.email != null &&
-                        settings.excludeRequestsFrom.any {
-                            it as UserCriteria.EmailDomain
-                            actor.principal.email!!.endsWith(it.domain)
-                        })
-                    ) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                    }
-                } else {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                }
-            }
-
-            session
-                .sendPreparedStatement(
-                    { setParameter("projectId", projectId) },
-                    "select * from \"grant\".templates where project_id = :projectId limit 1"
-                )
-                .rows
-                .singleOrNull()
-                ?.let {
-                    ReadTemplatesResponse(
-                        it.getFieldNullable(TemplateTable.personalProject) ?: defaultApplication,
-                        it.getFieldNullable(TemplateTable.newProject) ?: defaultApplication,
-                        it.getFieldNullable(TemplateTable.existingProject) ?: defaultApplication
-                    )
-                } ?: ReadTemplatesResponse(defaultApplication, defaultApplication, defaultApplication)
+        return db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("active_project", actorAndProject.project)
+                    setParameter("project_id", projectId)
+                },
+                """
+                    select
+                        t.personal_project,
+                        t.new_project,
+                        t.existing_project
+                    from
+                        "grant".templates t left join
+                        project.project_members pm on
+                            pm.username = :username and
+                            pm.project_id = :project_id and
+                            (pm.role = 'PI' or pm.role = 'ADMIN')
+                    where
+                        t.project_id = :project_id and
+                        (
+                            pm.username is not null or 
+                            "grant".can_submit_application(
+                                :username,
+                                :project_id,
+                                case
+                                    when :active_project::text is null then :username
+                                    else :active_project::text
+                                end,
+                                case
+                                    when :active_project::text is null then 'personal'
+                                    else 'existing_project'
+                                end
+                            )
+                        )
+                """
+            ).rows.map { ReadTemplatesResponse(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }.singleOrNull()
+                ?: throw RPCException("Could not find any templates", HttpStatusCode.NotFound)
         }
     }
 }

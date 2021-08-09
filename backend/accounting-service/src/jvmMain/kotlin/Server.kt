@@ -43,13 +43,12 @@ class Server(
         val projectGroups = ProjectGroupService(projectService, eventProducer)
         val projectQueryService = ProjectQueryService(projectService)
 
-        val projectsGrants = dk.sdu.cloud.accounting.services.grants.ProjectCache(client)
-        val giftService = GiftService(projectsGrants, client)
-        val settings = GrantSettingsService(projectsGrants)
-        val notifications = GrantNotificationService(projectsGrants, client)
-        val grantApplicationService = GrantApplicationService(projectsGrants, settings, notifications, client)
-        val templates = GrantTemplateService(projectsGrants, settings)
-        val comments = GrantCommentService(grantApplicationService, notifications, projectsGrants)
+        val giftService = GiftService(db)
+        val settings = GrantSettingsService(db)
+        val notifications = GrantNotificationService(db, client)
+        val grantApplicationService = GrantApplicationService(db, notifications)
+        val templates = GrantTemplateService(db)
+        val comments = GrantCommentService(db)
 
         val providerProviders =
             dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
@@ -79,8 +78,8 @@ class Server(
                 ProductController(productService),
                 Docs(),
                 FavoritesController(db, favoriteProjects),
-                GiftController(giftService, db),
-                GrantController(grantApplicationService, comments, settings, templates, client, db),
+                GiftController(giftService),
+                GrantController(grantApplicationService, comments, settings, templates),
                 GroupController(db, projectGroups, projectQueryService),
                 IntegrationController(providerIntegrationService),
                 MembershipController(db, projectQueryService),

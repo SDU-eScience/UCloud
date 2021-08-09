@@ -1,12 +1,11 @@
 import * as React from "react";
 import {UFile} from "UCloud/FilesApi";
 import {apiUpdate, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {accounting, BulkResponse, compute, FindByStringId, PageV2, PaginationRequestV2} from "UCloud";
+import {accounting, BulkResponse, compute, FindByStringId, PaginationRequestV2} from "UCloud";
 import ApplicationWithExtension = compute.ApplicationWithExtension;
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {ListRowStat} from "ui-components/List";
 import {Operation} from "ui-components/Operation";
 import {ProductSelector} from "Resource/ProductSelector";
 import {FileCollection} from "UCloud/FileCollectionsApi";
@@ -130,14 +129,14 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
 
     return <>
         <StandardList generateCall={generateCall} renderer={appRenderer} operations={operations}
-                      title={"Application"} embedded={"dialog"} extraCallbacks={callbacks}
-                      hide={selectedApplication != null}
-                      emptyPage={<>Found no suitable applications for this file type. You can explore more applications
-                          by clicking on Apps in the sidebar.</>}
+            title={"Application"} embedded={"dialog"} extraCallbacks={callbacks}
+            hide={selectedApplication != null}
+            emptyPage={<>Found no suitable applications for this file type. You can explore more applications
+                by clicking on Apps in the sidebar.</>}
         />
 
         {!selectedApplication ? null : <>
-            <ProductSelector products={products} onProductSelected={onProductSelected}/>
+            <ProductSelector products={products} onProductSelected={onProductSelected} />
             <Button mt={"8px"} fullWidth onClick={launch} disabled={commandLoading}>Launch</Button>
         </>}
     </>;
