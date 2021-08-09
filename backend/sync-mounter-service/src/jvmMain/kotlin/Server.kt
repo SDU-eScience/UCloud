@@ -72,7 +72,7 @@ class Server(
             val mountService = MountService(config, ready)
 
             val folders = FileSynchronization.browseFolders.call(
-                SynchronizationBrowseFoldersRequest(config.deviceId ?: ""),
+                SynchronizationBrowseFoldersRequest(config.deviceId),
                 client
             ).orThrow()
 

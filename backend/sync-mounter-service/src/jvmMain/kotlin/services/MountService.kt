@@ -22,11 +22,18 @@ class MountService(
     fun mount(request: MountRequest) {
         request.items.forEach { item ->
             val source = File(joinPath(config.cephfsBaseMount, item.path))
-            if (!source.exists() || !source.isDirectory || !source.path.startsWith(joinPath(config.cephfsBaseMount, "home"))) {
+            if (!source.exists() ||
+                !source.isDirectory ||
+                !source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home"))
+            ) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 
             val target = File(joinPath(config.syncBaseMount, item.id))
+            if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
+            }
+
             if (target.exists()) {
                 unmount(UnmountRequest(listOf(MountFolderId(item.id))))
             }
@@ -78,6 +85,10 @@ class MountService(
     fun unmount(request: UnmountRequest) {
         request.items.forEach { item ->
             val target = File(joinPath(config.syncBaseMount, item.id))
+            if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
+            }
+
             if (!target.exists()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
             }
