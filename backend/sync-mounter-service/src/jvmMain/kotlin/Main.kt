@@ -6,9 +6,9 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.sync.mounter.api.SyncMounterServiceDescription
 
 data class SyncMounterConfiguration(
-    val cephfsBaseMount: String? = null,
-    val syncBaseMount: String? = null,
-    val deviceId: String? = null
+    val cephfsBaseMount: String = "/mnt/cephfs",
+    val syncBaseMount: String = "/mnt/sync",
+    val deviceId: String
 )
 
 object SyncMounterService : Service {
@@ -16,7 +16,7 @@ object SyncMounterService : Service {
     
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
-        val config = micro.configuration.requestChunkAtOrNull("syncMount") ?: SyncMounterConfiguration()
+        val config = micro.configuration.requestChunkAt<SyncMounterConfiguration>("syncMount")
         return Server(micro, config)
     }
 }

@@ -5,21 +5,28 @@ import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
 import io.ktor.http.*
 import java.io.File
+import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.pathString
+import kotlin.io.path.readSymbolicLink
 
 class MountService(
-    val config: SyncMounterConfiguration
+    val config: SyncMounterConfiguration,
+    val ready: AtomicBoolean
 ) {
     private val MS_BIND: Long = 4096
     private val O_NOFOLLOW = 0x20000
 
-    fun mount(request: MountRequest): MountResponse {
+    @OptIn(ExperimentalPathApi::class)
+    fun mount(request: MountRequest) {
         request.items.forEach { item ->
-            val source = File(joinPath(config.cephfsBaseMount ?: "/mnt/cephfs", item.path))
-            if (!source.exists() || !source.isDirectory) {
+            val source = File(joinPath(config.cephfsBaseMount, item.path))
+            if (!source.exists() || !source.isDirectory || !source.path.startsWith(joinPath(config.cephfsBaseMount, "home"))) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 
-            val target = File(joinPath(config.syncBaseMount ?: "/mnt/sync", item.id))
+            val target = File(joinPath(config.syncBaseMount, item.id))
             if (target.exists()) {
                 unmount(UnmountRequest(listOf(MountFolderId(item.id))))
             }
@@ -48,21 +55,29 @@ class MountService(
 
                     CLibrary.INSTANCE.close(previousFd)
                 }
-            } catch (ex: Throwable) {
-                fileDescriptors.closeAll()
-                throw ex
-            }
-            CLibrary.INSTANCE.close(fileDescriptors.last())
 
-            CLibrary.INSTANCE.mount(source.absolutePath, target.absolutePath, null, MS_BIND, null)
+                val realSourcePath = Paths.get("/proc/self/fd/${fileDescriptors.last()}").readSymbolicLink()
+
+                CLibrary.INSTANCE.mount(
+                    realSourcePath.pathString,
+                    target.absolutePath,
+                    null,
+                    MS_BIND,
+                    null
+                )
+            } catch (ex: Throwable) {
+                throw ex
+            } finally {
+                fileDescriptors.closeAll()
+            }
         }
 
         return MountResponse
     }
 
-    fun unmount(request: UnmountRequest): UnmountResponse {
+    fun unmount(request: UnmountRequest) {
         request.items.forEach { item ->
-            val target = File(joinPath(config.syncBaseMount ?: "/mnt/sync", item.id))
+            val target = File(joinPath(config.syncBaseMount, item.id))
             if (!target.exists()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
             }
@@ -78,10 +93,7 @@ class MountService(
     }
 
     fun ready(): ReadyResponse {
-        if (File(joinPath(config.syncBaseMount ?: "/mnt/sync", "ready")).exists()) {
-            return ReadyResponse(true)
-        }
-        return ReadyResponse(false)
+        return ReadyResponse(ready.get())
     }
 
     private fun joinPath(vararg components: String): String {
