@@ -23,6 +23,7 @@ import dk.sdu.cloud.file.processors.ProjectProcessor
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.micro.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import org.slf4j.Logger
 import java.io.File
 import kotlin.system.*
@@ -172,7 +173,7 @@ class Server(
             var foldersMounted = false
             while (!foldersMounted) {
                 foldersMounted = readyFile.exists()
-                // TODO Add delay and timeout
+                delay(1000L)
             }
 
             val db = AsyncDBSessionFactory(micro.databaseConfig)
