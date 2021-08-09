@@ -457,7 +457,22 @@ export interface FilesBrowseRequest {
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+    sortBy: FilesSortBy;
+    sortOrder: SortOrder;
 }
+
+export enum SortOrder {
+    ASCENDING = "ASCENDING",
+    DESCENDING = "DESCENDING"
+}
+
+export enum FilesSortBy {
+    PATH = "PATH",
+    SIZE = "SIZE",
+    CREATED_AT = "CREATED_AT",
+    MODIFIED_AT = "MODIFIED_AT"
+}
+
 export type LongRunningTask = LongRunningTaskNS.Complete | LongRunningTaskNS.ContinuesInBackground
 export interface FilesCopyRequestItem {
     oldPath: string,
@@ -932,7 +947,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/files" + "/browse", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, allowUnsupportedInclude: request.allowUnsupportedInclude, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        path: buildQueryString("/api/files" + "/browse", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, allowUnsupportedInclude: request.allowUnsupportedInclude, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, sortBy: request.sortBy, sortOrder: request.sortOrder}),
         parameters: request,
         reloadId: Math.random(),
     };

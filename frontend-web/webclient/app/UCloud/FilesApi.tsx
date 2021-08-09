@@ -106,6 +106,23 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");
+        this.sortEntries = [];
+        this.sortEntries.push({
+            column: "PATH",
+            icon: "id",
+            title: "Filename",
+            helpText: "By the file's name"
+        }, {
+            column: "MODIFIED_AT",
+            icon: "edit",
+            title: "Modified time",
+            helpText: "When the file was last modified"
+        }, {
+            column: "SIZE",
+            icon: "fullscreen",
+            title: "Size",
+            helpText: "By size of the file"
+        });
     }
 
     routingNamespace = "files";
@@ -115,13 +132,13 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     idIsUriEncoded = true;
 
     renderer: ItemRenderer<UFile> = {
-        MainTitle: ({resource}) => <>{resource ? fileName(resource.id) : ""}</>,
-        Icon: (props: { resource?: UFile, size: string }) => {
+        MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
+        Icon(props: {resource?: UFile, size: string}) {
             const file = props.resource;
             const favoriteComponent = parseInt(props.size.replace("px", "")) > 40 ? null :
-                <FileFavoriteToggle file={file}/>;
+                <FileFavoriteToggle file={file} />;
             const icon = !file ?
-                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size}/> :
+                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size} /> :
                 <FtIcon
                     iconHint={file.status.icon}
                     fileIcon={{type: file.status.type, ext: extensionFromPath(fileName(file.id))}}
@@ -138,7 +155,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         includeUnixInfo: true
     };
 
-    Properties = (props) => {
+    public Properties = (props) => {
         return <ResourceProperties
             {...props} api={this}
             showMessages={false} showPermissions={false} showProperties={false}
@@ -147,13 +164,13 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 const file = props.resource as UFile;
                 return <>
                     <DashboardCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
-                        <div><b>Path:</b> <PrettyFilePath path={file.id}/></div>
+                        <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
                             {file.specification.product.id} / {file.specification.product.category}
                         </div>
                         <div><b>Provider: </b> {file.specification.product.provider}</div>
-                        <Box mt={"16px"} mb={"8px"}>
+                        <Box mt="16px" mb="8px">
                             <Link
                                 to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>
@@ -194,7 +211,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                     </DashboardCard>
                     {(props.resource as UFile).status.type !== "FILE" ? null :
                         <DashboardCard color={"purple"} title={"Preview"} icon={"search"}>
-                            <FilePreview file={props.resource as UFile}/>
+                            <FilePreview file={props.resource as UFile} />
                         </DashboardCard>
                     }
                 </>
@@ -202,7 +219,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         />;
     };
 
-    retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
+    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
         const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] = [
@@ -256,7 +273,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 onClick: (selected, cb) => {
                     if (cb.collection) {
                         dialogStore.addDialog(
-                            <OpenWith file={selected[0]} collection={cb.collection}/>,
+                            <OpenWith file={selected[0]} collection={cb.collection} />,
                             doNothing,
                             true,
                             this.fileSelectorModalStyle
@@ -315,7 +332,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             );
 
                             dialogStore.success();
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -347,7 +364,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             );
 
                             dialogStore.success();
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -374,7 +391,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         return ourOps.concat(base);
     }
 
-    copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
+    public copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
         return {
             context: "",
             method: "POST",
@@ -384,7 +401,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
+    public move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
         return {
             context: "",
             method: "POST",
@@ -394,7 +411,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createUpload(
+    public createUpload(
         request: BulkRequest<FilesCreateUploadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateUploadRequestItem>> {
         return {
@@ -406,7 +423,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createDownload(
+    public createDownload(
         request: BulkRequest<FilesCreateDownloadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateDownloadRequestItem>> {
         return {
@@ -418,7 +435,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createFolder(
+    public createFolder(
         request: BulkRequest<FilesCreateFolderRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateFolderRequestItem>> {
         return {
@@ -430,7 +447,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    trash(
+    public trash(
         request: BulkRequest<FilesTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesTrashRequestItem>> {
         return {
