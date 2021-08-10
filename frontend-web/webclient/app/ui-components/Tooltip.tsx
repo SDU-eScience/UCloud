@@ -54,12 +54,10 @@ interface TooltipContentProps extends BoxProps, SpaceProps {
     omitPositionBox?: boolean
 }
 
-const sm = "sm";
-
 const TooltipContent = styled(Box) <TooltipContentProps>`
     opacity: 0;
     pointer-events: none;
-    box-shadow: ${theme.shadows[sm]};
+    box-shadow: ${theme.shadows.sm};
     font-size: ${theme.fontSizes[0]}px;
     position: absolute;
     border-radius: ${theme.radii[1]}px;

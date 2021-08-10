@@ -16,16 +16,14 @@ import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ItemRenderer} from "ui-components/Browse";
 
-export interface FileCollection extends Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification> {
+export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
-}
-
-export interface FileCollectionUpdate extends ResourceUpdate {}
-export interface FileCollectionStatus extends ResourceStatus {}
+export type FileCollectionUpdate = ResourceUpdate;
+export type FileCollectionStatus = ResourceStatus;
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
 }
-export interface FileCollectionFlags extends ResourceIncludeFlags {}
+export type FileCollectionFlags = ResourceIncludeFlags;
 export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;
@@ -67,8 +65,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductNS.Storage, 
     page = SidebarPages.Files;
 
     renderer: ItemRenderer<FileCollection> = {
-        MainTitle: ({resource}) => <>{resource?.specification?.title ?? ""}</>,
-        Icon: ({resource, size}) => <Icon name={"ftFileSystem"} size={size}/>
+        MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
+        Icon({resource, size}) {return <Icon name={"ftFileSystem"} size={size} />}
     };
 
     constructor() {
