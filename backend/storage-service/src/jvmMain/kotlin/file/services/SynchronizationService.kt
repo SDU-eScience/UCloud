@@ -142,7 +142,7 @@ class SynchronizationService(
         }
 
         if (affectedRows > 0) {
-            syncthing.writeConfig()
+            syncthing.writeConfig(affectedDevices.toList())
         }
     }
 
@@ -202,13 +202,6 @@ class SynchronizationService(
     }
 
     suspend fun addDevice(actor: Actor, request: SynchronizationAddDeviceRequest) {
-        val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
-        request.items.forEach { item ->
-            if (syncthing.config.devices.any { it.id == item.id }) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-            }
-        }
-
         val affectedRows = db.withSession { session ->
             request.items.sumOf { item ->
                 if (syncthing.config.devices.any { it.id == item.id }) {

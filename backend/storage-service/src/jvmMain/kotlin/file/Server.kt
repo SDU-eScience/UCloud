@@ -174,11 +174,14 @@ class Server(
 
     override fun onKtorReady() {
         runBlocking {
-            syncConfig.devices.forEach { device ->
+            val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
                 val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
                 var foldersMounted = false
-                while (!foldersMounted) {
+                var retryCount = 0
+
+                while (!foldersMounted && retryCount < 5) {
                     delay(1000L)
+                    retryCount += 1
 
                     val ready = Mounts.ready.call(
                         Unit,
@@ -191,12 +194,18 @@ class Server(
                         }
                     }
                 }
+
+                if (foldersMounted) {
+                    device
+                } else {
+                    null
+                }
             }
 
             val db = AsyncDBSessionFactory(micro.databaseConfig)
-            val syncthingClient = SyncthingClient(syncConfig, db)
-            syncthingClient.writeConfig()
-            syncthingClient.rescan()
+                val syncthingClient = SyncthingClient(syncConfig, db)
+                syncthingClient.writeConfig(running)
+                syncthingClient.rescan(running)
         }
     }
 }
