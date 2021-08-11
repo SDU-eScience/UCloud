@@ -6,6 +6,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.RootDepositRequestItem
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AtomicInteger
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -13,20 +15,20 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.project.api.AcceptInviteRequest
-import dk.sdu.cloud.project.api.AddGroupMemberRequest
-import dk.sdu.cloud.project.api.ChangeUserRoleRequest
-import dk.sdu.cloud.project.api.CreateGroupRequest
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.DeleteMemberRequest
-import dk.sdu.cloud.project.api.InviteRequest
-import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.favorite.api.ProjectFavorites
+import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
+import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import kotlin.random.Random
 
+private val rootProjectCounter = AtomicInteger(1)
 suspend fun initializeRootProject(
-    principalInvestigator: String,
+    principalInvestigator: String? = null,
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000.DKK,
 ): String {
@@ -35,7 +37,10 @@ suspend fun initializeRootProject(
     }
 
     val id = Projects.create.call(
-        CreateProjectRequest("UCloud", principalInvestigator = principalInvestigator),
+        CreateProjectRequest(
+            "UCloud${rootProjectCounter.getAndIncrement().takeIf { it != 1 } ?: ""}",
+            principalInvestigator = principalInvestigator
+        ),
         serviceClient
     ).orThrow().id
 
@@ -169,7 +174,11 @@ class ProjectTests : IntegrationTest() {
     override fun defineTests() {
 
     }
-    /*
+
+    private fun t(block: suspend () -> Unit) {
+        runBlocking { block() }
+    }
+
     @Test
     fun `initialization of root project`() = t {
         val rootId = initializeRootProject()
@@ -566,5 +575,4 @@ class ProjectTests : IntegrationTest() {
         }
         assert(false)
     }
-     */
 }

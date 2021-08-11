@@ -2,7 +2,7 @@ create extension if not exists ltree schema public;
 create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
 create type accounting.product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
-create type accounting.allocation_selector_policy as enum ('ORDERED', 'EXPIRE_FIRST');
+create type accounting.allocation_selector_policy as enum ('EXPIRE_FIRST');
 create type accounting.transaction_type as enum ('transfer', 'charge', 'deposit', 'allocation_update');
 create type accounting.product_category_relationship_type as enum ('STORAGE_CREDITS', 'NODE_HOURS');
 
@@ -132,15 +132,78 @@ alter table accounting.wallets add column allocation_selector_policy accounting.
 
 create table accounting.wallet_allocations(
     id bigserial primary key,
+    allocation_path ltree not null,
     associated_wallet bigint not null references accounting.wallets(id),
+
     balance bigint not null,
     initial_balance bigint not null,
+    local_balance bigint not null,
+
     start_date timestamptz not null,
-    end_date timestamptz,
-    allocation_path ltree not null
+    end_date timestamptz
 
     -- NOTE(Dan): we can trace this back to the original transaction by doing a reverse-lookup
 );
+
+comment on column accounting.wallet_allocations.id is $$
+The primary key of wallet allocations, used mostly for referencing. The id is always embedded as the last component of
+allocation_path.
+$$;
+
+comment on column accounting.wallet_allocations.allocation_path is $$
+The allocation path creates a hierarchy of allocations. Many columns and operations have invariants which depend on
+this hierarchy. Each component of the path contains a reference to an allocation. The last component is always a
+reference to this allocation. The last component contain this reference to make many ancestor/descendant queries easier
+to use.
+$$;
+
+comment on column accounting.wallet_allocations.associated_wallet is $$
+A reference to the wallet which owns this allocation. A wallet may have 0 or more allocations active allocations at
+any point (see start/end_date).
+$$;
+
+comment on column accounting.wallet_allocations.balance is $$
+The current balance remaining for the sub-tree rooted at this allocation. Note: The sub-tree can be found by querying
+for all descendants of allocation_path.
+
+If the balance ever reaches a value of zero or below, then the entire sub-tree of allocations will be locked. A locked
+wallet allocation cannot be used in charges.
+
+A balance column can typically become less than zero. This is typically a result of the imprecision involved in the
+accounting process. For example, if a provider charges for compute every 15 minutes and a job has been started with only
+1 minute of compute time left, then we will likely see a negative balance of 14 minutes. This is not necessarily a sign
+of abuse, and allocators should generally forgive small amounts of 'debt' that is caused by this imprecision.
+
+The balance columns is closely associated with the local_balance and max_balance columns. The system has an invariant
+that balance <= local_balance <= max_balance. Any change made to the local_balance, must be equally reflected in the
+balance of all ancestors. Similarly, any change made to a balance column must be reflected in all ancestor balances.
+
+The unit of the balance column is determined by the product category which the wallet pays for.
+$$;
+
+comment on column accounting.wallet_allocations.initial_balance is $$
+Contains the maximum value that balance may ever have. There is a strict check that balance <= max_balance. This value
+can be used for different use-cases:
+
+1. Can be used to track how much of the allocation has been used, by comparing balance with max_balance.
+2. Can be used to track a project's own usage, not counting descendants, by comparing local_balance with max_balance.
+$$;
+
+comment on column accounting.wallet_allocations.local_balance is $$
+The current balance, for this node in the allocation hierarchy. For hierarchies which have no descendants, this value
+value will always be equal to balance.
+$$;
+
+comment on column accounting.wallet_allocations.start_date is $$
+Timestamp for when this allocation becomes active. The following constraint is enforced:
+end_date is null or start_date <= end_date.
+$$;
+
+comment on column accounting.wallet_allocations.end_date is $$
+Timestamp for when this allocation becomes invalid. This value can be null, which indicates that the allocation will
+never expire. The following constraint is enforced: end_date is null or start_date <= end_date.
+$$;
+
 
 ---- /Wallet allocations ----
 
@@ -223,10 +286,12 @@ on conflict do nothing;
 
 with new_allocations as (
     insert into accounting.wallet_allocations
-        (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path)
+        (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+        allocation_path)
     select
         nextval('accounting.wallet_allocations_id_seq'),
         w.id,
+        w.balance,
         w.balance,
         w.balance,
         now(),
@@ -252,10 +317,12 @@ from new_allocations;
 
 with new_allocations as (
     insert into accounting.wallet_allocations
-        (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path)
+        (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+        allocation_path)
     select
         nextval('accounting.wallet_allocations_id_seq'),
         w.id,
+        w.balance,
         w.balance,
         w.balance,
         now(),
@@ -460,62 +527,107 @@ create or replace function accounting.process_charge_requests(
 declare
     charge_count bigint;
 begin
-    create temporary table charge_result on commit drop as
-        with
-            requests as (
-                -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
-                select payer, payer_is_project, units, number_of_products, product_name, product_cat_name,
-                       product_provider, performed_by, description,
-                       row_number() over () local_request_id
-                from unnest(requests) r
-            ),
-            -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
-            -- correct price and resolve the correct wallets.
-            product_and_price as (
+    create temporary table product_and_price on commit drop as
+        with requests as (
+            -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
+            select payer, payer_is_project, units, number_of_products, product_name, product_cat_name,
+                   product_provider, performed_by, description,
+                   row_number() over () local_request_id
+           from unnest(requests) r
+        )
+        -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
+        -- correct price and resolve the correct wallets.
+        select
+            p.id product_id,
+            pc.id product_category,
+            pc.charge_type,
+            request.units * request.number_of_products * p.price_per_unit as payment_required,
+            request.*
+        from
+            requests request join
+            accounting.products p on request.product_name = p.name join
+            accounting.product_categories pc on
+                p.category = pc.id and
+                pc.category = request.product_cat_name and
+                pc.provider = request.product_provider
+        where
+            p.version = (
+                select max(version)
+                from accounting.products p2
+                where
+                    p2.name = p.name and
+                    p2.category = p.category
+            );
+
+    create temporary table absolute_leaves on commit drop as
+        -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
+        -- each allocation.
+        --
+        -- The code below will attempt to charge as much as possible from the allocations until the
+        -- target is reached. If all of the allocations combined do not have enough credits then all allocations will
+        -- be emptied. That is, we charge as much as possible. This is useful for the common case, which is that we are
+        -- charging for resources which have already been consumed.
+        --
+        -- A leaf allocation is any allocation that:
+        --   1) Matches the product
+        --   2) Belongs directly to the payer
+        select
+            id,
+            allocation_path,
+            associated_wallet,
+            balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
+            product_id,
+            units, number_of_products, performed_by, description,
+            payment_required, local_request_id,
+            balance_available
+        from
+            product_and_price p,
+            lateral (
                 select
-                    p.id product_id,
-                    pc.id product_category,
-                    request.units * request.number_of_products * p.price_per_unit as payment_required,
-                    request.*
+                    alloc.id,
+                    alloc.balance,
+                    alloc.allocation_path,
+                    alloc.associated_wallet,
+                    -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will
+                    -- cause invalid results, hence we sort by the ID when we have identical end dates.
+                    sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
                 from
-                    requests request join
-                    accounting.products p on request.product_name = p.name join
-                    accounting.product_categories pc on
-                        p.category = pc.id and
-                        pc.category = request.product_cat_name and
-                        pc.provider = request.product_provider
-            ),
-            -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
-            -- each allocation.
-            --
-            -- The code below will attempt to charge as much as possible from the allocations until the
-            -- target is reached. If all of the allocations combined do not have enough credits then all allocations will
-            -- be emptied. That is, we charge as much as possible. This is useful for the common case, which is that we are
-            -- charging for resources which have already been consumed.
-            --
-            -- A leaf allocation is any allocation that:
-            --   1) Matches the product
-            --   2) Belongs directly to the payer
-            leaf_charges as (
-                select
-                    id,
-                    allocation_path,
-                    associated_wallet,
-                    balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
-                    product_id,
-                    units, number_of_products, performed_by, description,
-                    payment_required, local_request_id
+                    accounting.wallet_allocations alloc join
+                    accounting.wallets w on
+                        alloc.associated_wallet = w.id and
+                        w.category = p.product_category join
+                    accounting.wallet_owner wo on w.owned_by = wo.id
+                where
+                    (
+                        (payer_is_project and wo.project_id = payer) or
+                        (not payer_is_project and wo.username = payer)
+                    ) and
+                    now() >= alloc.start_date and
+                    (alloc.end_date is null or now() <= alloc.end_date) and
+                    alloc.balance > 0
+            ) allocations
+        where
+            p.charge_type = 'ABSOLUTE' and
+            balance_available - balance < payment_required;
+
+    create temporary table differential_leaves on commit drop as
+        with
+            -- NOTE(Dan): Similar to absolute products, we first select the allocations which should be used.
+            -- Very importantly, we sum over the initial_balance instead of the actual balance!
+            allocation_selection as (
+                select *
                 from
                     product_and_price p,
                     lateral (
                         select
                             alloc.id,
                             alloc.balance,
+                            alloc.initial_balance,
+                            alloc.local_balance,
                             alloc.allocation_path,
                             alloc.associated_wallet,
-                            -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will cause
-                            -- invalid results, hence we sort by the ID when we have identical end dates.
-                            sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
+                            -- NOTE(Dan): Notice the use of initial_balance!
+                            sum(alloc.initial_balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
                         from
                             accounting.wallet_allocations alloc join
                             accounting.wallets w on
@@ -531,26 +643,93 @@ begin
                             (alloc.end_date is null or now() <= alloc.end_date)
                     ) allocations
                 where
-                    balance_available - balance < payment_required
+                    p.charge_type = 'DIFFERENTIAL_QUOTA'
+            ),
+            -- NOTE(Dan): For differential products we must consider all allocations that a wallet has. If an allocation
+            -- is needed then we should subtract from it. If an allocation is not needed to meet the payment_required
+            -- then we must add to it (since we are no longer using this allocation). We first find the once which are
+            -- needed, this is very similar to how we do it for ABSOLUTE products.
+            subtractions as (
+                select
+                    id,
+                    allocation_path,
+                    associated_wallet,
+                    -- max_requested_from_alloc = balance_available - initial_balance
+                    -- to_be_used_here = payment_required - max_requested_from_alloc
+                    local_balance - greatest(0::bigint, initial_balance - (payment_required - (balance_available - initial_balance))) as subtracted,
+                    product_id,
+                    units, number_of_products, performed_by, description,
+                    payment_required, local_request_id,
+                    balance_available
+                from
+                    allocation_selection
+                where
+                    balance_available - initial_balance < payment_required
+            ),
+            -- NOTE(Dan): see note above for explanation about additions CTE.
+            additions as (
+                select
+                    id,
+                    allocation_path,
+                    associated_wallet,
+                    local_balance - initial_balance as change,
+                    product_id,
+                    units, number_of_products, performed_by, description,
+                    payment_required, local_request_id,
+                    balance_available
+                from
+                    allocation_selection
+                where
+                    balance_available - initial_balance >= payment_required
             )
-    -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge as much as
-    -- possible, but no more than what we subtracted from the child allocation, in every ancestor.
-    --
-    -- It is possible that an ancestor allocation does not have enough money.
-    -- TODO(Dan): In this case, should we simply place an overcharge on the ancestor?
-    select
-        leaves.id as leaf_id,
-        leaves.associated_wallet as leaf_wallet,
-        ancestor_alloc.id as local_id,
-        balance - greatest(0, balance - subtracted) as local_subtraction,
-        ancestor_alloc.allocation_path,
-        ancestor_alloc.associated_wallet as local_wallet,
-        product_id,
-        units, number_of_products, performed_by, description,
-        payment_required, local_request_id
+            -- NOTE(Dan): Select all rows from subtractions and additions combined.
+            select * from subtractions
+            union
+            select * from additions;
+
+    create temporary table all_leaves on commit drop as
+        select * from absolute_leaves
+        union
+        select * from differential_leaves;
+
+    -- NOTE(Dan): If we have not managed to charge everything, then we must charge the priority allocation the
+    -- remaining balance. In the future, this might attempt to balance the charge but for now it will simply pick the
+    -- priority allocation.
+
+    update all_leaves leaves
+    set subtracted = leaves.subtracted + greatest(0, l.payment_required - missing_payment.max_balance)
     from
-        leaf_charges leaves join
-        accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
+        (
+            select a.*, row_number() over (partition by local_request_id) rn
+            from all_leaves a
+        ) l join
+        (
+            select local_request_id, max(balance_available) as max_balance
+            from all_leaves
+            group by local_request_id
+        ) missing_payment on l.local_request_id = missing_payment.local_request_id
+    where
+        l.id = leaves.id and
+        l.rn = 1;
+
+
+    -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge what we subtracted
+    -- from the child allocation, in every ancestor.
+    create temporary table charge_result on commit drop as
+        select
+            leaves.id as leaf_id,
+            leaves.associated_wallet as leaf_wallet,
+            ancestor_alloc.id as local_id,
+            subtracted as local_subtraction,
+            ancestor_alloc.balance current_balance,
+            ancestor_alloc.allocation_path,
+            ancestor_alloc.associated_wallet as local_wallet,
+            product_id,
+            units, number_of_products, performed_by, description,
+            payment_required, local_request_id
+        from
+            all_leaves leaves join
+            accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
 
     select count(distinct local_request_id) into charge_count from charge_result;
     if charge_count != cardinality(requests) then
@@ -568,10 +747,28 @@ begin
     perform accounting.process_charge_requests(requests);
 
     -- NOTE(Dan): Update the balance of every relevant allocation
+    -- NOTE(Dan): We _must_ sum over the local_subtractions. During the update every read of balance will always
+    -- return the same value, thus we would get the wrong results if we don't sum to the total change.
+    with combined_balance_subtractions as (
+        select local_id, sum(local_subtraction) local_subtraction
+        from charge_result
+        group by local_id
+    )
     update accounting.wallet_allocations alloc
-    set balance = balance - res.local_subtraction
-    from charge_result res
-    where alloc.id = res.local_id;
+    set balance = balance - local_subtraction
+    from combined_balance_subtractions sub
+    where alloc.id = sub.local_id;
+
+    with combined_local_balance_subtractions as (
+        select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction
+        from charge_result
+        group by local_id
+        having sum(case when leaf_id = local_id then local_subtraction else 0 end) != 0
+    )
+    update accounting.wallet_allocations alloc
+    set local_balance = local_balance - local_subtraction
+    from combined_local_balance_subtractions sub
+    where alloc.id = sub.local_id;
 
     -- NOTE(Dan): Insert a record of every change we did in the transactions table
     insert into accounting.transactions
@@ -589,14 +786,14 @@ create or replace function accounting.credit_check(
 ) returns setof boolean language plpgsql as $$
 begin
     perform accounting.process_charge_requests(requests);
-    return query (
-        select sum(group_subtraction)::bigint = payment_required has_enough_credits
+    return query(
+        select bool_and(has_enough_credits)
         from (
-            select min(local_subtraction) group_subtraction, payment_required, local_request_id
+            select local_request_id, (current_balance - local_subtraction) >= 0 has_enough_credits
             from charge_result
-            group by leaf_id, payment_required, local_request_id
-        ) min_per_group
-        group by local_request_id, payment_required
+            order by local_request_id
+        ) t
+        group by local_request_id
     );
 end;
 $$;
@@ -655,8 +852,10 @@ begin
                 target_wallet.owned_by = target_owner.id and
                 target_wallet.category = source_wallet.category
         where
-            request.initiated_by = source_owner.username or
-            request.initiated_by = pm.username;
+            (
+                request.initiated_by = source_owner.username or
+                request.initiated_by = pm.username
+            );
 
     select count(*) into deposit_count from deposit_result;
     if deposit_count != cardinality(requests) then
@@ -696,11 +895,12 @@ begin
     -- NOTE(Dan): Create allocations and insert transactions
     with new_allocations as (
         insert into accounting.wallet_allocations
-            (id, associated_wallet, balance, initial_balance, start_date, end_date,
+            (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
              allocation_path)
         select
             r.idx,
             r.target_wallet,
+            r.desired_balance,
             r.desired_balance,
             r.desired_balance,
             r.start_date,
@@ -909,6 +1109,7 @@ create or replace function accounting.wallet_allocation_to_json(
         'allocationPath', regexp_split_to_array(allocation_in.allocation_path::text, '\.'),
         'balance', allocation_in.balance,
         'initialBalance', allocation_in.initial_balance,
+        'localBalance', allocation_in.local_balance,
         'startDate', floor(extract(epoch from allocation_in.start_date) * 1000),
         'endDate', floor(extract(epoch from allocation_in.end_date) * 1000)
     );
@@ -926,7 +1127,11 @@ create or replace function accounting.wallet_to_json(
         'chargePolicy', wallet_in.allocation_selector_policy,
         'allocations', (
             select coalesce(jsonb_agg(accounting.wallet_allocation_to_json(alloc)), '[]'::jsonb)
-            from unnest(allocations_in) alloc
+            from (
+                select alloc
+                from unnest(allocations_in) alloc
+                order by alloc.id
+            ) t
         )
     )
 $$;
@@ -1367,17 +1572,15 @@ $$;
 
 create or replace function "grant".application_status_trigger() returns trigger language plpgsql as $$
 begin
-    if old.status != new.status then
-        if old.status = 'APPROVED' or old.status = 'REJECTED' then
-            raise exception 'Cannot update a closed application';
-        end if;
+    if old.status = 'APPROVED' or old.status = 'REJECTED' then
+        raise exception 'Cannot update a closed application';
     end if;
     return null;
 end;
 $$;
 
 create trigger application_status_trigger
-after update of status on "grant".applications
+after update on "grant".applications
 for each row execute procedure "grant".application_status_trigger();
 
 create or replace function "grant".approve_application(

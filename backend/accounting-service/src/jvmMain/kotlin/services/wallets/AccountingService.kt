@@ -217,11 +217,12 @@ class AccountingService(
                         retain("usernames", "project_ids")
                     },
                     """
-                    insert into accounting.wallet_owner (username, project_id) 
-                    values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
-                    on conflict do nothing
-                """
-                )
+                        insert into accounting.wallet_owner (username, project_id) 
+                        values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
+                        on conflict do nothing
+                    """,
+                    debug = true
+                ).rowsAffected.also { println("owners $it") }
             } catch (ex: GenericDatabaseException) {
                 if (ex.errorCode == PostgresErrorCodes.FOREIGN_KEY_VIOLATION) {
                     throw RPCException("No such payer exists", HttpStatusCode.BadRequest)
@@ -252,8 +253,9 @@ class AccountingService(
                             req.username = wo.username or
                             req.project_id = wo.project_id
                     on conflict do nothing
-                """
-            )
+                """,
+                debug = true
+            ).rowsAffected.also { println("wallets $it") }
 
             val rowsAffected = session.sendPreparedStatement(
                 parameters,
@@ -274,22 +276,24 @@ class AccountingService(
                         ),
                         new_allocations as (
                             insert into accounting.wallet_allocations
-                                (id, associated_wallet, balance, initial_balance, start_date, end_date, allocation_path) 
+                                (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+                                allocation_path) 
                             select
                                 req.alloc_id,
-                                w.id, req.balance, req.balance, coalesce(req.start_date, now()), req.end_date,
-                                req.alloc_id::text::ltree
+                                w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
+                                req.end_date, req.alloc_id::text::ltree
                             from
                                 requests req join
                                 accounting.product_categories pc on
                                     req.product_category = pc.category and
                                     req.product_provider = pc.provider join
-                                accounting.wallets w on w.category = pc.id join
                                 accounting.wallet_owner wo on
-                                    w.owned_by = wo.id and
                                     req.username = wo.username or
-                                    req.project_id = wo.project_id
-                            returning id, balance 
+                                    req.project_id = wo.project_id join
+                                accounting.wallets w on
+                                    w.category = pc.id and
+                                    w.owned_by = wo.id
+                            returning id, balance
                         )
                     insert into accounting.transactions
                         (type, affected_allocation_id, action_performed_by, change, description, start_date)
@@ -297,13 +301,15 @@ class AccountingService(
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
-                """
+                """,
+                debug = true
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }
+        println("All good? Why?")
     }
 
     private fun packTransferRequests(request: BulkRequest<TransferToWalletRequestItem>): EnhancedPreparedStatement.() -> Unit =
