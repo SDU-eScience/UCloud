@@ -1,7 +1,9 @@
 {
     "compute": {
         "products": [
-            { "category": "im1", "id": "im1" }
+            { "category": "dtu", "id": "dtu-small",  "ppm": "1.1",   "description": "My product description", "cpu": "1",  "mem": "50",  "gpu": "0" },
+            { "category": "dtu", "id": "dtu-medium", "ppm": "10.0",  "description": "My product description", "cpu": "2",  "mem": "100", "gpu": "0" },
+            { "category": "dtu", "id": "dtu-large",  "ppm": "100.0", "description": "My product description", "cpu": "10", "mem": "500", "gpu": "0" }
         ],
         "plugins": [
             {"id": "sample"}

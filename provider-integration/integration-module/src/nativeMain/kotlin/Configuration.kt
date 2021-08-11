@@ -12,8 +12,26 @@ import kotlinx.serialization.json.JsonObject
 data class ProductReferenceWithoutProvider(
     @UCloudApiDoc("The `Product` ID")
     val id: String,
+
     @UCloudApiDoc("The ID of the `Product`'s category")
     val category: String,
+
+    @UCloudApiDoc("The Price Per Minute of the `Product`'s category")
+    val ppm: String? = null,
+
+    @UCloudApiDoc("The Description of the `Product`'s category")
+    val description: String? = null,
+
+    // Physical CPUs
+    @UCloudApiDoc("The CPU of the `Product`'s category")
+    val cpu: String? = null,
+
+    @UCloudApiDoc("The GPU of the `Product`'s category")
+    val gpu: String? = null,
+
+    // Megabytes
+    @UCloudApiDoc("The Memory of the `Product`'s category")
+    val mem: String? = null,
 )
 
 @Serializable
