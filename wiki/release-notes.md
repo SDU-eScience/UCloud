@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 11-08-21
+
+Minor fix to permission UI.
+
+```
+✅  Deployment(webclient, 0.45.3) (UP-TO-DATE)
+```
+
+
 ## 23-07-21
 
 Minor change to app store UI.
