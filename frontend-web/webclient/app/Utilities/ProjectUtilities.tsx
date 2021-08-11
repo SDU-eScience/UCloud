@@ -239,8 +239,6 @@ export function UpdatePermissionsDialog(props: {
 
         const joined = new Map([...existingRights, ...newRights]);
 
-        console.log([...joined.entries()]);
-
         await updatePermissions(props.client, props.repository, [...joined.entries()].map(([group, rights]) => ({
             group, rights
         })));
