@@ -15,6 +15,7 @@ import dk.sdu.cloud.accounting.api.WalletAllocation
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -209,9 +210,9 @@ class AccountingTest : IntegrationTest() {
                     }
 
                     case("$name with over-charge") {
-                        input(In(isProject, 10.DKK, 20.DKK))
+                        input(In(isProject, 10.DKK, 1_000_000_000))
                         check {
-                            assertEquals(0, output.newBalance)
+                            assertThatInstance(output.newBalance) { it < 0 }
                         }
                     }
 
@@ -258,9 +259,8 @@ class AccountingTest : IntegrationTest() {
             chainFromRoot: List<Allocation>,
             productCategory: ProductCategoryId,
             skipCreationOfLeaf: Boolean = false,
+            breadth: Int = 1,
         ): List<AllocationResult> {
-            val rootPi = createUser()
-            val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
             val irrelevantUser = createUser()
 
             val leaves = ArrayList<AllocationResult>()
@@ -278,47 +278,51 @@ class AccountingTest : IntegrationTest() {
                             user.username,
                             project.id,
                             user.client.withProject(project.id),
-                            allocOwner.amount
+                            allocOwner.amount * breadth
                         )
                     )
                 } else {
                     val user = createUser()
-                    leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount))
+                    leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount * breadth))
                 }
             }
 
-            var previousAllocation: String =
-                findProjectWallet(rootProject, rootPi.client, productCategory)!!.allocations.single().id
-            var previousPi: AuthenticatedClient = rootPi.client
-            val expectedAllocationPath = arrayListOf(previousAllocation)
-            for ((index, leaf) in leaves.withIndex()) {
-                if (index == leaves.lastIndex && skipCreationOfLeaf) break
+            repeat(breadth) {
+                val rootPi = createUser()
+                val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
+                var previousAllocation: String =
+                    findProjectWallet(rootProject, rootPi.client, productCategory)!!.allocations.single().id
+                var previousPi: AuthenticatedClient = rootPi.client
+                val expectedAllocationPath = arrayListOf(previousAllocation)
+                for ((index, leaf) in leaves.withIndex()) {
+                    if (index == leaves.lastIndex && skipCreationOfLeaf) break
 
-                val request = bulkRequestOf(
-                    DepositToWalletRequestItem(
-                        leaf.owner,
-                        previousAllocation,
-                        leaf.balance,
-                        "Transfer",
-                        chainFromRoot[index].startDate,
-                        chainFromRoot[index].endDate
+                    val request = bulkRequestOf(
+                        DepositToWalletRequestItem(
+                            leaf.owner,
+                            previousAllocation,
+                            leaf.balance / breadth,
+                            "Transfer",
+                            chainFromRoot[index].startDate,
+                            chainFromRoot[index].endDate
+                        )
                     )
-                )
-                Accounting.deposit.call(request, previousPi).orThrow()
+                    Accounting.deposit.call(request, previousPi).orThrow()
 
-                assertThatInstance(
-                    Accounting.deposit.call(request, irrelevantUser.client),
-                    "Should fail because they are not a part of the project"
-                ) { it.statusCode.value in 400..499 }
+                    assertThatInstance(
+                        Accounting.deposit.call(request, irrelevantUser.client),
+                        "Should fail because they are not a part of the project"
+                    ) { it.statusCode.value in 400..499 }
 
-                val alloc = findWallet(leaf.client, productCategory)!!.allocations.single()
-                previousAllocation = alloc.id
-                previousPi = leaf.client
+                    val alloc = findWallet(leaf.client, productCategory)!!.allocations.also { println("Previous $it") }.last()
+                    previousAllocation = alloc.id
+                    previousPi = leaf.client
 
-                expectedAllocationPath.add(alloc.id)
-                assertEquals(alloc.allocationPath, expectedAllocationPath)
-                assertEquals(alloc.balance, leaf.balance)
-                assertEquals(alloc.initialBalance, leaf.balance)
+                    expectedAllocationPath.add(alloc.id)
+                    assertEquals(alloc.allocationPath, expectedAllocationPath)
+                    assertEquals(alloc.balance, leaf.balance / breadth)
+                    assertEquals(alloc.initialBalance, leaf.balance / breadth)
+                }
             }
             return leaves
         }
@@ -383,9 +387,15 @@ class AccountingTest : IntegrationTest() {
                 fun balanceWasDeducted(input: In, output: ChargeOutput) {
                     val paymentRequired = input.product.pricePerUnit * input.units * input.numberOfProducts
 
+                    println("Payment required: $paymentRequired")
+
                     output.balancesFromRoot.forEachIndexed { index, balance ->
                         assertEquals(
-                            max(0, input.chainFromRoot[index].amount - paymentRequired),
+//                            if (index == output.balancesFromRoot.lastIndex) {
+//                                max(0, input.chainFromRoot[index].amount - paymentRequired)
+//                            } else {
+                                input.chainFromRoot[index].amount - paymentRequired,
+//                            },
                             balance,
                             "New balance of $index should match expected value"
                         )
@@ -420,7 +430,7 @@ class AccountingTest : IntegrationTest() {
                             it.size == 1
                         }
 
-                        val expectedNewBalance = max(0, input.chainFromRoot[index].amount - paymentRequired)
+                        val expectedNewBalance = input.chainFromRoot[index].amount - paymentRequired
                         val expectedChange = expectedNewBalance - input.chainFromRoot[index].amount
                         val charge = charges.single()
                         assertThatPropertyEquals(charge, { it.units }, input.units, "units[$index]")
@@ -796,6 +806,139 @@ class AccountingTest : IntegrationTest() {
                                 assertThatPropertyEquals(update, { it.endDate }, newEndDate)
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        run {
+            class In(
+                val rootBalance: Long,
+                val chainFromRoot: List<Allocation>,
+                val chargesFromRoot: List<List<Long?>>,
+                val breadth: Int = 1,
+            )
+
+            class Out(
+                val wallets: List<Wallet>
+            )
+
+            test<In, Out>("Differential quota products") {
+                execute {
+                    val leaves = prepareProjectChain(input.rootBalance, input.chainFromRoot,
+                        sampleStorageDifferential.category, breadth = input.breadth)
+
+                    for (iteration in input.chargesFromRoot) {
+                        val requests = iteration.mapIndexedNotNull { idx, charge ->
+                            if (charge == null) return@mapIndexedNotNull null
+                            val leaf = leaves[idx]
+                            ChargeWalletRequestItem(
+                                leaf.owner,
+                                charge,
+                                1,
+                                sampleStorageDifferential.toReference(),
+                                leaf.username,
+                                "Charging..."
+                            )
+                        }
+
+                        Accounting.charge.call(BulkRequest(requests), serviceClient).orThrow()
+                    }
+
+                    Out(
+                        leaves.map {
+                            findWallet(it.client, sampleStorageDifferential.category)!!
+                        }
+                    )
+                }
+
+                case("Single allocation, no over-charge") {
+                    input(In(
+                        rootBalance = 1000L,
+                        chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                        chargesFromRoot = listOf(listOf(null, 100L))
+                    ))
+
+                    check {
+                        assertEquals(900, output.wallets[0].allocations[0].balance)
+                        assertEquals(1000, output.wallets[0].allocations[0].localBalance)
+
+                        assertEquals(900, output.wallets[1].allocations[0].balance)
+                        assertEquals(900, output.wallets[1].allocations[0].localBalance)
+                    }
+                }
+
+                case("Single allocation, multiple charges, no over-charge") {
+                    input(In(
+                        rootBalance = 1000L,
+                        chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                        chargesFromRoot = listOf(listOf(null, 100L), listOf(50L, 50L))
+                    ))
+
+                    check {
+                        assertEquals(900, output.wallets[0].allocations[0].balance)
+                        assertEquals(950, output.wallets[0].allocations[0].localBalance)
+
+                        assertEquals(950, output.wallets[1].allocations[0].balance)
+                        assertEquals(950, output.wallets[1].allocations[0].localBalance)
+                    }
+                }
+
+                case("Multiple allocations, spread without over-charge") {
+                    input(In(
+                        rootBalance = 1000L,
+                        chainFromRoot = listOf(Allocation(true, 4000L), Allocation(true, 1500L)),
+                        chargesFromRoot = listOf(listOf(null, 2000L)),
+                        breadth = 2,
+                    ))
+
+                    check {
+                        assertEquals(2500, output.wallets[0].allocations[0].balance)
+                        assertEquals(4000, output.wallets[0].allocations[0].localBalance)
+                        assertEquals(3500, output.wallets[0].allocations[1].balance)
+                        assertEquals(4000, output.wallets[0].allocations[1].localBalance)
+
+                        assertEquals(0, output.wallets[1].allocations[0].balance)
+                        assertEquals(0, output.wallets[1].allocations[0].localBalance)
+                        assertEquals(1000, output.wallets[1].allocations[1].balance)
+                        assertEquals(1000, output.wallets[1].allocations[1].localBalance)
+                    }
+                }
+
+                case("Single allocation, with over-charge in leaf") {
+                    input(In(
+                        rootBalance = 1_000_000,
+                        chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
+                        chargesFromRoot = listOf(listOf(null, 1), listOf(null, 10000), listOf(null, 5000L))
+                    ))
+
+                    check {
+                        assertEquals(5000, output.wallets[0].allocations[0].balance)
+                        assertEquals(10_000, output.wallets[0].allocations[0].localBalance)
+
+                        assertEquals(-1000, output.wallets[1].allocations[0].balance)
+                        assertEquals(-1000, output.wallets[1].allocations[0].localBalance)
+                    }
+                }
+
+                case("Multiple allocation, with over-charge in leaf") {
+                    input(In(
+                        rootBalance = 1_000_000,
+                        chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
+                        chargesFromRoot = listOf(listOf(null, 1), listOf(null, 100_000), listOf(null, 10_000L)),
+                        breadth = 2
+                    ))
+
+                    check {
+                        assertEquals(4000, output.wallets[0].allocations[0].balance)
+                        assertEquals(10_000, output.wallets[0].allocations[0].localBalance)
+                        assertEquals(6000, output.wallets[0].allocations[1].balance)
+                        assertEquals(10_000, output.wallets[0].allocations[1].localBalance)
+
+                        assertEquals(-2000, output.wallets[1].allocations[0].balance)
+                        assertEquals(-2000, output.wallets[1].allocations[0].localBalance)
+                        assertEquals(0, output.wallets[1].allocations[1].balance)
+                        assertEquals(0, output.wallets[1].allocations[1].localBalance)
                     }
                 }
             }

@@ -47,6 +47,13 @@ val sampleComputeOtherProvider = sampleCompute.copy(
     category = ProductCategoryId("standard", OTHER_PROVIDER)
 )
 
+val sampleStorageDifferential = Product.Storage(
+    "u1-cephfs-quota",
+    1L,
+    ProductCategoryId("cephfs-quota", UCLOUD_PROVIDER),
+    chargeType = ChargeType.DIFFERENTIAL_QUOTA
+)
+
 val sampleStorage = Product.Storage(
     "u1-cephfs",
     100_000,
@@ -67,7 +74,7 @@ val sampleNetworkIp = Product.NetworkIP(
     ProductCategoryId("public-ip", UCLOUD_PROVIDER)
 )
 
-val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp)
+val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp, sampleStorageDifferential)
 val sampleProductsOtherProvider = listOf(sampleComputeOtherProvider, sampleStorageOtherProvider)
 
 suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {

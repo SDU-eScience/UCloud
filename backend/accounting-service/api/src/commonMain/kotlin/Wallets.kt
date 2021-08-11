@@ -1,7 +1,23 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.checkMinimumValue
+import dk.sdu.cloud.calls.documentation
+import dk.sdu.cloud.calls.httpBrowse
+import dk.sdu.cloud.calls.httpUpdate
+import dk.sdu.cloud.calls.serializerEntry
+import dk.sdu.cloud.calls.serializerLookupTable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -25,9 +41,9 @@ data class Wallet(
  * ORDERED takes the wallet allocation in a user specified order.
  */
 @Serializable
-enum class AllocationSelectorPolicy{
+enum class AllocationSelectorPolicy {
     EXPIRE_FIRST,
-    ORDERED
+    // ORDERED (Planned not yet implemented)
 }
 
 @Serializable
@@ -40,14 +56,18 @@ data class WalletAllocation(
         Note that this allocation path will always include, as its last element, this allocation.
     """)
     val allocationPath: List<String>,
-    @UCloudApiDoc("The current balance of this wallet allocation")
+    @UCloudApiDoc("The current balance of this wallet allocation's subtree")
     val balance: Long,
     @UCloudApiDoc("The initial balance which was granted to this allocation")
     val initialBalance: Long,
+    @UCloudApiDoc("The current balance of this wallet allocation")
+    val localBalance: Long,
     @UCloudApiDoc("Timestamp for when this allocation becomes valid")
     val startDate: Long,
-    @UCloudApiDoc("Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-        "expire automatically")
+    @UCloudApiDoc(
+        "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
+                "expire automatically"
+    )
     val endDate: Long?
 )
 
@@ -99,12 +119,14 @@ sealed class WalletOwner {
 data class ChargeWalletRequestItem(
     @UCloudApiDoc("The payer of this charge")
     val payer: WalletOwner,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         The number of units that this charge is about
         
         The unit itself is defined by the product. The unit can, for example, describe that the 'units' describe the
         number of minutes/hours/days.
-    """)
+    """
+    )
     val units: Long,
     @UCloudApiDoc("The number of products involved in this charge, for example the number of nodes")
     val numberOfProducts: Long,
@@ -134,19 +156,23 @@ data class DepositToWalletRequestItem(
     val amount: Long,
     @UCloudApiDoc("A description of this change. This is used purely for presentation purposes.")
     val description: String,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A timestamp for when this deposit should become valid
         
         This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
         immediately.
-    """)
+    """
+    )
     val startDate: Long? = null,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A timestamp for when this deposit should become invalid
         
         This value must overlap with the source allocation. A value of null indicates that the allocation will never
         expire.
-    """)
+    """
+    )
     val endDate: Long? = null,
 )
 

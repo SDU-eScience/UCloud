@@ -94,8 +94,12 @@ if not frontend:
 	command.append("-f")
 	command.append("compose/gateway.yml")
 
+#command.append("-e")
+#command.append("POSTGRES_DATA=postgresData")
+#command.extend(sys.argv[1:])
 command.append("up")
 command.append("-d")
+print(command)
 
 print()
 
