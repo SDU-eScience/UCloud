@@ -15,8 +15,9 @@ import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Flex, Icon, Link} from "ui-components";
+import {Flex, Icon} from "ui-components";
 import {PageV2} from "UCloud";
+import {ListV2} from "Pagination";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -33,7 +34,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
-        FileCollectionsApi.browse({itemsPerPage: 100}), emptyPageV2
+        FileCollectionsApi.browse({itemsPerPage: 10}), emptyPageV2
     );
 
     const navigateToPath = useCallback((history: H.History, path: string) => {
@@ -84,10 +85,16 @@ export const FilesBrowse: React.FunctionComponent<{
 
         return <Flex>
             {!props.embedded ? null : (
-                <ClickableDropdown trigger={<Icon mt="8px" mr="6px" name="hdd" />}>
-                    {drives.data.items.filter(c => c.specification?.title !== collection.data?.specification.title).map((c, index) => (
-                        <div key={index} onClick={() => navigateToPath(history, `/${c.id}`)}>{c.specification?.title}</div>
-                    ))}
+                <ClickableDropdown colorOnHover={false} trigger={<Icon mt="8px" mr="6px" name="hdd" />}>
+                    <ListV2
+                        loading={drives.loading}
+                        onLoadMore={() => fetchDrives(FileCollectionsApi.browse({itemsPerPage: drives.data.itemsPerPage, next: drives.data.next}))}
+                        page={drives.data}
+                        pageRenderer={items => (
+                            items.filter(c => c.specification?.title !== collection.data?.specification.title).map((c, index) => (
+                                <div key={index} onClick={() => navigateToPath(history, `/${c.id}`)}>{c.specification?.title}</div>
+                            )))}
+                    />
                 </ClickableDropdown>
             )}
             <BreadCrumbsBase embedded={props.embedded ?? false}>
