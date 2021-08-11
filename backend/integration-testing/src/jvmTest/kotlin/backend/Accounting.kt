@@ -10,8 +10,7 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -152,24 +151,64 @@ class AccountingTest : IntegrationTest() {
 
         run {
             class In(
-                val request: TransferToWalletRequestItem
+                val request: TransferToWalletRequestItem,
+                val walletIsProject: Boolean = false
             )
-
             test<In, Unit>("Transfers") {
                 execute {
                     createSampleProducts()
+                    val user1 = createUser("user1")
+                    val user2 = createUser("user2")
+                    val user3 = createUser("user3")
+
+                    val users = listOf(user1, user2, user3)
+
                     val leaves = prepareProjectChain(
                         10000.DKK,
                         (0 until 3).map { Allocation(true, 1000.DKK) },
                         sampleCompute.category
                     )
 
-                    Accounting.transfer.call(
+                    val projectIds = leaves.map { it.projectId }
+
+                    projectIds.forEachIndexed { index, projectId ->
+                        Projects.invite.call(
+                            InviteRequest(projectId!!, setOf("user${index+1}")),
+                            leaves[index].client
+                        ).orThrow()
+
+                        Projects.acceptInvite.call(
+                            AcceptInviteRequest(projectId!!),
+                            users[index].client
+                        ).orThrow()
+
+                        Projects.transferPiRole.call(
+                            TransferPiRoleRequest("user${index+1}"),
+                            leaves[index].client
+                        ).orThrow()
+                    }
+                    val projectName = "rootProject"
+                    val targetProjectId = if (input.walletIsProject) {
+                        Projects.create.call(
+                            CreateProjectRequest(projectName, principalInvestigator = "user1"),
+                            serviceClient
+                        ).orThrow().id
+                    } else null
+
+                    val owner =
+                        if (input.walletIsProject) WalletOwner.Project(targetProjectId!!) else WalletOwner.User("user1")
+
+                    Accounting.rootDeposit.call(
                         bulkRequestOf(
-                            input.request
+                            RootDepositRequestItem(
+                                sampleStorage.category,
+                                owner,
+                                10000.DKK,
+                                "Initial deposit"
+                            )
                         ),
-                        leaves.last().client
-                    )
+                        serviceClient
+                    ).orThrow()
 
 
                 }
@@ -179,11 +218,12 @@ class AccountingTest : IntegrationTest() {
                         In(
                             TransferToWalletRequestItem(
                                 sampleCompute.category,
-                                WalletOwner.User("username"),
-                                WalletOwner.User("user2"),
+                                WalletOwner.User("hello"),
+                                WalletOwner.User("hello2"),
                                 20L,
-                                performedBy = "user"
-                            )
+                                performedBy = "hello"
+                            ),
+                            walletIsProject = true
                         )
                     )
                     check {

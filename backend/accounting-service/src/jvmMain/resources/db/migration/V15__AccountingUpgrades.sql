@@ -467,7 +467,7 @@ begin
                 select payer, payer_is_project, units, number_of_products, product_name, product_cat_name,
                        product_provider, performed_by, description,
                        row_number() over () local_request_id
-               from unnest(requests) r
+                from unnest(requests) r
             ),
             -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
             -- correct price and resolve the correct wallets.
@@ -1007,7 +1007,7 @@ begin
             requests as (
                 -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
                 select source, source_is_project, target, target_is_project, units, product_cat_name,
-                        product_provider, performed_by, start_date, end_date, description,
+                        product_provider, start_date, end_date, performed_by, description,
                         row_number() over () local_request_id
                 from unnest(requests) r
             ),
@@ -1065,8 +1065,8 @@ begin
                                 (source_is_project and wo.project_id = source) or
                                 (not source_is_project and wo.username = source)
                             ) and
-                            (now() >= alloc.start_date and requests.start_date >= alloc.start_date ) and
-                            (alloc.end_date is null or now() <= alloc.end_date and requests.end_date <= alloc.end_date)
+                            (now() >= alloc.start_date and alloc.start_date >= start_date) and
+                            (alloc.end_date is null or now() <= alloc.end_date or alloc.end_date >= end_date)
                     ) allocations
                 where
                     balance_available - balance < payment_required
@@ -1091,7 +1091,7 @@ begin
 
     select count(distinct local_request_id) into charge_count from transfer_result;
     if charge_count != cardinality(requests) then
-        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request. TRANSFER: % and the card: %', charge_count, cardinality(requests);
     end if;
 end;
 $$;

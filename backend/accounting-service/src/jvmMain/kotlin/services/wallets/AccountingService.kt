@@ -289,7 +289,7 @@ class AccountingService(
                                     w.owned_by = wo.id and
                                     req.username = wo.username or
                                     req.project_id = wo.project_id
-                            returning id, balance
+                            returning id, balance 
                         )
                     insert into accounting.transactions
                         (type, affected_allocation_id, action_performed_by, change, description, start_date)
@@ -361,6 +361,7 @@ class AccountingService(
     ) {
         db.withSession(remapExceptions = true, transactionMode) { session ->
             println("pack")
+            println(packTransferRequests(request))/*
             session.sendPreparedStatement(
                 packTransferRequests(request),
                 """
@@ -384,6 +385,7 @@ class AccountingService(
                 """
             ).rows
                 .forEach {
+                    println(it.getBoolean(0)!!)
                     if (!it.getBoolean(0)!!) {
                         throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired)
                     }
@@ -486,6 +488,7 @@ class AccountingService(
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
 
+        }*/
         }
     }
 
