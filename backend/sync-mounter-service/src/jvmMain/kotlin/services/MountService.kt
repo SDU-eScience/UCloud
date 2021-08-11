@@ -24,7 +24,10 @@ class MountService(
             val source = File(joinPath(config.cephfsBaseMount, item.path))
             if (!source.exists() ||
                 !source.isDirectory ||
-                !source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home"))
+                !(source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home")) ||
+                    source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "projects"))
+                )
+
             ) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
@@ -67,7 +70,7 @@ class MountService(
 
                 CLibrary.INSTANCE.mount(
                     realSourcePath.pathString,
-                    target.absolutePath,
+                    target.canonicalPath,
                     null,
                     MS_BIND,
                     null
@@ -93,7 +96,7 @@ class MountService(
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
             }
 
-            CLibrary.INSTANCE.umount(target.absolutePath)
+            CLibrary.INSTANCE.umount(target.canonicalPath)
 
             if (!target.delete()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to delete target")

@@ -14,13 +14,8 @@ import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.request.*
-import io.ktor.content.*
 import io.ktor.http.*
 import java.io.File
-import java.net.http.HttpResponse
 import java.util.*
 
 object SynchronizedFoldersTable : SQLTable("synchronized_folders") {
@@ -188,14 +183,15 @@ class SynchronizationService(
                     setParameter("device", request.device)
                 },
                 """
-                        select id, path
+                        select id, path, access_type
                         from storage.synchronized_folders
                         where device_id = :device
                     """
             ).rows.map { folder ->
                 SynchronizedFolderBrowseItem(
                     folder.getField(SynchronizedFoldersTable.id),
-                    folder.getField(SynchronizedFoldersTable.path)
+                    folder.getField(SynchronizedFoldersTable.path),
+                    SynchronizationType.valueOf(folder.getField(SynchronizedFoldersTable.accessType))
                 )
             }
         }
@@ -299,4 +295,6 @@ class SynchronizationService(
             )
         }
     }
+
+
 }

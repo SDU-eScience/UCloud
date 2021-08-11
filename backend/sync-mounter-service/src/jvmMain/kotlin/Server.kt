@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileSynchronization
 import dk.sdu.cloud.file.api.SynchronizationBrowseFoldersRequest
+import dk.sdu.cloud.file.api.SynchronizationType
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.server
@@ -78,7 +79,9 @@ class Server(
 
             mountService.mount(
                 MountRequest(
-                    folders.map { folder ->
+                    folders.filter {
+                        it.synchronizationType != SynchronizationType.NONE
+                    }.map { folder ->
                         MountFolder(folder.id, folder.path)
                     }
                 )

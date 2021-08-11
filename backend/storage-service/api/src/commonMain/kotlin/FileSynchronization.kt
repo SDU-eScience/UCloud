@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 enum class SynchronizationType(val syncthingValue: String) {
+    NONE("none"),
     SEND_RECEIVE("sendreceive"),
     SEND_ONLY("sendonly")
 }
@@ -21,7 +22,8 @@ data class SynchronizedFolder(
 @Serializable
 data class SynchronizedFolderBrowseItem(
     val id: String,
-    val path: String
+    val path: String,
+    val synchronizationType: SynchronizationType
 )
 
 @Serializable

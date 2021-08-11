@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services.acl
 
 import com.fasterxml.jackson.module.kotlin.treeToValue
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -10,8 +11,12 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.ProjectCache
+import dk.sdu.cloud.file.services.SynchronizedFoldersTable
+import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.sync.mounter.api.Mounts
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -42,7 +47,9 @@ class AclService(
     private val metadataService: MetadataService,
     private val homeFolderService: HomeFolderService,
     private val serviceClient: AuthenticatedClient,
-    private val projectCache: ProjectCache
+    private val projectCache: ProjectCache,
+    private val db: AsyncDBSessionFactory,
+    private val syncthing: SyncthingClient
 ) {
     @Serializable
     private data class UserAclMetadata(val permissions: Set<AccessRight>)
@@ -127,6 +134,8 @@ class AclService(
                 ) as JsonObject
             )
         )
+
+        updateSynchronizationType(request.path)
     }
 
     suspend fun isOwner(path: String, username: String): Boolean {
@@ -285,6 +294,57 @@ class AclService(
                 }
             }
             .toMap()
+    }
+
+    private suspend fun updateSynchronizationType(path: String) {
+        // NOTE(Brian): Bad implementation.
+        // Does not handle mounts and unmounts, but only updates the Syncthing configuration.
+        val syncedChildren = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("path", path)
+                },
+                """
+                    select id, user_id, path from storage.synchronized_folders
+                    where path like :path || '%'
+                """
+            )
+        }.rows
+
+        val newAccess = syncedChildren.map {
+            if (hasPermission(it.getField(SynchronizedFoldersTable.path), it.getField(SynchronizedFoldersTable.user), AccessRight.WRITE)) {
+                SynchronizationType.SEND_RECEIVE.name
+            } else if (hasPermission(it.getField(SynchronizedFoldersTable.path), it.getField(SynchronizedFoldersTable.user), AccessRight.READ)) {
+                SynchronizationType.SEND_ONLY.name
+            } else {
+                SynchronizationType.NONE.name
+            }
+        }
+
+        val affectedRows = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", syncedChildren.map { it.getField(SynchronizedFoldersTable.id) })
+                    setParameter("users", syncedChildren.map { it.getField(SynchronizedFoldersTable.user) })
+                    setParameter("access", newAccess)
+                },
+                """
+                    update storage.synchronized_folders f
+                    set access_type = new.access
+                    from (
+                        select
+                            unnest(:ids::text[]) as id,
+                            unnest(:users::text[]) as user,
+                            unnest(:access::text[]) as access
+                    ) as new
+                    where f.id = new.id and f.user_id = new.user
+                """
+            ).rowsAffected
+        }
+
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     companion object : Loggable {
