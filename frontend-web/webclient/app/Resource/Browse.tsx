@@ -118,7 +118,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                .find(it => it.product.id === selectedProduct.id &&
+                ?.find(it => it.product.id === selectedProduct.id &&
                     it.product.category.id === selectedProduct.category.id) ?? null;
         }
         return null;

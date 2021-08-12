@@ -11,9 +11,13 @@ import {getParentPath, pathComponents} from "Utilities/FileUtilities";
 import {joinToString, removeTrailingSlash} from "UtilityFunctions";
 import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
 import {useCloudAPI} from "Authentication/DataHook";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Flex, Icon} from "ui-components";
+import {PageV2} from "UCloud";
+import {ListV2} from "Pagination";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -29,6 +33,9 @@ export const FilesBrowse: React.FunctionComponent<{
     const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
+    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
+        FileCollectionsApi.browse({itemsPerPage: 10}), emptyPageV2
+    );
 
     const navigateToPath = useCallback((history: H.History, path: string) => {
         if (props.embedded === true) {
@@ -76,7 +83,20 @@ export const FilesBrowse: React.FunctionComponent<{
             breadcrumbs = components;
         }
 
-        return <>
+        return <Flex>
+            {!props.embedded ? null : (
+                <ClickableDropdown colorOnHover={false} trigger={<Icon mt="8px" mr="6px" name="hdd" />}>
+                    <ListV2
+                        loading={drives.loading}
+                        onLoadMore={() => fetchDrives(FileCollectionsApi.browse({itemsPerPage: drives.data.itemsPerPage, next: drives.data.next}))}
+                        page={drives.data}
+                        pageRenderer={items => (
+                            items.filter(c => c.specification?.title !== collection.data?.specification.title).map((c, index) => (
+                                <div key={index} onClick={() => navigateToPath(history, `/${c.id}`)}>{c.specification?.title}</div>
+                            )))}
+                    />
+                </ClickableDropdown>
+            )}
             <BreadCrumbsBase embedded={props.embedded ?? false}>
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it}
@@ -91,7 +111,7 @@ export const FilesBrowse: React.FunctionComponent<{
                     </span>
                 ))}
             </BreadCrumbsBase>
-        </>;
+        </Flex>;
     }, [path, props.embedded, collection.data]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {

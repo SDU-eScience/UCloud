@@ -113,10 +113,10 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/shell/:jobId/:rank" component={JobShell} />
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
-                    <Route path={"/public-links"}><IngressRouter /></Route>
-                    <Route path={"/jobs"}><JobRouter /></Route>
-                    <Route path={"/licenses"}><LicenseRouter /></Route>
-                    <Route path={"/public-ips"}><NetworkIPsRouter /></Route>
+                    <Route path="/public-links"><IngressRouter /></Route>
+                    <Route path="/jobs"><JobRouter /></Route>
+                    <Route path="/licenses"><LicenseRouter /></Route>
+                    <Route path="/public-ips"><NetworkIPsRouter /></Route>
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
