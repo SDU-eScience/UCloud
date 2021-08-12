@@ -68,7 +68,6 @@ suspend fun findProjectWallet(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-        testFilter = { t, s -> t.contains("Update") && s.contains("differential") }
         run {
             class In(
                 val owner: WalletOwner,
