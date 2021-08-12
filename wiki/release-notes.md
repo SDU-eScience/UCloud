@@ -7,6 +7,36 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 11-08-21
+
+Minor fix to permission UI.
+
+```
+✅  Deployment(webclient, 0.45.3) (UP-TO-DATE)
+```
+
+
+## 23-07-21
+
+Minor change to app store UI.
+
+```
+✅  Deployment(webclient, 0.45.1) (UP-TO-DATE)
+```
+
+## 12-07-21
+
+Public IPs release.
+
+```
+✅  Deployment(app-orchestrator, 2.7.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.22.0) (UP-TO-DATE)
+✅  Deployment(app-store, 0.17.0) (UP-TO-DATE)
+✅  Deployment(webclient, 0.45.0) (UP-TO-DATE)
+```
+
+
+
 ## 02-06-21
 
 Fix sort order of a query

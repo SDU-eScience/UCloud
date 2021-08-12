@@ -143,15 +143,15 @@ export function UpdatePermissionsDialog(props: {
 
     return (
         <Box width="auto" minWidth="450px">
-            {groups.loading ? <LoadingSpinner size={24}/> : null}
+            {groups.loading ? <LoadingSpinner size={24} /> : null}
             <InnerProjectPermissionBox>
                 <Pagination.List
                     loading={groups.loading}
                     page={groups.data}
                     onPageChanged={(page) => fetchGroups(groupSummaryRequest({...groupParams.parameters, page}))}
                     customEmptyPage={(
-                        <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                              flexDirection={"column"}>
+                        <Flex width="100%" height="100%" alignItems="center" justifyContent="center"
+                            flexDirection="column">
                             <Box>
                                 No groups exist for this project.
                             </Box>
@@ -164,8 +164,7 @@ export function UpdatePermissionsDialog(props: {
                             {groups.data.items.map(summary => {
                                 const g = summary.groupId;
                                 const acl = newRights.get(g) ??
-                                    props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ??
-                                    [];
+                                    props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
 
                                 const onRightsUpdated = (r: AccessRight[]): void => {
                                     newRights.set(g, r);
@@ -224,7 +223,23 @@ export function UpdatePermissionsDialog(props: {
     );
 
     async function update(): Promise<void> {
-        await updatePermissions(props.client, props.repository, [...newRights.entries()].map(([group, rights]) => ({
+        const existingRights = new Map<string, AccessRight[]>();
+        props.rights.forEach(it => {
+            if (typeof it.entity !== "string") {
+                switch (it.entity.type) {
+                    case "project_group":
+                        existingRights.set(it.entity.group, it.rights);
+                        break;
+                    case "user": // This shouldn't be able to happen
+                    default:
+                        break;
+                }
+            }
+        });
+
+        const joined = new Map([...existingRights, ...newRights]);
+
+        await updatePermissions(props.client, props.repository, [...joined.entries()].map(([group, rights]) => ({
             group, rights
         })));
         props.reload();
