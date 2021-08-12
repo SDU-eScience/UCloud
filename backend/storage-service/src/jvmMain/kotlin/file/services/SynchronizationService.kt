@@ -64,14 +64,18 @@ class SynchronizationService(
 
     suspend fun addFolder(actor: Actor, request: SynchronizationAddFolderRequest) {
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
+        val ids: MutableList<String> = mutableListOf()
+        val syncTypes: MutableList<SynchronizationType> = mutableListOf()
+        val devices: MutableList<LocalSyncthingDevice> = mutableListOf()
+
         val affectedRows: Long = db.withSession { session ->
-            request.items.sumOf { folder ->
+            request.items.forEach { folder ->
                 val internalFile = File(fsPath, folder.path)
                 if (!internalFile.exists() || !internalFile.isDirectory) {
                     throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 }
 
-                val accessType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
+                val syncType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
                     SynchronizationType.SEND_RECEIVE
                 } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
                     SynchronizationType.SEND_ONLY
@@ -99,31 +103,35 @@ class SynchronizationService(
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
                 }
 
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                        setParameter("device", device.id)
-                        setParameter("path", folder.path)
-                        setParameter("user", actor.username)
-                        setParameter("access", accessType.name)
-                    },
-                    """
-                        insert into storage.synchronized_folders(
-                            id, 
-                            device_id, 
-                            path,
-                            user_id,
-                            access_type
-                        ) values (
-                            :id,
-                            :device,
-                            :path,
-                            :user,
-                            :access
-                        )
-                """
-                ).rowsAffected
+                ids.add(id)
+                devices.add(device)
+                syncTypes.add(syncType)
             }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", ids)
+                    setParameter("devices", devices.map { it.id })
+                    setParameter("paths", request.items.map { folder -> folder.path })
+                    setParameter("users", ids.map { actor.username })
+                    setParameter("access", syncTypes.map { it.name })
+                },
+                """
+                    insert into storage.synchronized_folders(
+                        id, 
+                        device_id, 
+                        path,
+                        user_id,
+                        access_type
+                    ) values (
+                        unnest(:ids::text[]),
+                        unnest(:devices::text[]),
+                        unnest(:paths::text[]),
+                        unnest(:users::text[]),
+                        unnest(:access::text[])
+                    )
+            """
+            ).rowsAffected
         }
 
         affectedDevices.forEach { device ->
