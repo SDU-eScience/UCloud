@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 enum class SynchronizationType(val syncthingValue: String) {
-    NONE("none"),
     SEND_RECEIVE("sendreceive"),
     SEND_ONLY("sendonly")
 }

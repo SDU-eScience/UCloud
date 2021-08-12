@@ -16,7 +16,7 @@ import dk.sdu.cloud.file.synchronization.services.SyncthingClient
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.sync.mounter.api.Mounts
+import dk.sdu.cloud.sync.mounter.api.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -297,53 +297,106 @@ class AclService(
     }
 
     private suspend fun updateSynchronizationType(path: String) {
-        // NOTE(Brian): Bad implementation.
-        // Does not handle mounts and unmounts, but only updates the Syncthing configuration.
-        val syncedChildren = db.withSession { session ->
-            session.sendPreparedStatement(
+        data class SynchronizedFolderWithNewAccess(
+            val id: String,
+            val user: String,
+            val path: String,
+            val oldType: SynchronizationType,
+            val newType: SynchronizationType?
+        )
+
+        db.withSession { session ->
+            val syncedChildren = session.sendPreparedStatement(
                 {
                     setParameter("path", path)
                 },
                 """
-                    select id, user_id, path from storage.synchronized_folders
+                    select id, user_id, path, access_type from storage.synchronized_folders
                     where path like :path || '%'
                 """
-            )
-        }.rows
+            ).rows
 
-        val newAccess = syncedChildren.map {
-            if (hasPermission(it.getField(SynchronizedFoldersTable.path), it.getField(SynchronizedFoldersTable.user), AccessRight.WRITE)) {
-                SynchronizationType.SEND_RECEIVE.name
-            } else if (hasPermission(it.getField(SynchronizedFoldersTable.path), it.getField(SynchronizedFoldersTable.user), AccessRight.READ)) {
-                SynchronizationType.SEND_ONLY.name
-            } else {
-                SynchronizationType.NONE.name
+            val changes: List<SynchronizedFolderWithNewAccess> = syncedChildren.map {
+                val newType = if (hasPermission(
+                        it.getField(SynchronizedFoldersTable.path),
+                        it.getField(SynchronizedFoldersTable.user),
+                        AccessRight.WRITE
+                    )
+                ) {
+                    SynchronizationType.SEND_RECEIVE
+                } else if (hasPermission(
+                        it.getField(SynchronizedFoldersTable.path),
+                        it.getField(SynchronizedFoldersTable.user),
+                        AccessRight.READ
+                    )
+                ) {
+                    SynchronizationType.SEND_ONLY
+                } else {
+                    null
+                }
+
+                SynchronizedFolderWithNewAccess(
+                    it.getField(SynchronizedFoldersTable.id),
+                    it.getField(SynchronizedFoldersTable.user),
+                    it.getField(SynchronizedFoldersTable.path),
+                    SynchronizationType.valueOf(it.getField(SynchronizedFoldersTable.accessType)),
+                    newType
+                )
             }
-        }
 
-        val affectedRows = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", syncedChildren.map { it.getField(SynchronizedFoldersTable.id) })
-                    setParameter("users", syncedChildren.map { it.getField(SynchronizedFoldersTable.user) })
-                    setParameter("access", newAccess)
-                },
-                """
-                    update storage.synchronized_folders f
-                    set access_type = new.access
-                    from (
-                        select
-                            unnest(:ids::text[]) as id,
-                            unnest(:users::text[]) as user,
-                            unnest(:access::text[]) as access
-                    ) as new
-                    where f.id = new.id and f.user_id = new.user
-                """
-            ).rowsAffected
-        }
+            val toUpdate = changes.filter { it.newType != null }
+            val toDelete = changes.filter { it.newType == null }
 
-        if (affectedRows > 0) {
-            syncthing.writeConfig()
+            if (toUpdate.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", toUpdate.map { it.id })
+                        setParameter("users", toUpdate.map { it.user })
+                        setParameter("access", toUpdate.map { it.newType })
+                    },
+                    """
+                        update storage.synchronized_folders f
+                        set access_type = new.access
+                        from (
+                            select
+                                unnest(:ids::text[]) as id,
+                                unnest(:users::text[]) as user,
+                                unnest(:access::text[]) as access
+                        ) as new
+                        where f.id = new.id and f.user_id = new.user
+                    """
+                )
+
+                Mounts.mount.call(
+                    MountRequest(
+                        toUpdate.filter { it.oldType == null }.map { MountFolder(it.id, it.path) }
+                    ),
+                    serviceClient
+                )
+            }
+
+            if (toDelete.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", toDelete.map { it.id })
+                    },
+                    """
+                        delete from storage.synchronized_folders f
+                        where f.id in (select unnest(:ids::text[]))
+                    """
+                )
+
+                Mounts.unmount.call(
+                    UnmountRequest(
+                        toDelete.map { MountFolderId(it.id) }
+                    ),
+                    serviceClient
+                )
+            }
+
+            if (changes.isNotEmpty()) {
+                syncthing.writeConfig()
+            }
         }
     }
 

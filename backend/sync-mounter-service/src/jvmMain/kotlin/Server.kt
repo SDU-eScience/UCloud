@@ -79,9 +79,7 @@ class Server(
 
             mountService.mount(
                 MountRequest(
-                    folders.filter {
-                        it.synchronizationType != SynchronizationType.NONE
-                    }.map { folder ->
+                    folders.map { folder ->
                         MountFolder(folder.id, folder.path)
                     }
                 )

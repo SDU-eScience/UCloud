@@ -266,8 +266,7 @@ class SyncthingClient(
                         } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
                     folders = result
                         .filter {
-                            it.getString("local_device_id") == device.id &&
-                                it.getField(SynchronizedFoldersTable.accessType) != SynchronizationType.NONE.name
+                            it.getString("local_device_id") == device.id
                         }
                         .distinctBy { it.getField(SynchronizedFoldersTable.id) }
                         .map { row ->
