@@ -1207,9 +1207,9 @@ create or replace function accounting.process_transfer_requests(
 declare
     charge_count bigint;
 begin
+    drop table if exists transfer_result;
     create temporary table transfer_result on commit drop as
-        with
-            requests as (
+        with requests as (
                 -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
                 select source, source_is_project, target, target_is_project, units, product_cat_name,
                         product_provider, start_date, end_date, performed_by, description,
@@ -1247,7 +1247,8 @@ begin
                     associated_wallet,
                     balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
                     units, performed_by, description,
-                    payment_required, local_request_id
+                    payment_required, local_request_id,
+                    start_date, end_date
                 from
                     product_and_price p,
                     lateral (
@@ -1289,7 +1290,8 @@ begin
         ancestor_alloc.allocation_path,
         ancestor_alloc.associated_wallet as local_wallet,
         units, performed_by, description,
-        payment_required, local_request_id
+        payment_required, local_request_id,
+        leaves.start_date, leaves.end_date
     from
         leaf_charges leaves join
         accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
@@ -1318,9 +1320,9 @@ begin
     -- NOTE(Dan): Insert a record of every change we did in the transactions table
     insert into accounting.transactions
             (type, created_at, affected_allocation_id, action_performed_by, change, description,
-             source_allocation_id, product_id, number_of_products, units)
+                source_allocation_id, product_id, number_of_products, units, start_date, end_date)
     select 'transfer', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
-           res.leaf_id, null, null, null
+           res.leaf_id, null, null, null, coalesce(res.start_date, now()), res.end_date
     from transfer_result res;
 end;
 $$;

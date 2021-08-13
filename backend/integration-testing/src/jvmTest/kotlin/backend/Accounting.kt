@@ -1,7 +1,10 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -11,6 +14,7 @@ import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -18,7 +22,6 @@ import io.ktor.http.*
 import java.util.*
 import kotlin.math.max
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 suspend fun findWallet(
     client: AuthenticatedClient,
@@ -56,7 +59,7 @@ class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
         testFilter = {title, subtitle ->
-            title == "Transfers"
+            title == "Transfers"  //&& subtitle == "project to user - multiple transfers"
         }
 
         class Allocation(
@@ -155,18 +158,31 @@ class AccountingTest : IntegrationTest() {
 
         run {
             class In(
-                val request: TransferToWalletRequestItem,
-                val walletIsProject: Boolean = false
+                val sourceIsProject: Boolean,
+                val targetIsProject: Boolean,
+                val numberOfTransfers: Int = 1,
+                val transferAmount: Long = 500.DKK,
+                val includeRootProjectWallet: Boolean = false,
+                val expectFailure: Boolean = false
             )
-            test<In, Unit>("Transfers") {
+
+            class Out(
+                val sourceWallets: PageV2<Wallet>,
+                val targetWallets: PageV2<Wallet>,
+                val rootWallets: PageV2<Wallet>?
+            )
+
+            test<In, Out>("Transfers") {
                 execute {
+                    //Create products
                     createSampleProducts()
+                    //Create Users
                     val user1 = createUser("user1")
                     val user2 = createUser("user2")
                     val user3 = createUser("user3")
-
                     val users = listOf(user1, user2, user3)
 
+                    //Create project chain of 3 to ucloud root project and change PIs to user1, user2, user3
                     val leaves = prepareProjectChain(
                         10000.DKK,
                         (0 until 3).map { Allocation(true, 1000.DKK) },
@@ -182,7 +198,7 @@ class AccountingTest : IntegrationTest() {
                         ).orThrow()
 
                         Projects.acceptInvite.call(
-                            AcceptInviteRequest(projectId!!),
+                            AcceptInviteRequest(projectId),
                             users[index].client
                         ).orThrow()
 
@@ -191,22 +207,25 @@ class AccountingTest : IntegrationTest() {
                             leaves[index].client
                         ).orThrow()
                     }
-                    val projectName = "rootProject"
-                    val targetProjectId = if (input.walletIsProject) {
+
+                    //Create target and add storage of 10000 DKK
+                    val targetId = if (input.targetIsProject) {
+                        val projectName = "rootProject"
                         Projects.create.call(
-                            CreateProjectRequest(projectName, principalInvestigator = "user1"),
+                            CreateProjectRequest(projectName, principalInvestigator = user1.username),
                             serviceClient
                         ).orThrow().id
-                    } else null
+                    } else user1.username
 
-                    val owner =
-                        if (input.walletIsProject) WalletOwner.Project(targetProjectId!!) else WalletOwner.User("user1")
+                    val targetOwner =
+                        if (input.targetIsProject) WalletOwner.Project(targetId) else WalletOwner.User(targetId)
 
+                    //deposit to either user or project
                     Accounting.rootDeposit.call(
                         bulkRequestOf(
                             RootDepositRequestItem(
                                 sampleStorage.category,
-                                owner,
+                                targetOwner,
                                 10000.DKK,
                                 "Initial deposit"
                             )
@@ -214,24 +233,286 @@ class AccountingTest : IntegrationTest() {
                         serviceClient
                     ).orThrow()
 
+                    suspend fun transfer(
+                        source: WalletOwner,
+                        target: WalletOwner,
+                        amount: Long,
+                        performedBy: CreatedUser,
+                        expectFailure: Boolean,
+                        categoryId: ProductCategoryId = sampleCompute.category)
+                    {
+                        try {
+                            Accounting.transfer.call(
+                                bulkRequestOf(
+                                    TransferToWalletRequestItem(
+                                        categoryId,
+                                        target,
+                                        source,
+                                        amount,
+                                        performedBy = performedBy.username
+                                    )
+                                ),
+                                performedBy.client
+                            ).orThrow()
+                        } catch (ex: RPCException) {
+                            if (!expectFailure) {
+                                throw ex
+                            }
+                        }
+                    }
 
+                    when {
+                        input.sourceIsProject -> {
+                            println("$targetOwner, ${WalletOwner.Project(projectIds.last()!!)}")
+                            for (i in 1..input.numberOfTransfers) {
+                                transfer(
+                                    WalletOwner.Project(projectIds.last()!!),
+                                    targetOwner,
+                                    input.transferAmount,
+                                    performedBy = user3,
+                                    expectFailure = input.expectFailure
+                                )
+                            }
+                        }
+                        //source is user
+                        !input.sourceIsProject -> {
+                            val sourceOwner = WalletOwner.User(user2.username)
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleCompute.category,
+                                        sourceOwner,
+                                        1000.DKK,
+                                        "Initial deposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                            for (i in 1..input.numberOfTransfers) {
+                                transfer(
+                                    sourceOwner,
+                                    targetOwner,
+                                    input.transferAmount,
+                                    performedBy = user2,
+                                    expectFailure = input.expectFailure
+                                )
+                            }
+                        }
+                    }
+                    val targetWallets = Wallets.browse.call(
+                        WalletBrowseRequest(),
+                        if ( input.targetIsProject) user1.client.withProject(targetId) else user1.client
+                    ).orThrow()
+                    val sourceWallets = Wallets.browse.call(
+                        WalletBrowseRequest(),
+                        if ( input.sourceIsProject) user3.client.withProject(projectIds.last()!!) else user2.client
+                    ).orThrow()
+
+                    val rootWallet = if (input.includeRootProjectWallet) {
+                        Wallets.browse.call(
+                            WalletBrowseRequest(),
+                            user1.client.withProject(projectIds.first()!!)
+                        ).orThrow()
+                    } else null
+
+                    Out(sourceWallets= sourceWallets, targetWallets = targetWallets, rootWallets = rootWallet)
                 }
 
-                case("empty Test") {
+                case("project to project - single transfer") {
                     input(
                         In(
-                            TransferToWalletRequestItem(
-                                sampleCompute.category,
-                                WalletOwner.User("hello"),
-                                WalletOwner.User("hello2"),
-                                20L,
-                                performedBy = "hello"
-                            ),
-                            walletIsProject = true
+                            sourceIsProject = true,
+                            targetIsProject = true
                         )
                     )
                     check {
-                        assertTrue { true }
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(500.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(500.DKK, target?.allocations?.single()?.balance)
+                    }
+                }
+
+                case("project to user - single transfer") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = false
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(500.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(500.DKK, target?.allocations?.single()?.balance)
+                    }
+                }
+
+                case("user to project - single transfer") {
+                    input(
+                        In(
+                            sourceIsProject= false,
+                            targetIsProject = true
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(500.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(500.DKK, target?.allocations?.single()?.balance)
+                    }
+                }
+
+                case("user to user - single transfer") {
+                    input(
+                        In(
+                            sourceIsProject = false,
+                            targetIsProject = false
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(500.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(500.DKK, target?.allocations?.single()?.balance)
+                    }
+                }
+
+                case("Transfer over limit") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount =  100000.DKK
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.PaymentRequired)
+                }
+
+                case("user to user - multiple transfers") {
+                    input(
+                        In(
+                            sourceIsProject = false,
+                            targetIsProject = false,
+                            transferAmount = 10.DKK,
+                            numberOfTransfers = 3
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(970.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(input.numberOfTransfers, target?.allocations?.size)
+                        for (i in 0 until input.numberOfTransfers) {
+                            assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
+                        }
+                    }
+                }
+
+                case("user to project - multiple transfers") {
+                    input(
+                        In(
+                            sourceIsProject = false,
+                            targetIsProject = true,
+                            transferAmount = 20.DKK,
+                            numberOfTransfers = 4
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(920.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(input.numberOfTransfers, target?.allocations?.size)
+                        for (i in 0 until input.numberOfTransfers) {
+                            assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
+                        }
+                    }
+                }
+
+                case("project to user - multiple transfers") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = false,
+                            transferAmount = 10.DKK,
+                            numberOfTransfers = 4,
+                            includeRootProjectWallet = true
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(960.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(input.numberOfTransfers, target?.allocations?.size)
+                        for (i in 0 until input.numberOfTransfers) {
+                            assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
+                        }
+                        assertEquals(90.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
+                    }
+                }
+
+                case("project to project - multiple transfers") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 10.DKK,
+                            numberOfTransfers = 10,
+                            includeRootProjectWallet = true
+                        )
+                    )
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(900.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(input.numberOfTransfers, target?.allocations?.size)
+                        for (i in 0 until input.numberOfTransfers) {
+                            assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
+                        }
+                        assertEquals(900.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
+                    }
+                }
+
+                case("project to project - multiple transfers - last fails") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 100.DKK,
+                            numberOfTransfers = 11,
+                            includeRootProjectWallet = true,
+                            expectFailure = true
+                        )
+                    )
+
+                    check {
+                        val targetWallets = output.targetWallets.items
+                        val sourceWallets = output.sourceWallets.items
+                        val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        val supposedCompletedTransfers = input.numberOfTransfers -1
+                        assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
+                        assertEquals(0.DKK, sourceWallets.single().allocations.single().balance)
+                        assertEquals(supposedCompletedTransfers , target?.allocations?.size)
+                        for (i in 0 until supposedCompletedTransfers) {
+                            assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
+                        }
+                        assertEquals(0.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
                     }
                 }
 
