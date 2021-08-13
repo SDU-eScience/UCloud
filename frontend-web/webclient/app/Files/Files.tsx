@@ -17,6 +17,7 @@ import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
 import {Flex, Icon, theme} from "ui-components";
 import {PageV2} from "UCloud";
 import {ListV2} from "Pagination";
+import styled from "styled-components";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -84,16 +85,24 @@ export const FilesBrowse: React.FunctionComponent<{
 
         return <Flex>
             {!props.embedded ? null : (<>
-                <ExpandableRow trigger={<Icon mt="6px" mr="6px" name="hdd" size="24px" />} width="150px" height="auto" >
+                <ExpandableRow trigger={<Icon mt="8px" mr="6px" name="hdd" size="24px" />} width="150px" height="auto" >
                     <ListV2
-                        debug
                         loading={drives.loading}
                         onLoadMore={() => fetchDrives(FileCollectionsApi.browse({itemsPerPage: drives.data.itemsPerPage, next: drives.data.next}))}
                         page={drives.data}
-                        pageRenderer={items => (
-                            items.filter((c) => c.specification?.title !== collection.data?.specification.title).map((c, index, arr) => (
-                                <div key={c.id} style={arr.length - 1 === index ? {} : undefined} onClick={() => navigateToPath(history, `/${c.id}`)}>{c.specification?.title}</div>
-                            )))}
+                        pageRenderer={items => {
+                            const filteredItems = items.filter((c) => c.specification?.title !== collection.data?.specification.title)
+                            return (
+                                filteredItems.map(drive => (
+                                    <div
+                                        key={drive.id}
+                                        className="expandable-row-child"
+                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                    >
+                                        {drive.specification?.title}
+                                    </div>
+                                )));
+                        }}
                     />
                 </ExpandableRow>
             </>)}
@@ -112,7 +121,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 ))}
             </BreadCrumbsBase>
         </Flex>;
-    }, [path, props.embedded, collection.data]);
+    }, [path, props.embedded, collection.data, drives.data]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
@@ -156,15 +165,43 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-function ExpandableRow(props: React.PropsWithChildren<{trigger: JSX.Element; width: string; height: string;}>): JSX.Element | null {
-    const {width, height} = props;
+function ExpandableRow({trigger, ...props}: React.PropsWithChildren<{trigger: JSX.Element; width: string; height: string;}>): JSX.Element | null {
     const [isOpen, setOpen] = useState(false);
     return <div>
-        <span onClick={() => setOpen(open => !open)}>{props.trigger}</span>
-        <div style={{display: isOpen ? "flex" : "none", padding: "10px 5px 5px 5px", position: "absolute", boxShadow: theme.shadows.sm, backgroundColor: "var(--white)", width, height, zIndex: 1}}>
+        <span style={{cursor: "pointer"}} onClick={() => setOpen(open => !open)}>{trigger}</span>
+        <ContentWrapper isOpen={isOpen} {...props} >
             {props.children}
-        </div>
+        </ContentWrapper>
     </div>;
 }
+
+const ContentWrapper = styled.div<{isOpen: boolean; width: string; height: string;}>`
+    display: ${p => p.isOpen ? "flex" : "none"};
+    padding: 10px 5px 5px 5px;
+    position: absolute;
+    box-shadow: ${theme.shadows.sm};
+    background-color: var(--white);
+    width: ${p => p.width};
+    height: ${p => p.height};
+    z-index: 1;
+    max-height: 200px;
+    overflow-y: scroll;
+    border-radius: 5px;
+    & div.expandable-row-child {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-left: -5px;
+        margin-right: -5px;
+        padding-left: 8px;
+        padding-right: 8px;
+        width: calc(${p => p.width});
+    }
+
+    & div.expandable-row-child:hover {
+        background-color: var(--lightBlue);
+    }
+`;
 
 export default Router;
