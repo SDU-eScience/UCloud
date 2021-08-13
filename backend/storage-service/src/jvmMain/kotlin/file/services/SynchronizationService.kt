@@ -80,7 +80,7 @@ class SynchronizationService(
                 } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
                     SynchronizationType.SEND_ONLY
                 } else {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                 }
 
                 if (CephFsFastDirectoryStats.getRecursiveFileCount(internalFile) > 1_000_000) {
@@ -112,7 +112,7 @@ class SynchronizationService(
                 {
                     setParameter("ids", ids)
                     setParameter("devices", devices.map { it.id })
-                    setParameter("paths", request.items.map { folder -> folder.path })
+                    setParameter("paths", request.items.map { folder -> folder.path.normalize() })
                     setParameter("users", ids.map { actor.username })
                     setParameter("access", syncTypes.map { it.name })
                 },
@@ -136,10 +136,13 @@ class SynchronizationService(
 
         affectedDevices.forEach { device ->
             val mounter = Mounts.ready.call(Unit, authenticatedClient)
+
+            // Mounter is ready when all folders added to syncthing on that device is mounted.
+            // Syncthing is ready when it's accessible.
             if (mounter.statusCode != HttpStatusCode.OK || !mounter.orThrow().ready || !syncthing.isReady(device)) {
                 throw RPCException(
                     "The synchronization feature is offline at the moment. Your folders will be synchronized when it returns online.",
-                    HttpStatusCode.InternalServerError
+                    HttpStatusCode.ServiceUnavailable
                 )
             }
         }
@@ -150,8 +153,8 @@ class SynchronizationService(
     }
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
-        val affectedRows = db.withSession { session ->
-            session.sendPreparedStatement(
+        db.withSession { session ->
+            val affectedRows = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
                     setParameter("user", actor.username)
@@ -161,40 +164,35 @@ class SynchronizationService(
                     where id in (select unnest(:ids::text[])) and user_id = :user
                 """
             ).rowsAffected
-        }
 
-        Mounts.unmount.call(
-            UnmountRequest(
-                request.items.map { MountFolderId(it.id) }
-            ),
-            authenticatedClient
-        ).orRethrowAs {
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
+            if (affectedRows > 0) {
+                syncthing.writeConfig()
+            }
 
-        if (affectedRows > 0) {
-            syncthing.writeConfig()
+            Mounts.unmount.call(
+                UnmountRequest(
+                    request.items.map { MountFolderId(it.id) }
+                ),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
         }
     }
 
     suspend fun browseFolders(
-        principal: SecurityPrincipal,
         request: SynchronizationBrowseFoldersRequest
     ): List<SynchronizedFolderBrowseItem> {
-        if (!Roles.PRIVILEGED.contains(principal.role)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-        }
-
         return db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("device", request.device)
                 },
                 """
-                        select id, path, access_type
-                        from storage.synchronized_folders
-                        where device_id = :device
-                    """
+                    select id, path, access_type
+                    from storage.synchronized_folders
+                    where device_id = :device
+                """
             ).rows.map { folder ->
                 SynchronizedFolderBrowseItem(
                     folder.getField(SynchronizedFoldersTable.id),

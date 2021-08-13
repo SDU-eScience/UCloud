@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.file.api.FileSynchronization
 import dk.sdu.cloud.file.services.SynchronizationService
@@ -26,7 +25,7 @@ class SynchronizationController(
         }
 
         implement(FileSynchronization.browseFolders) {
-            ok(synchronizationService.browseFolders(ctx.securityPrincipal, request))
+            ok(synchronizationService.browseFolders(request))
         }
 
         implement(FileSynchronization.addDevice) {

@@ -135,7 +135,7 @@ class AclService(
             )
         )
 
-        updateSynchronizationType(request.path)
+        updateSynchronizationType(request.path.normalize())
     }
 
     suspend fun isOwner(path: String, username: String): Boolean {
@@ -305,14 +305,14 @@ class AclService(
             val newType: SynchronizationType?
         )
 
-        db.withSession { session ->
+        val changes = db.withSession { session ->
             val syncedChildren = session.sendPreparedStatement(
                 {
                     setParameter("path", path)
                 },
                 """
                     select id, user_id, path, access_type from storage.synchronized_folders
-                    where path like :path || '%'
+                    where path like :path || '/%'
                 """
             ).rows
 
@@ -366,13 +366,6 @@ class AclService(
                         where f.id = new.id and f.user_id = new.user
                     """
                 )
-
-                Mounts.mount.call(
-                    MountRequest(
-                        toUpdate.filter { it.oldType == null }.map { MountFolder(it.id, it.path) }
-                    ),
-                    serviceClient
-                )
             }
 
             if (toDelete.isNotEmpty()) {
@@ -394,9 +387,11 @@ class AclService(
                 )
             }
 
-            if (changes.isNotEmpty()) {
-                syncthing.writeConfig()
-            }
+            changes.size
+        }
+
+        if (changes > 0) {
+            syncthing.writeConfig()
         }
     }
 
