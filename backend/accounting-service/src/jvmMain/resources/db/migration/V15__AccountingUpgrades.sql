@@ -941,10 +941,13 @@ begin
     select
         alloc.id as alloc_id, parent.id as parent_id, descendant.id as descandant_id,
         alloc.balance as alloc_balance, descendant.balance as descendant_balance,
-        req.performed_by, req.start_date, req.end_date, req.description, req.balance, request_idx
+        req.performed_by, req.start_date, req.end_date, req.description, req.balance, request_idx,
+        pc.charge_type, alloc.initial_balance as alloc_initial_balance
     from
         requests req join
         accounting.wallet_allocations alloc on allocation_id = alloc.id join
+        accounting.wallets wallet on alloc.associated_wallet = wallet.id join
+        accounting.product_categories pc on wallet.category = pc.id join
 
         -- NOTE(Dan): Find the parent allocation and the parent's owner
         accounting.wallet_allocations parent on
@@ -995,15 +998,24 @@ begin
 
     -- NOTE(Dan): Update the target allocation
     with update_table as (
-        select distinct alloc_id, start_date, end_date, balance
+        select distinct alloc_id, start_date, end_date, balance, charge_type
         from update_result
     )
     update accounting.wallet_allocations alloc
     set
         start_date = update_table.start_date,
         end_date = update_table.end_date,
-        balance = update_table.balance,
-        initial_balance = update_table.balance
+        balance = case
+            when charge_type = 'DIFFERENTIAL_QUOTA' then
+                update_table.balance - (alloc.initial_balance - alloc.balance)
+            else update_table.balance
+        end,
+        initial_balance = update_table.balance,
+        local_balance = case
+            when charge_type = 'DIFFERENTIAL_QUOTA' then
+                update_table.balance - (alloc.initial_balance - alloc.local_balance)
+            else update_table.balance
+        end
     from update_table
     where alloc.id = update_table.alloc_id;
 
@@ -1021,7 +1033,12 @@ begin
         (type, affected_allocation_id, action_performed_by, change, description,
         start_date, end_date)
     select distinct
-        'allocation_update'::accounting.transaction_type, u.alloc_id, u.performed_by, u.balance - u.alloc_balance,
+        'allocation_update'::accounting.transaction_type, u.alloc_id, u.performed_by,
+        case
+            when charge_type = 'DIFFERENTIAL_QUOTA' then
+                (u.balance - (u.alloc_initial_balance - u.alloc_balance)) - u.alloc_balance
+            else u.balance - u.alloc_balance
+        end,
         u.description, u.start_date, u.end_date
     from update_result u;
 end;

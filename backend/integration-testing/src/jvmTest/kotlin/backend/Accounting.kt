@@ -1013,6 +1013,8 @@ class AccountingTest : IntegrationTest() {
         }
 
         run {
+            class Charge(val index: Int, val amount: Long)
+
             class In(
                 val chainFromRoot: List<Allocation>,
                 val updateIndex: Int,
@@ -1020,6 +1022,7 @@ class AccountingTest : IntegrationTest() {
                 val newStartDate: Long,
                 val newEndDate: Long?,
                 val product: Product = sampleCompute,
+                val charges: List<Charge> = emptyList(),
             )
 
             class Out(
@@ -1032,6 +1035,23 @@ class AccountingTest : IntegrationTest() {
                     val leaves = prepareProjectChain(10_000.DKK, input.chainFromRoot, input.product.category)
                     val alloc =
                         findWallet(leaves[input.updateIndex].client, input.product.category)!!.allocations.single()
+
+                    for (charge in input.charges) {
+                        val leaf = leaves[charge.index]
+                        Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    payer = leaf.owner,
+                                    units = charge.amount,
+                                    numberOfProducts = 1L,
+                                    product = input.product.toReference(),
+                                    performedBy = leaf.username,
+                                    description = "Charge"
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
+                    }
 
                     val request = bulkRequestOf(
                         UpdateAllocationRequestItem(
@@ -1066,6 +1086,33 @@ class AccountingTest : IntegrationTest() {
 
                 // NOTE(Dan): We don't store millisecond precision hence this weird calculation
                 val initialStartDate = ((Time.now() + (1000 * 60 * 60 * 24 * 7)) / 1000) * 1000
+
+                case("Update differential") {
+                    input(In(
+                        chainFromRoot = listOf(
+                            Allocation(true, 1_000_000),
+                            Allocation(true, 1000),
+                            Allocation(true, 1000)
+                        ),
+                        updateIndex = 1,
+                        newBalance = 10_000,
+                        newStartDate = initialStartDate,
+                        newEndDate = null,
+                        product = sampleStorageDifferential,
+                        charges = listOf(Charge(1, 100L), Charge(2, 200L))
+                    ))
+
+                    check {
+                        assertEquals(10_000, output.allocationsFromRoot[1].initialBalance)
+                        assertEquals(1000, output.allocationsFromRoot[2].initialBalance)
+
+                        assertEquals(9700, output.allocationsFromRoot[1].balance)
+                        assertEquals(9900, output.allocationsFromRoot[1].localBalance)
+
+                        assertEquals(800, output.allocationsFromRoot[2].balance)
+                        assertEquals(800, output.allocationsFromRoot[2].localBalance)
+                    }
+                }
 
                 listOf(true, false).forEach { isProject ->
                     val name = if (isProject) "project" else "user"
