@@ -231,8 +231,26 @@ data class TransferToWalletRequestItem(
     val categoryId: ProductCategoryId,
     @UCloudApiDoc("The target wallet to insert the credits into")
     val target: WalletOwner,
+    @UCloudApiDoc("The source wallet from where the credits is transferred from")
+    val source: WalletOwner,
     @UCloudApiDoc("The amount of credits to transfer")
     val amount: Long,
+    @UCloudApiDoc("""
+        A timestamp for when this deposit should become valid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
+        immediately.
+    """)
+    val startDate: Long? = null,
+    @UCloudApiDoc("""
+        A timestamp for when this deposit should become invalid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation will never
+        expire.
+    """)
+    val endDate: Long? = null,
+    @UCloudApiDoc("The username of the user who generated this request")
+    val performedBy: String,
 )
 
 typealias TransferToWalletResponse = Unit

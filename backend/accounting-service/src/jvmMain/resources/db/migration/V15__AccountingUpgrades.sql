@@ -1204,6 +1204,164 @@ begin
 end;
 $$;
 
+create type accounting.transfer_request as (
+    source text,
+    source_is_project boolean,
+    target text,
+    target_is_project boolean,
+    units bigint,
+    product_cat_name text,
+    product_provider text,
+    start_date timestamptz,
+    end_date timestamptz,
+    performed_by text,
+    description text
+);
+
+create or replace function accounting.process_transfer_requests(
+    requests accounting.transfer_request[]
+) returns void language plpgsql as $$
+declare
+    charge_count bigint;
+begin
+    drop table if exists transfer_result;
+    create temporary table transfer_result on commit drop as
+        with requests as (
+                -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
+                select source, source_is_project, target, target_is_project, units, product_cat_name,
+                        product_provider, start_date, end_date, performed_by, description,
+                        row_number() over () local_request_id
+                from unnest(requests) r
+            ),
+            -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
+            -- correct price and resolve the correct wallets.
+            product_and_price as (
+                select
+                    pc.id product_category,
+                    request.units as payment_required,
+                    request.*
+                from
+                    requests request join
+                    accounting.product_categories pc on
+                        pc.category = request.product_cat_name and
+                        pc.provider = request.product_provider
+            ),
+            -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
+            -- each allocation.
+            --
+            -- The code below will attempt to charge as much as possible from the allocations until the
+            -- target is reached. If all of the allocations combined do not have enough credits then all allocations will
+            -- be emptied. That is, we charge as much as possible. This is useful for the common case, which is that we are
+            -- charging for resources which have already been consumed.
+            --
+            -- A leaf allocation is any allocation that:
+            --   1) Matches the product
+            --   2) Belongs directly to the payer
+            leaf_charges as (
+                select
+                    id,
+                    allocation_path,
+                    associated_wallet,
+                    balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
+                    units, performed_by, description,
+                    payment_required, local_request_id,
+                    start_date, end_date
+                from
+                    product_and_price p,
+                    lateral (
+                        select
+                            alloc.id,
+                            alloc.balance,
+                            alloc.allocation_path,
+                            alloc.associated_wallet,
+                            -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will cause
+                            -- invalid results, hence we sort by the ID when we have identical end dates.
+                            sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
+                        from
+                            accounting.wallet_allocations alloc join
+                            accounting.wallets w on
+                                alloc.associated_wallet = w.id and
+                                w.category = p.product_category join
+                            accounting.wallet_owner wo on w.owned_by = wo.id
+                        where
+                            (
+                                (source_is_project and wo.project_id = source) or
+                                (not source_is_project and wo.username = source)
+                            ) and
+                            (now() >= alloc.start_date and alloc.start_date >= start_date) and
+                            (alloc.end_date is null or now() <= alloc.end_date or alloc.end_date >= end_date)
+                    ) allocations
+                where
+                    balance_available - balance < payment_required
+            )
+    -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge as much as
+    -- possible, but no more than what we subtracted from the child allocation, in every ancestor.
+    --
+    -- It is possible that an ancestor allocation does not have enough money.
+    -- TODO(Dan): In this case, should we simply place an overcharge on the ancestor?
+    select
+        leaves.id as leaf_id,
+        leaves.associated_wallet as leaf_wallet,
+        ancestor_alloc.id as local_id,
+        balance - greatest(0, balance - subtracted) as local_subtraction,
+        ancestor_alloc.allocation_path,
+        ancestor_alloc.associated_wallet as local_wallet,
+        units, performed_by, description,
+        payment_required, local_request_id,
+        leaves.start_date, leaves.end_date
+    from
+        leaf_charges leaves join
+        accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
+
+    select count(distinct local_request_id) into charge_count from transfer_result;
+    if charge_count != cardinality(requests) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request. TRANSFER: % and the card: %', charge_count, cardinality(requests);
+    end if;
+end;
+$$;
+
+-- noinspection SqlResolve
+create or replace function accounting.transfer(
+    requests accounting.transfer_request[]
+) returns void language plpgsql as $$
+begin
+    -- TODO(Dan): This is currently lacking replay protection
+    perform accounting.process_transfer_requests(requests);
+
+    -- NOTE(Dan): Update the balance of every relevant allocation
+    update accounting.wallet_allocations alloc
+    set balance = balance - res.local_subtraction
+    from transfer_result res
+    where alloc.id = res.local_id;
+
+    -- NOTE(Dan): Insert a record of every change we did in the transactions table
+    insert into accounting.transactions
+            (type, created_at, affected_allocation_id, action_performed_by, change, description,
+                source_allocation_id, product_id, number_of_products, units, start_date, end_date)
+    select 'transfer', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
+           res.leaf_id, null, null, null, coalesce(res.start_date, now()), res.end_date
+    from transfer_result res;
+end;
+$$;
+
+--NOTE(Henrik) Operator overload will not replace old credit_check
+create or replace function accounting.credit_check(
+    requests accounting.transfer_request[]
+) returns setof boolean language plpgsql as $$
+begin
+    perform accounting.process_transfer_requests(requests);
+    return query (
+        select sum(group_subtraction)::bigint = payment_required has_enough_credits
+        from (
+            select min(local_subtraction) group_subtraction, payment_required, local_request_id
+            from transfer_result
+            group by leaf_id, payment_required, local_request_id
+        ) min_per_group
+        group by local_request_id, payment_required
+    );
+end;
+$$;
+
 ---- /Procedures ----
 
 ---- Grants ----

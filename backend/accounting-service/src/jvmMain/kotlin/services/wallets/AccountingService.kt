@@ -5,16 +5,7 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
-import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
-import dk.sdu.cloud.accounting.api.RootDepositRequestItem
-import dk.sdu.cloud.accounting.api.Transaction
-import dk.sdu.cloud.accounting.api.TransactionsBrowseRequest
-import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
-import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBrowseRequest
-import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -325,7 +316,196 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<TransferToWalletRequestItem>,
     ) {
-        TODO()
+        db.withSession(remapExceptions = true, transactionMode) { session ->
+            val parameters: EnhancedPreparedStatement.() -> Unit = {
+                val sourceIds by parameterList<String>()
+                val sourcesAreProjects by parameterList<Boolean>()
+                val targetIds by parameterList<String>()
+                val targetsAreProjects by parameterList<Boolean>()
+                val amounts by parameterList<Long>()
+                val categories by parameterList<String>()
+                val providers by parameterList<String>()
+                val startDates by parameterList<Long?>()
+                val endDates by parameterList<Long?>()
+                val performedBy by parameterList<String>()
+                val descriptions by parameterList<String>()
+                for (req in request.items) {
+                    val sourceId = when (val source = req.source) {
+                        is WalletOwner.Project -> {
+                            sourcesAreProjects.add(true)
+                            sourceIds.add(source.projectId)
+                            source.projectId
+                        }
+                        is WalletOwner.User -> {
+                            sourcesAreProjects.add(false)
+                            sourceIds.add(source.username)
+                            source.username
+                        }
+                    }
+                    val targetId = when (val target = req.target) {
+                        is WalletOwner.Project -> {
+                            targetsAreProjects.add(true)
+                            targetIds.add(target.projectId)
+                            target.projectId
+                        }
+                        is WalletOwner.User -> {
+                            targetsAreProjects.add(false)
+                            targetIds.add(target.username)
+                            target.username
+                        }
+                    }
+                    amounts.add(req.amount)
+                    categories.add(req.categoryId.name)
+                    providers.add(req.categoryId.provider)
+                    startDates.add(req.startDate?.let { it / 1000 })
+                    endDates.add(req.endDate?.let { it / 1000 })
+                    performedBy.add(req.performedBy)
+                    descriptions.add("Transfer from $sourceId to $targetId")
+                }
+            }
+
+            session.sendPreparedStatement(
+                {
+                    parameters()
+                },
+                """
+                    with requests as (
+                        select (
+                            unnest(:source_ids::text[]),
+                            unnest(:sources_are_projects::bool[]),
+                            unnest(:target_ids::text[]),
+                            unnest(:targets_are_projects::bool[]),
+                            unnest(:amounts::bigint[]),
+                            unnest(:categories::text[]),
+                            unnest(:providers::text[]),
+                            to_timestamp(unnest(:start_dates::bigint[])),
+                            to_timestamp(unnest(:end_dates::bigint[])),
+                            unnest(:performed_by::text[]),
+                            unnest(:descriptions::text[])
+                        )::accounting.transfer_request req
+                    )
+                    select accounting.credit_check(array_agg(req))
+                    from requests;
+                """,debug = true
+            ).rows
+                .forEach {
+                    println(it.getBoolean(0)!!)
+                    if (!it.getBoolean(0)!!) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired)
+                    }
+                }
+            //Charge the source wallet and create transfer transaction
+            println("charge")
+            session.sendPreparedStatement(
+                {
+                    parameters()
+                },
+                """
+                    with requests as (
+                        select (
+                            unnest(:source_ids::text[]),
+                            unnest(:sources_are_projects::bool[]),
+                            unnest(:target_ids::text[]),
+                            unnest(:targets_are_projects::bool[]),
+                            unnest(:amounts::bigint[]),
+                            unnest(:categories::text[]),
+                            unnest(:providers::text[]),
+                            to_timestamp(unnest(:start_dates::bigint[])),
+                            to_timestamp(unnest(:end_dates::bigint[])),
+                            unnest(:performed_by::text[]),
+                            unnest(:descriptions::text[])
+                        )::accounting.transfer_request req
+                    )
+                    select accounting.transfer(array_agg(req))
+                    from requests
+                """.trimIndent()
+            )
+
+            //make deposit to target wallet
+            println("deposit")
+            session.sendPreparedStatement(
+                {
+                    parameters()
+                    retain("categories", "providers", "targets_are_projects", "target_ids")
+                },
+                """
+                    with requests as (
+                        select
+                            unnest(:categories::text[]) product_category,
+                            unnest(:providers::text[]) product_provider,
+                            unnest(:targets_are_projects::bool[]) is_project,
+                            unnest(:target_ids::text[]) account_id
+                    )
+                    insert into accounting.wallets (category, owned_by) 
+                    select pc.id, wo.id
+                    from
+                        requests req join
+                        accounting.product_categories pc on
+                            req.product_category = pc.category and
+                            req.product_provider = pc.provider join
+                        accounting.wallet_owner wo on 
+                            ( req.is_project and req.account_id = wo.project_id) 
+                            or (not req.is_project and req.account_id = wo.username)
+                           
+                    on conflict do nothing
+                """
+            )
+            println("create allocation")
+            val rowsAffected = session.sendPreparedStatement(
+                {
+                    parameters()
+                },
+                """
+                    with 
+                        requests as (
+                            select 
+                                nextval('accounting.wallet_allocations_id_seq') alloc_id,
+                                unnest(:categories::text[]) product_category,
+                                unnest(:providers::text[]) product_provider,
+                                unnest(:targets_are_projects::bool[]) is_project,
+                                unnest(:target_ids::text[]) account_id,
+                                unnest(:amounts::bigint[]) balance,
+                                to_timestamp(unnest(:start_dates::bigint[])) start_date,
+                                to_timestamp(unnest(:end_dates::bigint[])) end_date,    
+                                unnest(:performed_by::text[]) performed_by, 
+                                unnest(:descriptions::text[]) description
+                        ),
+                        new_allocations as (
+                            insert into accounting.wallet_allocations
+                                (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+                                allocation_path) 
+                            select
+                                req.alloc_id,
+                                w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
+                                req.end_date, req.alloc_id::text::ltree
+                            from
+                                requests req join
+                                accounting.product_categories pc on
+                                    req.product_category = pc.category and
+                                    req.product_provider = pc.provider join
+                                accounting.wallet_owner wo on
+                                    (req.is_project and req.account_id = wo.project_id) or
+                                    (not req.is_project and req.account_id = wo.username) join
+                                accounting.wallets w on
+                                    w.category = pc.id and
+                                    w.owned_by = wo.id
+                            returning id, balance
+                        )
+                    insert into accounting.transactions
+                        (type, affected_allocation_id, action_performed_by, change, description, start_date)
+                    select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now())
+                    from
+                        new_allocations alloc join
+                        requests r on alloc.id = r.alloc_id
+                """
+            ).rowsAffected
+            println(rowsAffected)
+            println(request.items.size.toLong())
+            if (rowsAffected != request.items.size.toLong()) {
+                println("not same size")
+                //throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+        }
     }
 
     suspend fun updateAllocation(
