@@ -84,9 +84,50 @@ data class WalletBrowseRequest(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
+    val filterType: ProductType? = null
 ) : WithPaginationRequestV2
 
 typealias PushWalletChangeResponse = Unit
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
+data class SubAllocation(
+    val workspaceTitle: String,
+    val workspaceIsProject: Boolean,
+    val remaining: Long,
+    val productCategoryId: ProductCategoryId,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
+    @UCloudApiDoc("Only included if `filterUsageStart` is specified.")
+    val usage: Usage? = null,
+) {
+    @Serializable
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiDoc("""
+        Optional usage data of a sub-allocation.
+        
+        This field will only be included if `filterUsageStart` is specified.
+    """)
+    data class Usage(
+        val usage: Long,
+        val breakdown: PieChart
+    )
+}
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class WalletsBrowseSubAllocationsRequest(
+    val filterType: ProductType? = null,
+    val filterUsageStart: Long? = null,
+    val filterUsageEnd: Long? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+
+typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
@@ -99,6 +140,11 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
     val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
+    }
+
+    val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
+            CommonErrorMessage>("browseSubAllocations") {
+        httpBrowse(baseContext, "subAllocation")
     }
 }
 

@@ -1,79 +1,104 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
-interface TimeRangeQuery {
-    val bucketSize: Long
-    val periodStart: Long
-    val periodEnd: Long
-}
-
-fun TimeRangeQuery.validateTimeRange() {
-    if (periodStart >= periodEnd) throw RPCException("periodStart is larger than periodEnd", HttpStatusCode.BadRequest)
-    if (periodStart < 0L || periodEnd < 0L) throw RPCException("period must be > 0", HttpStatusCode.BadRequest)
-
-    val delta = periodEnd - periodStart
-    if (bucketSize >= delta) {
-        throw RPCException("bucketSize is larger than period", HttpStatusCode.BadRequest)
-    }
-
-    if (bucketSize / delta > 250)  {
-        throw RPCException("bucketSize would result in too many buckets", HttpStatusCode.BadRequest)
-    }
+@Serializable
+data class PieChart(val unit: String, val points: List<Point>) {
+    @Serializable
+    data class Point(val name: String, val value: Double)
 }
 
 @Serializable
-data class UsageRequest(
-    override val bucketSize: Long,
-    override val periodStart: Long,
-    override val periodEnd: Long
-) : TimeRangeQuery {
-    init {
-        validateTimeRange()
-    }
+data class LineChart(val unit: String, val lines: List<Line>) {
+    @Serializable
+    data class Line(val name: String, val points: List<Point>)
+
+    @Serializable
+    data class Point(val timestamp: Long, val value: Double)
+}
+
+interface VisualizationFlags {
+    val filterStartDate: Long?
+    val filterEndDate: Long?
+    val filterType: ProductType?
+    val filterProvider: String?
+    val filterProductCategory: String?
+    val filterAllocation: String?
 }
 
 @Serializable
-data class UsagePoint(
-    val timestamp: Long,
-    val creditsUsed: Long
+data class VisualizationRetrieveUsageRequest(
+    @UCloudApiDoc("If true, the response will contain an entry for ProductType available, otherwise it will contain" +
+            "one for every category available")
+    val combineWalletsOfSameType: Boolean = true,
+    override val filterStartDate: Long? = null,
+    override val filterEndDate: Long? = null,
+    override val filterType: ProductType? = null,
+    override val filterProvider: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterAllocation: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+) : VisualizationFlags, WithPaginationRequestV2
+
+typealias VisualizationRetrieveUsageResponse = PageV2<VisualizationRetrieveUsageResponseItem>
+
+@Serializable
+data class VisualizationRetrieveUsageResponseItem(
+    val type: ProductType,
+    val productCategoryId: ProductCategoryId?,
+    val periodUsage: Long,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
+    val chart: LineChart,
 )
 
 @Serializable
-data class UsageLine(
-    val area: ProductArea,
-    val category: String,
-    val projectPath: String? = null,
-    val projectId: String? = null,
-    val points: List<UsagePoint>
-)
+data class VisualizationRetrieveBreakdownRequest(
+    @UCloudApiDoc("If true, the response will contain an entry for ProductType available, otherwise it will contain" +
+            "one for every category available")
+    val combineWalletsOfSameType: Boolean = true,
+    override val filterStartDate: Long? = null,
+    override val filterEndDate: Long? = null,
+    override val filterType: ProductType? = null,
+    override val filterProvider: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterAllocation: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+) : VisualizationFlags, WithPaginationRequestV2
+
+typealias VisualizationRetrieveBreakdownResponse = PageV2<VisualizationRetrieveBreakdownResponseItem>
 
 @Serializable
-data class UsageChart(
-    val provider: String,
-    val lines: List<UsageLine>
+data class VisualizationRetrieveBreakdownResponseItem(
+    val type: ProductType,
+    val productCategoryId: ProductCategoryId?,
+    val periodUsage: Long,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
+    val chart: PieChart,
 )
 
-@Serializable
-data class UsageResponse(
-    val charts: List<UsageChart>
-)
-
-/**
- * Provides statistics and visualization of resources usage
- */
 object Visualization : CallDescriptionContainer("accounting.visualization") {
     const val baseContext = "/api/accounting/visualization"
 
-    val usage = call<UsageRequest, UsageResponse, CommonErrorMessage>("usage") {
+    val retrieveUsage = call<VisualizationRetrieveUsageRequest, VisualizationRetrieveUsageResponse,
+            CommonErrorMessage>("retrieveUsage") {
         httpRetrieve(baseContext, "usage")
     }
-}
 
+    val retrieveBreakdown = call<VisualizationRetrieveBreakdownRequest, VisualizationRetrieveBreakdownResponse,
+            CommonErrorMessage>("retrieveBreakdown") {
+        httpRetrieve(baseContext, "breakdown")
+    }
+}
