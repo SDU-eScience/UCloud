@@ -857,7 +857,8 @@ begin
             request.end_date,
             request.desired_balance,
             request.initiated_by,
-            source_wallet.category
+            source_wallet.category,
+            request.description
         from
             unpacked_requests request join
             accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
@@ -937,11 +938,10 @@ begin
     )
     insert into accounting.transactions
     (type, affected_allocation_id, action_performed_by, change, description, start_date)
-    select 'deposit', alloc.id, r.initiated_by, alloc.balance, 'Initial balance', now()
+    select 'deposit', alloc.id, r.initiated_by, alloc.balance, r.description , now()
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
-    -- TODO USE THE ACTUAL DESCRIPTION AND NOT INITIAL BALANCE
 end;
 $$;
 
