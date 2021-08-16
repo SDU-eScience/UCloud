@@ -1232,6 +1232,7 @@ begin
                         product_provider, start_date, end_date, performed_by, description,
                         row_number() over () local_request_id
                 from unnest(requests) r
+                where source != target
             ),
             -- NOTE(Dan): product_and_price finds the product relevant for this request. It is used later to resolve the
             -- correct price and resolve the correct wallets.
@@ -1315,7 +1316,7 @@ begin
 
     select count(distinct local_request_id) into charge_count from transfer_result;
     if charge_count != cardinality(requests) then
-        raise exception 'Unable to fulfill all requests. Permission denied/bad request. TRANSFER: % and the card: %', charge_count, cardinality(requests);
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request';
     end if;
 end;
 $$;

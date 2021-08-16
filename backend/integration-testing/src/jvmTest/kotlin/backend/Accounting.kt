@@ -59,7 +59,7 @@ class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
         testFilter = {title, subtitle ->
-            title == "Transfers"  //&& subtitle == "project to user - multiple transfers"
+            title == "Transfers" // && subtitle == "transfer to self"
         }
 
         class Allocation(
@@ -163,7 +163,11 @@ class AccountingTest : IntegrationTest() {
                 val numberOfTransfers: Int = 1,
                 val transferAmount: Long = 500.DKK,
                 val includeRootProjectWallet: Boolean = false,
-                val expectFailure: Boolean = false
+                val expectFailure: Boolean = false,
+                val rootWalletAllocationAmount: Long = 10000.DKK,
+                val alternativeTargetWalletOwner: WalletOwner? = null,
+                val alternativeTransferProduct: ProductCategoryId? = null,
+                val transferToSelf: Boolean = false
             )
 
             class Out(
@@ -184,7 +188,7 @@ class AccountingTest : IntegrationTest() {
 
                     //Create project chain of 3 to ucloud root project and change PIs to user1, user2, user3
                     val leaves = prepareProjectChain(
-                        10000.DKK,
+                        input.rootWalletAllocationAmount,
                         (0 until 3).map { Allocation(true, 1000.DKK) },
                         sampleCompute.category
                     )
@@ -239,14 +243,22 @@ class AccountingTest : IntegrationTest() {
                         amount: Long,
                         performedBy: CreatedUser,
                         expectFailure: Boolean,
-                        categoryId: ProductCategoryId = sampleCompute.category)
+                        categoryId: ProductCategoryId?,
+                        alternativeTarget: WalletOwner?,
+                        transferToSelf: Boolean
+                    )
                     {
+                        val chosenTarget = if ( transferToSelf ) {
+                            source
+                        } else {
+                            alternativeTarget ?: target
+                        }
                         try {
                             Accounting.transfer.call(
                                 bulkRequestOf(
                                     TransferToWalletRequestItem(
-                                        categoryId,
-                                        target,
+                                        categoryId ?: sampleCompute.category,
+                                        chosenTarget,
                                         source,
                                         amount,
                                         performedBy = performedBy.username
@@ -263,14 +275,16 @@ class AccountingTest : IntegrationTest() {
 
                     when {
                         input.sourceIsProject -> {
-                            println("$targetOwner, ${WalletOwner.Project(projectIds.last()!!)}")
                             for (i in 1..input.numberOfTransfers) {
                                 transfer(
                                     WalletOwner.Project(projectIds.last()!!),
                                     targetOwner,
                                     input.transferAmount,
                                     performedBy = user3,
-                                    expectFailure = input.expectFailure
+                                    expectFailure = input.expectFailure,
+                                    alternativeTarget = input.alternativeTargetWalletOwner,
+                                    categoryId = input.alternativeTransferProduct,
+                                    transferToSelf = input.transferToSelf
                                 )
                             }
                         }
@@ -294,7 +308,10 @@ class AccountingTest : IntegrationTest() {
                                     targetOwner,
                                     input.transferAmount,
                                     performedBy = user2,
-                                    expectFailure = input.expectFailure
+                                    expectFailure = input.expectFailure,
+                                    alternativeTarget = input.alternativeTargetWalletOwner,
+                                    categoryId = input.alternativeTransferProduct,
+                                    transferToSelf = input.transferToSelf
                                 )
                             }
                         }
@@ -315,14 +332,14 @@ class AccountingTest : IntegrationTest() {
                         ).orThrow()
                     } else null
 
-                    Out(sourceWallets= sourceWallets, targetWallets = targetWallets, rootWallets = rootWallet)
+                    Out(sourceWallets = sourceWallets, targetWallets = targetWallets, rootWallets = rootWallet)
                 }
 
                 case("project to project - single transfer") {
                     input(
                         In(
                             sourceIsProject = true,
-                            targetIsProject = true
+                            targetIsProject = true,
                         )
                     )
                     check {
@@ -455,13 +472,16 @@ class AccountingTest : IntegrationTest() {
                         val targetWallets = output.targetWallets.items
                         val sourceWallets = output.sourceWallets.items
                         val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
+                        println(targetWallets)
+                        println(sourceWallets)
+                        println(output.rootWallets)
                         assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
                         assertEquals(960.DKK, sourceWallets.single().allocations.single().balance)
                         assertEquals(input.numberOfTransfers, target?.allocations?.size)
                         for (i in 0 until input.numberOfTransfers) {
                             assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
                         }
-                        assertEquals(90.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
+                        assertEquals(960.DKK, output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance)
                     }
                 }
 
@@ -485,7 +505,7 @@ class AccountingTest : IntegrationTest() {
                         for (i in 0 until input.numberOfTransfers) {
                             assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
                         }
-                        assertEquals(900.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
+                        assertEquals(900.DKK, output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance)
                     }
                 }
 
@@ -514,6 +534,76 @@ class AccountingTest : IntegrationTest() {
                         }
                         assertEquals(0.DKK, output.rootWallets?.items?.first()?.allocations?.first()?.balance)
                     }
+                }
+
+                case("project to project - root wallet does not have enough credits but allocations has") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 500.DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                            expectFailure = false,
+                            rootWalletAllocationAmount = 100.DKK
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.PaymentRequired)
+                }
+
+                case("Transfer with negative units") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = (-100).DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("Transfer to non existing wallet") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 100.DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                            alternativeTargetWalletOwner = WalletOwner.Project("Not A project")
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("Source missing product") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 100.DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                            alternativeTransferProduct = sampleIngress.category
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("transfer to self") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 100.DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                            transferToSelf = true
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
                 }
 
             }
