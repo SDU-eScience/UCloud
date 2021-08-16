@@ -911,8 +911,11 @@ begin
         accounting.wallet_owner wo join
         accounting.wallets w on wo.id = w.owned_by
     where
-        (r.recipient_is_project and wo.project_id = r.recipient) or
-        (not r.recipient_is_project and wo.username = r.recipient);
+        w.category = r.category and
+        (
+            (r.recipient_is_project and wo.project_id = r.recipient) or
+            (not r.recipient_is_project and wo.username = r.recipient)
+        );
 
     -- NOTE(Dan): Create allocations and insert transactions
     with new_allocations as (
