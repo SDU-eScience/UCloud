@@ -38,6 +38,28 @@ create trigger require_immutable_product_category
 after update of charge_type, product_type on accounting.product_categories
 for each row execute procedure accounting.require_immutable_product_category();
 
+create or replace function accounting.require_fixed_price_per_unit_for_diff_quota() returns trigger language plpgsql as $$
+declare
+    current_charge_type accounting.charge_type;
+begin
+    select pc.charge_type into current_charge_type
+    from
+        accounting.products p join
+        accounting.product_categories pc on pc.id = p.category
+    where
+        p.id = new.id;
+
+    if (current_charge_type = 'DIFFERENTIAL_QUOTA' and new.price_per_unit != 1) then
+        raise exception 'Price per unit for differential_quota products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_fixed_price_per_unit
+after insert or update on accounting.products
+for each row execute procedure accounting.require_fixed_price_per_unit_for_diff_quota();
+
 ---- /Changes to product_categories ----
 
 ---- Update storage products ----
