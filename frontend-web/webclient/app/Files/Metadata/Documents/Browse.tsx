@@ -62,10 +62,10 @@ export const MetadataBrowse: React.FunctionComponent<{
 
     if (inspecting) {
         return <MetadataHistory metadata={metadata} reload={reload} template={metadata.templates[inspecting]}
-                                file={file} close={() => setInspecting(null)}/>;
+            file={file} close={() => setInspecting(null)} />;
     } else if (creatingForTemplate != null) {
         return <MetadataHistory metadata={metadata} reload={reload} template={creatingForTemplate} file={file}
-                                close={() => setCreatingForTemplate(null)}/>;
+            close={() => setCreatingForTemplate(null)} />;
     }
 
     return <div>
@@ -81,7 +81,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse embedded={true} onTemplateSelect={selectTemplate}/>
+            <MetadataNamespacesBrowse embedded={true} onTemplateSelect={selectTemplate} />
         </ReactModal>
     </div>;
 };
@@ -93,11 +93,13 @@ interface MetadataRow {
 }
 
 const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
-    Icon: ({size}) => <SvgFt width={size} height={size} type={"text"} ext={"meta"}
-                          color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-                          hasExt={true}/>,
-    MainTitle: ({resource}) => !resource ? null : <>{resource.template.title}</>,
-    Stats: ({resource}) => {
+    Icon({size}) {
+        return <SvgFt width={size} height={size} type={"text"} ext={"meta"}
+            color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+            hasExt={true} />
+    },
+    MainTitle({resource}) { return !resource ? null : <>{resource.template.title}</>},
+    Stats({resource}) {
         if (!resource) return null;
         const allApproved = resource.docs.every(it =>
             it.type === "deleted" ||
@@ -108,13 +110,13 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
         );
         return <>
             <ListRowStat icon={"hourglass"}
-                         children={`${resource.docs.length} version` + (resource.docs.length > 1 ? "s" : "")}/>
+                children={`${resource.docs.length} version` + (resource.docs.length > 1 ? "s" : "")} />
             {allApproved ?
                 <ListRowStat textColor={"green"} color={"green"} icon={"verified"}
-                             children={"All entries approved"}/>
+                    children={"All entries approved"} />
                 :
                 <ListRowStat textColor={"red"} color={"red"} icon={"verified"}
-                             children={"Updates are pending approval"}/>
+                    children={"Updates are pending approval"} />
             }
         </>;
     }

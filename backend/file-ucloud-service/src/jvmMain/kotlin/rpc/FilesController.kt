@@ -12,7 +12,6 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
-import dk.sdu.cloud.file.ucloud.api.UCloudFilesDownloadRequest
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Controller
 import io.ktor.application.*
@@ -47,6 +46,8 @@ class FilesController(
                     UCloudFile.create(path),
                     request.browse.flags,
                     request.browse.normalize(),
+                    FilesSortBy.valueOf(request.browse.sortBy ?: "PATH"),
+                    request.browse.sortDirection
                 )
             )
         }

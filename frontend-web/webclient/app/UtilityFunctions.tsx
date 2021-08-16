@@ -79,6 +79,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "md":
         case "markdown":
             return "markdown";
+        case "zig":
         case "swift":
         case "kt":
         case "kts":
@@ -227,6 +228,7 @@ export function isExtPreviewSupported(ext: string): boolean {
         case "f90":
         case "f95":
         case "ini":
+        case "zig":
             return true;
         default:
             return false;
@@ -532,7 +534,7 @@ export function onNotificationAction(
 
 function b64DecodeUnicode(str) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
-    return decodeURIComponent(atob(str).split('').map(function(c) {
+    return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }
@@ -564,7 +566,7 @@ export function parseJWT(encodedJWT: string): JWT | null {
 }
 
 export type EmptyObject = {
-    [K in any] : never
+    [K in any]: never
 }
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
 export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;

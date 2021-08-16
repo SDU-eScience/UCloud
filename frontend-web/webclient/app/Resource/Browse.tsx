@@ -118,7 +118,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                .find(it => it.product.id === selectedProduct.id &&
+                ?.find(it => it.product.id === selectedProduct.id &&
                     it.product.category.id === selectedProduct.category.id) ?? null;
         }
         return null;
@@ -325,6 +325,12 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             entityNameSingular={api.title} entityNamePlural={api.titlePlural}
                             extra={callbacks} operations={operations} />
                         {props.header}
+                        <ResourceFilter
+                            embedded
+                            pills={api.filterPills} filterWidgets={api.filterWidgets}
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            onApplyFilters={reloadRef.current} />
                     </>
                 }
             </StickyBox>
