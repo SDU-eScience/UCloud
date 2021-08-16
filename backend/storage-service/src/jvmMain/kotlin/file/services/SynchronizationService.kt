@@ -153,8 +153,8 @@ class SynchronizationService(
     }
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
-        db.withSession { session ->
-            val affectedRows = session.sendPreparedStatement(
+        val affectedRows = db.withSession { session ->
+            session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
                     setParameter("user", actor.username)
@@ -164,10 +164,10 @@ class SynchronizationService(
                     where id in (select unnest(:ids::text[])) and user_id = :user
                 """
             ).rowsAffected
+        }
 
-            if (affectedRows > 0) {
-                syncthing.writeConfig()
-            }
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
 
             Mounts.unmount.call(
                 UnmountRequest(
