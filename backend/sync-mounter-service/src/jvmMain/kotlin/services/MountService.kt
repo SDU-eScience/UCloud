@@ -24,8 +24,8 @@ class MountService(
             val source = File(joinPath(config.cephfsBaseMount, item.path))
             if (!source.exists() ||
                 !source.isDirectory ||
-                !(source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home")) ||
-                    source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "projects"))
+                !(source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home/")) ||
+                    source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "projects/"))
                 )
 
             ) {
@@ -68,7 +68,6 @@ class MountService(
 
                 val pid = ProcessHandle.current().pid()
                 val realSourcePath = Paths.get(joinPath("/proc", pid.toString(), "fd", fileDescriptors.last().toString()))
-                println(realSourcePath.pathString)
 
                 CLibrary.INSTANCE.mount(
                     realSourcePath.pathString,

@@ -17,7 +17,20 @@ object SyncMounterService : Service {
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
         val config = micro.configuration.requestChunkAt<SyncMounterConfiguration>("syncMount")
-        return Server(micro, config)
+        val normalizedConfig = config.copy(
+            cephfsBaseMount = if (config.cephfsBaseMount.endsWith("/")) {
+                    config.cephfsBaseMount
+                } else {
+                    config.cephfsBaseMount + "/"
+                },
+            syncBaseMount = if (config.syncBaseMount.endsWith("/")) {
+                config.syncBaseMount
+            } else {
+                config.syncBaseMount + "/"
+            }
+        )
+
+        return Server(micro, normalizedConfig)
     }
 }
 
