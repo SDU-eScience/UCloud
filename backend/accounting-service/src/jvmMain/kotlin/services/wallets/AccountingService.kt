@@ -220,8 +220,7 @@ class AccountingService(
                         insert into accounting.wallet_owner (username, project_id) 
                         values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
                         on conflict do nothing
-                    """,
-                    debug = true
+                    """
                 ).rowsAffected.also { println("owners $it") }
             } catch (ex: GenericDatabaseException) {
                 if (ex.errorCode == PostgresErrorCodes.FOREIGN_KEY_VIOLATION) {
@@ -253,9 +252,8 @@ class AccountingService(
                             req.username = wo.username or
                             req.project_id = wo.project_id
                     on conflict do nothing
-                """,
-                debug = true
-            ).rowsAffected.also { println("wallets $it") }
+                """
+            ).rowsAffected
 
             val rowsAffected = session.sendPreparedStatement(
                 parameters,
@@ -301,15 +299,13 @@ class AccountingService(
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
-                """,
-                debug = true
+                """
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }
-        println("All good? Why?")
     }
 
     suspend fun transfer(
@@ -389,13 +385,11 @@ class AccountingService(
                 """,debug = true
             ).rows
                 .forEach {
-                    println(it.getBoolean(0)!!)
                     if (!it.getBoolean(0)!!) {
                         throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired)
                     }
                 }
             //Charge the source wallet and create transfer transaction
-            println("charge")
             session.sendPreparedStatement(
                 {
                     parameters()
@@ -422,7 +416,6 @@ class AccountingService(
             )
 
             //make deposit to target wallet
-            println("deposit")
             session.sendPreparedStatement(
                 {
                     parameters()
@@ -499,11 +492,8 @@ class AccountingService(
                         requests r on alloc.id = r.alloc_id
                 """
             ).rowsAffected
-            println(rowsAffected)
-            println(request.items.size.toLong())
             if (rowsAffected != request.items.size.toLong()) {
-                println("not same size")
-                //throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }
     }

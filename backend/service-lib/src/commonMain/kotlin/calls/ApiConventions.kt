@@ -600,22 +600,19 @@ verification API to cleanup these resources later.
 @Serializable
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
-        if (items.size > 1_000) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        if (items.size > 1_000 || items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
     }
 }
 
 fun <T : Any> bulkRequestOf(vararg items: T): BulkRequest<T> {
-    if (items.isEmpty()) error("No items provided")
     return BulkRequest(listOf(*items))
 }
 
 fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
-    if (items.isEmpty()) error("No items provided")
     return BulkRequest(items.toList())
 }
 
 fun <T : Any> bulkResponseOf(vararg items: T): BulkResponse<T> {
-    if (items.isEmpty()) error("No items provided")
     return BulkResponse(listOf(*items))
 }
 
