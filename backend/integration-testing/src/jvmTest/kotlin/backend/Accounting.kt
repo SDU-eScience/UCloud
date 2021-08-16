@@ -58,9 +58,9 @@ suspend fun findProjectWallet(
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
-        testFilter = {title, subtitle ->
-            title == "Transfers" // && subtitle == "transfer to self"
-        }
+        /*testFilter = {title, subtitle ->
+            title == "Transfers"  && subtitle == "no request"
+        }*/
 
         class Allocation(
             val isProject: Boolean,
@@ -167,7 +167,8 @@ class AccountingTest : IntegrationTest() {
                 val rootWalletAllocationAmount: Long = 10000.DKK,
                 val alternativeTargetWalletOwner: WalletOwner? = null,
                 val alternativeTransferProduct: ProductCategoryId? = null,
-                val transferToSelf: Boolean = false
+                val transferToSelf: Boolean = false,
+                val noRequest: Boolean = false
             )
 
             class Out(
@@ -245,7 +246,8 @@ class AccountingTest : IntegrationTest() {
                         expectFailure: Boolean,
                         categoryId: ProductCategoryId?,
                         alternativeTarget: WalletOwner?,
-                        transferToSelf: Boolean
+                        transferToSelf: Boolean,
+                        noRequest: Boolean
                     )
                     {
                         val chosenTarget = if ( transferToSelf ) {
@@ -255,15 +257,19 @@ class AccountingTest : IntegrationTest() {
                         }
                         try {
                             Accounting.transfer.call(
-                                bulkRequestOf(
-                                    TransferToWalletRequestItem(
-                                        categoryId ?: sampleCompute.category,
-                                        chosenTarget,
-                                        source,
-                                        amount,
-                                        performedBy = performedBy.username
+                                if (noRequest) {
+                                    BulkRequest<TransferToWalletRequestItem>(emptyList())
+                                } else {
+                                    bulkRequestOf(
+                                        TransferToWalletRequestItem(
+                                            categoryId ?: sampleCompute.category,
+                                            chosenTarget,
+                                            source,
+                                            amount,
+                                            performedBy = performedBy.username
+                                        )
                                     )
-                                ),
+                                },
                                 performedBy.client
                             ).orThrow()
                         } catch (ex: RPCException) {
@@ -284,7 +290,8 @@ class AccountingTest : IntegrationTest() {
                                     expectFailure = input.expectFailure,
                                     alternativeTarget = input.alternativeTargetWalletOwner,
                                     categoryId = input.alternativeTransferProduct,
-                                    transferToSelf = input.transferToSelf
+                                    transferToSelf = input.transferToSelf,
+                                    noRequest = input.noRequest
                                 )
                             }
                         }
@@ -311,7 +318,8 @@ class AccountingTest : IntegrationTest() {
                                     expectFailure = input.expectFailure,
                                     alternativeTarget = input.alternativeTargetWalletOwner,
                                     categoryId = input.alternativeTransferProduct,
-                                    transferToSelf = input.transferToSelf
+                                    transferToSelf = input.transferToSelf,
+                                    noRequest = input.noRequest
                                 )
                             }
                         }
@@ -472,9 +480,6 @@ class AccountingTest : IntegrationTest() {
                         val targetWallets = output.targetWallets.items
                         val sourceWallets = output.sourceWallets.items
                         val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
-                        println(targetWallets)
-                        println(sourceWallets)
-                        println(output.rootWallets)
                         assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
                         assertEquals(960.DKK, sourceWallets.single().allocations.single().balance)
                         assertEquals(input.numberOfTransfers, target?.allocations?.size)
@@ -601,6 +606,20 @@ class AccountingTest : IntegrationTest() {
                             numberOfTransfers = 1,
                             includeRootProjectWallet = true,
                             transferToSelf = true
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                case("no request") {
+                    input(
+                        In(
+                            sourceIsProject = true,
+                            targetIsProject = true,
+                            transferAmount = 100.DKK,
+                            numberOfTransfers = 1,
+                            includeRootProjectWallet = true,
+                            noRequest = true
                         )
                     )
                     expectStatusCode(HttpStatusCode.BadRequest)
