@@ -66,7 +66,9 @@ class MountService(
                     CLibrary.INSTANCE.close(previousFd)
                 }
 
-                val realSourcePath = Paths.get("/proc/self/fd/${fileDescriptors.last()}").readSymbolicLink()
+                val pid = ProcessHandle.current().pid()
+                val realSourcePath = Paths.get(joinPath("/proc", pid.toString(), "fd", fileDescriptors.last().toString()))
+                println(realSourcePath.pathString)
 
                 CLibrary.INSTANCE.mount(
                     realSourcePath.pathString,
