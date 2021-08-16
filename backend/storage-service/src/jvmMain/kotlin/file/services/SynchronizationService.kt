@@ -154,6 +154,15 @@ class SynchronizationService(
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
         val affectedRows = db.withSession { session ->
+            Mounts.unmount.call(
+                UnmountRequest(
+                    request.items.map { MountFolderId(it.id) }
+                ),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
             session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
@@ -168,15 +177,6 @@ class SynchronizationService(
 
         if (affectedRows > 0) {
             syncthing.writeConfig()
-
-            Mounts.unmount.call(
-                UnmountRequest(
-                    request.items.map { MountFolderId(it.id) }
-                ),
-                authenticatedClient
-            ).orRethrowAs {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-            }
         }
     }
 
