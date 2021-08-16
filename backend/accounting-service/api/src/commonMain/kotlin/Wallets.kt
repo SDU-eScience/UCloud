@@ -118,6 +118,7 @@ data class SubAllocation(
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class WalletsBrowseSubAllocationsRequest(
+    val sortBy: SortSubAllocationsBy? = null,
     val filterType: ProductType? = null,
     val filterUsageStart: Long? = null,
     val filterUsageEnd: Long? = null,
@@ -126,6 +127,11 @@ data class WalletsBrowseSubAllocationsRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
+
+enum class SortSubAllocationsBy {
+    GRANT_ALLOCATION,
+    PRODUCT_CATEGORY
+}
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
