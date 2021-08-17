@@ -6803,7 +6803,7 @@ export interface Wallet {
     paysFor: ProductCategoryId,
 }
 export interface ProductCategoryId {
-    id: string,
+    name: string,
     provider: string,
 }
 export interface AddToBalanceBulkRequest {

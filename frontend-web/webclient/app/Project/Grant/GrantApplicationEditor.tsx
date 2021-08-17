@@ -269,7 +269,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 return {
                     wallet: {
                         paysFor: {
-                            id: it.productCategory,
+                            name: it.productCategory,
                             provider: it.productProvider
                         },
                         id: "unknown",
@@ -311,7 +311,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 product.paymentModel === "FREE_BUT_REQUIRE_BALANCE";
 
             const existing = availableProducts.find(it =>
-                it.category === product.category.id &&
+                it.category === product.category.name &&
                 it.provider === product.category.provider
             );
 
@@ -321,7 +321,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 availableProducts.push({
                     isFreeWithBalanceCheck,
                     provider: product.category.provider,
-                    category: product.category.id,
+                    category: product.category.name,
                     area: productToArea(product)
                 })
             }
@@ -391,7 +391,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 wallet: {
                     type: "USER",
                     id: "unknown",
-                    paysFor: {id: product.category, provider: product.provider}
+                    paysFor: {name: product.category, provider: product.provider}
                 },
                 isFreeWithBalanceCheck: product.isFreeWithBalanceCheck
             });
@@ -414,7 +414,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
 }
 
 function productCategoryId(pid: ProductCategoryId): string {
-    return `${pid.id}/${pid.provider}`;
+    return `${pid.name}/${pid.provider}`;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -459,7 +459,7 @@ const StorageRequestCard: React.FunctionComponent<{
                     <tr>
                         <th>Product</th>
                         <td>
-                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.name}
                             <Icon
                                 name={"ftFileSystem"}
                                 size={40}
@@ -605,13 +605,13 @@ const GenericRequestCard: React.FunctionComponent<{
                                     }
                                 }}
                             />
-                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.name}
                         </Label>
                     </Box>
                     {wb.area !== "LICENSE" ? (
                         <Icon name={icon} size={40} />
                     ) : (
-                        <AppToolLogo name={wb.wallet.paysFor.id} type={"TOOL"} size={"40px"} />
+                        <AppToolLogo name={wb.wallet.paysFor.name} type={"TOOL"} size={"40px"} />
                     )}
                 </Flex>
 
@@ -632,7 +632,7 @@ const GenericRequestCard: React.FunctionComponent<{
                         <tr>
                             <th>Product</th>
                             <td>
-                                {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                                {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.name}
                                 <Icon
                                     name={icon}
                                     size={40}
@@ -774,7 +774,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return {
                     creditsRequested,
                     quotaRequested,
-                    productCategory: wb.wallet.paysFor.id,
+                    productCategory: wb.wallet.paysFor.name,
                     productProvider: wb.wallet.paysFor.provider
                 } as ResourceRequest;
             }).filter(it => it !== null) as ResourceRequest[];
@@ -874,28 +874,28 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         const creditsInput = document.querySelector<HTMLInputElement>(
                             `input[data-target="${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 
                         const quotaCredits = document.querySelector<HTMLInputElement>(
                             `input[data-target="quota-${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 
                         const durationInput = document.querySelector<HTMLInputElement>(
                             `input[data-target="duration-${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 
                         const freeButRequireBalanceCheckbox = document.querySelector<HTMLInputElement>(
                             `input[data-target="checkbox-${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 

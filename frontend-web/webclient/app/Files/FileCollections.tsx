@@ -13,7 +13,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         onSelect={props.onSelect}
         embedded={props.embedded}
         onInlineCreation={((text, product, cb) => ({
-                product: {id: product.id, category: product.category.id, provider: product.category.provider},
+                product: {id: product.id, category: product.category.name, provider: product.category.provider},
                 title: text
             })
         )}

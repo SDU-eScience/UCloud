@@ -99,7 +99,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
-        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
         setUsageParams(usage({
             bucketSize: durationOption.bucketSize,
@@ -213,7 +213,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>In Progress</TableCell>
-                                            <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                            <TableCell textAlign="right">{apps.data.items.length}+</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>

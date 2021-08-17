@@ -49,7 +49,7 @@ const GrantCopies: React.FunctionComponent<{licenseServer: KubernetesLicense, on
             type: "PROJECT",
             paysFor: {
                 provider: UCLOUD_PROVIDER,
-                id: props.licenseServer.id
+                name: props.licenseServer.id
             }
         };
 
@@ -281,7 +281,7 @@ const LicenseServers: React.FunctionComponent = () => {
 
                 availability: isAvailable ? {type: "available"} : {type: "unavailable", reason},
                 category: {
-                    id: name,
+                    name: name,
                     provider: UCLOUD_PROVIDER
                 },
                 description,

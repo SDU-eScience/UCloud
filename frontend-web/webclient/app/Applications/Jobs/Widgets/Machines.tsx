@@ -33,7 +33,7 @@ export const Machines: React.FunctionComponent<{
                     const ref = JSON.parse(value) as ComputeProductReference;
                     const newMachine = props.machines.find(it =>
                         it.id === ref.id &&
-                        it.category.id === ref.category &&
+                        it.category.name === ref.category &&
                         it.category.provider === ref.provider
                     );
 
@@ -183,7 +183,7 @@ export function setMachineReservation(compute: UCloud.accounting.ProductNS.Compu
     } else {
         setMachineReservationFromRef({
             provider: compute.category.provider,
-            category: compute.category.id,
+            category: compute.category.name,
             id: compute.id
         });
     }

@@ -122,14 +122,14 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
 
-    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
+    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
-        emptyPage
+        emptyPageV2
     );
 
     const [ingoingApps, fetchIngoingApps] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
-        emptyPage
+        emptyPageV2
     );
 
     React.useEffect(() => {
@@ -152,12 +152,10 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
         }));
         fetchOutgoingApps(listOutgoingApplications({
             itemsPerPage: 10,
-            page: 0,
             filter: GrantApplicationFilter.SHOW_ALL
         }));
         fetchIngoingApps(ingoingGrantApplications({
             itemsPerPage: 10,
-            page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
     }
@@ -329,11 +327,11 @@ function DashboardResources({products, loading, quota}: {
     quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
-    const productsByCategory = groupBy(products, it => `${it.category.id}-${it.category.provider}`);
+    const productsByCategory = groupBy(products, it => `${it.category.name}-${it.category.provider}`);
     const wallets: { category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean }[] = [];
     Object.values(productsByCategory).forEach(group => {
         if (group.length === 0) return;
-        const category = group[0].category.id;
+        const category = group[0].category.name;
         const provider = group[0].category.provider;
         const balance = group[0].balance!;
         const isFreeWithBalanceCheck = group
@@ -377,7 +375,7 @@ function DashboardResources({products, loading, quota}: {
                                             {n.isFreeWithBalanceCheck ? null :
                                                 <Balance
                                                     amount={n.balance}
-                                                    productCategory={{id: n.category, provider: n.provider}}
+                                                    productCategory={{name: n.category, provider: n.provider}}
                                                 />
                                             }
                                         </TableCell>
@@ -408,8 +406,8 @@ function DashboardResources({products, loading, quota}: {
 }
 
 const DashboardGrantApplications: React.FunctionComponent<{
-    outgoingApps: APICallState<Page<GrantApplication>>,
-    ingoingApps: APICallState<Page<GrantApplication>>
+    outgoingApps: APICallState<PageV2<GrantApplication>>,
+    ingoingApps: APICallState<PageV2<GrantApplication>>
 }> = ({outgoingApps, ingoingApps}) => {
     const none = outgoingApps.data.items.length === 0 && ingoingApps.data.items.length === 0;
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
