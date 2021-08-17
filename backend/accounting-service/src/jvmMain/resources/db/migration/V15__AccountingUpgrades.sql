@@ -47,6 +47,28 @@ create trigger require_immutable_product_category
 after update of charge_type, product_type on accounting.product_categories
 for each row execute procedure accounting.require_immutable_product_category();
 
+create or replace function accounting.require_fixed_price_per_unit_for_diff_quota() returns trigger language plpgsql as $$
+declare
+    current_charge_type accounting.charge_type;
+begin
+    select pc.charge_type into current_charge_type
+    from
+        accounting.products p join
+        accounting.product_categories pc on pc.id = p.category
+    where
+        p.id = new.id;
+
+    if (current_charge_type = 'DIFFERENTIAL_QUOTA' and new.price_per_unit != 1) then
+        raise exception 'Price per unit for differential_quota products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_fixed_price_per_unit
+after insert or update on accounting.products
+for each row execute procedure accounting.require_fixed_price_per_unit_for_diff_quota();
+
 ---- /Changes to product_categories ----
 
 ---- Update storage products ----
@@ -834,7 +856,8 @@ begin
             request.end_date,
             request.desired_balance,
             request.initiated_by,
-            source_wallet.category
+            source_wallet.category,
+            request.description
         from
             unpacked_requests request join
             accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
@@ -914,11 +937,10 @@ begin
     )
     insert into accounting.transactions
     (type, affected_allocation_id, action_performed_by, change, description, start_date)
-    select 'deposit', alloc.id, r.initiated_by, alloc.balance, 'Initial balance', now()
+    select 'deposit', alloc.id, r.initiated_by, alloc.balance, r.description , now()
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
-    -- TODO USE THE ACTUAL DESCRIPTION AND NOT INITIAL BALANCE
 end;
 $$;
 
