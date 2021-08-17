@@ -188,7 +188,7 @@ class SynchronizationService(
                 },
                 """
                 select id from storage.synchronized_folders
-                where path like :path || '/%'
+                where path like :path || '/%' or path = :path
             """
             ).rows.map { it.getField(SynchronizedFoldersTable.id) }
 
