@@ -66,6 +66,7 @@ class ProductService(
                     val providers by parameterList<String>()
                     val unitsOfPrice by parameterList<String>()
                     val freeToUse by parameterList<Boolean>()
+                    val description by parameterList<String>()
 
                     for (req in request.items) {
                         names.add(req.name)
@@ -78,6 +79,7 @@ class ProductService(
                         unitsOfPrice.add(req.unitOfPrice.name)
                         freeToUse.add(req.freeToUse)
                         licenseTags.add(if (req is Product.License) defaultMapper.encodeToString(req.tags) else null)
+                        description.add(req.description)
                     }
                 },
                 """
@@ -92,14 +94,15 @@ class ProductService(
                             unnest(:providers::text[]) provider,
                             unnest(:units_of_price::accounting.product_price_unit[]) unit_of_price,
                             unnest(:free_to_use::boolean[]) free_to_use,
-                            unnest(:license_tags::jsonb[]) license_tags
+                            unnest(:license_tags::jsonb[]) license_tags,
+                            unnest(:description::text[]) description
                     )
                     insert into accounting.products
                         (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
-                         unit_of_price, free_to_use, version) 
+                         unit_of_price, free_to_use, version, description)
                     select
                         req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-                        pc.id, req.unit_of_price, req.free_to_use, coalesce(existing.version + 1, 1)
+                        pc.id, req.unit_of_price, req.free_to_use, coalesce(existing.version + 1, 1), req.description
                     from
                         requests req join
                         accounting.product_categories pc on
@@ -108,6 +111,15 @@ class ProductService(
                         accounting.products existing on
                             req.uname = existing.name and
                             existing.category = pc.id
+                    where
+                        existing.version is null or
+                        existing.version = (
+                            select max(version) highest_version
+                            from accounting.products p
+                            where
+                                p.name = existing.name and
+                                p.category = existing.category
+                        )
                 """
             )
         }
@@ -118,7 +130,7 @@ class ProductService(
         request: ProductsRetrieveRequest
     ): Product {
         return db.withSession { session ->
-            val (params, query) = queryProducts(actorAndProject, request)
+            val (params, query) = queryProducts(actorAndProject, request, null)
             session.sendPreparedStatement(
                 params,
                 query
@@ -137,14 +149,14 @@ class ProductService(
             actorAndProject.actor,
             request.normalize(),
             create = { session ->
-                val (params, query) = queryProducts(actorAndProject, request)
+                val (params, query) = queryProducts(actorAndProject, request, request.showAllVersions)
                 session.sendPreparedStatement(
                     params
                     ,
                     """
                         declare c cursor for 
                         $query
-                    """
+                    """, debug = true
                 )
             },
             mapper = {_, rows ->
@@ -154,7 +166,7 @@ class ProductService(
     }
 
 
-    private fun queryProducts(actorAndProject: ActorAndProject, flags: ProductFlags): PartialQuery {
+    private fun queryProducts(actorAndProject: ActorAndProject, flags: ProductFlags, showAllVersions: Boolean?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("name_filter", flags.filterName)
@@ -162,6 +174,7 @@ class ProductService(
                 setParameter("product_filter", flags.filterArea?.name)
                 setParameter("category_filter", flags.filterCategory)
                 setParameter("version_filter", flags.filterVersion)
+                setParameter("show_all_versions", showAllVersions == true)
                 setParameter("include_balance", flags.includeBalance == true)
                 setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                 setParameter("account_is_project", actorAndProject.project != null)
@@ -208,20 +221,6 @@ class ProductService(
                     (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
                 )
                 from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
-                    join
-                        (
-                            select name, category, max(version) highest_version
-                            from accounting.products
-                            where (
-                            :version_filter::bigint is null or
-                            version = :version_filter
-                        )
-                            group by name, category
-                        ) as highversion on (
-                            highversion.name = p.name and
-                            highversion.category = p.category and
-                            highversion.highest_version = p.version
-                        )
                     left outer join my_wallets mw
                         on (pc2.id = mw.wallet_category and pc2.provider = mw.provider and p.version = mw.version)
                 where
@@ -247,6 +246,19 @@ class ProductService(
                             (mw.balance is not null and mw.balance > 0) or
                             (p.free_to_use)
                         ) or true
+                    ) and 
+                    (
+                        :show_all_versions or 
+                        p.version = (
+                            select max(version) highest_version
+                            from accounting.products p2
+                            where (
+                                :version_filter::bigint is null or
+                                version = :version_filter and
+                                p.name = p2.name and
+                                p.category = p2.category
+                            )
+                        )
                     )
                 order by pc2.provider, pc2.category
             """

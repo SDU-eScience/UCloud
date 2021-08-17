@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.checkMinimumValue
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.adminClient
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
@@ -139,6 +140,7 @@ class ProductTest : IntegrationTest() {
                 val createZeroProducts: Boolean = false,
                 val createSingleProduct: Boolean = false,
                 val createMultipleProducts: Boolean = false,
+                val createMultipleVersions: Boolean = false,
                 val request: ProductsBrowseRequest = ProductsBrowseRequest(),
                 val createWallet: Boolean = true,
                 val additionalProvider: Boolean = false
@@ -163,6 +165,25 @@ class ProductTest : IntegrationTest() {
                         }
                         input.createMultipleProducts -> {
                             createSampleProducts()
+                        }
+                        input.createMultipleVersions -> {
+                            createProvider()
+                            Products.create.call(
+                                BulkRequest(listOf(sampleCompute)),
+                                serviceClient
+                            )
+                            Products.create.call(
+                                BulkRequest(listOf(sampleCompute.copy(pricePerUnit = 20.DKK))),
+                                serviceClient
+                            )
+                            Products.create.call(
+                                BulkRequest(listOf(sampleCompute.copy(pricePerUnit = 50.DKK))),
+                                serviceClient
+                            )
+                            Products.create.call(
+                                BulkRequest(listOf(sampleCompute.copy(pricePerUnit = 10.DKK))),
+                                serviceClient
+                            )
                         }
                     }
                     if (input.additionalProvider) {
@@ -214,6 +235,16 @@ class ProductTest : IntegrationTest() {
                     check {
                         assertEquals(output.page.items.size, sampleProducts.size)
                         assertNull(output.page.items.first().balance)
+                    }
+                }
+
+                case("multiple versions") {
+                    input(In(createMultipleVersions = true))
+                    check {
+                        assertEquals(1, output.page.items.size)
+                        assertNull(output.page.items.first().balance)
+                        assertEquals(4, output.page.items.first().version)
+                        assertEquals(10.DKK, output.page.items.first().pricePerUnit)
                     }
                 }
 
@@ -276,7 +307,7 @@ class ProductTest : IntegrationTest() {
                         )
                     )
                     check {
-                        assertEquals(4, output.page.items.size)
+                        assertEquals(sampleProducts.size, output.page.items.size)
                         assertTrue(output.page.items.contains(sampleCompute))
                         assertTrue(output.page.items.contains(sampleIngress))
                         assertTrue(output.page.items.contains(sampleNetworkIp))
@@ -295,7 +326,7 @@ class ProductTest : IntegrationTest() {
                         )
                     )
                     check {
-                        assertEquals(4, output.page.items.size)
+                        assertEquals(sampleProducts.size, output.page.items.size)
                         assertTrue(output.page.items.contains(sampleCompute))
                         assertTrue(output.page.items.contains(sampleIngress))
                         assertTrue(output.page.items.contains(sampleNetworkIp))
@@ -376,8 +407,9 @@ class ProductTest : IntegrationTest() {
                         )
                     )
                     check {
-                        assertEquals(1, output.page.items.size)
-                        assertEquals(sampleStorage, output.page.items.first())
+                        assertEquals(2, output.page.items.size)
+                        assertTrue(output.page.items.contains(sampleStorageDifferential))
+                        assertTrue(output.page.items.contains(sampleStorage))
                     }
                 }
 
@@ -614,6 +646,7 @@ class ProductTest : IntegrationTest() {
                 }
             }
         }
+
         run {
             class In(
                 val browseRequest: ProductsBrowseRequest? = null,
@@ -625,11 +658,22 @@ class ProductTest : IntegrationTest() {
                 val product: Product?,
                 val page: PageV2<Product>?
             )
-
+            
             test<In, Out>("browsing and retrieving newest versions") {
                 execute {
                     createSampleProducts()
-                    createSampleProducts()
+                    Products.create.call(
+                        BulkRequest(
+                            listOf(
+                                sampleStorage.copy(pricePerUnit = 222),
+                                sampleCompute.copy(pricePerUnit = 333),
+                                sampleIngress.copy(pricePerUnit = 1),
+                                sampleNetworkIp.copy(pricePerUnit = 2),
+                                sampleStorageDifferential.copy(description = "new")
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
 
                     val client: AuthenticatedClient
 
@@ -691,14 +735,13 @@ class ProductTest : IntegrationTest() {
                     input(
                         In(
                             browseRequest = ProductsBrowseRequest(
-                                filterArea = ProductType.STORAGE,
+                                filterName = sampleStorage.name,
                                 includeBalance = true
                             ),
                             createWallet = true
                         )
                     )
                     check {
-                        println(output.page)
                         assertNotNull(output.page)
                         val page = output.page!!
                         assertEquals(1, page.items.size)
@@ -706,6 +749,30 @@ class ProductTest : IntegrationTest() {
                         assertEquals(1000000, item.balance)
                         assertEquals(sampleStorage.name, item.name)
                         assertEquals(2, item.version)
+                    }
+                }
+                
+                case("browse all versions") {
+                    input(
+                        In(
+                            browseRequest = ProductsBrowseRequest(
+                                showAllVersions = true,
+                            )
+                        )
+                    )
+                    
+                    check {
+                        assertNotNull(output.page)
+                        val page = output.page!!
+                        assertEquals(sampleProducts.size + 5, page.items.size)
+                        sampleProducts.forEach { product ->
+                            assertTrue(page.items.contains(product))
+                        }
+                        assertTrue(page.items.contains(sampleStorage.copy(pricePerUnit = 222, version = 2)))
+                        assertTrue(page.items.contains(sampleCompute.copy(pricePerUnit = 333, version = 2)))
+                        assertTrue(page.items.contains(sampleIngress.copy(pricePerUnit = 1, version = 2)))
+                        assertTrue(page.items.contains(sampleNetworkIp.copy(pricePerUnit = 2, version = 2)))
+                        assertTrue(page.items.contains(sampleStorageDifferential.copy(description = "new", version = 2)))
                     }
                 }
 
@@ -722,7 +789,7 @@ class ProductTest : IntegrationTest() {
                     check {
                         assertNotNull(output.product)
                         val product = output.product!!
-                        assertEquals(sampleStorage.copy(version = 2), product)
+                        assertEquals(sampleStorage.copy(pricePerUnit = 222, version = 2), product)
                     }
                 }
 
