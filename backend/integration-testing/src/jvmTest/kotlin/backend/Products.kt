@@ -43,6 +43,24 @@ val sampleCompute2 = sampleCompute.copy(
     memoryInGigs = 2
 )
 
+val sampleCompute3 = sampleCompute.copy(
+    name = "u1-standard-3",
+    cpu = 3,
+    memoryInGigs = 3
+)
+
+val sampleCompute4 = sampleCompute.copy(
+    name = "u1-standard-4",
+    cpu = 4,
+    memoryInGigs = 4
+)
+
+val sampleCompute5 = sampleCompute.copy(
+    name = "u1-standard-5",
+    cpu = 5,
+    memoryInGigs = 5
+)
+
 val sampleComputeOtherProvider = sampleCompute.copy(
     category = ProductCategoryId("standard", OTHER_PROVIDER)
 )
@@ -74,7 +92,8 @@ val sampleNetworkIp = Product.NetworkIP(
     ProductCategoryId("public-ip", UCLOUD_PROVIDER)
 )
 
-val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp, sampleStorageDifferential)
+val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp, sampleStorageDifferential,
+    sampleCompute2, sampleCompute3, sampleCompute4, sampleCompute5)
 val sampleProductsOtherProvider = listOf(sampleComputeOtherProvider, sampleStorageOtherProvider)
 
 suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
@@ -105,10 +124,12 @@ suspend fun createSampleProducts() {
             throw ex
         }
     }
-    Products.create.call(
-        BulkRequest(sampleProducts),
-        serviceClient
-    ).orThrow()
+    for (product in sampleProducts) {
+        Products.create.call(
+            BulkRequest(listOf(product)),
+            serviceClient
+        ).orThrow()
+    }
 }
 
 suspend fun createAdditionalProductsFromUcloudProvider() {

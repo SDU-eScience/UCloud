@@ -80,7 +80,7 @@ object UCloudLauncher : Loggable {
 
     var isRunning = false
         private set
-    private lateinit var db: AsyncDBSessionFactory
+    lateinit var db: AsyncDBSessionFactory
     private lateinit var dbConfig: DatabaseConfig
 
     lateinit var serviceClient: AuthenticatedClient

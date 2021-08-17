@@ -176,14 +176,14 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
         val result: S,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "$statusCode, ${result.toString().take(240)}"
+        override fun toString() = "$statusCode, ${result.toString().take(20_000)}"
     }
 
     class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "$statusCode, ${error.toString().take(240)}"
+        override fun toString() = "$statusCode, ${error.toString().take(20_000)}"
     }
 
     /**
