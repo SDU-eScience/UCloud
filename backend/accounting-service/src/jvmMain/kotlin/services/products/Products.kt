@@ -31,22 +31,25 @@ class ProductService(
                     val categories by parameterList<String>()
                     val chargeTypes by parameterList<String>()
                     val productTypes by parameterList<String>()
+                    val unitsOfPrice by parameterList<String>()
 
                     for (req in request.items) {
                         providers.add(req.category.provider)
                         categories.add(req.category.name)
                         chargeTypes.add(req.chargeType.name)
                         productTypes.add(req.productType.name)
+                        unitsOfPrice.add(req.unitOfPrice.name)
                     }
                 },
                 """
                     insert into accounting.product_categories
-                        (provider, category, product_type, charge_type) 
+                        (provider, category, product_type, charge_type, unit_of_price) 
                     select
                         unnest(:providers::text[]),
                         unnest(:categories::text[]),
                         unnest(:product_types::accounting.product_type[]),
-                        unnest(:charge_types::accounting.charge_type[])
+                        unnest(:charge_types::accounting.charge_type[]),
+                        unnest(:units_of_price::accounting.product_price_unit[]) unit_of_price
                     on conflict (provider, category)
                     do update set
                         charge_type = excluded.charge_type,
@@ -64,7 +67,6 @@ class ProductService(
                     val licenseTags by parameterList<String?>()
                     val categories by parameterList<String>()
                     val providers by parameterList<String>()
-                    val unitsOfPrice by parameterList<String>()
                     val freeToUse by parameterList<Boolean>()
 
                     for (req in request.items) {
@@ -75,7 +77,6 @@ class ProductService(
                         memoryInGigs.add(if (req is Product.Compute) req.memoryInGigs else null)
                         categories.add(req.category.name)
                         providers.add(req.category.provider)
-                        unitsOfPrice.add(req.unitOfPrice.name)
                         freeToUse.add(req.freeToUse)
                         licenseTags.add(if (req is Product.License) defaultMapper.encodeToString(req.tags) else null)
                     }
@@ -90,16 +91,15 @@ class ProductService(
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
                             unnest(:categories::text[]) category,
                             unnest(:providers::text[]) provider,
-                            unnest(:units_of_price::accounting.product_price_unit[]) unit_of_price,
                             unnest(:free_to_use::boolean[]) free_to_use,
                             unnest(:license_tags::jsonb[]) license_tags
                     )
                     insert into accounting.products
                         (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
-                         unit_of_price, free_to_use, version) 
+                         free_to_use, version) 
                     select
                         req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-                        pc.id, req.unit_of_price, req.free_to_use, coalesce(existing.version + 1, 1)
+                        pc.id, req.free_to_use, coalesce(existing.version + 1, 1)
                     from
                         requests req join
                         accounting.product_categories pc on

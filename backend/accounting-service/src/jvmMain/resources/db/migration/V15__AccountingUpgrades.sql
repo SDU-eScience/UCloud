@@ -24,6 +24,15 @@ alter table accounting.products drop column area;
 
 alter table accounting.products drop column availability;
 
+alter table accounting.product_categories add column unit_of_price accounting.product_price_unit;
+update accounting.product_categories pc
+set unit_of_price = case pc.product_type
+    when 'COMPUTE' then 'PER_MINUTE'::accounting.product_price_unit
+    when 'STORAGE' then 'PER_DAY'::accounting.product_price_unit
+    else 'PER_UNIT'::accounting.product_price_unit
+end
+where true;
+
 
 create or replace function accounting.require_immutable_product_category() returns trigger language plpgsql as $$
 begin
@@ -64,16 +73,6 @@ from storage_products;
 
 
 ---- Add new columns to products ----
-
-alter table accounting.products add column unit_of_price accounting.product_price_unit;
-update accounting.products p
-set unit_of_price = case pc.product_type
-    when 'COMPUTE' then 'PER_MINUTE'::accounting.product_price_unit
-    when 'STORAGE' then 'PER_DAY'::accounting.product_price_unit
-    else 'PER_UNIT'::accounting.product_price_unit
-end
-from accounting.product_categories pc
-where p.category = pc.id;
 
 alter table accounting.products add column version bigint not null default 1;
 
@@ -1087,7 +1086,7 @@ begin
            'version', product_in.version,
            'freeToUse', product_in.free_to_use,
            'productType', category_in.product_type,
-           'unitOfPrice', product_in.unit_of_price,
+           'unitOfPrice', category_in.unit_of_price,
            'chargeType', category_in.charge_type,
            'balance', balance,
            'hiddenInGrantApplications', product_in.hidden_in_grant_applications
@@ -1365,6 +1364,36 @@ begin
     );
 end;
 $$;
+
+create or replace function provider.timestamp_to_unix(ts timestamptz) returns bigint language sql immutable as $$
+    select (floor(extract(epoch from ts) * 1000));
+$$;
+
+-- Create a function that always returns the first non-NULL item
+create or replace function provider.first_agg (anyelement, anyelement)
+returns anyelement language sql immutable strict parallel safe as $$
+        select $1;
+$$;
+
+-- And then wrap an aggregate around it
+create aggregate provider.first (
+        sfunc    = provider.first_agg,
+        basetype = anyelement,
+        stype    = anyelement
+);
+
+-- Create a function that always returns the last non-NULL item
+create or replace function provider.last_agg ( anyelement, anyelement )
+returns anyelement language sql immutable strict parallel safe as $$
+        select $2;
+$$;
+
+-- And then wrap an aggregate around it
+create aggregate provider.last (
+        sfunc    = provider.last_agg,
+        basetype = anyelement,
+        stype    = anyelement
+);
 
 ---- /Procedures ----
 
