@@ -11,7 +11,7 @@ export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByA
 export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
 
 export interface ProductCategoryId {
-    id: string;
+    name: string;
     provider: string;
     title?: string;
 }
@@ -60,7 +60,7 @@ export function walletEquals(a: Wallet, b: Wallet): boolean {
 }
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
-    return a.provider === b.provider && a.id === b.id;
+    return a.provider === b.provider && a.name === b.name;
 }
 
 export interface RetrieveBalanceRequest {
@@ -414,5 +414,5 @@ export function updateQuota(request: UpdateQuotaRequest): APICallParameters<Upda
 export const UCLOUD_PROVIDER = "ucloud";
 
 export function isQuotaSupported(category: ProductCategoryId): boolean {
-    return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
+    return category.provider === UCLOUD_PROVIDER && category.name === "u1-cephfs";
 }

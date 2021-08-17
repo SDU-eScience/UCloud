@@ -24,15 +24,17 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
+private val didCreateProductsInInitializeRootProjects = AtomicBoolean(false)
 private val rootProjectCounter = AtomicInteger(1)
 suspend fun initializeRootProject(
     principalInvestigator: String? = null,
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000.DKK,
 ): String {
-    if (initializeWallet) {
+    if (initializeWallet && didCreateProductsInInitializeRootProjects.compareAndSet(false, true)) {
         createSampleProducts()
     }
 
@@ -68,10 +70,11 @@ suspend fun initializeWallets(
     amount: Long = 1_000_000 * 10_000_000L,
     products: List<Product> = sampleProducts
 ) {
+    val categories = products.map { it.category }.toSet().toList()
     Accounting.rootDeposit.call(
-        BulkRequest(products.map { product ->
+        BulkRequest(categories.map { category ->
             RootDepositRequestItem(
-                product.category,
+                category,
                 owner,
                 amount,
                 "Initial balance"

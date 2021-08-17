@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useEffect} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
 import {
@@ -28,13 +28,11 @@ import {ThemeColor} from "ui-components/theme";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useDispatch} from "react-redux";
-import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
-    const dispatch = useDispatch()
-
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
+    const [scrollGeneration, setScrollGeneration] = useState(0);
     const [filter, setFilter] = React.useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
@@ -44,23 +42,26 @@ export const IngoingApplications: React.FunctionComponent = () => {
     useRefreshFunction(() => {
         fetchIngoingApplications(
             ingoingGrantApplications({
-                itemsPerPage: 25,
-                page: ingoingApplications.data.pageNumber,
+                itemsPerPage: 50,
                 filter
             })
         );
+        setScrollGeneration(prev => prev + 1);
     });
 
     useTitle("Ingoing Applications");
 
     useEffect(() => {
-        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
+        setScrollGeneration(prev => prev + 1);
+        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, filter}));
     }, [projectId, filter]);
 
-    useEffect(() => {
-        dispatch(setLoading(ingoingApplications.loading))
-    }, [ingoingApplications.loading])
+    const loadMore = useCallback(() => {
+        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, next: ingoingApplications.data.next,
+            filter}));
+    }, [ingoingApplications.data, filter]);
 
+    useLoading(ingoingApplications.loading);
     useSidebarPage(SidebarPages.Projects);
 
     return <MainContainer
@@ -83,13 +84,12 @@ export const IngoingApplications: React.FunctionComponent = () => {
         </VerticalButtonGroup>
         }
         main={
-            <Pagination.List
+            <Pagination.ListV2
+                infiniteScrollGeneration={scrollGeneration}
                 page={ingoingApplications.data}
                 loading={ingoingApplications.loading}
-                onPageChanged={(newPage) => {
-                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage, filter}));
-                }}
-                pageRenderer={page => <GrantApplicationList applications={page.items} />}
+                onLoadMore={loadMore}
+                pageRenderer={items => <GrantApplicationList applications={items} />}
             />
         }
     />;

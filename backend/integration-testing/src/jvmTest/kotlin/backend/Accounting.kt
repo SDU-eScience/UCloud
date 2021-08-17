@@ -55,106 +55,112 @@ suspend fun findProjectWallet(
     ).orThrow().items.find { it.paysFor == product }
 }
 
+class Allocation(
+    val isProject: Boolean,
+    val amount: Long,
+    val startDate: Long? = null,
+    val endDate: Long? = null
+)
+
+data class AllocationResult(
+    val username: String,
+    val projectId: String?,
+    val client: AuthenticatedClient,
+    val balance: Long
+) {
+    val owner: WalletOwner = if (projectId == null) {
+        WalletOwner.User(username)
+    } else {
+        WalletOwner.Project(projectId)
+    }
+}
+
+suspend fun prepareProjectChain(
+    rootBalance: Long,
+    chainFromRoot: List<Allocation>,
+    productCategory: ProductCategoryId,
+    skipCreationOfLeaf: Boolean = false,
+    breadth: Int = 1,
+    moreProducts: List<ProductCategoryId> = emptyList(),
+): List<AllocationResult> {
+    val irrelevantUser = createUser()
+    val allProducts = listOf(productCategory) + moreProducts
+
+    val leaves = ArrayList<AllocationResult>()
+
+    for ((index, allocOwner) in chainFromRoot.withIndex()) {
+        if (allocOwner.isProject) {
+            val user = createUser()
+            val project = Projects.create.call(
+                CreateProjectRequest("P$index", principalInvestigator = user.username),
+                serviceClient
+            ).orThrow()
+
+            leaves.add(
+                AllocationResult(
+                    user.username,
+                    project.id,
+                    user.client.withProject(project.id),
+                    allocOwner.amount * breadth
+                )
+            )
+        } else {
+            val user = createUser()
+            leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount * breadth))
+        }
+    }
+
+    for (category in allProducts) {
+        repeat(breadth) {
+            val rootPi = createUser()
+            val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
+            var previousAllocation: String =
+                findProjectWallet(rootProject, rootPi.client, category)!!.allocations.single().id
+            var previousPi: AuthenticatedClient = rootPi.client
+            val expectedAllocationPath = arrayListOf(previousAllocation)
+            for ((index, leaf) in leaves.withIndex()) {
+                if (index == leaves.lastIndex && skipCreationOfLeaf) break
+
+                val request = bulkRequestOf(
+                    DepositToWalletRequestItem(
+                        leaf.owner,
+                        previousAllocation,
+                        leaf.balance / breadth,
+                        "Transfer",
+                        chainFromRoot[index].startDate,
+                        chainFromRoot[index].endDate
+                    )
+                )
+                Accounting.deposit.call(request, previousPi).orThrow()
+
+                assertThatInstance(
+                    Accounting.deposit.call(request, irrelevantUser.client),
+                    "Should fail because they are not a part of the project"
+                ) { it.statusCode.value in 400..499 }
+
+                val alloc =
+                    findWallet(leaf.client, category)!!.allocations.last()
+                previousAllocation = alloc.id
+                previousPi = leaf.client
+
+                expectedAllocationPath.add(alloc.id)
+                assertEquals(alloc.allocationPath, expectedAllocationPath)
+                assertEquals(alloc.balance, leaf.balance / breadth)
+                assertEquals(alloc.initialBalance, leaf.balance / breadth)
+            }
+        }
+    }
+    return leaves
+}
+
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
-        /*testFilter = {title, subtitle ->
-            title == "Transfers"  && subtitle == "no request"
-        }*/
-
-        class Allocation(
-            val isProject: Boolean,
-            val amount: Long,
-            val startDate: Long? = null,
-            val endDate: Long? = null
-        )
-
-        data class AllocationResult(
-            val username: String,
-            val projectId: String?,
-            val client: AuthenticatedClient,
-            val balance: Long
-        ) {
-            val owner: WalletOwner = if (projectId == null) {
-                WalletOwner.User(username)
-            } else {
-                WalletOwner.Project(projectId)
-            }
+        /*
+        testFilter = {title, subtitle ->
+            title == "Transfers"  //&& subtitle == "project to user - multiple transfers"
         }
-
-        suspend fun prepareProjectChain(
-            rootBalance: Long,
-            chainFromRoot: List<Allocation>,
-            productCategory: ProductCategoryId,
-            skipCreationOfLeaf: Boolean = false,
-            breadth: Int = 1,
-        ): List<AllocationResult> {
-            val irrelevantUser = createUser()
-
-            val leaves = ArrayList<AllocationResult>()
-
-            for ((index, allocOwner) in chainFromRoot.withIndex()) {
-                if (allocOwner.isProject) {
-                    val user = createUser()
-                    val project = Projects.create.call(
-                        CreateProjectRequest("P$index", principalInvestigator = user.username),
-                        serviceClient
-                    ).orThrow()
-
-                    leaves.add(
-                        AllocationResult(
-                            user.username,
-                            project.id,
-                            user.client.withProject(project.id),
-                            allocOwner.amount * breadth
-                        )
-                    )
-                } else {
-                    val user = createUser()
-                    leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount * breadth))
-                }
-            }
-
-            repeat(breadth) {
-                val rootPi = createUser()
-                val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
-                var previousAllocation: String =
-                    findProjectWallet(rootProject, rootPi.client, productCategory)!!.allocations.single().id
-                var previousPi: AuthenticatedClient = rootPi.client
-                val expectedAllocationPath = arrayListOf(previousAllocation)
-                for ((index, leaf) in leaves.withIndex()) {
-                    if (index == leaves.lastIndex && skipCreationOfLeaf) break
-
-                    val request = bulkRequestOf(
-                        DepositToWalletRequestItem(
-                            leaf.owner,
-                            previousAllocation,
-                            leaf.balance / breadth,
-                            "Transfer",
-                            chainFromRoot[index].startDate,
-                            chainFromRoot[index].endDate
-                        )
-                    )
-                    Accounting.deposit.call(request, previousPi).orThrow()
-
-                    assertThatInstance(
-                        Accounting.deposit.call(request, irrelevantUser.client),
-                        "Should fail because they are not a part of the project"
-                    ) { it.statusCode.value in 400..499 }
-
-                    val alloc = findWallet(leaf.client, productCategory)!!.allocations.also { println("Previous $it") }.last()
-                    previousAllocation = alloc.id
-                    previousPi = leaf.client
-
-                    expectedAllocationPath.add(alloc.id)
-                    assertEquals(alloc.allocationPath, expectedAllocationPath)
-                    assertEquals(alloc.balance, leaf.balance / breadth)
-                    assertEquals(alloc.initialBalance, leaf.balance / breadth)
-                }
-            }
-            return leaves
-        }
-
+         */
 
         run {
             class In(

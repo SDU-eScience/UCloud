@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.Accounting
 import dk.sdu.cloud.accounting.api.Transactions
+import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.server.RpcServer
@@ -38,6 +39,18 @@ class AccountingController(
 
         implement(Wallets.browse) {
             ok(accounting.browseWallets(actorAndProject, request))
+        }
+
+        implement(Wallets.browseSubAllocations) {
+            ok(accounting.browseSubAllocations(actorAndProject, request))
+        }
+
+        implement(Visualization.retrieveUsage) {
+            ok(accounting.retrieveUsage(actorAndProject, request))
+        }
+
+        implement(Visualization.retrieveBreakdown) {
+            ok(accounting.retrieveBreakdown(actorAndProject, request))
         }
 
         implement(Transactions.browse) {

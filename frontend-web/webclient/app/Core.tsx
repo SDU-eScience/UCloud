@@ -36,7 +36,6 @@ const ProjectUsage = React.lazy(() => import("Project/ProjectUsage"));
 const Search = React.lazy(() => import("Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("Applications/Studio/Page"));
-const Subprojects = React.lazy(() => import("Project/Subprojects"));
 const Tool = React.lazy(() => import("Applications/Studio/Tool"));
 const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
@@ -155,7 +154,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
                     <Route exact path="/project/usage" component={requireAuth(ProjectUsage)} />
-                    <Route exact path="/project/subprojects" component={requireAuth(Subprojects)} />
                     <Route
                         exact
                         path="/project/grants-landing"

@@ -149,7 +149,7 @@ function View(): JSX.Element | null {
                                             right={<></>}
                                             leftSub={
                                                 <ListStatContainer>
-                                                    <ListRowStat icon={"id"}>{item.category.id}</ListRowStat>
+                                                    <ListRowStat icon={"id"}>{item.category.name}</ListRowStat>
                                                     <ListRowStat icon={"grant"}>
                                                         Unit price: {creditFormatter(item.pricePerUnit)}
                                                     </ListRowStat>
@@ -299,7 +299,7 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
                     id,
                     description,
                     pricePerUnit: actualPricePerUnit,
-                    category: {id: category, provider: props.provider.id},
+                    category: {name: category, provider: props.provider.id},
                     hiddenInGrantApplications: false,
                     priority: 1,
                     cpu: actualCpu,
@@ -321,7 +321,7 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
                 await invokeCommand(
                     UCloud.accounting.wallets.setBalance({
                         wallet: {
-                            paysFor: {provider: product.category.provider, id: product.category.id},
+                            paysFor: {provider: product.category.provider, name: product.category.name},
                             type: projectId === undefined ? "USER" : "PROJECT",
                             id: projectId === undefined ? Client.username! : projectId
                         },

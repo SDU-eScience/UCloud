@@ -119,7 +119,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
                 ?.find(it => it.product.id === selectedProduct.id &&
-                    it.product.category.id === selectedProduct.category.id) ?? null;
+                    it.product.category.name === selectedProduct.category.name) ?? null;
         }
         return null;
     }, [selectedProduct, productsWithSupport]);
@@ -249,7 +249,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
                 <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
                 {!selectedProduct ? null : <>
-                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.id} / {selectedProduct.category.id}</ListRowStat>
+                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.id} / {selectedProduct.category.name}</ListRowStat>
                 </>}
             </> : <>
                 <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>

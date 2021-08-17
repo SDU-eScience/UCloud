@@ -96,7 +96,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                     product: {
                         id: selectedProduct.id,
                         provider: selectedProduct.category.provider,
-                        category: selectedProduct.category.id
+                        category: selectedProduct.category.name
                     },
                     parameters: {},
                     replicas: 1,
