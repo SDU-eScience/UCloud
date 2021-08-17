@@ -71,7 +71,7 @@ class Server(
         val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
         val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product, fs, processRunner)
         val coreFileSystem =
-            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
+            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker, synchronizationService)
 
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService<LinuxFSRunner>(newAclService)

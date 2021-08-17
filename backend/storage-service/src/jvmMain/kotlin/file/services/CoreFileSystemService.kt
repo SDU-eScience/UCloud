@@ -21,7 +21,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope,
     private val metadataService: MetadataService,
-    private val limitChecker: LimitChecker<*>
+    private val limitChecker: LimitChecker<*>,
+    private val synchronizationService: SynchronizationService
 ) {
     suspend fun write(
         ctx: Ctx,
@@ -133,6 +134,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ) {
         // Require permission up-front to ensure metadata is not updated without permissions
         fs.requirePermission(ctx, path, AccessRight.WRITE)
+        synchronizationService.removeSubfolders(path)
         metadataService.runDeleteAction(listOf(path)) {
             fs.delete(ctx, path)
         }
@@ -227,6 +229,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 AclService.USER_METADATA_TYPE
             )
         }
+
+        synchronizationService.removeSubfolders(from.normalize())
 
         metadataService.runMoveAction(from.normalize(), targetPath.normalize()) {
             fs.move(ctx, from, targetPath, writeConflictPolicy)

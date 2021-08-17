@@ -180,6 +180,43 @@ class SynchronizationService(
         }
     }
 
+    internal suspend fun removeSubfolders(path: String) {
+        val affectedRows = db.withSession { session ->
+            val idsToDelete = session.sendPreparedStatement(
+                {
+                    setParameter("path", path)
+                },
+                """
+                select id from storage.synchronized_folders
+                where path like :path || '/%'
+            """
+            ).rows.map { it.getField(SynchronizedFoldersTable.id) }
+
+            Mounts.unmount.call(
+                UnmountRequest(
+                    idsToDelete.map { MountFolderId(it) }
+                ),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", idsToDelete)
+                },
+                """
+                    delete from storage.synchronized_folders
+                    where id in (select unnest(:ids::text[]))
+                """
+            ).rowsAffected
+        }
+
+        if (affectedRows > 0) {
+            syncthing.writeConfig()
+        }
+    }
+
     suspend fun browseFolders(
         request: SynchronizationBrowseFoldersRequest
     ): List<SynchronizedFolderBrowseItem> {
