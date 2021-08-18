@@ -562,8 +562,8 @@ class AccountingService(
                             accounting.product_categories pc on w.category = pc.id left join
                             project.project_members pm on wo.project_id = pm.project_id
                         where
-                            wo.username = :user or
-                            (pm.username = :user and pm.project_id = :project::text)
+                            (:project::text is null and wo.username = :user) or
+                            (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
