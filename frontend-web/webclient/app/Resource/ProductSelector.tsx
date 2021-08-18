@@ -2,7 +2,7 @@ import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "../ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {priceExplainer} from "Project/ProjectUsage";
+import {priceExplainer} from "Project/Resources";
 import {NoResultsCardBody} from "Dashboard/Dashboard";
 import {Button, Link, theme} from "ui-components";
 import styled from "styled-components";

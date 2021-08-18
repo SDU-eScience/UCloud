@@ -16,8 +16,7 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useCloudAPI} from "Authentication/DataHook";
-import {UsageResponse, transformUsageChartForCharting, usage, NativeChart} from "Accounting";
-import {creditFormatter, durationOptions} from "./ProjectUsage";
+import {NativeChart} from "Accounting";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
 import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
@@ -87,31 +86,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-
-    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
-        {noop: true},
-        {charts: []}
-    );
-
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
         setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
-        setUsageParams(usage({
-            bucketSize: durationOption.bucketSize,
-            periodStart: now - durationOption.timeInPast,
-            periodEnd: now
-        }));
     }, [projectId]);
-
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
-    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
-    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     function isAdmin(): boolean {
         if (membersCount.error?.statusCode === 403) {
@@ -120,7 +101,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             return false;
         } else if (subprojectsCount.error?.statusCode === 403) {
             return false;
-        } else {return true;}
+        } else {
+            return true;
+        }
     }
 
     return (
@@ -161,45 +144,15 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </DashboardCard>
                         ) : null}
                         <DashboardCard
-                            title={"Resource Allocation"}
+                            title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
                             isLoading={false}
-                            onClick={() => history.push("/project/subprojects")}
+                            onClick={() => history.push("/project/resources")}
                             subtitle={<RightArrow />}
                         >
-                            {Client.hasActiveProject ? <Table>
-                                {isAdmin() ? (
-                                    <tbody>
-                                        <TableRow cursor="pointer">
-                                            <TableCell>Subprojects</TableCell>
-                                            <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
-                                        </TableRow>
-                                    </tbody>) : null}
-                            </Table> : null}
                         </DashboardCard>
 
-                        <DashboardCard title="Usage" icon="hourglass" color="green"
-                            isLoading={false}
-                            subtitle={<RightArrow />}
-                            onClick={() => history.push("/project/usage")}
-                        >
-                            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
-                            <Table>
-                                <tbody>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Storage</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Compute</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                </tbody>
-                            </Table>
-                        </DashboardCard>
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
                             <DashboardCard
                                 subtitle={<RightArrow />}

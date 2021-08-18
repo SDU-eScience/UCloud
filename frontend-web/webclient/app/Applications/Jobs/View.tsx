@@ -20,7 +20,7 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";

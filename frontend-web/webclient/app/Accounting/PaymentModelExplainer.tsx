@@ -1,6 +1,6 @@
 import * as React from "react";
 import {PaymentModel} from "Accounting/index";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 
 export const PaymentModelExplainer: React.FunctionComponent<{
     model: PaymentModel;

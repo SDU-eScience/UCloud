@@ -130,10 +130,12 @@ export const ResourceFilter: React.FunctionComponent<{
         setIsDirty(false);
     }, [props.onApplyFilters, setIsDirty, sortProperties]);
 
+    const onlyFilter = props.sortEntries.length === 0;
+
     return <>
         {props.embedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
             <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-            Sort and filter
+            {onlyFilter ? "Filter" : "Sort and filter"}
         </Heading.h4>}
         <Grid gridGap={"8px"}>
             <WidgetWrapper embedded gridGap="12px">
@@ -155,20 +157,22 @@ export const ResourceFilter: React.FunctionComponent<{
         <Grid gridGap={props.embedded ? "8px" : "20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
 
-            <WidgetWrapper embedded={props.embedded} gridGap="12px">
-                <EnumFilterWidget
-                    propertyName="direction" icon="sortDescending" title="Sort direction" expanded={false}
-                    id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                    options={sortDirections}
-                />
-                <EnumFilterWidget
-                    propertyName="column" icon="properties" title="Sort by" expanded={false}
-                    id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                    options={sortOptions}
-                />
-            </WidgetWrapper>
+            {onlyFilter ? null : <>
+                <WidgetWrapper embedded={props.embedded} gridGap="12px">
+                    <EnumFilterWidget
+                        propertyName="direction" icon="sortDescending" title="Sort direction" expanded={false}
+                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                        options={sortDirections}
+                    />
+                    <EnumFilterWidget
+                        propertyName="column" icon="properties" title="Sort by" expanded={false}
+                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                        options={sortOptions}
+                    />
+                </WidgetWrapper>
 
-            {props.embedded ? null : <Divider />}
+                {props.embedded ? null : <Divider />}
+            </>}
 
             <WidgetWrapper embedded={props.embedded} gridGap="12px">
                 {props.filterWidgets.map((Widget, idx) =>

@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 import {HiddenInputField} from "ui-components/Input";
 import {dialogStore} from "Dialog/DialogStore";
 import {Client} from "Authentication/HttpClientInstance";

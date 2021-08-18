@@ -24,9 +24,6 @@ import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
-import {
-    retrieveQuota, RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
-} from "Accounting";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
@@ -42,8 +39,6 @@ import {
     listOutgoingApplications
 } from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
-import {creditFormatter, durationOptions} from "Project/ProjectUsage";
-import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
 import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
@@ -115,11 +110,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
         withHidden: false,
     }), emptyPage);
 
-    const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
-        {noop: true},
-        {quotaInBytes: 0, quotaUsed: 0, quotaInTotal: 0}
-    );
-
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
 
     const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
@@ -141,10 +131,6 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
 
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
-        fetchQuota(retrieveQuota({
-            path: Client.activeHomeFolder,
-            includeUsage: true
-        }));
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
@@ -179,8 +165,7 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
 
             <DashboardResources
                 products={products.data.items}
-                quota={quota.data}
-                loading={products.loading || quota.loading}
+                loading={products.loading}
             />
             <DashboardProjectUsage/>
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps}/>
@@ -276,26 +261,7 @@ export const NoResultsCardBody: React.FunctionComponent<{ title: string }> = pro
 );
 
 function DashboardProjectUsage(): JSX.Element | null {
-    const {projectId} =
-        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
-        {noop: true},
-        {charts: []}
-    );
-    React.useEffect(() => {
-        setUsageParams(usage({
-            bucketSize: durationOption.bucketSize,
-            periodStart: now - durationOption.timeInPast,
-            periodEnd: now
-        }));
-    }, [projectId]);
-
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
-    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
-    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
+    const {projectId} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     return (
         <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
@@ -303,28 +269,12 @@ function DashboardProjectUsage(): JSX.Element | null {
                        color="yellow"
                        isLoading={false}
         >
-            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
-            <Table>
-                <tbody>
-                <TableRow>
-                    <TableCell>Storage</TableCell>
-                    <TableCell
-                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                </TableRow>
-                <TableRow>
-                    <TableCell>Compute</TableCell>
-                    <TableCell
-                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                </TableRow>
-                </tbody>
-            </Table>
         </DashboardCard>
     );
 }
 
-function DashboardResources({products, loading, quota}: {
+function DashboardResources({products, loading}: {
     products: Product[];
-    quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
     const productsByCategory = groupBy(products, it => `${it.category.name}-${it.category.provider}`);
@@ -381,18 +331,6 @@ function DashboardResources({products, loading, quota}: {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                <TableRow>
-                                    {/* This is hardcoded for now (pending issue #1246) */}
-                                    <TableCell>ucloud / u1-cephfs (Quota)</TableCell>
-                                    <TableCell textAlign={"right"}>
-                                        {sizeToString(quota.quotaUsed ?? 0)}
-                                        {" "}of{" "}
-                                        {sizeToString(quota.quotaInBytes)}
-                                        {" "}({(100 * (quota.quotaInBytes !== 0 ?
-                                            ((quota.quotaUsed ?? 0) / quota.quotaInBytes) : 1
-                                    )).toFixed(2)}%)
-                                    </TableCell>
-                                </TableRow>
                                 </tbody>
                             </Table>
                         </Box>
