@@ -73,7 +73,7 @@ data class FileMetadataBrowseRequest(
     }
 }
 
-typealias FileMetadataBrowseResponse = PageV2<FileMetadataDocument>
+typealias FileMetadataBrowseResponse = PageV2<FileMetadataAttached>
 
 // ---
 

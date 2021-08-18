@@ -539,14 +539,21 @@ class MetadataService(
                     setParameter("template", request.filterTemplate)
                 },
                 """
-                SELECT DISTINCT file_orchestrator.metadata_document_to_json(mdd) as document
+                SELECT DISTINCT mdd.path, file_orchestrator.metadata_document_to_json(mdd) as json
                 FROM file_orchestrator.metadata_documents mdd
-                INNER JOIN file_orchestrator.metadata_templates mdt ON mdd.template_id = mdt.namespace
+                INNER JOIN file_orchestrator.metadata_templates mdt ON mdd.template_id = mdt.namespace AND mdd.template_version = mdt.uversion
                 WHERE ((:template::text IS NULL) OR (mdt.title = :template) AND mdt.namespace = mdd.template_id)
                 AND ((:active = false) OR (:active = mdd.latest))
-                AND mdd.created_by = :user
+                AND ((:version::text IS NULL) OR (:version = mdd.template_version))
+                AND mdd.workspace = :user
+                -- TODO: Add project check
             """.trimIndent()
-            ).rows.map { defaultMapper.decodeFromString<FileMetadataDocument>(it.getString("document")!!) }
+            ).rows.map {
+                FileMetadataAttached(
+                    it.getString("path")!!,
+                    defaultMapper.decodeFromString(it.getString("json")!!)
+                )
+            }
         }
         return PageV2(request.itemsPerPage ?: 25, result, null)
     }
