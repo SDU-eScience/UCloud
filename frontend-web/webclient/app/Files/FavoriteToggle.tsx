@@ -32,7 +32,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 const mostRecent = metadata.metadata[favoriteTemplateId]?.[0];
                 realFileIsFavorite = mostRecent != null && mostRecent.type === "metadata" &&
                     mostRecent.specification.version === favoriteTemplateVersion &&
-                    mostRecent.specification.document["isFavorite"];
+                    mostRecent.specification.document["favorite"];
             }
         }
 
@@ -49,7 +49,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
             if (!favoriteTemplateId) {
                 console.log("Looking for the ID");
                 const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
-                    metadataNsApi.browse(({ filterName: "favorite", itemsPerPage: 50}))
+                    metadataNsApi.browse(({filterName: "favorite", itemsPerPage: 50}))
                 );
                 const ns = page?.items?.[0];
                 if (ns) {
@@ -66,7 +66,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 metadataApi.create(bulkRequestOf({
                     fileId: file.id,
                     metadata: {
-                        document: {isFavorite: !isFavorite},
+                        document: {favorite: !isFavorite},
                         version: favoriteTemplateVersion,
                         changeLog: "New favorite status",
                         templateId: favoriteTemplateId!

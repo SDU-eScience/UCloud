@@ -1,5 +1,5 @@
-import {BulkRequest} from "UCloud/index";
-import {apiCreate, apiDelete, apiRetrieve, apiUpdate} from "Authentication/DataHook";
+import {BulkRequest, PaginationRequestV2} from "UCloud/index";
+import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiUpdate} from "Authentication/DataHook";
 import {FileMetadataTemplate} from "UCloud/MetadataNamespaceApi";
 
 export type FileMetadataDocumentOrDeleted = FileMetadataDocument | FileMetadataDocumentDeleted;
@@ -34,13 +34,13 @@ export interface FileMetadataDocumentStatus {
 }
 
 export type FileMetadataDocumentApproval =
-    { type: "approved", approvedBy: string } |
-    { type: "pending" } |
-    { type: "rejected", rejectedBy: string } |
-    { type: "not_required" };
+    {type: "approved", approvedBy: string} |
+    {type: "pending"} |
+    {type: "rejected", rejectedBy: string} |
+    {type: "not_required"};
 
 export interface FileMetadataRetrieveAllResponse {
-    metadata: { path: string, metadata: FileMetadataDocument }[];
+    metadata: {path: string, metadata: FileMetadataDocument}[];
 }
 
 export interface FileMetadataHistory {
@@ -51,28 +51,36 @@ export interface FileMetadataHistory {
 class MetadataDocumentApi {
     private baseContext = "/api/files/metadata";
 
-    create(request: BulkRequest<{ fileId: string, metadata: FileMetadataDocumentSpecification }>) {
+    create(request: BulkRequest<{fileId: string, metadata: FileMetadataDocumentSpecification}>) {
         return apiCreate(request, this.baseContext);
     }
 
-    move(request: BulkRequest<{ oldFileId: string, newFileId: string }>) {
+    move(request: BulkRequest<{oldFileId: string, newFileId: string}>) {
         return apiUpdate(request, this.baseContext, "move");
     }
 
-    delete(request: BulkRequest<{ id: string, changeLog: string }>) {
+    delete(request: BulkRequest<{id: string, changeLog: string}>) {
         return apiDelete(request, this.baseContext);
     }
 
-    retrieveAll(request: { fileId: string }) {
+    retrieveAll(request: {fileId: string}) {
         return apiRetrieve(request, this.baseContext, "all");
     }
 
-    approve(request: BulkRequest<{ id: string }>) {
+    approve(request: BulkRequest<{id: string}>) {
         return apiUpdate(request, this.baseContext, "approve");
     }
 
-    reject(request: BulkRequest<{ id: string }>) {
+    reject(request: BulkRequest<{id: string}>) {
         return apiUpdate(request, this.baseContext, "reject");
+    }
+
+    browse(request: {
+        filterTemplate?: string,
+        filterVersion?: string,
+        filterActive: boolean,
+    } & PaginationRequestV2) {
+        return apiBrowse(request, this.baseContext)
     }
 }
 
