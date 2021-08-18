@@ -15,7 +15,7 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {sizeToString} from "Utilities/FileUtilities";
+import {fileName, getParentPath, sizeToString} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
@@ -50,7 +50,7 @@ import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
 import {UFile} from "UCloud/FilesApi";
-import metadataDocumentApi, {FileMetadataDocument} from "UCloud/MetadataDocumentApi";
+import metadataDocumentApi, {FileMetadataAttached, FileMetadataDocument} from "UCloud/MetadataDocumentApi";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -134,7 +134,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         emptyPage
     );
 
-    const [favoriteFiles, fetchFavoriteFiles] = useCloudAPI<PageV2<FileMetadataDocument>>(
+    const [favoriteFiles, fetchFavoriteFiles] = useCloudAPI<PageV2<FileMetadataAttached>>(
         {noop: true},
         emptyPageV2
     );
@@ -187,7 +187,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
             <DashboardFavoriteFiles
                 favoriteFiles={favoriteFiles}
-                onDeFavorite={fetchFavoriteFiles as any}
+                onDeFavorite={file => new Promise(res => res())}
             />
 
             <DashboardNotifications
@@ -210,7 +210,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 }
 
 interface DashboardFavoriteFilesProps {
-    favoriteFiles: APICallState<PageV2<FileMetadataDocument>>;
+    favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
     onDeFavorite(file: UFile): Promise<void>;
 }
 
@@ -221,9 +221,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         icon="starFilled"
         title="Favorites"
     >
-        {props.favoriteFiles.data.items.map(it => {
-            <div>{it.status}</div>
-        })}
+        {props.favoriteFiles.data.items.map(it =>
+            <div key={it.path}>{fileName(it.path)} {it.metadata.specification.document.favorite}</div>
+        )}
     </DashboardCard>
 );
 

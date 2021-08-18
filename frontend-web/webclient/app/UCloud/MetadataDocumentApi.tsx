@@ -48,6 +48,11 @@ export interface FileMetadataHistory {
     metadata: Record<string, FileMetadataDocumentOrDeleted[]>;
 }
 
+export interface FileMetadataAttached {
+    path: string;
+    metadata: FileMetadataDocument;
+}
+
 class MetadataDocumentApi {
     private baseContext = "/api/files/metadata";
 
