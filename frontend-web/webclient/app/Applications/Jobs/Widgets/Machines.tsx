@@ -3,7 +3,7 @@ import * as UCloud from "UCloud";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 import Box from "ui-components/Box";
 import {Button, Link, theme} from "ui-components";
 import {useEffect, useState} from "react";

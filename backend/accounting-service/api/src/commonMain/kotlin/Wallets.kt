@@ -33,7 +33,10 @@ data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
     val allocations: List<WalletAllocation>,
-    val chargePolicy: AllocationSelectorPolicy
+    val chargePolicy: AllocationSelectorPolicy,
+    val productType: ProductType? = null,
+    val chargeType: ChargeType? = null,
+    val unit: ProductPriceUnit? = null,
 )
 
 /*

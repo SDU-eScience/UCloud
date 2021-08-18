@@ -8,7 +8,7 @@ import * as React from "react";
 import {capitalized, prettierString} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 import {Client} from "Authentication/HttpClientInstance";
 import {NonAuthenticatedHeader} from "Navigation/Header";
 import styled from "styled-components";

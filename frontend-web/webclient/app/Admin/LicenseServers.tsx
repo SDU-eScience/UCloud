@@ -28,7 +28,7 @@ import Wallet = accounting.Wallet;
 import {PaymentModel} from "Accounting";
 import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
 import {InputLabel} from "ui-components/Input";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 
 const PaymentModelOptions: PaymentModel[] = ["PER_ACTIVATION", "FREE_BUT_REQUIRE_BALANCE"];
 

@@ -7,7 +7,7 @@ import {
     UCLOUD_PROVIDER
 } from "Accounting/index";
 import {Text, Tooltip} from "ui-components";
-import {addThousandSeparators, creditFormatter} from "Project/ProjectUsage";
+import {addThousandSeparators, creditFormatter} from "Project/Resources";
 import styled from "styled-components";
 import {TextAlignProps} from "styled-system";
 import {useGlobalCloudAPI} from "Authentication/DataHook";

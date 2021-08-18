@@ -24,7 +24,7 @@ import AccessToken = auth.AccessToken;
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import ProductNS = accounting.ProductNS;
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {creditFormatter} from "Project/ProjectUsage";
+import {creditFormatter} from "Project/Resources";
 import {useProjectId} from "Project";
 import {Client} from "Authentication/HttpClientInstance";
 import ResourceDoc = provider.ResourceDoc;
