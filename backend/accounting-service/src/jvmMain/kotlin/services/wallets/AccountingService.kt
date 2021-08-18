@@ -654,26 +654,27 @@ class AccountingService(
                                     'provider', pc.provider
                                 ),
                                 'chargeType', pc.charge_type,
-                                'unit', 'ABSOLUTE' -- TODO
+                                'unit', pc.unit_of_price
                             )
                         from
                             accounting.wallet_owner owner join
                             accounting.wallets owner_wallets on owner.id = owner_wallets.owned_by join
                             accounting.product_categories pc on owner_wallets.category = pc.id join
-                            
+
                             accounting.wallet_allocations owner_allocations on
                                 owner_wallets.id = owner_allocations.associated_wallet join
-                            
+
                             accounting.wallet_allocations alloc on
-                                owner_allocations.allocation_path @> alloc.allocation_path join
+                                owner_allocations.allocation_path @> alloc.allocation_path and
+                                owner_allocations.allocation_path != alloc.allocation_path join
                             accounting.wallets alloc_wallet on alloc.associated_wallet = alloc_wallet.id join
-                            
+
                             accounting.wallet_owner alloc_owner on alloc_wallet.owned_by = alloc_owner.id left join
                             project.projects alloc_project on alloc_owner.project_id = alloc_project.id left join
-                            
+
                             project.project_members owner_pm on
                                 owner.project_id = owner_pm.project_id and
-                                owner.username = :username and
+                                owner_pm.username = :username and
                                 (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI')
                         where
                             (

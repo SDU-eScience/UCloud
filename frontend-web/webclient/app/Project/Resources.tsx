@@ -1,4 +1,15 @@
-import {Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis} from "recharts";
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Cell,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from "recharts";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {useProjectManagementStatus} from "Project";
@@ -23,10 +34,13 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
+import {apiBrowse, APICallState, APICallStateWithParams, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {Operations} from "ui-components/Operation";
+import * as Pagination from "Pagination";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -196,15 +210,30 @@ function browseWallets(request: PaginationRequestV2): APICallParameters {
 const Resources: React.FunctionComponent = props => {
     const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
     const [properties, setProperties] = useState<Record<string, string>>({});
-    const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
-    const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
+    const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
+    const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
+    const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
+    const [allocationGeneration, setAllocationGeneration] = useState(0);
+
+    const [maximizedUsage, setMaximizedUsage] = useState<number | null>(null);
+
+    const onUsageMaximize = useCallback((idx: number) => {
+        if (maximizedUsage == null) setMaximizedUsage(idx);
+        else setMaximizedUsage(null);
+    }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
         fetchUsage(retrieveUsage({}));
         fetchBreakdowns(retrieveBreakdown({}));
         fetchWallets(browseWallets({itemsPerPage: 50}));
+        fetchAllocations(browseSubAllocations({itemsPerPage: 50}));
+        setAllocationGeneration(prev => prev + 1);
     }, []);
+
+    const loadMoreAllocations = useCallback(() => {
+        fetchAllocations(browseSubAllocations({itemsPerPage: 50, next: allocations.data.next}));
+    }, [allocations.data]);
 
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
@@ -214,7 +243,7 @@ const Resources: React.FunctionComponent = props => {
 
     const usageClassName = usage.data.charts.length > 3 ? "large" : "slim";
     const walletsClassName = wallets.data.items.reduce((prev, current) => prev + current.allocations.length, 0) > 3 ?
-        "large": "slim";
+        "large" : "slim";
     const breakdownClassName = breakdowns.data.charts.length > 3 ? "large" : "slim";
 
     return (
@@ -237,21 +266,31 @@ const Resources: React.FunctionComponent = props => {
                 />
             </>}
             main={<Grid gridGap={"16px"}>
-                <VisualizationSection className={usageClassName}>
-                    {usage.data.charts.map((it, idx) =>
-                        <UsageChartViewer key={idx} c={it}/>
-                    )}
-                </VisualizationSection>
-                <VisualizationSection className={walletsClassName}>
-                    {wallets.data.items.map((it, idx) =>
-                        <WalletViewer key={idx} wallet={it}/>
-                    )}
-                </VisualizationSection>
-                <VisualizationSection className={breakdownClassName}>
-                    {breakdowns.data.charts.map((it, idx) =>
-                        <DonutChart key={idx} chart={it}/>
-                    )}
-                </VisualizationSection>
+                {maximizedUsage == null ? null : <>
+                    <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                                      onMaximizeToggle={() => onUsageMaximize(maximizedUsage)}/>
+                </>}
+                {maximizedUsage != null ? null :
+                    <>
+                        <VisualizationSection className={usageClassName}>
+                            {usage.data.charts.map((it, idx) =>
+                                <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)}/>
+                            )}
+                        </VisualizationSection>
+                        <VisualizationSection className={walletsClassName}>
+                            {wallets.data.items.map((it, idx) =>
+                                <WalletViewer key={idx} wallet={it}/>
+                            )}
+                        </VisualizationSection>
+                        <VisualizationSection className={breakdownClassName}>
+                            {breakdowns.data.charts.map((it, idx) =>
+                                <DonutChart key={idx} chart={it}/>
+                            )}
+                        </VisualizationSection>
+                        <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                             loadMore={loadMoreAllocations} />
+                    </>
+                }
             </Grid>}
         />
     );
@@ -293,8 +332,32 @@ const AllocationViewer: React.FunctionComponent<{
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
-            <Flex flexDirection={"column"} height={"100%"}>
-                <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
+            <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
+                <Flex alignItems={"center"}>
+                    <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
+                    <Box flexGrow={1}/>
+                    <Operations
+                        location={"IN_ROW"}
+                        operations={[
+                            {
+                                text: "Transfer to...",
+                                icon: "move",
+                                enabled: () => true,
+                                onClick: doNothing
+                            },
+                            {
+                                text: "Deposit into...",
+                                icon: "grant",
+                                enabled: () => true,
+                                onClick: doNothing
+                            }
+                        ]}
+                        selected={[]}
+                        row={{wallet, allocation}}
+                        extra={{}}
+                        entityNameSingular={"Allocation"}
+                    />
+                </Flex>
                 <div>{creditFormatter(allocation.balance)} remaining</div>
                 <div>{creditFormatter(allocation.initialBalance)} allocated</div>
                 <Box flexGrow={1} mt={"8px"}/>
@@ -335,21 +398,21 @@ interface UsageChart {
 
 const VisualizationSection = styled.div`
   --gutter: 16px;
-  
+
   display: grid;
   grid-gap: 16px;
   padding: 10px;
-  
+
   &.large {
     grid-auto-columns: 400px;
     grid-template-rows: minmax(100px, 1fr) minmax(100px, 1fr);
     grid-auto-flow: column;
   }
-  
+
   &.slim {
     grid-template-columns: repeat(auto-fit, 400px);
   }
-  
+
   overflow-x: auto;
   scroll-snap-type: x proximity;
   padding-bottom: calc(.75 * var(--gutter));
@@ -361,11 +424,13 @@ const UsageChartStyle = styled.div`
     width: calc(100% + 32px) !important;
     margin: -16px;
   }
-
-
 `;
 
-const UsageChartViewer: React.FunctionComponent<{ c: UsageChart }> = ({c}) => {
+const UsageChartViewer: React.FunctionComponent<{
+    c: UsageChart;
+    maximized?: boolean;
+    onMaximizeToggle: () => void;
+}> = ({c, maximized, onMaximizeToggle}) => {
     const [flattenedLines, names] = useMemo(() => {
         const names: string[] = [];
         const work: Record<string, Record<string, any>> = {};
@@ -398,30 +463,18 @@ const UsageChartViewer: React.FunctionComponent<{ c: UsageChart }> = ({c}) => {
         return [result, names];
     }, [c.chart]);
 
-    return <DashboardCard color={"blue"} width={"400px"}>
+    return <DashboardCard color={"blue"} width={maximized ? "100%" : "400px"} height={maximized ? "900px" : undefined}>
         <UsageChartStyle>
-            <Spacer
-                left={
-                    <div>
-                        <Text color="gray">{productTypeToTitle(c.type)}</Text>
-                        <Text bold my="-6px" fontSize="24px">{creditFormatter(c.periodUsage)} used</Text>
-                    </div>
-                }
-                right={
-                    <ClickableDropdown
-                        trigger={<Box mr="4px" mt="4px"><Icon rotation={90} name="ellipsis"/></Box>}
-                        left="-110px"
-                        top="-4px"
-                        options={[{text: "Storage (Size)", value: "storage_gb" as const}, {
-                            text: "Storage (DKK)",
-                            value: "storage_price" as const
-                        }]}
-                        onChange={doNothing}
-                    />
-                }
-            />
+            <Flex alignItems={"center"}>
+                <div>
+                    <Text color="gray">{productTypeToTitle(c.type)}</Text>
+                    <Text bold my="-6px" fontSize="24px">{creditFormatter(c.periodUsage)} used</Text>
+                </div>
+                <Box flexGrow={1}/>
+                <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
+            </Flex>
 
-            <ResponsiveContainer className={"usage-chart"} height={170}>
+            <ResponsiveContainer className={"usage-chart"} height={maximized ? 800 : 170}>
                 <AreaChart
                     margin={{
                         left: 0,
@@ -490,7 +543,7 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
                 </PieChart>
             </Flex>
 
-            <Flex pb="12px" style={{overflowX: "scroll"}} justifyContent={"center"}>
+            <Flex pb="12px" style={{overflowX: "auto"}} justifyContent={"center"}>
                 {props.chart.chart.points.map((it, index) =>
                     <Box mx="4px" width="auto" style={{whiteSpace: "nowrap"}} key={it.name}>
                         <Text textAlign="center" fontSize="14px">{it.name}</Text>
@@ -506,5 +559,64 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
         </DashboardCard>
     )
 }
+
+interface SubAllocation {
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+    remaining: number;
+    productCategoryId: ProductCategoryId;
+    chargeType: string;
+    unit: string;
+}
+
+function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+const SubAllocationViewer: React.FunctionComponent<{
+    allocations: APICallState<PageV2<SubAllocation>>;
+    generation: number;
+    loadMore: () => void;
+}> = ({allocations, loadMore, generation}) => {
+    return <DashboardCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
+        <Text color="darkGray" fontSize={1}>
+            An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
+        </Text>
+
+        <Pagination.ListV2
+            infiniteScrollGeneration={generation}
+            loading={allocations.loading}
+            page={allocations.data}
+            onLoadMore={loadMore}
+            pageRenderer={(page: SubAllocation[]) => {
+                return <Table mt={"8px"}>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell textAlign={"left"}>Workspace</TableHeaderCell>
+                            <TableHeaderCell textAlign={"left"}>Category</TableHeaderCell>
+                            <TableHeaderCell textAlign={"left"}>Used</TableHeaderCell>
+                            <TableHeaderCell textAlign={"left"}>Remaining</TableHeaderCell>
+                            <TableHeaderCell textAlign={"left"}>Active</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+                    <tbody>
+                    {page.map((row, idx) =>
+                        <TableRow key={idx}>
+                            <TableCell>
+                                <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"} color2={"iconColor2"} />
+                                {row.workspaceTitle}
+                            </TableCell>
+                            <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
+                            <TableCell>???</TableCell>
+                            <TableCell>{creditFormatter(row.remaining)}</TableCell>
+                            <TableCell>???</TableCell>
+                        </TableRow>
+                    )}
+                    </tbody>
+                </Table>;
+            }}
+        />
+    </DashboardCard>;
+};
 
 export default Resources;
