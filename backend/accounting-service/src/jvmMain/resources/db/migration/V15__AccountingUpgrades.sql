@@ -1429,7 +1429,7 @@ begin
     components := regexp_split_to_array(path_in, '/');
     for i in array_lower(components, 1)..array_upper(components, 1) loop
         if i > 0 then
-            parent_needed := components[i - 1];
+            parent_needed := result[i - 1].id;
         end if;
 
         component := components[i];

@@ -272,7 +272,6 @@ class AccountingTest : IntegrationTest() {
                                             chosenTarget,
                                             source,
                                             amount,
-                                            performedBy = performedBy.username
                                         )
                                     )
                                 },
