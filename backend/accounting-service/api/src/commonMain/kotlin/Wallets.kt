@@ -5,19 +5,7 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.checkMinimumValue
-import dk.sdu.cloud.calls.documentation
-import dk.sdu.cloud.calls.httpBrowse
-import dk.sdu.cloud.calls.httpUpdate
-import dk.sdu.cloud.calls.serializerEntry
-import dk.sdu.cloud.calls.serializerLookupTable
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -53,11 +41,13 @@ enum class AllocationSelectorPolicy {
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A path, starting from the top, through the allocations that will be charged, when a charge is made
 
         Note that this allocation path will always include, as its last element, this allocation.
-    """)
+    """
+    )
     val allocationPath: List<String>,
     @UCloudApiDoc("The current balance of this wallet allocation's subtree")
     val balance: Long,
@@ -69,7 +59,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-                "expire automatically"
+            "expire automatically"
     )
     val endDate: Long?
 )
@@ -129,6 +119,20 @@ enum class SortSubAllocationsBy {
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
+@Serializable
+data class WalletsRetrieveRecipientRequest(
+    val query: String,
+)
+
+@Serializable
+data class WalletsRetrieveRecipientResponse(
+    val id: String,
+    val isProject: Boolean,
+    val title: String,
+    val principalInvestigator: String,
+    val numberOfMembers: Int,
+)
+
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
@@ -143,8 +147,13 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
-            CommonErrorMessage>("browseSubAllocations") {
+        CommonErrorMessage>("browseSubAllocations") {
         httpBrowse(baseContext, "subAllocation")
+    }
+
+    val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
+        CommonErrorMessage>("retrieveRecipient") {
+        httpRetrieve(baseContext, "recipient")
     }
 }
 
@@ -235,19 +244,23 @@ data class TransferToWalletRequestItem(
     val source: WalletOwner,
     @UCloudApiDoc("The amount of credits to transfer")
     val amount: Long,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A timestamp for when this deposit should become valid
         
         This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
         immediately.
-    """)
+    """
+    )
     val startDate: Long? = null,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A timestamp for when this deposit should become invalid
         
         This value must overlap with the source allocation. A value of null indicates that the allocation will never
         expire.
-    """)
+    """
+    )
     val endDate: Long? = null,
     @UCloudApiDoc("The username of the user who generated this request")
     val performedBy: String,

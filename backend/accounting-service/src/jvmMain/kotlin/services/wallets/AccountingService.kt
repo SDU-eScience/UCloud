@@ -1078,6 +1078,72 @@ select * from combined_charts;
         }
     }
 
+    suspend fun retrieveRecipient(
+        actorAndProject: ActorAndProject,
+        request: WalletsRetrieveRecipientRequest
+    ): WalletsRetrieveRecipientResponse {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", request.query)
+                },
+                """
+                    with
+                        projects as (
+                            select (t.p).*
+                            from (
+                                select provider.last(p) as p
+                                from unnest(project.find_by_path(:id)) p
+                            ) t
+                        ),
+                        project_size as (
+                            select p.id, p.title, count(*) number_of_members
+                            from
+                                projects p join
+                                project.project_members pm on p.id = pm.project_id
+                            group by p.id, p.title
+                        ),
+                        entries as (
+                            select
+                                p.id as id,
+                                true as is_project,
+                                p.title as title,
+                                pi.username as pi,
+                                p.number_of_members as number_of_members
+                            from
+                                project_size p join
+                                project.project_members pi on
+                                    p.id = pi.project_id and
+                                    pi.role = 'PI'
+                            union
+                            select
+                                principal.id as id,
+                                false as is_project,
+                                principal.id as title,
+                                principal.id as pi,
+                                1 as number_of_members
+                            from auth.principals principal
+                            where
+                                principal.id = :id and
+                                (
+                                    principal.dtype = 'WAYF' or
+                                    principal.dtype = 'PASSWORD'
+                                )
+                        )
+                    select jsonb_build_object(
+                        'id', id,
+                        'isProject', is_project,
+                        'title', title,
+                        'principalInvestigator', pi,
+                        'numberOfMembers', number_of_members
+                    ) as result
+                    from entries
+                """
+            ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
+                ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

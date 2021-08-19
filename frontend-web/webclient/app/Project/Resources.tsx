@@ -1,14 +1,13 @@
+const CONF = require("../../site.config.json");
 import {
     Area,
     AreaChart,
-    CartesianGrid,
     Cell,
     Pie,
     PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
-    YAxis
 } from "recharts";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
@@ -21,34 +20,34 @@ import Product = accounting.Product;
 import {
     DateRangeFilter,
     EnumFilter,
-    EnumPill,
     FilterWidgetProps,
     PillProps,
     ResourceFilter,
     ValuePill
 } from "Resource/Filter";
-import {EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
 import {DashboardCard} from "Dashboard/Dashboard";
-import {useHistory} from "react-router";
-import {Client} from "Authentication/HttpClientInstance";
 import {ThemeColor} from "ui-components/theme";
-import {Box, Flex, Grid, Icon, OutlineButton, Text} from "ui-components";
+import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {ProductArea} from "Accounting";
 import {IconName} from "ui-components/Icon";
-import {Spacer} from "ui-components/Spacer";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, APICallStateWithParams, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {apiBrowse, APICallState, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
 import {emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
 import * as Pagination from "Pagination";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import ReactDatePicker from "react-datepicker";
+import {enGB} from "date-fns/locale";
+import {SlimDatePickerWrapper} from "ui-components/DatePicker";
+import {getStartOfDay} from "Activity/Page";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -354,7 +353,19 @@ const AllocationViewer: React.FunctionComponent<{
     allocation: WalletAllocation;
 }> = ({wallet, allocation}) => {
     const [opRef, onContextMenu] = useOperationOpener();
-    return <DashboardCard color={"red"} width={"400px"} onContextMenu={onContextMenu}>
+    const [isDeposit, setIsDeposit] = useState(false);
+    const [isMoving, setIsMoving] = useState(false);
+    const closeDepositing = useCallback(() => setIsMoving(false), []);
+    const openMoving = useCallback((isDeposit: boolean) => {
+        setIsDeposit(isDeposit);
+        setIsMoving(true);
+    }, []);
+    const callbacks = useMemo(() => ({
+        openMoving
+    }), [openMoving]);
+    return <DashboardCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
+        <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
+                              onSubmit={doNothing}/>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
@@ -365,23 +376,10 @@ const AllocationViewer: React.FunctionComponent<{
                     <Operations
                         openFnRef={opRef}
                         location={"IN_ROW"}
-                        operations={[
-                            {
-                                text: "Transfer to...",
-                                icon: "move",
-                                enabled: () => true,
-                                onClick: doNothing
-                            },
-                            {
-                                text: "Deposit into...",
-                                icon: "grant",
-                                enabled: () => true,
-                                onClick: doNothing
-                            }
-                        ]}
+                        operations={allocationOperations}
                         selected={[]}
                         row={{wallet, allocation}}
-                        extra={{}}
+                        extra={callbacks}
                         entityNameSingular={"Allocation"}
                     />
                 </Flex>
@@ -393,6 +391,22 @@ const AllocationViewer: React.FunctionComponent<{
         </Flex>
     </DashboardCard>;
 };
+
+interface AllocationCallbacks {
+    openMoving: (isDeposit: boolean) => void;
+}
+
+const allocationOperations: Operation<{ wallet: Wallet, allocation: WalletAllocation }, AllocationCallbacks>[] = [{
+    text: "Transfer to...",
+    icon: "move",
+    enabled: selected => selected.length === 1,
+    onClick: (selected, cb) => cb.openMoving(false)
+}, {
+    text: "Deposit into...",
+    icon: "grant",
+    enabled: selected => selected.length === 1,
+    onClick: (selected, cb) => cb.openMoving(true)
+}];
 
 const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number | null; }> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
@@ -692,5 +706,87 @@ const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[
     onClick: doNothing,
     enabled: selected => selected.length === 1
 }];
+
+const TransferDepositModal: React.FunctionComponent<{
+    isDeposit: boolean;
+    isOpen: boolean;
+    onRequestClose: () => void;
+    onSubmit: (amount: number, startDate: number, endDate: number) => void;
+}> = ({isOpen, onRequestClose, onSubmit}) => {
+    const [lookingForRecipient, setLookingForRecipient] = useState(false);
+    const [createdAfter, setCreatedAfter] = useState(getStartOfDay(new Date()).getTime());
+    const [createdBefore, setCreatedBefore] = useState<number | undefined>(undefined);
+
+    const updateDates = useCallback((dates: [Date, Date] | Date) => {
+        if (Array.isArray(dates)) {
+            const [start, end] = dates;
+            const newCreatedAfter = start.getTime();
+            const newCreatedBefore = end?.getTime();
+            setCreatedAfter(newCreatedAfter);
+            setCreatedBefore(newCreatedBefore);
+        } else {
+            const newCreatedAfter = dates.getTime();
+            setCreatedAfter(newCreatedAfter);
+            setCreatedBefore(undefined);
+        }
+    }, []);
+
+    return <ReactModal
+        isOpen={isOpen}
+        onRequestClose={onRequestClose}
+        shouldCloseOnEsc
+        ariaHideApp={false}
+        style={defaultModalStyle}
+    >
+        {lookingForRecipient ? null :
+            <Grid gridGap={8}>
+                <div>
+                    <Label>Recipient:</Label>
+                    None
+                    <Icon name={"edit"} color={"iconColor"} color2={"iconColor2"} size={16} cursor={"pointer"}
+                          onClick={() => setLookingForRecipient(true)} ml={8}/>
+                </div>
+
+                <Label>
+                    Amount:
+                    <Input/>
+                </Label>
+
+                <div>
+                    <Label>Allocation Period</Label>
+                    <SlimDatePickerWrapper>
+                        <ReactDatePicker
+                            locale={enGB}
+                            startDate={new Date(createdAfter)}
+                            endDate={createdBefore ? new Date(createdBefore) : undefined}
+                            onChange={updateDates}
+                            selectsRange={true}
+                            inline
+                            dateFormat="dd/MM/yy HH:mm"
+                        />
+                    </SlimDatePickerWrapper>
+                </div>
+            </Grid>
+        }
+        {!lookingForRecipient ? null : <Grid gridGap={16}>
+            <div>
+                Enter the
+                <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>
+                of the user, if the recipient is a personal workspace. Otherwise, enter the
+                <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>,
+                if the recipient is a project. The recipient can find this information in the lower-left corner of the
+                {CONF.PRODUCT_NAME} interface.
+            </div>
+
+            <Input/>
+            <Button fullWidth>Validate</Button>
+
+            <div><b>Project: </b> UCloud</div>
+            <div><b>Principal Investigator: </b> DanSebastianThrane#1337</div>
+            <div><b>Number of members: </b> XXX</div>
+            <Button fullWidth color={"green"}>Use this recipient</Button>
+        </Grid>}
+    </ReactModal>
+}
 
 export default Resources;
