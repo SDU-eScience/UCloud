@@ -281,5 +281,9 @@ data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableLi
         envs.add("${env}=${envValue}")
         return this
     }
+
+    fun execute() : ProcessResultText {
+       return startProcessAndCollectToString( args, envs )
+    }
     
 }
