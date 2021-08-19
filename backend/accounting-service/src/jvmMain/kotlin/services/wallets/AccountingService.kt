@@ -551,6 +551,7 @@ class AccountingService(
                     {
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
+                        setParameter("filter_type", request.filterType?.name)
                     },
                     """
                         declare c cursor for
@@ -562,8 +563,14 @@ class AccountingService(
                             accounting.product_categories pc on w.category = pc.id left join
                             project.project_members pm on wo.project_id = pm.project_id
                         where
-                            (:project::text is null and wo.username = :user) or
-                            (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
+                            (
+                                (:project::text is null and wo.username = :user) or
+                                (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
+                            ) and
+                            (
+                                :filter_type::accounting.product_type is null or
+                                pc.product_type = :filter_type::accounting.product_type
+                            )
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
@@ -646,6 +653,9 @@ class AccountingService(
                         declare c cursor for
                         select
                             jsonb_build_object(
+                                'id', alloc.id, 
+                                
+                                'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
                                 'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
                                 'workspaceIsProject', alloc_project.id is not null,
                                 'remaining', alloc.balance,
@@ -654,7 +664,9 @@ class AccountingService(
                                     'provider', pc.provider
                                 ),
                                 'chargeType', pc.charge_type,
-                                'unit', pc.unit_of_price
+                                'unit', pc.unit_of_price,
+                                'startDate', provider.timestamp_to_unix(alloc.start_date),
+                                'endDate', provider.timestamp_to_unix(alloc.end_date)
                             )
                         from
                             accounting.wallet_owner owner join
@@ -716,10 +728,12 @@ class AccountingService(
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
                     setParameter("filter_allocation", request.filterAllocation?.toLongOrDefault(-1))
+                    setParameter("filter_workspace", request.filterWorkspace)
+                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
                     setParameter("num_buckets", 30 as Int)
                 },
                 """
- with
+with
     -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
     -- from the associated product category. The category is crucial to create charts which make sense.
     -- This section is also the only section which fetches data from an actual table. If this code needs optimization
@@ -733,6 +747,9 @@ class AccountingService(
             accounting.wallets w on w.owned_by = wo.id join
             accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
             accounting.transactions t on t.affected_allocation_id = alloc.id join
+            accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
+            accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
+            accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
             accounting.product_categories pc on w.category = pc.id left join
             project.project_members pm on
                 pm.project_id = wo.project_id and
@@ -759,7 +776,20 @@ class AccountingService(
             ) and
             (
                 :filter_allocation::bigint is null or
-                alloc.id = :filter_allocation
+                t.source_allocation_id = :filter_allocation
+            ) and
+            (
+                :filter_workspace::text is null or
+                (
+                    (
+                        :filter_workspace_project::boolean = true and
+                        source_owner.project_id = :filter_workspace
+                    ) or
+                    (
+                        :filter_workspace_project::boolean is distinct from true and
+                        source_owner.username = :filter_workspace
+                    )
+                )
             )
     ),
     -- NOTE(Dan): Next we split up our data processing into two separate tracks, for a little while. The first
@@ -874,7 +904,7 @@ class AccountingService(
     ),
     -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
     combined_charts as (
-        select jsonb_build_object('charts', array_remove(array_agg(chart), null))
+        select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[])) result
         from chart_aggregation
     )
 select * from combined_charts;
@@ -903,6 +933,8 @@ select * from combined_charts;
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
                     setParameter("filter_allocation", request.filterAllocation?.toLongOrDefault(-1))
+                    setParameter("filter_workspace", request.filterWorkspace)
+                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
                 },
                 """
  with
@@ -919,6 +951,9 @@ select * from combined_charts;
             accounting.wallets w on w.owned_by = wo.id join
             accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
             accounting.transactions t on t.affected_allocation_id = alloc.id join
+            accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
+            accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
+            accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
             accounting.products p on t.product_id = p.id join
             accounting.product_categories pc on p.category = pc.id left join
             project.project_members pm on
@@ -943,6 +978,23 @@ select * from combined_charts;
             (
                 :filter_category::text is null or
                 pc.category = :filter_category
+            ) and
+            (
+                :filter_allocation::bigint is null or
+                t.source_allocation_id = :filter_allocation
+            ) and
+            (
+                :filter_workspace::text is null or
+                (
+                    (
+                        :filter_workspace_project::boolean = true and
+                        source_owner.project_id = :filter_workspace
+                    ) or
+                    (
+                        :filter_workspace_project::boolean is distinct from true and
+                        source_owner.username = :filter_workspace
+                    )
+                )
             )
     ),
     -- NOTE(Dan): We pick the latest recording for every source_allocation_id
@@ -1014,11 +1066,10 @@ select * from combined_charts;
         group by product_type, charge_type, unit_of_price
     ),
     combined_charts as (
-        select jsonb_build_object('charts', array_remove(array_agg(chart), null))
+        select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
         from chart_aggregation
     )
 select * from combined_charts;
-                   
                 """
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
                 "No usage data found. Are you sure you are allowed to view the data?",

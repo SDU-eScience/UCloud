@@ -96,35 +96,26 @@ typealias PushWalletChangeResponse = Unit
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
 data class SubAllocation(
-    val workspaceTitle: String,
-    val workspaceIsProject: Boolean,
-    val remaining: Long,
+    val id: String,
+    val startDate: Long,
+    val endDate: Long?,
+
     val productCategoryId: ProductCategoryId,
     val chargeType: ChargeType,
     val unit: ProductPriceUnit,
-    @UCloudApiDoc("Only included if `filterUsageStart` is specified.")
-    val usage: Usage? = null,
-) {
-    @Serializable
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    @UCloudApiDoc("""
-        Optional usage data of a sub-allocation.
-        
-        This field will only be included if `filterUsageStart` is specified.
-    """)
-    data class Usage(
-        val usage: Long,
-        val breakdown: PieChart
-    )
-}
+
+    val workspaceId: String,
+    val workspaceTitle: String,
+    val workspaceIsProject: Boolean,
+
+    val remaining: Long,
+)
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class WalletsBrowseSubAllocationsRequest(
     val sortBy: SortSubAllocationsBy? = null,
     val filterType: ProductType? = null,
-    val filterUsageStart: Long? = null,
-    val filterUsageEnd: Long? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,

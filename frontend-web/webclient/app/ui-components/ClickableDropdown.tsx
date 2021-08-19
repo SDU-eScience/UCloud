@@ -145,7 +145,7 @@ const ClickableDropdown: ClickableDropdownType =
         }
         const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
         let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
-        const top = !props.useMousePositioning ? props.top : location[1];
+        let top = !props.useMousePositioning ? props.top : location[1];
 
         let left = !props.useMousePositioning ? props.left : location[0];
         if (props.useMousePositioning) {
@@ -154,6 +154,12 @@ const ClickableDropdown: ClickableDropdownType =
             const leftAsNumber = parseInt((left ?? 0).toString().replace("px", ""));
             left = leftAsNumber - widthAsNumber;
             if (left < 0) left = leftAsNumber;
+
+            const topAsNumber = parseInt((top ?? 0).toString().replace("px", ""));
+            const estimatedHeight = 38 * children.length;
+            if (window.innerHeight - (topAsNumber + estimatedHeight) < 50) {
+                top = topAsNumber - estimatedHeight;
+            }
         }
 
         const dropdownContent = <DropdownContent

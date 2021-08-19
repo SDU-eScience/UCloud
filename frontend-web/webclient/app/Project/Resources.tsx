@@ -18,8 +18,16 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {accounting, PageV2, PaginationRequestV2} from "UCloud";
 import Product = accounting.Product;
-import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter} from "Resource/Filter";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {
+    DateRangeFilter,
+    EnumFilter,
+    EnumPill,
+    FilterWidgetProps,
+    PillProps,
+    ResourceFilter,
+    ValuePill
+} from "Resource/Filter";
+import {EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {useHistory} from "react-router";
@@ -38,7 +46,7 @@ import {apiBrowse, APICallState, APICallStateWithParams, apiRetrieve, useCloudAP
 import {buildQueryString} from "Utilities/URIUtilities";
 import {emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Operations} from "ui-components/Operation";
+import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
 import * as Pagination from "Pagination";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 
@@ -185,6 +193,11 @@ registerFilter(EnumFilter("cubeSolid", "filterType", "Product type", productType
     title: productTypeToTitle(t),
     value: t
 }))));
+filterPills.push(props =>
+    <ValuePill {...props} propertyName={"filterWorkspace"} secondaryProperties={["filterWorkspaceProject"]}
+               showValue={true} icon={"projects"} title={"Workspace"}/>);
+filterPills.push(props =>
+    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"}/>);
 
 interface VisualizationFlags {
     filterStartDate?: number | null;
@@ -209,7 +222,7 @@ function browseWallets(request: PaginationRequestV2): APICallParameters {
 
 const Resources: React.FunctionComponent = props => {
     const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const [properties, setProperties] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>({});
     const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
@@ -224,21 +237,32 @@ const Resources: React.FunctionComponent = props => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        fetchUsage(retrieveUsage({}));
-        fetchBreakdowns(retrieveBreakdown({}));
-        fetchWallets(browseWallets({itemsPerPage: 50}));
-        fetchAllocations(browseSubAllocations({itemsPerPage: 50}));
+        fetchUsage(retrieveUsage({...filters}));
+        fetchBreakdowns(retrieveBreakdown({...filters}));
+        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
+        fetchAllocations(browseSubAllocations({itemsPerPage: 50, ...filters}));
         setAllocationGeneration(prev => prev + 1);
-    }, []);
+    }, [filters]);
 
     const loadMoreAllocations = useCallback(() => {
         fetchAllocations(browseSubAllocations({itemsPerPage: 50, next: allocations.data.next}));
     }, [allocations.data]);
 
+    const filterByAllocation = useCallback((allocationId: string) => {
+        setFilters(prev => ({...prev, "filterAllocation": allocationId}))
+    }, [setFilters]);
+    const filterByWorkspace = useCallback((workspaceId: string, workspaceIsProject: boolean) => {
+        setFilters(prev => ({
+            ...prev,
+            "filterWorkspace": workspaceId,
+            "filterWorkspaceProject": workspaceIsProject.toString()
+        }));
+    }, [setFilters]);
+
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
-    useEffect(reloadPage, [reloadPage]);
+    useEffect(reloadPage, []);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     const usageClassName = usage.data.charts.length > 3 ? "large" : "slim";
@@ -258,11 +282,11 @@ const Resources: React.FunctionComponent = props => {
                     pills={filterPills}
                     filterWidgets={filterWidgets}
                     sortEntries={[]}
-                    properties={properties}
-                    setProperties={setProperties}
+                    properties={filters}
+                    setProperties={setFilters}
                     sortDirection={"ascending"}
                     onSortUpdated={doNothing}
-                    onApplyFilters={doNothing}
+                    onApplyFilters={reloadPage}
                 />
             </>}
             main={<Grid gridGap={"16px"}>
@@ -288,7 +312,8 @@ const Resources: React.FunctionComponent = props => {
                             )}
                         </VisualizationSection>
                         <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                             loadMore={loadMoreAllocations} />
+                                             loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
+                                             filterByWorkspace={filterByWorkspace}/>
                     </>
                 }
             </Grid>}
@@ -328,7 +353,8 @@ const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
 }> = ({wallet, allocation}) => {
-    return <DashboardCard color={"red"} width={"400px"}>
+    const [opRef, onContextMenu] = useOperationOpener();
+    return <DashboardCard color={"red"} width={"400px"} onContextMenu={onContextMenu}>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
@@ -337,6 +363,7 @@ const AllocationViewer: React.FunctionComponent<{
                     <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
                     <Box flexGrow={1}/>
                     <Operations
+                        openFnRef={opRef}
                         location={"IN_ROW"}
                         operations={[
                             {
@@ -561,12 +588,19 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
 }
 
 interface SubAllocation {
-    workspaceTitle: string;
-    workspaceIsProject: boolean;
-    remaining: number;
+    id: string;
+    startDate: number;
+    endDate?: number | null;
+
     productCategoryId: ProductCategoryId;
     chargeType: string;
     unit: string;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+
+    remaining: number;
 }
 
 function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
@@ -577,7 +611,10 @@ const SubAllocationViewer: React.FunctionComponent<{
     allocations: APICallState<PageV2<SubAllocation>>;
     generation: number;
     loadMore: () => void;
-}> = ({allocations, loadMore, generation}) => {
+    filterByAllocation: (allocationId: string) => void;
+    filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
+}> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace}) => {
+    const cb = useMemo(() => ({filterByAllocation, filterByWorkspace}), [filterByAllocation, filterByWorkspace])
     return <DashboardCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
         <Text color="darkGray" fontSize={1}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
@@ -594,29 +631,66 @@ const SubAllocationViewer: React.FunctionComponent<{
                         <TableRow>
                             <TableHeaderCell textAlign={"left"}>Workspace</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Category</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Used</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Remaining</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Active</TableHeaderCell>
+                            <TableHeaderCell width={"35px"}/>
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {page.map((row, idx) =>
-                        <TableRow key={idx}>
-                            <TableCell>
-                                <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"} color2={"iconColor2"} />
-                                {row.workspaceTitle}
-                            </TableCell>
-                            <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
-                            <TableCell>???</TableCell>
-                            <TableCell>{creditFormatter(row.remaining)}</TableCell>
-                            <TableCell>???</TableCell>
-                        </TableRow>
-                    )}
+                    {page.map((row, idx) => <SubAllocationRow key={idx} row={row} cb={cb}/>)}
                     </tbody>
                 </Table>;
             }}
         />
     </DashboardCard>;
 };
+
+const SubAllocationRow: React.FunctionComponent<{ row: SubAllocation, cb: SubAllocationCallbacks }> = ({row, cb}) => {
+    const [opRef, onContextMenu] = useOperationOpener()
+
+    return <TableRow onContextMenu={onContextMenu} highlightOnHover>
+        <TableCell>
+            <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"}
+                  color2={"iconColor2"}/>
+            {row.workspaceTitle}
+        </TableCell>
+        <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
+        <TableCell>{creditFormatter(row.remaining)}</TableCell>
+        <TableCell><ExpiresIn startDate={row.startDate} endDate={row.endDate}/></TableCell>
+        <TableCell>
+            <Operations
+                openFnRef={opRef}
+                location={"IN_ROW"}
+                row={row}
+                operations={subAllocationOperations}
+                selected={[]}
+                extra={cb}
+                entityNameSingular={"Allocation"}
+            />
+        </TableCell>
+    </TableRow>
+};
+
+interface SubAllocationCallbacks {
+    filterByAllocation: (allocationId: string) => void;
+    filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
+}
+
+const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[] = [{
+    icon: "filterSolid",
+    text: "Focus on allocation",
+    onClick: (selected, cb) => cb.filterByAllocation(selected[0].id),
+    enabled: selected => selected.length === 1
+}, {
+    icon: "filterSolid",
+    text: "Focus on workspace",
+    onClick: (selected, cb) => cb.filterByWorkspace(selected[0].workspaceId, selected[0].workspaceIsProject),
+    enabled: selected => selected.length === 1
+}, {
+    icon: "edit",
+    text: "Edit",
+    onClick: doNothing,
+    enabled: selected => selected.length === 1
+}];
 
 export default Resources;

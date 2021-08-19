@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -12,7 +12,7 @@ import {SlimDatePickerWrapper} from "ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "ui-components/Toggle";
-import {doNothing, timestampUnixMs} from "UtilityFunctions";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Activity/Page";
 import {dateToStringNoTime} from "Utilities/DateUtilities";
 import {SortEntry} from "UCloud/ResourceApi";
@@ -63,6 +63,10 @@ export const ResourceFilter: React.FunctionComponent<{
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
     const [isDirty, setIsDirty] = useState(false);
+
+    useEffectSkipMount(() => {
+        setIsDirty(true)
+    }, [properties, setIsDirty]);
 
     const onSortDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(sortProperties)};
@@ -458,6 +462,25 @@ export function DateRangeFilter(
             icon={icon} title={title} {...props} />,
     ];
 }
+
+export const ValuePill: React.FunctionComponent<{
+    propertyName: string;
+    showValue: boolean;
+    secondaryProperties?: string[];
+} & PillProps & BaseFilterWidgetProps> = (props) => {
+    const onRemove = useCallback(() => {
+        const allProperties = [...(props.secondaryProperties ?? [])];
+        allProperties.push(props.propertyName);
+        props.onDelete(allProperties);
+    }, [props.secondaryProperties, props.onDelete, props.propertyName]);
+
+    const value = props.properties[props.propertyName];
+    if (!value) return null;
+
+    return <FilterPill icon={props.icon} onRemove={onRemove}>
+        {props.title}{!props.showValue ? null : <>: {value}</>}
+    </FilterPill>;
+};
 
 interface EnumOption {
     icon?: IconName;

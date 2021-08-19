@@ -44,6 +44,7 @@ import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
+import {MouseEventHandler} from "react";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -56,6 +57,7 @@ export const DashboardCard: React.FunctionComponent<{
     width?: string,
     minWidth?: string,
     onClick?: () => void;
+    onContextMenu?: MouseEventHandler<never> | undefined;
 }> = ({
           title,
           subtitle,
@@ -67,7 +69,8 @@ export const DashboardCard: React.FunctionComponent<{
           height = "auto",
           minHeight,
           width = "100%",
-          minWidth
+          minWidth,
+          onContextMenu
       }) => (
     <Card
         onClick={onClick}
@@ -79,6 +82,7 @@ export const DashboardCard: React.FunctionComponent<{
         borderWidth={0}
         borderRadius={6}
         minHeight={minHeight}
+        onContextMenu={onContextMenu}
     >
         <Box style={{borderTop: `5px solid var(--${color}, #f00)`}}/>
         <Box px={3} py={1} height={"calc(100% - 5px)"}>

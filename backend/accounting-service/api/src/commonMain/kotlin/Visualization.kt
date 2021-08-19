@@ -26,6 +26,8 @@ interface VisualizationFlags {
     val filterProvider: String?
     val filterProductCategory: String?
     val filterAllocation: String?
+    val filterWorkspace: String?
+    val filterWorkspaceProject: Boolean?
 }
 
 @Serializable
@@ -36,6 +38,8 @@ data class VisualizationRetrieveUsageRequest(
     override val filterProvider: String? = null,
     override val filterProductCategory: String? = null,
     override val filterAllocation: String? = null,
+    override val filterWorkspace: String? = null,
+    override val filterWorkspaceProject: Boolean? = null,
 ) : VisualizationFlags
 
 @Serializable
@@ -58,6 +62,8 @@ data class VisualizationRetrieveBreakdownRequest(
     override val filterProvider: String? = null,
     override val filterProductCategory: String? = null,
     override val filterAllocation: String? = null,
+    override val filterWorkspace: String? = null,
+    override val filterWorkspaceProject: Boolean? = null,
 ) : VisualizationFlags
 
 @Serializable
