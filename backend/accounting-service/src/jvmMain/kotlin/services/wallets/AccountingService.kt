@@ -357,7 +357,7 @@ class AccountingService(
                     providers.add(req.categoryId.provider)
                     startDates.add(req.startDate?.let { it / 1000 })
                     endDates.add(req.endDate?.let { it / 1000 })
-                    performedBy.add(req.performedBy)
+                    performedBy.add(actorAndProject.actor.safeUsername())
                     descriptions.add("Transfer from $sourceId to $targetId")
                 }
             }

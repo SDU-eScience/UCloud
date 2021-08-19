@@ -1,3 +1,5 @@
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
+
 const CONF = require("../../site.config.json");
 import {
     Area,
@@ -15,7 +17,7 @@ import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {accounting, PageV2, PaginationRequestV2} from "UCloud";
+import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "UCloud";
 import Product = accounting.Product;
 import {
     DateRangeFilter,
@@ -25,8 +27,8 @@ import {
     ResourceFilter,
     ValuePill
 } from "Resource/Filter";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {capitalized, doNothing, errorMessageOrDefault, timestampUnixMs} from "UtilityFunctions";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {ThemeColor} from "ui-components/theme";
 import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
@@ -36,8 +38,8 @@ import {IconName} from "ui-components/Icon";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
-import {emptyPageV2} from "DefaultObjects";
+import {apiBrowse, APICallState, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
 import * as Pagination from "Pagination";
@@ -48,6 +50,7 @@ import ReactDatePicker from "react-datepicker";
 import {enGB} from "date-fns/locale";
 import {SlimDatePickerWrapper} from "ui-components/DatePicker";
 import {getStartOfDay} from "Activity/Page";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -219,6 +222,56 @@ function browseWallets(request: PaginationRequestV2): APICallParameters {
     return apiBrowse(request, "/api/accounting/wallets");
 }
 
+interface TransferRecipient {
+    id: string;
+    isProject: boolean;
+    title: string;
+    principalInvestigator: string;
+    numberOfMembers: number;
+}
+
+function retrieveRecipient(request: { query: string }): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
+}
+
+interface DepositToWalletRequestItem {
+    recipient: WalletOwner;
+    sourceAllocation: string;
+    amount: number;
+    description: string;
+    startDate: number;
+    endDate: number;
+}
+
+interface TransferToWalletRequestItem {
+    categoryId: ProductCategoryId;
+    target: WalletOwner;
+    source: WalletOwner;
+    amount: number;
+    startDate: number;
+    endDate: number;
+}
+
+interface UpdateAllocationRequestItem {
+    id: string;
+    balance: number;
+    startDate: number;
+    endDate?: number | null;
+    reason: string;
+}
+
+function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "allocation");
+}
+
+function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "deposit");
+}
+
+function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "transfer");
+}
+
 const Resources: React.FunctionComponent = props => {
     const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
     const [filters, setFilters] = useState<Record<string, string>>({});
@@ -356,6 +409,7 @@ const AllocationViewer: React.FunctionComponent<{
     const [isDeposit, setIsDeposit] = useState(false);
     const [isMoving, setIsMoving] = useState(false);
     const closeDepositing = useCallback(() => setIsMoving(false), []);
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const openMoving = useCallback((isDeposit: boolean) => {
         setIsDeposit(isDeposit);
         setIsMoving(true);
@@ -363,9 +417,43 @@ const AllocationViewer: React.FunctionComponent<{
     const callbacks = useMemo(() => ({
         openMoving
     }), [openMoving]);
+
+    const onTransferSubmit = useCallback(async (workspaceId: string, isProject: boolean, amount: number,
+                                                startDate: number, endDate: number) => {
+        if (isDeposit) {
+            await invokeCommand(deposit(bulkRequestOf({
+                amount,
+                startDate,
+                endDate,
+                recipient: {
+                    type: isProject ? "project" : "user",
+                    projectId: workspaceId,
+                    username: workspaceId
+                },
+                description: "Manually initiated " + isDeposit ? "deposit" : "transfer",
+                sourceAllocation: allocation.id
+            })));
+        } else {
+            await invokeCommand(transfer(bulkRequestOf({
+                amount,
+                startDate,
+                endDate,
+                source: wallet.owner,
+                categoryId: wallet.paysFor,
+                target: {
+                    type: isProject ? "project" : "user",
+                    projectId: workspaceId,
+                    username: workspaceId
+                },
+
+            })));
+        }
+
+        setIsMoving(false);
+    }, [isDeposit]);
     return <DashboardCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
         <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
-                              onSubmit={doNothing}/>
+                              onSubmit={onTransferSubmit}/>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
@@ -707,15 +795,36 @@ const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[
     enabled: selected => selected.length === 1
 }];
 
+const transferModalStyle = {content: {...defaultModalStyle.content, width: "480px", height: "550px"}};
+
 const TransferDepositModal: React.FunctionComponent<{
     isDeposit: boolean;
     isOpen: boolean;
     onRequestClose: () => void;
-    onSubmit: (amount: number, startDate: number, endDate: number) => void;
-}> = ({isOpen, onRequestClose, onSubmit}) => {
+    onSubmit: (recipientId: string, recipientIsProject: boolean, amount: number, startDate: number, endDate: number) => void;
+}> = ({isDeposit, isOpen, onRequestClose, onSubmit}) => {
+    const [recipient, setRecipient] = useState<TransferRecipient | null>(null);
     const [lookingForRecipient, setLookingForRecipient] = useState(false);
     const [createdAfter, setCreatedAfter] = useState(getStartOfDay(new Date()).getTime());
     const [createdBefore, setCreatedBefore] = useState<number | undefined>(undefined);
+    const [recipientQuery, fetchRecipient] = useCloudAPI<TransferRecipient | null>({noop: true}, null);
+    const recipientQueryField = useRef<HTMLInputElement>(null);
+    const amountField = useRef<HTMLInputElement>(null);
+    const onRecipientQuery = useCallback((e) => {
+        e.preventDefault();
+        fetchRecipient(retrieveRecipient({query: recipientQueryField.current?.value ?? ""}));
+    }, []);
+    const onRecipientConfirm = useCallback(() => {
+        if (recipientQuery.data) {
+            setRecipient(recipientQuery.data);
+            setLookingForRecipient(false);
+        }
+    }, [recipientQuery]);
+    const close = useCallback(() => {
+        setRecipient(null);
+        setLookingForRecipient(false);
+        onRequestClose();
+    }, [onRequestClose]);
 
     const updateDates = useCallback((dates: [Date, Date] | Date) => {
         if (Array.isArray(dates)) {
@@ -731,29 +840,43 @@ const TransferDepositModal: React.FunctionComponent<{
         }
     }, []);
 
+    const doSubmit = useCallback(() => {
+        if (recipient && createdBefore) {
+            const amount = parseInt(amountField.current?.value ?? "0");
+            onSubmit(recipient.id, recipient.isProject, amount, createdAfter, createdBefore);
+        } else {
+            if (!recipient) snackbarStore.addFailure("Missing recipient", false);
+            if (!createdBefore) snackbarStore.addFailure("The allocation is missing an end-date", false);
+        }
+    }, [onSubmit, createdAfter, createdBefore, recipient]);
+
     return <ReactModal
         isOpen={isOpen}
-        onRequestClose={onRequestClose}
+        onRequestClose={close}
         shouldCloseOnEsc
         ariaHideApp={false}
-        style={defaultModalStyle}
+        style={transferModalStyle}
     >
         {lookingForRecipient ? null :
-            <Grid gridGap={8}>
+            <Grid gridGap={16}>
                 <div>
                     <Label>Recipient:</Label>
-                    None
+                    {recipient == null ? "None" : <>
+                        <Icon name={recipient.isProject ? "projects" : "user"} mr={8}
+                              color={"iconColor"} color2={"iconColor2"} />
+                        {recipient.title}
+                    </>}
                     <Icon name={"edit"} color={"iconColor"} color2={"iconColor2"} size={16} cursor={"pointer"}
                           onClick={() => setLookingForRecipient(true)} ml={8}/>
                 </div>
 
                 <Label>
                     Amount:
-                    <Input/>
+                    <Input ref={amountField}/>
                 </Label>
 
                 <div>
-                    <Label>Allocation Period</Label>
+                    <Label>Allocation Period:</Label>
                     <SlimDatePickerWrapper>
                         <ReactDatePicker
                             locale={enGB}
@@ -766,25 +889,44 @@ const TransferDepositModal: React.FunctionComponent<{
                         />
                     </SlimDatePickerWrapper>
                 </div>
+
+                <ConfirmationButton actionText={isDeposit ? "Deposit" : "Transfer"} icon={isDeposit ? "grant" : "move"}
+                                    onAction={doSubmit} />
             </Grid>
         }
         {!lookingForRecipient ? null : <Grid gridGap={16}>
             <div>
-                Enter the
-                <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>
-                of the user, if the recipient is a personal workspace. Otherwise, enter the
-                <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>,
-                if the recipient is a project. The recipient can find this information in the lower-left corner of the
-                {CONF.PRODUCT_NAME} interface.
+                <p>
+                    Enter the
+                    <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>
+                    of the user, if the recipient is a personal workspace. Otherwise, enter the
+                    <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>.
+                </p>
+
+                <p>
+                    The recipient can find this information in the lower-left corner of the
+                    {" "}{CONF.PRODUCT_NAME} interface.
+                </p>
             </div>
 
-            <Input/>
-            <Button fullWidth>Validate</Button>
+            <form onSubmit={onRecipientQuery}>
+                <Label>
+                    Recipient:
+                    <Input ref={recipientQueryField}/>
+                </Label>
+                <Button my={16} fullWidth type={"submit"}>Validate</Button>
+            </form>
 
-            <div><b>Project: </b> UCloud</div>
-            <div><b>Principal Investigator: </b> DanSebastianThrane#1337</div>
-            <div><b>Number of members: </b> XXX</div>
-            <Button fullWidth color={"green"}>Use this recipient</Button>
+            {!recipientQuery.error ? null : <>
+                {recipientQuery.error.why}
+            </>}
+
+            {!recipientQuery.data ? null : <>
+                <div><b>Workspace: </b> {recipientQuery.data?.title}</div>
+                <div><b>Principal Investigator: </b> {recipientQuery.data?.principalInvestigator}</div>
+                <div><b>Number of members: </b> {recipientQuery.data?.numberOfMembers}</div>
+                <Button fullWidth color={"green"} onClick={onRecipientConfirm}>Use this recipient</Button>
+            </>}
         </Grid>}
     </ReactModal>
 }

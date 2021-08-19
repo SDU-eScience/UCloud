@@ -262,8 +262,6 @@ data class TransferToWalletRequestItem(
     """
     )
     val endDate: Long? = null,
-    @UCloudApiDoc("The username of the user who generated this request")
-    val performedBy: String,
 )
 
 typealias TransferToWalletResponse = Unit
