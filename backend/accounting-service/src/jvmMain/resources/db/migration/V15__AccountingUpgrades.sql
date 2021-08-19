@@ -1417,6 +1417,39 @@ create aggregate provider.last (
         stype    = anyelement
 );
 
+create or replace function project.find_by_path(path_in text) returns project.projects[] language plpgsql as $$
+declare
+    i int;
+    parent_needed text := null;
+    current_project text;
+    component text;
+    components text[];
+    result project.projects[];
+begin
+    components := regexp_split_to_array(path_in, '/');
+    for i in array_lower(components, 1)..array_upper(components, 1) loop
+        if i > 0 then
+            parent_needed := components[i - 1];
+        end if;
+
+        component := components[i];
+
+        select p into current_project
+        from project.projects p
+        where
+            upper(title) = upper(component) and
+            parent is not distinct from parent_needed;
+
+        if current_project is null then
+            return null;
+        end if;
+
+        result[i] := current_project;
+    end loop;
+    return result;
+end;
+$$;
+
 ---- /Procedures ----
 
 ---- Grants ----
