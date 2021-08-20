@@ -14,7 +14,7 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {fileName, sizeToString} from "Utilities/FileUtilities";
+import {fileName, getParentPath, sizeToString} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
@@ -171,7 +171,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         fetchTemplate();
     }, []);
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite).slice(0, 7);
 
     return (
         <HighlightedCard
@@ -202,7 +202,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <div key={it.path}>{fileName(it.path)} {it.metadata.specification.document.favorite}</div>
+                    <Link to={buildQueryString("/files", {path: getParentPath(it.path)})}>{fileName(it.path)}</Link>
                 </Flex>))}
             </List>
         </HighlightedCard >
