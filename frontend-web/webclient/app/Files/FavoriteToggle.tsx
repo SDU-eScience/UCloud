@@ -47,7 +47,6 @@ export const FileFavoriteToggle: React.FunctionComponent<{
         setFavorite(!isFavorite);
         try {
             if (!favoriteTemplateId) {
-                console.log("Looking for the ID");
                 const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
                     metadataNsApi.browse(({filterName: "favorite", itemsPerPage: 50}))
                 );

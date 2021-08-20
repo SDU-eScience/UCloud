@@ -19,7 +19,7 @@ import {
     WalletBalance, walletEquals
 } from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
 import {Client} from "Authentication/HttpClientInstance";
 import {sizeToString} from "Utilities/FileUtilities";
@@ -94,7 +94,7 @@ const SelectableWallet: React.FunctionComponent<{
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
-            <DashboardCard color={props.selected ? "green" : "blue"} isLoading={false}>
+            <HighlightedCard color={props.selected ? "green" : "blue"} isLoading={false}>
                 <table>
                     <tbody>
                         <tr>
@@ -143,7 +143,7 @@ const SelectableWallet: React.FunctionComponent<{
                         </tr>
                     </tbody>
                 </table>
-            </DashboardCard>
+            </HighlightedCard>
         </SelectableWalletWrapper>
     );
 };
@@ -301,7 +301,7 @@ const Subprojects: React.FunctionComponent = () => {
                             }
 
                             {(!Client.hasActiveProject || isAdminOrPI(projectRole)) && mainWallets.length === 0 ?
-                                <DashboardCard color="blue" isLoading={false}>
+                                <HighlightedCard color="blue" isLoading={false}>
                                     <Flex height={"140px"} justifyContent={"center"} alignItems={"center"}
                                         flexDirection={"column"}>
                                         <Heading.h4>No resources available for this project</Heading.h4>
@@ -313,7 +313,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             }><Button>Apply for resources</Button></Link>
                                         </Box>
                                     </Flex>
-                                </DashboardCard>
+                                </HighlightedCard>
                                 : null}
                         </WalletContainer>
                     </LoadingBox>

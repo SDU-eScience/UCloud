@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage, emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "DefaultObjects";
 import {History} from "history";
-import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -10,17 +9,16 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Markdown, Text} from "ui-components";
+import {Box, Button, Flex, Icon, Link, Markdown, Text} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {fileName, getParentPath, sizeToString} from "Utilities/FileUtilities";
+import {fileName, sizeToString} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {IconName} from "ui-components/Icon";
-import {APICallState, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
@@ -30,7 +28,6 @@ import {
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
-import theme, {ThemeColor} from "ui-components/theme";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {Balance} from "Accounting/Balance";
@@ -50,63 +47,10 @@ import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
 import {UFile} from "UCloud/FilesApi";
-import metadataDocumentApi, {FileMetadataAttached, FileMetadataDocument} from "UCloud/MetadataDocumentApi";
-
-export const DashboardCard: React.FunctionComponent<{
-    title?: React.ReactNode;
-    subtitle?: React.ReactNode;
-    color: ThemeColor;
-    isLoading?: boolean;
-    icon?: IconName,
-    height?: string,
-    minHeight?: string,
-    width?: string,
-    minWidth?: string,
-    onClick?: () => void;
-}> = ({
-    title,
-    subtitle,
-    onClick,
-    color,
-    isLoading = false,
-    icon = undefined,
-    children,
-    height = "auto",
-    minHeight,
-    width = "100%",
-    minWidth
-}) => (
-        <Card
-            onClick={onClick}
-            overflow="hidden"
-            height={height}
-            width={width}
-            minWidth={minWidth}
-            boxShadow="sm"
-            borderWidth={0}
-            borderRadius={6}
-            minHeight={minHeight}
-        >
-            <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-            <Box px={3} py={1} height={"calc(100% - 5px)"}>
-                <Flex alignItems="center">
-                    {icon !== undefined ? (
-                        <Icon
-                            name={icon}
-                            m={8}
-                            ml={0}
-                            size="20"
-                            color={theme.colors.darkGray}
-                        />
-                    ) : null}
-                    {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
-                    <Box flexGrow={1} />
-                    {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
-                </Flex>
-                {!isLoading ? children : <Spinner />}
-            </Box>
-        </Card>
-    );
+import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
+import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
+import HighlightedCard from "ui-components/HighlightedCard";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -167,7 +111,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchFavoriteFiles(metadataDocumentApi.browse({
+        fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
             filterTemplate: "Favorite",
             itemsPerPage: 10
@@ -187,7 +131,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
             <DashboardFavoriteFiles
                 favoriteFiles={favoriteFiles}
-                onDeFavorite={file => new Promise(res => res())}
+                onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
+                    filterActive: true,
+                    filterTemplate: "Favorite",
+                    itemsPerPage: 10
+                }))}
             />
 
             <DashboardNotifications
@@ -211,21 +159,65 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
 interface DashboardFavoriteFilesProps {
     favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
-    onDeFavorite(file: UFile): Promise<void>;
+    onDeFavorite(): void;
 }
 
-const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element => (
-    <DashboardCard
-        color="darkBlue"
-        isLoading={props.favoriteFiles.loading}
-        icon="starFilled"
-        title="Favorites"
-    >
-        {props.favoriteFiles.data.items.map(it =>
-            <div key={it.path}>{fileName(it.path)} {it.metadata.specification.document.favorite}</div>
-        )}
-    </DashboardCard>
-);
+const favoriteTemplateVersion = "1.0.0";
+const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element => {
+    const [, invokeCommand] = useCloudCommand();
+
+    const [favoriteTemplateId, setId] = React.useState("");
+    React.useEffect(() => {
+        fetchTemplate();
+    }, []);
+
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
+
+    return (
+        <HighlightedCard
+            color="darkBlue"
+            isLoading={props.favoriteFiles.loading}
+            icon="starFilled"
+            title="Favorites"
+        >
+            <List>
+                {favorites.map(it => (<Flex key={it.path} >
+                    <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
+                        if (!favoriteTemplateId) return;
+                        try {
+                            await invokeCommand(
+                                metadataApi.create(bulkRequestOf({
+                                    fileId: it.path,
+                                    metadata: {
+                                        document: {favorite: false},
+                                        version: favoriteTemplateVersion,
+                                        changeLog: "New favorite status",
+                                        templateId: favoriteTemplateId
+                                    }
+                                })),
+                                {defaultErrorHandler: false}
+                            );
+                            props.onDeFavorite();
+                        } catch (e) {
+                            snackbarStore.addFailure("Failed to unfavorite", false);
+                        }
+                    }} />
+                    <div key={it.path}>{fileName(it.path)} {it.metadata.specification.document.favorite}</div>
+                </Flex>))}
+            </List>
+        </HighlightedCard >
+    );
+
+    async function fetchTemplate() {
+        const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
+            MetadataNamespaceApi.browse(({filterName: "favorite", itemsPerPage: 50}))
+        );
+        const ns = page?.items?.[0];
+        if (ns) {
+            setId(ns.id);
+        }
+    }
+}
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
@@ -234,7 +226,7 @@ interface DashboardNotificationProps {
 }
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
-    <DashboardCard
+    <HighlightedCard
         color="darkGreen"
         isLoading={false}
         icon="notification"
@@ -269,7 +261,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                 </Flex>
             ))}
         </List>
-    </DashboardCard>
+    </HighlightedCard>
 );
 
 export interface NewsPost {
@@ -335,7 +327,7 @@ function DashboardProjectUsage(): JSX.Element | null {
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     return (
-        <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+        <HighlightedCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
             isLoading={false}
@@ -355,7 +347,7 @@ function DashboardProjectUsage(): JSX.Element | null {
                     </TableRow>
                 </tbody>
             </Table>
-        </DashboardCard>
+        </HighlightedCard>
     );
 }
 
@@ -382,7 +374,7 @@ function DashboardResources({products, loading, quota}: {
     </Link>;
 
     return (
-        <DashboardCard
+        <HighlightedCard
             title={<Link to={"/project/subprojects"}><Heading.h3>Resources</Heading.h3></Link>}
             color="red"
             isLoading={loading}
@@ -438,7 +430,7 @@ function DashboardResources({products, loading, quota}: {
                     </Flex>
                 </>
             }
-        </DashboardCard>
+        </HighlightedCard>
     );
 }
 
@@ -457,7 +449,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
             </Link>
     );
 
-    return <DashboardCard
+    return <HighlightedCard
         title={title}
         color="green"
         minWidth="450px"
@@ -491,12 +483,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
             </>
         )}
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
     return (
-        <DashboardCard
+        <HighlightedCard
             title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}
             color="orange"
             isLoading={loading}
@@ -529,7 +521,7 @@ function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): J
                 left={null}
                 right={<Link to="/news/list/">View more</Link>}
             />
-        </DashboardCard>
+        </HighlightedCard>
     );
 }
 

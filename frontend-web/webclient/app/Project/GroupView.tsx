@@ -7,7 +7,7 @@ import {
     removeGroupMemberRequest,
     updateGroupName,
 } from "Project";
-import {addStandardDialog, ConfirmCancelButtons, ShakingBox} from "UtilityComponents";
+import {addStandardDialog, ConfirmCancelButtons} from "UtilityComponents";
 import {ProjectRole} from "Project";
 import {useProjectManagementStatus} from "Project/index";
 import {MembersList} from "Project/MembersList";

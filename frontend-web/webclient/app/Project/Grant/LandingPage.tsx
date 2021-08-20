@@ -4,7 +4,7 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {Text, Button, Flex, Icon, Link} from "ui-components";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import styled from "styled-components";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {Center} from "UtilityComponents";
 import {IconName} from "ui-components/Icon";
 import {ThemeColor} from "ui-components/theme";
@@ -24,13 +24,13 @@ const LandingPageCard: React.FunctionComponent<{
     title: string;
     linkLocation: string;
 }> = props => {
-    return <DashboardCard color={props.color} isLoading={false} title={props.title} height={"700px"}>
+    return <HighlightedCard color={props.color} isLoading={false} title={props.title} height={"700px"}>
         <Center my={16}>
             <Icon color="iconColor" color2="iconColor2" name={props.icon} size="128px" />
         </Center>
         <Link to={props.linkLocation}><Button fullWidth mb={16}>Apply for resources</Button></Link>
         {props.children}
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 export const LandingPage: React.FunctionComponent = () => {
