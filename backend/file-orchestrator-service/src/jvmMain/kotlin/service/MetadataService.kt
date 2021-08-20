@@ -533,20 +533,44 @@ class MetadataService(
         val result = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("user", actorAndProject.actor.username)
+                    setParameter("username", actorAndProject.actor.username)
+                    setParameter("project", actorAndProject.project)
                     setParameter("version", request.filterVersion)
                     setParameter("active", request.filterActive)
                     setParameter("template", request.filterTemplate)
                 },
                 """
-                SELECT mdd.path, file_orchestrator.metadata_document_to_json(mdd) as json
-                FROM file_orchestrator.metadata_documents mdd
-                INNER JOIN file_orchestrator.metadata_templates mdt ON mdd.template_id = mdt.namespace AND mdd.template_version = mdt.uversion
-                WHERE ((:template::text IS NULL) OR (mdt.title = :template) AND mdt.namespace = mdd.template_id)
-                AND ((:active = false) OR (:active = mdd.latest))
-                AND ((:version::text IS NULL) OR (:version = mdd.template_version))
-                AND mdd.workspace = :user
-                -- TODO: Add project check
+                    SELECT doc.path, file_orchestrator.metadata_document_to_json(doc) as json
+                    FROM
+                        file_orchestrator.metadata_documents doc JOIN
+                        file_orchestrator.metadata_templates temp ON
+                            doc.template_id = temp.namespace AND
+                            doc.template_version = temp.uversion left join
+                        project.project_members pm on
+                            doc.is_workspace_project = true and
+                            doc.workspace = pm.project_id and
+                            doc.workspace = :project and
+                            pm.username = :username
+                    WHERE
+                        (
+                            :template::text IS NULL OR
+                            temp.title = :template
+                        ) AND
+                        (
+                            (:active = false) OR
+                            (:active = doc.latest)
+                        ) AND
+                        (
+                            (:version::text IS NULL) OR
+                            (:version = doc.template_version)
+                        ) AND
+                        (
+                            doc.workspace = :username or
+                            (
+                                :project::text is not null and
+                                pm.username is not null
+                            )
+                        )
             """.trimIndent()
             ).rows.map {
                 FileMetadataAttached(
