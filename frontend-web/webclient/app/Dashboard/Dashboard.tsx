@@ -46,11 +46,12 @@ import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
-import {UFile} from "UCloud/FilesApi";
+import FilesApi, {UFile} from "UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
 import HighlightedCard from "ui-components/HighlightedCard";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {useHistory} from "react-router";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -171,6 +172,8 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         fetchTemplate();
     }, []);
 
+    const history = useHistory();
+
     const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite).slice(0, 7);
 
     return (
@@ -202,10 +205,17 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Link to={buildQueryString("/files", {path: getParentPath(it.path)})}>{fileName(it.path)}</Link>
+                    <Text onClick={async () => {
+                        const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
+                        if (result.status.type === "FILE") {
+                            history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
+                        } else {
+                            history.push(buildQueryString("/files", {path: it.path}))
+                        }
+                    }}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
-        </HighlightedCard >
+        </HighlightedCard>
     );
 
     async function fetchTemplate() {
