@@ -45,6 +45,10 @@ class AccountingController(
             ok(accounting.browseSubAllocations(actorAndProject, request))
         }
 
+        implement(Wallets.retrieveRecipient) {
+            ok(accounting.retrieveRecipient(actorAndProject, request))
+        }
+
         implement(Visualization.retrieveUsage) {
             ok(accounting.retrieveUsage(actorAndProject, request))
         }

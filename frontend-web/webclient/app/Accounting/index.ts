@@ -2,6 +2,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {PropType} from "UtilityFunctions";
 import * as UCloud from "UCloud";
+import {IconName} from "ui-components/Icon";
 
 export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
 
@@ -136,9 +137,6 @@ export function retrieveCredits(request: RetrieveCreditsRequest): APICallParamet
 }
 
 // Machines
-
-export type Product = UCloud.accounting.Product;
-
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;
 }
@@ -186,233 +184,413 @@ export function retrieveFromProvider(
     };
 }
 
-export interface TimeRangeQuery {
-    bucketSize: number;
-    periodStart: number;
-    periodEnd: number;
+export type ChargeType = "ABSOLUTE" | "DIFFERENTIAL_QUOTA";
+export type ProductPriceUnit =
+    "PER_UNIT" |
+    "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
+    "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
+
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
+export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
+
+export interface ProductBase {
+    type: string;
+    category: ProductCategoryId;
+    pricePerUnit: number;
+    name: string;
+    description: string;
+    priority: number;
+    version: number;
+    freeToUse: boolean;
+    productType: ProductType;
+    unitOfPrice: ProductPriceUnit;
+    chargeType: ChargeType;
+    hiddenInGrantApplications: boolean;
 }
 
-export interface UsageRequest extends TimeRangeQuery {
+export interface ProductStorage extends ProductBase {
+    type: "storage";
+    productType: "STORAGE"
 }
 
-export interface UsagePoint {
-    timestamp: number;
-    creditsUsed: number;
+export interface ProductCompute extends ProductBase {
+    type: "compute";
+    productType: "COMPUTE";
+    cpu?: number | null;
+    memoryInGigs?: number | null;
+    gpu?: number | null;
 }
 
-export interface UsageLine {
-    area: ProductArea;
-    category: string;
-    projectPath?: string;
-    projectId?: string;
-    points: UsagePoint[];
+export interface ProductIngress extends ProductBase {
+    type: "ingress";
+    productType: "INGRESS"
 }
 
-export interface UsageChart {
-    provider: string;
-    lines: UsageLine[];
+export interface ProductLicense extends ProductBase {
+    type: "license";
+    productType: "LICENSE";
+    tags?: string[];
 }
 
-export interface UsageResponse {
-    charts: UsageChart[];
+export interface ProductNetworkIP extends ProductBase {
+    type: "network_ip";
+    productType: "NETWORK_IP";
 }
 
-export function usage(request: UsageRequest): APICallParameters<UsageRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/visualization/usage", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
+
+export function productTypeToTitle(type: ProductType): string {
+    switch (type) {
+        case "INGRESS":
+            return "Public Link"
+        case "COMPUTE":
+            return "Compute";
+        case "STORAGE":
+            return "Storage";
+        case "NETWORK_IP":
+            return "Public IP";
+        case "LICENSE":
+            return "Software License";
+    }
 }
 
-export interface NativeChartPoint extends Record<string, number> {
-    time: number;
+export function productTypeToIcon(type: ProductType): IconName {
+    switch (type) {
+        case "INGRESS":
+            return "globeEuropeSolid"
+        case "COMPUTE":
+            return "cpu";
+        case "STORAGE":
+            return "hdd";
+        case "NETWORK_IP":
+            return "networkWiredSolid";
+        case "LICENSE":
+            return "apps";
+    }
 }
 
-export interface UsageRow {
-    title: string;
-    projectId: string;
-    projectPath: string;
-    creditsUsed: number;
-    creditsRemaining: number;
-    wallet?: WalletBalance;
-    children: UsageRow[];
-}
-
-export interface UsageTable {
-    rows: UsageRow[];
-}
-
-interface AccountingProject {
-    categories: CategoryUsage[];
-    totalUsage: number;
-    totalAllocated: number;
-    projectId: string;
-    projectTitle: string;
-}
-
-interface CategoryUsage {
-    product: string;
-    usage: number;
-    allocated: number;
-}
-
-export function transformUsageChartForTable(
-    rootProject: string | undefined,
-    chart: UsageChart,
-    type: ProductArea,
-    wallets: WalletBalance[],
-    expanded: Set<string>
-): { provider: string; projects: AccountingProject[] } {
-    const projectMap: Record<string, AccountingProject> = {};
-    const relevantWallets = wallets.filter(it =>
-        it.area === type &&
-        ((rootProject && it.wallet.type === "PROJECT") ||
-            (!rootProject && it.wallet.type === "USER"))
-    );
-
-    chart.lines.filter(it => it.area === type).forEach(line => {
-        const projectName = !rootProject ? Client.username :
-            line.projectPath !== undefined ? line.projectPath : line.projectId;
-        if (!projectName) return;
-
-        const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
-        const allocated = relevantWallets
-            .find(it => !rootProject || it.wallet.id === line.projectId)
-            ?.allocated ?? 0;
-
-        if (!projectMap[projectName]) {
-            projectMap[projectName] = {
-                categories: expanded.has(projectName) ?
-                    [{product: line.category, usage: lineUsage, allocated}] : [],
-                totalUsage: lineUsage,
-                totalAllocated: allocated,
-                projectId: line.projectId!,
-                projectTitle: projectName
-            };
-        } else {
-            const project = projectMap[projectName];
-            if (expanded.has(projectName)) {
-                projectMap[projectName].categories =
-                    project.categories.concat([{product: line.category, usage: lineUsage, allocated}]);
+export function explainAllocation(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            switch (type) {
+                case "INGRESS":
+                    return "Public links";
+                case "NETWORK_IP":
+                    return "Public IPs";
+                case "LICENSE":
+                    return "Licenses";
+                case "STORAGE":
+                    return "GB";
+                case "COMPUTE":
+                    return "Jobs";
             }
-            projectMap[projectName].totalUsage += lineUsage;
-            projectMap[projectName].totalAllocated += allocated;
-        }
-    });
-
-    const projects: AccountingProject[] = [];
-
-    for (const project of Object.keys(projectMap)) {
-        projectMap[project].categories.sort((a, b) => b.usage - a.usage);
-        projects.push(projectMap[project]);
-    }
-
-    return {provider: chart.provider, projects: projects.sort((a, b) => b.totalUsage - a.totalUsage)};
-}
-
-export interface NativeChart {
-    provider: string;
-    lineNames: string[];
-    points: NativeChartPoint[];
-}
-
-export function transformUsageChartForCharting(
-    chart: UsageChart,
-    type: ProductArea
-): NativeChart {
-    const builder: Record<string, NativeChartPoint> = {};
-    let lineNames: string[] = [];
-    const numberToInclude = 4;
-    const otherId = "Others";
-
-    const usagePerProject: Record<string, number> = {};
-
-    for (const line of chart.lines) {
-        if (type !== line.area) continue;
-        const projectName = line.projectPath ? line.projectPath : line.projectId;
-        if (!projectName) continue;
-
-
-        if (!lineNames.includes(projectName)) {
-            lineNames.push(projectName);
         }
 
-        usagePerProject[projectName] =
-            (usagePerProject[projectName] ?? 0) +
-            line.points.reduce((prev, cur) => prev + cur.creditsUsed, 0);
-    }
-
-    lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
-    lineNames = lineNames.filter((_, idx) => idx < numberToInclude);
-    if (lineNames.length === numberToInclude) lineNames.push(otherId);
-
-    for (const line of chart.lines) {
-        if (type !== line.area) continue;
-        const projectName = line.projectPath ? line.projectPath : line.projectId;
-        if (!projectName) continue;
-
-
-        const ranking = lineNames.indexOf(projectName);
-        let id = projectName;
-        if (ranking === -1) {
-            id = otherId;
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            return "DKK";
         }
 
-        for (const point of line.points) {
-            const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
-
-            if (dataPoint[id] === undefined) dataPoint[id] = 0;
-            dataPoint[id] += point.creditsUsed;
-
-            builder[`${point.timestamp}`] = dataPoint;
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "Days of public link";
+                case "NETWORK_IP":
+                    return "Days of public IP";
+                case "LICENSE":
+                    return "Days of license";
+                case "STORAGE":
+                    // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
+                    //  bill like this, but I also don't know what to call it.
+                    return "Days of GB";
+                case "COMPUTE":
+                    return "Core hours";
+            }
         }
     }
-
-    return {provider: chart.provider, lineNames, points: Object.values(builder)};
 }
 
-
-export interface RetrieveQuotaRequest {
-    path: string;
-    includeUsage?: boolean;
+export function explainUsage(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    // NOTE(Dan): I think this is generally the case, but I am leaving a separate function just in case we need to
+    // change it.
+    return explainAllocation(type, chargeType, unit);
 }
 
-export interface RetrieveQuotaResponse {
-    quotaInBytes: number;
-    quotaInTotal: number;
-    quotaUsed?: number;
+export function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            switch (type) {
+                case "INGRESS":
+                    return "Public links";
+                case "NETWORK_IP":
+                    return "Public IPs";
+                case "LICENSE":
+                    return "Licenses";
+                case "STORAGE":
+                    return "GB";
+                case "COMPUTE":
+                    return "Jobs";
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "DKK/day";
+                case "NETWORK_IP":
+                    return "DKK/day";
+                case "LICENSE":
+                    return "DKK/day";
+                case "STORAGE":
+                    return "DKK/day of one GB";
+                case "COMPUTE":
+                    return "DKK/hour";
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "Days of public link";
+                case "NETWORK_IP":
+                    return "Days of public IP";
+                case "LICENSE":
+                    return "Days of license";
+                case "STORAGE":
+                    // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
+                    //  bill like this, but I also don't know what to call it.
+                    return "Days of GB";
+                case "COMPUTE":
+                    return "Core hours";
+            }
+        }
+    }
 }
 
-export function retrieveQuota(request: RetrieveQuotaRequest): APICallParameters<RetrieveQuotaRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/files/quota", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+const MINUTE = 1;
+const HOUR = MINUTE * 60;
+const DAY = HOUR * 24;
+
+export function normalizeBalanceForBackend(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit
+): number {
+    switch (unit) {
+        case "PER_UNIT": {
+            return balance;
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            return balance * 1000000;
+        }
+
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            const inputIs = unit === "UNITS_PER_MINUTE" ? MINUTE : unit === "UNITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = inputIs / DAY;
+                    return Math.ceil(balance * factor);
+                }
+                case "NETWORK_IP": {
+                    const factor = inputIs / DAY;
+                    return Math.ceil(balance * factor);
+                }
+                case "LICENSE": {
+                    const factor = inputIs / DAY;
+                    return Math.ceil(balance * factor);
+                }
+                case "STORAGE": {
+                    const factor = inputIs / DAY;
+                    return Math.ceil(balance * factor);
+                }
+                case "COMPUTE": {
+                    const factor = inputIs / HOUR;
+                    return Math.ceil(balance * factor);
+                }
+            }
+        }
+    }
 }
 
-export interface UpdateQuotaRequest {
-    path: string;
-    quotaInBytes: number;
+export function normalizeBalanceForFrontend(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit,
+    isPrice: boolean
+): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            return balance.toString();
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            if (!isPrice) {
+                return currencyFormatter(balance, 2);
+            }
+
+            const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = DAY / inputIs;
+                    return currencyFormatter(balance * factor, 2);
+                }
+                case "NETWORK_IP": {
+                    const factor = DAY / inputIs;
+                    return currencyFormatter(balance * factor, 2);
+                }
+                case "LICENSE": {
+                    const factor = DAY / inputIs;
+                    return currencyFormatter(balance * factor, 2);
+                }
+                case "STORAGE": {
+                    const factor = DAY / inputIs;
+                    return currencyFormatter(balance * factor, 2);
+                }
+                case "COMPUTE": {
+                    const factor = HOUR / inputIs;
+                    return currencyFormatter(balance * factor, 4);
+                }
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            const inputIs = unit === "UNITS_PER_MINUTE" ? MINUTE : unit === "UNITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "NETWORK_IP": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "LICENSE": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "STORAGE": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "COMPUTE": {
+                    const factor = HOUR / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+            }
+        }
+    }
 }
 
-export type UpdateQuotaResponse = {};
+function currencyFormatter(credits: number, precision = 2): string {
+    if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
-export function updateQuota(request: UpdateQuotaRequest): APICallParameters<UpdateQuotaRequest> {
-    return {
-        method: "POST",
-        path: "/files/quota",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
+    // Edge-case handling
+    if (credits < 0) {
+        return "-" + currencyFormatter(-credits);
+    } else if (credits === 0) {
+        return "0 DKK";
+    } else if (credits < Math.pow(10, 6 - precision)) {
+        if (precision === 0) return "< 1 DKK";
+        let builder = "< 0,";
+        for (let i = 0; i < precision - 1; i++) builder += "0";
+        builder += "1 DKK";
+        return builder;
+    }
+
+    // Group into before and after decimal separator
+    const stringified = credits.toString().padStart(6, "0");
+
+    let before = stringified.substr(0, stringified.length - 6);
+    let after = stringified.substr(stringified.length - 6);
+    if (before === "") before = "0";
+    if (after === "") after = "0";
+    after = after.padStart(precision, "0");
+    after = after.substr(0, precision);
+
+    // Truncate trailing zeroes (but keep at least two)
+    if (precision > 2) {
+        let firstZeroAt = -1;
+        for (let i = 2; i < after.length; i++) {
+            if (after[i] === "0") {
+                if (firstZeroAt === -1) firstZeroAt = i;
+            } else {
+                firstZeroAt = -1;
+            }
+        }
+
+        if (firstZeroAt !== -1) { // We have trailing zeroes
+            after = after.substr(0, firstZeroAt);
+        }
+    }
+
+    // Thousand separator
+    const beforeFormatted = addThousandSeparators(before);
+
+    if (after === "") return `${beforeFormatted} DKK`;
+    else return `${beforeFormatted},${after} DKK`;
 }
 
-export const UCLOUD_PROVIDER = "ucloud";
+function addThousandSeparators(numberOrString: string | number): string {
+    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
+    let result = "";
+    const chunksInTotal = Math.ceil(numberAsString.length / 3);
+    let offset = 0;
+    for (let i = 0; i < chunksInTotal; i++) {
+        if (i === 0) {
+            let firstChunkSize = numberAsString.length % 3;
+            if (firstChunkSize === 0) firstChunkSize = 3;
+            result += numberAsString.substr(0, firstChunkSize);
+            offset += firstChunkSize;
+        } else {
+            result += '.';
+            result += numberAsString.substr(offset, 3);
+            offset += 3;
+        }
+    }
+    return result;
+}
 
-export function isQuotaSupported(category: ProductCategoryId): boolean {
-    return category.provider === UCLOUD_PROVIDER && category.name === "u1-cephfs";
+export function priceExplainer(product: Product): string {
+    const amount = normalizeBalanceForFrontend(product.pricePerUnit, product.productType, product.chargeType,
+        product.unitOfPrice, true);
+    const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
+    return `${amount} ${suffix}`
+}
+
+export function usageExplainer(
+    usage: number,
+    productType: ProductType,
+    chargeType: ChargeType,
+    unitOfPrice: ProductPriceUnit
+): string {
+    const amount = normalizeBalanceForFrontend(usage, productType, chargeType, unitOfPrice, false);
+    const suffix = explainUsage(productType, chargeType, unitOfPrice);
+    return `${amount} ${suffix}`;
 }

@@ -1,6 +1,6 @@
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "ui-components/index";
-import {PropsWithChildren, useCallback, useRef, useState} from "react";
+import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "ui-components/Text";
@@ -262,3 +262,13 @@ export const Operations: OperationsType = props => {
             </>;
     }
 };
+
+export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
+    const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
+    const onContextMenu = useCallback<EventHandler<MouseEvent<never>>>((e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        openOperationsRef.current(e.clientX, e.clientY);
+    }, []);
+    return [openOperationsRef, onContextMenu];
+}

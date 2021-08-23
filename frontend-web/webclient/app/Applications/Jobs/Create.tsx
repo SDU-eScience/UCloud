@@ -21,7 +21,7 @@ import {
 } from "Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {FavoriteToggle} from "Applications/FavoriteToggle";
@@ -277,7 +277,7 @@ export const Create: React.FunctionComponent = () => {
                             <Icon name={"grant"} />{" "}
                             Estimated cost: <br />
 
-                            {creditFormatter(estimatedCost.cost, 0)}
+                            {currencyFormatter(estimatedCost.cost, 0)}
                         </>
                     )}
                 </Box>
@@ -287,7 +287,7 @@ export const Create: React.FunctionComponent = () => {
                             <Icon name="grant" />{" "}
                             Current balance: <br />
 
-                            {creditFormatter(estimatedCost.balance, 0)}
+                            {currencyFormatter(estimatedCost.balance, 0)}
                         </>
                     )}
                 </Box>

@@ -8,7 +8,7 @@ import * as React from "react";
 import {capitalized, prettierString} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import {Client} from "Authentication/HttpClientInstance";
 import {NonAuthenticatedHeader} from "Navigation/Header";
 import styled from "styled-components";
@@ -137,11 +137,11 @@ const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string
                                             {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
                                             {!isIngressOrLicense ? (
                                                 <TableCell>
-                                                    {creditFormatter(machine.pricePerUnit * (isStorage ? 30 : 60), 3)}{isStorage ? " per GB/month" : "/hour"}
+                                                    {currencyFormatter(machine.pricePerUnit * (isStorage ? 30 : 60), 3)}{isStorage ? " per GB/month" : "/hour"}
                                                 </TableCell>
                                             ) : (
                                                 <TableCell>
-                                                    {creditFormatter(machine.pricePerUnit, 3)}
+                                                    {currencyFormatter(machine.pricePerUnit, 3)}
                                                 </TableCell>
                                             )}
                                             {!ingressOrLicenseProduct ? null :
@@ -200,7 +200,7 @@ const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string
                         <TableRow>
                             <th>Price</th>
                             <TableCell>
-                                {creditFormatter(activeMachine.pricePerUnit * (area === "COMPUTE" ? 60 : 30))}
+                                {currencyFormatter(activeMachine.pricePerUnit * (area === "COMPUTE" ? 60 : 30))}
                                 {area === "COMPUTE" ? "/hour" : " per GB/month"}
                             </TableCell>
                         </TableRow>

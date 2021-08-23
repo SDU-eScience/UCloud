@@ -1,14 +1,15 @@
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
+
+const CONF = require("../../site.config.json");
 import {
     Area,
     AreaChart,
-    CartesianGrid,
     Cell,
     Pie,
     PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
-    YAxis
 } from "recharts";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
@@ -16,31 +17,48 @@ import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {accounting, PageV2, PaginationRequestV2} from "UCloud";
-import Product = accounting.Product;
-import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter} from "Resource/Filter";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "UCloud";
+import {
+    CheckboxFilterWidget,
+    DateRangeFilter,
+    EnumFilter,
+    FilterWidgetProps,
+    PillProps,
+    ResourceFilter,
+    ValuePill
+} from "Resource/Filter";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
 import {DashboardCard} from "Dashboard/Dashboard";
-import {useHistory} from "react-router";
-import {Client} from "Authentication/HttpClientInstance";
 import {ThemeColor} from "ui-components/theme";
-import {Box, Flex, Grid, Icon, OutlineButton, Text} from "ui-components";
+import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {ProductArea} from "Accounting";
-import {IconName} from "ui-components/Icon";
-import {Spacer} from "ui-components/Spacer";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, APICallStateWithParams, apiRetrieve, useCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {emptyPageV2} from "DefaultObjects";
+import {apiBrowse, APICallState, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Operations} from "ui-components/Operation";
+import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
 import * as Pagination from "Pagination";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import ReactDatePicker from "react-datepicker";
+import {enGB} from "date-fns/locale";
+import {SlimDatePickerWrapper} from "ui-components/DatePicker";
+import {getStartOfDay} from "Activity/Page";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {deviceBreakpoint} from "ui-components/Hide";
+import {
+    ChargeType, explainPrice, explainUsage, normalizeBalanceForFrontend,
+    Product,
+    ProductPriceUnit,
+    ProductType,
+    productTypes,
+    productTypeToIcon,
+    productTypeToTitle
+} from "Accounting";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -49,127 +67,6 @@ function dateFormatter(timestamp: number): string {
         `${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function dateFormatterDay(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getDate()}/${date.getMonth() + 1} `;
-}
-
-function dateFormatterMonth(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getMonth() + 1}/${date.getFullYear()} `;
-}
-
-export function priceExplainer(product: Product): string {
-    switch (product.type) {
-        case "compute":
-            return `${creditFormatter(product.pricePerUnit * 60, 4)}/hour`;
-        case "storage":
-            return `${creditFormatter(product.pricePerUnit * 30)}/GB per month`;
-        default:
-            return `${creditFormatter(product.pricePerUnit)}/unit`;
-    }
-}
-
-export function creditFormatter(credits: number, precision = 2): string {
-    if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
-
-    // Edge-case handling
-    if (credits < 0) {
-        return "-" + creditFormatter(-credits);
-    } else if (credits === 0) {
-        return "0 DKK";
-    } else if (credits < Math.pow(10, 6 - precision)) {
-        if (precision === 0) return "< 1 DKK";
-        let builder = "< 0,";
-        for (let i = 0; i < precision - 1; i++) builder += "0";
-        builder += "1 DKK";
-        return builder;
-    }
-
-    // Group into before and after decimal separator
-    const stringified = credits.toString().padStart(6, "0");
-
-    let before = stringified.substr(0, stringified.length - 6);
-    let after = stringified.substr(stringified.length - 6);
-    if (before === "") before = "0";
-    if (after === "") after = "0";
-    after = after.padStart(precision, "0");
-    after = after.substr(0, precision);
-
-    // Truncate trailing zeroes (but keep at least two)
-    if (precision > 2) {
-        let firstZeroAt = -1;
-        for (let i = 2; i < after.length; i++) {
-            if (after[i] === "0") {
-                if (firstZeroAt === -1) firstZeroAt = i;
-            } else {
-                firstZeroAt = -1;
-            }
-        }
-
-        if (firstZeroAt !== -1) { // We have trailing zeroes
-            after = after.substr(0, firstZeroAt);
-        }
-    }
-
-    // Thousand separator
-    const beforeFormatted = addThousandSeparators(before);
-
-    if (after === "") return `${beforeFormatted} DKK`;
-    else return `${beforeFormatted},${after} DKK`;
-}
-
-export function addThousandSeparators(numberOrString: string | number): string {
-    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
-    let result = "";
-    const chunksInTotal = Math.ceil(numberAsString.length / 3);
-    let offset = 0;
-    for (let i = 0; i < chunksInTotal; i++) {
-        if (i === 0) {
-            let firstChunkSize = numberAsString.length % 3;
-            if (firstChunkSize === 0) firstChunkSize = 3;
-            result += numberAsString.substr(0, firstChunkSize);
-            offset += firstChunkSize;
-        } else {
-            result += '.';
-            result += numberAsString.substr(offset, 3);
-            offset += 3;
-        }
-    }
-    return result;
-}
-
-const productTypes: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
-
-function productTypeToTitle(type: ProductArea): string {
-    switch (type) {
-        case "INGRESS":
-            return "Public Link"
-        case "COMPUTE":
-            return "Compute";
-        case "STORAGE":
-            return "Storage";
-        case "NETWORK_IP":
-            return "Public IP";
-        case "LICENSE":
-            return "Software License";
-    }
-}
-
-function productTypeToIcon(type: ProductArea): IconName {
-    switch (type) {
-        case "INGRESS":
-            return "globeEuropeSolid"
-        case "COMPUTE":
-            return "cpu";
-        case "STORAGE":
-            return "hdd";
-        case "NETWORK_IP":
-            return "networkWiredSolid";
-        case "LICENSE":
-            return "apps";
-    }
-}
 
 const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
 const filterPills: React.FunctionComponent<PillProps>[] = [];
@@ -186,10 +83,23 @@ registerFilter(EnumFilter("cubeSolid", "filterType", "Product type", productType
     value: t
 }))));
 
+filterPills.push(props =>
+    <ValuePill {...props} propertyName={"filterWorkspace"} secondaryProperties={["filterWorkspaceProject"]}
+               showValue={true} icon={"projects"} title={"Workspace"}/>);
+
+filterPills.push(props =>
+    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"}/>);
+
+const showSubAllocationsProp = "showSubAllocations";
+
+filterWidgets.push(props =>
+    <CheckboxFilterWidget propertyName={showSubAllocationsProp} icon={"grant"}
+                          title={"Show sub-allocations"} {...props} />)
+
 interface VisualizationFlags {
     filterStartDate?: number | null;
     filterEndDate?: number | null;
-    filterType?: ProductArea | null;
+    filterType?: ProductType | null;
     filterProvider?: string | null;
     filterProductCategory?: string | null;
     filterAllocation?: string | null;
@@ -207,9 +117,71 @@ function browseWallets(request: PaginationRequestV2): APICallParameters {
     return apiBrowse(request, "/api/accounting/wallets");
 }
 
+interface TransferRecipient {
+    id: string;
+    isProject: boolean;
+    title: string;
+    principalInvestigator: string;
+    numberOfMembers: number;
+}
+
+function retrieveRecipient(request: { query: string }): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
+}
+
+interface DepositToWalletRequestItem {
+    recipient: WalletOwner;
+    sourceAllocation: string;
+    amount: number;
+    description: string;
+    startDate: number;
+    endDate: number;
+}
+
+interface TransferToWalletRequestItem {
+    categoryId: ProductCategoryId;
+    target: WalletOwner;
+    source: WalletOwner;
+    amount: number;
+    startDate: number;
+    endDate: number;
+}
+
+interface UpdateAllocationRequestItem {
+    id: string;
+    balance: number;
+    startDate: number;
+    endDate?: number | null;
+    reason: string;
+}
+
+function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "allocation");
+}
+
+function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "deposit");
+}
+
+function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "transfer");
+}
+
+const ResourcesGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-gap: 16px;
+
+  ${deviceBreakpoint({minWidth: "1600px"})} {
+    &.two-columns {
+      grid-template-columns: 60% calc(40% - 32px);
+    }
+  }
+`;
+
 const Resources: React.FunctionComponent = props => {
     const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const [properties, setProperties] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
     const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
@@ -224,21 +196,33 @@ const Resources: React.FunctionComponent = props => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        fetchUsage(retrieveUsage({}));
-        fetchBreakdowns(retrieveBreakdown({}));
-        fetchWallets(browseWallets({itemsPerPage: 50}));
-        fetchAllocations(browseSubAllocations({itemsPerPage: 50}));
+        fetchUsage(retrieveUsage({...filters}));
+        fetchBreakdowns(retrieveBreakdown({...filters}));
+        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
+        fetchAllocations(browseSubAllocations({itemsPerPage: 50, ...filters}));
         setAllocationGeneration(prev => prev + 1);
-    }, []);
+        setMaximizedUsage(null);
+    }, [filters]);
 
     const loadMoreAllocations = useCallback(() => {
         fetchAllocations(browseSubAllocations({itemsPerPage: 50, next: allocations.data.next}));
     }, [allocations.data]);
 
+    const filterByAllocation = useCallback((allocationId: string) => {
+        setFilters(prev => ({...prev, "filterAllocation": allocationId}))
+    }, [setFilters]);
+    const filterByWorkspace = useCallback((workspaceId: string, workspaceIsProject: boolean) => {
+        setFilters(prev => ({
+            ...prev,
+            "filterWorkspace": workspaceId,
+            "filterWorkspaceProject": workspaceIsProject.toString()
+        }));
+    }, [setFilters]);
+
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
-    useEffect(reloadPage, [reloadPage]);
+    useEffect(reloadPage, []);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     const usageClassName = usage.data.charts.length > 3 ? "large" : "slim";
@@ -246,6 +230,7 @@ const Resources: React.FunctionComponent = props => {
         "large" : "slim";
     const breakdownClassName = breakdowns.data.charts.length > 3 ? "large" : "slim";
 
+    const subAllocationsVisible = filters[showSubAllocationsProp] === "true";
     return (
         <MainContainer
             header={
@@ -258,40 +243,46 @@ const Resources: React.FunctionComponent = props => {
                     pills={filterPills}
                     filterWidgets={filterWidgets}
                     sortEntries={[]}
-                    properties={properties}
-                    setProperties={setProperties}
+                    properties={filters}
+                    setProperties={setFilters}
                     sortDirection={"ascending"}
                     onSortUpdated={doNothing}
-                    onApplyFilters={doNothing}
+                    onApplyFilters={reloadPage}
                 />
             </>}
-            main={<Grid gridGap={"16px"}>
-                {maximizedUsage == null ? null : <>
-                    <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                                      onMaximizeToggle={() => onUsageMaximize(maximizedUsage)}/>
-                </>}
-                {maximizedUsage != null ? null :
-                    <>
-                        <VisualizationSection className={usageClassName}>
-                            {usage.data.charts.map((it, idx) =>
-                                <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)}/>
-                            )}
-                        </VisualizationSection>
-                        <VisualizationSection className={walletsClassName}>
-                            {wallets.data.items.map((it, idx) =>
-                                <WalletViewer key={idx} wallet={it}/>
-                            )}
-                        </VisualizationSection>
-                        <VisualizationSection className={breakdownClassName}>
-                            {breakdowns.data.charts.map((it, idx) =>
-                                <DonutChart key={idx} chart={it}/>
-                            )}
-                        </VisualizationSection>
-                        <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                             loadMore={loadMoreAllocations} />
-                    </>
+            main={<ResourcesGrid className={subAllocationsVisible ? "two-columns" : undefined}>
+                <Grid gridGap={"16px"}>
+                    {maximizedUsage == null ? null : <>
+                        <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                                          onMaximizeToggle={() => onUsageMaximize(maximizedUsage)}/>
+                    </>}
+                    {maximizedUsage != null ? null :
+                        <>
+                            <VisualizationSection className={usageClassName}>
+                                {usage.data.charts.map((it, idx) =>
+                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)}/>
+                                )}
+                            </VisualizationSection>
+                            <VisualizationSection className={walletsClassName}>
+                                {wallets.data.items.map((it, idx) =>
+                                    <WalletViewer key={idx} wallet={it}/>
+                                )}
+                            </VisualizationSection>
+                            <VisualizationSection className={breakdownClassName}>
+                                {breakdowns.data.charts.map((it, idx) =>
+                                    <DonutChart key={idx} chart={it}/>
+                                )}
+                            </VisualizationSection>
+                        </>
+                    }
+                </Grid>
+
+                {!subAllocationsVisible ? null :
+                    <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                         loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
+                                         filterByWorkspace={filterByWorkspace}/>
                 }
-            </Grid>}
+            </ResourcesGrid>}
         />
     );
 };
@@ -313,9 +304,9 @@ interface Wallet {
     paysFor: ProductCategoryId;
     allocations: WalletAllocation[];
     chargePolicy: "EXPIRE_FIRST";
-    productType?: ProductArea | null;
-    chargeType?: string | null;
-    unit?: string | null;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
 }
 
 const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
@@ -328,44 +319,232 @@ const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
 }> = ({wallet, allocation}) => {
-    return <DashboardCard color={"red"} width={"400px"}>
+    const [opRef, onContextMenu] = useOperationOpener();
+    const [isDeposit, setIsDeposit] = useState(false);
+    const [isMoving, setIsMoving] = useState(false);
+    const closeDepositing = useCallback(() => setIsMoving(false), []);
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const openMoving = useCallback((isDeposit: boolean) => {
+        setIsDeposit(isDeposit);
+        setIsMoving(true);
+    }, []);
+    const callbacks = useMemo(() => ({
+        openMoving
+    }), [openMoving]);
+
+    const onTransferSubmit = useCallback(async (workspaceId: string, isProject: boolean, amount: number,
+                                                startDate: number, endDate: number) => {
+        if (isDeposit) {
+            await invokeCommand(deposit(bulkRequestOf({
+                amount,
+                startDate,
+                endDate,
+                recipient: {
+                    type: isProject ? "project" : "user",
+                    projectId: workspaceId,
+                    username: workspaceId
+                },
+                description: "Manually initiated " + isDeposit ? "deposit" : "transfer",
+                sourceAllocation: allocation.id
+            })));
+        } else {
+            await invokeCommand(transfer(bulkRequestOf({
+                amount,
+                startDate,
+                endDate,
+                source: wallet.owner,
+                categoryId: wallet.paysFor,
+                target: {
+                    type: isProject ? "project" : "user",
+                    projectId: workspaceId,
+                    username: workspaceId
+                },
+
+            })));
+        }
+
+        setIsMoving(false);
+    }, [isDeposit]);
+    return <DashboardCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
+        <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
+                              onSubmit={onTransferSubmit}/>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-                <Flex alignItems={"center"}>
+                <Flex alignItems={"center"} mr={"-16px"}>
                     <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
                     <Box flexGrow={1}/>
                     <Operations
+                        openFnRef={opRef}
                         location={"IN_ROW"}
-                        operations={[
-                            {
-                                text: "Transfer to...",
-                                icon: "move",
-                                enabled: () => true,
-                                onClick: doNothing
-                            },
-                            {
-                                text: "Deposit into...",
-                                icon: "grant",
-                                enabled: () => true,
-                                onClick: doNothing
-                            }
-                        ]}
+                        operations={allocationOperations}
                         selected={[]}
                         row={{wallet, allocation}}
-                        extra={{}}
+                        extra={callbacks}
                         entityNameSingular={"Allocation"}
                     />
                 </Flex>
-                <div>{creditFormatter(allocation.balance)} remaining</div>
-                <div>{creditFormatter(allocation.initialBalance)} allocated</div>
+                <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
+                <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"}/>
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate}/></div>
             </Flex>
         </Flex>
     </DashboardCard>;
 };
+
+interface AllocationCallbacks {
+    openMoving: (isDeposit: boolean) => void;
+}
+
+const allocationOperations: Operation<{ wallet: Wallet, allocation: WalletAllocation }, AllocationCallbacks>[] = [{
+    text: "Transfer to...",
+    icon: "move",
+    enabled: selected => selected.length === 1,
+    onClick: (selected, cb) => cb.openMoving(false)
+}, {
+    text: "Deposit into...",
+    icon: "grant",
+    enabled: selected => selected.length === 1,
+    onClick: (selected, cb) => cb.openMoving(true)
+}];
+
+const transferModalStyle = {content: {...defaultModalStyle.content, width: "480px", height: "550px"}};
+
+const TransferDepositModal: React.FunctionComponent<{
+    isDeposit: boolean;
+    isOpen: boolean;
+    onRequestClose: () => void;
+    onSubmit: (recipientId: string, recipientIsProject: boolean, amount: number, startDate: number, endDate: number) => void;
+}> = ({isDeposit, isOpen, onRequestClose, onSubmit}) => {
+    const [recipient, setRecipient] = useState<TransferRecipient | null>(null);
+    const [lookingForRecipient, setLookingForRecipient] = useState(false);
+    const [recipientQuery, fetchRecipient] = useCloudAPI<TransferRecipient | null>({noop: true}, null);
+    const recipientQueryField = useRef<HTMLInputElement>(null);
+    const amountField = useRef<HTMLInputElement>(null);
+    const onRecipientQuery = useCallback((e) => {
+        e.preventDefault();
+        fetchRecipient(retrieveRecipient({query: recipientQueryField.current?.value ?? ""}));
+    }, []);
+    const onRecipientConfirm = useCallback(() => {
+        if (recipientQuery.data) {
+            setRecipient(recipientQuery.data);
+            setLookingForRecipient(false);
+        }
+    }, [recipientQuery]);
+    const close = useCallback(() => {
+        setRecipient(null);
+        setLookingForRecipient(false);
+        onRequestClose();
+    }, [onRequestClose]);
+
+    const [createdAfter, setCreatedAfter] = useState(getStartOfDay(new Date()).getTime());
+    const [createdBefore, setCreatedBefore] = useState<number | undefined>(undefined);
+    const updateDates = useCallback((dates: [Date, Date] | Date) => {
+        if (Array.isArray(dates)) {
+            const [start, end] = dates;
+            const newCreatedAfter = start.getTime();
+            const newCreatedBefore = end?.getTime();
+            setCreatedAfter(newCreatedAfter);
+            setCreatedBefore(newCreatedBefore);
+        } else {
+            const newCreatedAfter = dates.getTime();
+            setCreatedAfter(newCreatedAfter);
+            setCreatedBefore(undefined);
+        }
+    }, []);
+
+    const doSubmit = useCallback(() => {
+        if (recipient && createdBefore) {
+            const amount = parseInt(amountField.current?.value ?? "0");
+            onSubmit(recipient.id, recipient.isProject, amount, createdAfter, createdBefore);
+        } else {
+            if (!recipient) snackbarStore.addFailure("Missing recipient", false);
+            if (!createdBefore) snackbarStore.addFailure("The allocation is missing an end-date", false);
+        }
+    }, [onSubmit, createdAfter, createdBefore, recipient]);
+
+    return <ReactModal
+        isOpen={isOpen}
+        onRequestClose={close}
+        shouldCloseOnEsc
+        ariaHideApp={false}
+        style={transferModalStyle}
+    >
+        {lookingForRecipient ? null :
+            <Grid gridGap={16}>
+                <div>
+                    <Label>Recipient:</Label>
+                    {recipient == null ? "None" : <>
+                        <Icon name={recipient.isProject ? "projects" : "user"} mr={8}
+                              color={"iconColor"} color2={"iconColor2"}/>
+                        {recipient.title}
+                    </>}
+                    <Icon name={"edit"} color={"iconColor"} color2={"iconColor2"} size={16} cursor={"pointer"}
+                          onClick={() => setLookingForRecipient(true)} ml={8}/>
+                </div>
+
+                <Label>
+                    Amount:
+                    <Input ref={amountField}/>
+                </Label>
+
+                <div>
+                    <Label>Allocation Period:</Label>
+                    <SlimDatePickerWrapper>
+                        <ReactDatePicker
+                            locale={enGB}
+                            startDate={new Date(createdAfter)}
+                            endDate={createdBefore ? new Date(createdBefore) : undefined}
+                            onChange={updateDates}
+                            selectsRange={true}
+                            inline
+                            dateFormat="dd/MM/yy HH:mm"
+                        />
+                    </SlimDatePickerWrapper>
+                </div>
+
+                <ConfirmationButton actionText={isDeposit ? "Deposit" : "Transfer"} icon={isDeposit ? "grant" : "move"}
+                                    onAction={doSubmit}/>
+            </Grid>
+        }
+        {!lookingForRecipient ? null : <Grid gridGap={16}>
+            <div>
+                <p>
+                    Enter the
+                    <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>
+                    of the user, if the recipient is a personal workspace. Otherwise, enter the
+                    <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>.
+                </p>
+
+                <p>
+                    The recipient can find this information in the lower-left corner of the
+                    {" "}{CONF.PRODUCT_NAME} interface.
+                </p>
+            </div>
+
+            <form onSubmit={onRecipientQuery}>
+                <Label>
+                    Recipient:
+                    <Input ref={recipientQueryField}/>
+                </Label>
+                <Button my={16} fullWidth type={"submit"}>Validate</Button>
+            </form>
+
+            {!recipientQuery.error ? null : <>
+                {recipientQuery.error.why}
+            </>}
+
+            {!recipientQuery.data ? null : <>
+                <div><b>Workspace: </b> {recipientQuery.data?.title}</div>
+                <div><b>Principal Investigator: </b> {recipientQuery.data?.principalInvestigator}</div>
+                <div><b>Number of members: </b> {recipientQuery.data?.numberOfMembers}</div>
+                <Button fullWidth color={"green"} onClick={onRecipientConfirm}>Use this recipient</Button>
+            </>}
+        </Grid>}
+    </ReactModal>
+}
 
 const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number | null; }> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
@@ -381,10 +560,10 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
 };
 
 interface UsageChart {
-    type: ProductArea;
+    type: ProductType;
     periodUsage: number;
-    chargeType: string;
-    unit: string;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
     chart: {
         lines: {
             name: string;
@@ -463,12 +642,16 @@ const UsageChartViewer: React.FunctionComponent<{
         return [result, names];
     }, [c.chart]);
 
+    const formatter = useCallback((amount: number) => {
+        return usageExplainer(amount, c.type, c.chargeType, c.unit);
+    }, [c.type, c.chargeType, c.unit])
+
     return <DashboardCard color={"blue"} width={maximized ? "100%" : "400px"} height={maximized ? "900px" : undefined}>
         <UsageChartStyle>
             <Flex alignItems={"center"}>
                 <div>
                     <Text color="gray">{productTypeToTitle(c.type)}</Text>
-                    <Text bold my="-6px" fontSize="24px">{creditFormatter(c.periodUsage)} used</Text>
+                    <Text bold my="-6px" fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
                 <Box flexGrow={1}/>
                 <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
@@ -485,7 +668,7 @@ const UsageChartViewer: React.FunctionComponent<{
                     data={flattenedLines}
                 >
                     <XAxis dataKey={"timestamp"}/>
-                    <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
+                    <Tooltip labelFormatter={dateFormatter} formatter={formatter}/>
                     {names.map((it, index) =>
                         <Area
                             key={it}
@@ -506,9 +689,9 @@ const UsageChartViewer: React.FunctionComponent<{
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];
 
 interface BreakdownChart {
-    type: ProductArea;
-    chargeType: string;
-    unit: string;
+    type: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
     chart: { points: { name: string, value: number }[] }
 }
 
@@ -561,12 +744,20 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
 }
 
 interface SubAllocation {
+    id: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
     workspaceTitle: string;
     workspaceIsProject: boolean;
+
     remaining: number;
-    productCategoryId: ProductCategoryId;
-    chargeType: string;
-    unit: string;
 }
 
 function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
@@ -577,11 +768,41 @@ const SubAllocationViewer: React.FunctionComponent<{
     allocations: APICallState<PageV2<SubAllocation>>;
     generation: number;
     loadMore: () => void;
-}> = ({allocations, loadMore, generation}) => {
+    filterByAllocation: (allocationId: string) => void;
+    filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
+}> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace}) => {
+    const [editingAllocation, setEditingAllocation] = useState<SubAllocation | null>(null);
+    const closeEditing = useCallback(() => setEditingAllocation(null), []);
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const cb: SubAllocationCallbacks = useMemo(() => ({
+        editAllocation: (allocation) => setEditingAllocation(allocation),
+        filterByAllocation,
+        filterByWorkspace
+    }), [filterByAllocation, filterByWorkspace])
+
+    const onSubmit: (newBalance: number, newStartDate: number, newEndDate: number) => void =
+        useCallback(async (newBalance, newStartDate, newEndDate) => {
+            if (editingAllocation) {
+                await invokeCommand(updateAllocation(bulkRequestOf({
+                    startDate: newStartDate,
+                    endDate: newEndDate,
+                    balance: newBalance,
+                    id: editingAllocation.id,
+                    reason: "Manual update by grant giver"
+                })));
+
+                closeEditing();
+            }
+        }, [editingAllocation, closeEditing]);
+
     return <DashboardCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
         <Text color="darkGray" fontSize={1}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
+
+        {!editingAllocation ? null :
+            <SubAllocationEditModal allocation={editingAllocation} onSubmit={onSubmit} onClose={closeEditing}/>
+        }
 
         <Pagination.ListV2
             infiniteScrollGeneration={generation}
@@ -594,29 +815,142 @@ const SubAllocationViewer: React.FunctionComponent<{
                         <TableRow>
                             <TableHeaderCell textAlign={"left"}>Workspace</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Category</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Used</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Remaining</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Active</TableHeaderCell>
+                            <TableHeaderCell width={"35px"}/>
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {page.map((row, idx) =>
-                        <TableRow key={idx}>
-                            <TableCell>
-                                <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"} color2={"iconColor2"} />
-                                {row.workspaceTitle}
-                            </TableCell>
-                            <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
-                            <TableCell>???</TableCell>
-                            <TableCell>{creditFormatter(row.remaining)}</TableCell>
-                            <TableCell>???</TableCell>
-                        </TableRow>
-                    )}
+                    {page.map((row, idx) => <SubAllocationRow key={idx} row={row} cb={cb}/>)}
                     </tbody>
                 </Table>;
             }}
         />
     </DashboardCard>;
+};
+
+const SubAllocationRow: React.FunctionComponent<{ row: SubAllocation, cb: SubAllocationCallbacks }> = ({row, cb}) => {
+    const [opRef, onContextMenu] = useOperationOpener()
+
+    return <TableRow onContextMenu={onContextMenu} highlightOnHover>
+        <TableCell>
+            <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"}
+                  color2={"iconColor2"}/>
+            {row.workspaceTitle}
+        </TableCell>
+        <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
+        <TableCell>{usageExplainer(row.remaining, row.productType, row.chargeType, row.unit)}</TableCell>
+        <TableCell><ExpiresIn startDate={row.startDate} endDate={row.endDate}/></TableCell>
+        <TableCell>
+            <Operations
+                openFnRef={opRef}
+                location={"IN_ROW"}
+                row={row}
+                operations={subAllocationOperations}
+                selected={[]}
+                extra={cb}
+                entityNameSingular={"Allocation"}
+            />
+        </TableCell>
+    </TableRow>
+};
+
+interface SubAllocationCallbacks {
+    filterByAllocation: (allocationId: string) => void;
+    filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
+    editAllocation: (allocation: SubAllocation) => void;
+}
+
+const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[] = [{
+    icon: "filterSolid",
+    text: "Focus on allocation",
+    onClick: (selected, cb) => cb.filterByAllocation(selected[0].id),
+    enabled: selected => selected.length === 1
+}, {
+    icon: "filterSolid",
+    text: "Focus on workspace",
+    onClick: (selected, cb) => cb.filterByWorkspace(selected[0].workspaceId, selected[0].workspaceIsProject),
+    enabled: selected => selected.length === 1
+}, {
+    icon: "edit",
+    text: "Edit",
+    onClick: (selected, cb) => cb.editAllocation(selected[0]),
+    enabled: selected => selected.length === 1
+}];
+
+const SubAllocationEditModal: React.FunctionComponent<{
+    allocation: SubAllocation;
+    onClose: () => void;
+    onSubmit: (newBalance: number, newStartDate: number, newEndDate: number) => void;
+}> = props => {
+
+    const balanceField = useRef<HTMLInputElement>(null);
+    const [startDate, setStartDate] = useState(props.allocation.startDate);
+    const [endDate, setEndDate] = useState<number | undefined>(props.allocation.endDate ?? undefined);
+    const updateDates = useCallback((dates: [Date, Date] | Date) => {
+        if (Array.isArray(dates)) {
+            const [start, end] = dates;
+            const newCreatedAfter = start.getTime();
+            const newCreatedBefore = end?.getTime();
+            setStartDate(newCreatedAfter);
+            setEndDate(newCreatedBefore);
+        } else {
+            const newCreatedAfter = dates.getTime();
+            setStartDate(newCreatedAfter);
+            setEndDate(undefined);
+        }
+    }, [])
+
+    const doSubmit = useCallback((e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+        const newBalance = parseInt(balanceField.current?.value ?? "NaN");
+        if (isNaN(newBalance)) {
+            snackbarStore.addFailure("Invalid balance", false);
+            return;
+        }
+        if (endDate == null) {
+            snackbarStore.addFailure("Allocation is missing an end-date", false);
+            return;
+        }
+
+        props.onSubmit(newBalance, startDate, endDate);
+    }, [props.onSubmit, startDate, endDate]);
+
+    return <ReactModal
+        isOpen={true}
+        onRequestClose={props.onClose}
+        shouldCloseOnEsc
+        ariaHideApp={false}
+        style={transferModalStyle}
+    >
+        <form onSubmit={doSubmit}>
+            <Grid gridGap={"16px"}>
+                <Label>
+                    Balance:
+                    <Input ref={balanceField} defaultValue={props.allocation.remaining.toString()}/>
+                </Label>
+
+                <div>
+                    <Label>Allocation Period:</Label>
+                    <SlimDatePickerWrapper>
+                        <ReactDatePicker
+                            locale={enGB}
+                            startDate={new Date(startDate)}
+                            endDate={endDate ? new Date(endDate) : undefined}
+                            onChange={updateDates}
+                            selectsRange={true}
+                            inline
+                            dateFormat="dd/MM/yy HH:mm"
+                        />
+                    </SlimDatePickerWrapper>
+                </div>
+            </Grid>
+
+            <Button fullWidth type={"submit"}>
+                <Icon name={"edit"} mr={"8px"} size={"16px"}/>Update
+            </Button>
+        </form>
+    </ReactModal>
 };
 
 export default Resources;

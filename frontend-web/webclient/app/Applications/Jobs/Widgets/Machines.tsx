@@ -3,7 +3,7 @@ import * as UCloud from "UCloud";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import Box from "ui-components/Box";
 import {Button, Link, theme} from "ui-components";
 import {useEffect, useState} from "react";
@@ -85,7 +85,7 @@ export const Machines: React.FunctionComponent<{
                                     <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
                                     <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
                                     <TableCell>{machine.gpu ?? 0}</TableCell>
-                                    <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
+                                    <TableCell>{currencyFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
                                 </TableRow>;
                             })}
                         </tbody>
@@ -149,7 +149,7 @@ const MachineBox: React.FunctionComponent<{machine: UCloud.accounting.ProductNS.
                     <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
                     <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>
                     {machine.gpu ? <li>GPU: {machine.gpu}</li> : null}
-                    <li>Price: {creditFormatter(machine.pricePerUnit * 60, 4)}/hour</li>
+                    <li>Price: {currencyFormatter(machine.pricePerUnit * 60, 4)}/hour</li>
                 </ul>
             </>
         )}

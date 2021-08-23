@@ -15,7 +15,7 @@ import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
 import {ListRow, ListRowStat} from "ui-components/List";
 import {Flex, Icon, Label, List, Text, Tooltip, Truncate, VerticalButtonGroup} from "ui-components";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import {useAvatars} from "AvataaarLib/hook";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {defaultAvatar} from "UserSettings/Avataaar";
@@ -159,7 +159,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             trigger={
                                 <Flex width="auto" alignItems="center">
                                     <Flex flexGrow={1} justifyContent="flex-end">
-                                        {creditFormatter(
+                                        {currencyFormatter(
                                             app.requestedResources.reduce(
                                                 (prev, curr) => prev + (curr.creditsRequested ?? 0), 0
                                             ), 0)}
