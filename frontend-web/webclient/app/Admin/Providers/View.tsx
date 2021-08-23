@@ -24,7 +24,7 @@ import AccessToken = auth.AccessToken;
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import ProductNS = accounting.ProductNS;
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import {useProjectId} from "Project";
 import {Client} from "Authentication/HttpClientInstance";
 import ResourceDoc = provider.ResourceDoc;
@@ -151,7 +151,7 @@ function View(): JSX.Element | null {
                                                 <ListStatContainer>
                                                     <ListRowStat icon={"id"}>{item.category.name}</ListRowStat>
                                                     <ListRowStat icon={"grant"}>
-                                                        Unit price: {creditFormatter(item.pricePerUnit)}
+                                                        Unit price: {currencyFormatter(item.pricePerUnit)}
                                                     </ListRowStat>
                                                 </ListStatContainer>
                                             }

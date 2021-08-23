@@ -7,7 +7,7 @@ import {
     UCLOUD_PROVIDER
 } from "Accounting/index";
 import {Text, Tooltip} from "ui-components";
-import {addThousandSeparators, creditFormatter} from "Project/Resources";
+import {addThousandSeparators, currencyFormatter} from "Project/Resources";
 import styled from "styled-components";
 import {TextAlignProps} from "styled-system";
 import {useGlobalCloudAPI} from "Authentication/DataHook";
@@ -24,7 +24,7 @@ export const Balance: React.FunctionComponent<{
             position={"top"}
             trigger={
                 <BalanceTextWrapper textAlign={props.textAlign}>
-                    {creditFormatter(props.amount, props.precision)}
+                    {currencyFormatter(props.amount, props.precision)}
                 </BalanceTextWrapper>
             }
         >
@@ -104,7 +104,7 @@ export const BalanceExplainer: React.FunctionComponent<{
     if (productArea === "ingress" || productArea === "license") return null;
 
     if (productName === null || pricePerUnit === null || productArea === null) {
-        return <>{creditFormatter(props.amount)}</>;
+        return <>{currencyFormatter(props.amount)}</>;
     } else {
         let units = Math.floor(props.amount / pricePerUnit);
         const unitText = productArea === "compute" ? "hours on" : "months of 50 GB on";

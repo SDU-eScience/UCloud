@@ -18,9 +18,8 @@ import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "UCloud";
-import Product = accounting.Product;
 import {
-    CheckboxFilter, CheckboxFilterWidget,
+    CheckboxFilterWidget,
     DateRangeFilter,
     EnumFilter,
     FilterWidgetProps,
@@ -29,13 +28,11 @@ import {
     ValuePill
 } from "Resource/Filter";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {capitalized, doNothing, errorMessageOrDefault, timestampUnixMs} from "UtilityFunctions";
+import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {ThemeColor} from "ui-components/theme";
 import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {ProductArea} from "Accounting";
-import {IconName} from "ui-components/Icon";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
@@ -53,6 +50,15 @@ import {SlimDatePickerWrapper} from "ui-components/DatePicker";
 import {getStartOfDay} from "Activity/Page";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {deviceBreakpoint} from "ui-components/Hide";
+import {
+    ChargeType, explainPrice, explainUsage, normalizeBalanceForFrontend,
+    Product,
+    ProductPriceUnit,
+    ProductType,
+    productTypes,
+    productTypeToIcon,
+    productTypeToTitle
+} from "Accounting";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -61,127 +67,6 @@ function dateFormatter(timestamp: number): string {
         `${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function dateFormatterDay(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getDate()}/${date.getMonth() + 1} `;
-}
-
-function dateFormatterMonth(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getMonth() + 1}/${date.getFullYear()} `;
-}
-
-export function priceExplainer(product: Product): string {
-    switch (product.type) {
-        case "compute":
-            return `${creditFormatter(product.pricePerUnit * 60, 4)}/hour`;
-        case "storage":
-            return `${creditFormatter(product.pricePerUnit * 30)}/GB per month`;
-        default:
-            return `${creditFormatter(product.pricePerUnit)}/unit`;
-    }
-}
-
-export function creditFormatter(credits: number, precision = 2): string {
-    if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
-
-    // Edge-case handling
-    if (credits < 0) {
-        return "-" + creditFormatter(-credits);
-    } else if (credits === 0) {
-        return "0 DKK";
-    } else if (credits < Math.pow(10, 6 - precision)) {
-        if (precision === 0) return "< 1 DKK";
-        let builder = "< 0,";
-        for (let i = 0; i < precision - 1; i++) builder += "0";
-        builder += "1 DKK";
-        return builder;
-    }
-
-    // Group into before and after decimal separator
-    const stringified = credits.toString().padStart(6, "0");
-
-    let before = stringified.substr(0, stringified.length - 6);
-    let after = stringified.substr(stringified.length - 6);
-    if (before === "") before = "0";
-    if (after === "") after = "0";
-    after = after.padStart(precision, "0");
-    after = after.substr(0, precision);
-
-    // Truncate trailing zeroes (but keep at least two)
-    if (precision > 2) {
-        let firstZeroAt = -1;
-        for (let i = 2; i < after.length; i++) {
-            if (after[i] === "0") {
-                if (firstZeroAt === -1) firstZeroAt = i;
-            } else {
-                firstZeroAt = -1;
-            }
-        }
-
-        if (firstZeroAt !== -1) { // We have trailing zeroes
-            after = after.substr(0, firstZeroAt);
-        }
-    }
-
-    // Thousand separator
-    const beforeFormatted = addThousandSeparators(before);
-
-    if (after === "") return `${beforeFormatted} DKK`;
-    else return `${beforeFormatted},${after} DKK`;
-}
-
-export function addThousandSeparators(numberOrString: string | number): string {
-    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
-    let result = "";
-    const chunksInTotal = Math.ceil(numberAsString.length / 3);
-    let offset = 0;
-    for (let i = 0; i < chunksInTotal; i++) {
-        if (i === 0) {
-            let firstChunkSize = numberAsString.length % 3;
-            if (firstChunkSize === 0) firstChunkSize = 3;
-            result += numberAsString.substr(0, firstChunkSize);
-            offset += firstChunkSize;
-        } else {
-            result += '.';
-            result += numberAsString.substr(offset, 3);
-            offset += 3;
-        }
-    }
-    return result;
-}
-
-const productTypes: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
-
-function productTypeToTitle(type: ProductArea): string {
-    switch (type) {
-        case "INGRESS":
-            return "Public Link"
-        case "COMPUTE":
-            return "Compute";
-        case "STORAGE":
-            return "Storage";
-        case "NETWORK_IP":
-            return "Public IP";
-        case "LICENSE":
-            return "Software License";
-    }
-}
-
-function productTypeToIcon(type: ProductArea): IconName {
-    switch (type) {
-        case "INGRESS":
-            return "globeEuropeSolid"
-        case "COMPUTE":
-            return "cpu";
-        case "STORAGE":
-            return "hdd";
-        case "NETWORK_IP":
-            return "networkWiredSolid";
-        case "LICENSE":
-            return "apps";
-    }
-}
 
 const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
 const filterPills: React.FunctionComponent<PillProps>[] = [];
@@ -214,7 +99,7 @@ filterWidgets.push(props =>
 interface VisualizationFlags {
     filterStartDate?: number | null;
     filterEndDate?: number | null;
-    filterType?: ProductArea | null;
+    filterType?: ProductType | null;
     filterProvider?: string | null;
     filterProductCategory?: string | null;
     filterAllocation?: string | null;
@@ -419,9 +304,9 @@ interface Wallet {
     paysFor: ProductCategoryId;
     allocations: WalletAllocation[];
     chargePolicy: "EXPIRE_FIRST";
-    productType?: ProductArea | null;
-    chargeType?: string | null;
-    unit?: string | null;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
 }
 
 const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
@@ -500,8 +385,8 @@ const AllocationViewer: React.FunctionComponent<{
                         entityNameSingular={"Allocation"}
                     />
                 </Flex>
-                <div>{creditFormatter(allocation.balance)} remaining</div>
-                <div>{creditFormatter(allocation.initialBalance)} allocated</div>
+                <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
+                <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"}/>
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate}/></div>
             </Flex>
@@ -675,10 +560,10 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
 };
 
 interface UsageChart {
-    type: ProductArea;
+    type: ProductType;
     periodUsage: number;
-    chargeType: string;
-    unit: string;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
     chart: {
         lines: {
             name: string;
@@ -757,12 +642,16 @@ const UsageChartViewer: React.FunctionComponent<{
         return [result, names];
     }, [c.chart]);
 
+    const formatter = useCallback((amount: number) => {
+        return usageExplainer(amount, c.type, c.chargeType, c.unit);
+    }, [c.type, c.chargeType, c.unit])
+
     return <DashboardCard color={"blue"} width={maximized ? "100%" : "400px"} height={maximized ? "900px" : undefined}>
         <UsageChartStyle>
             <Flex alignItems={"center"}>
                 <div>
                     <Text color="gray">{productTypeToTitle(c.type)}</Text>
-                    <Text bold my="-6px" fontSize="24px">{creditFormatter(c.periodUsage)} used</Text>
+                    <Text bold my="-6px" fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
                 <Box flexGrow={1}/>
                 <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
@@ -779,7 +668,7 @@ const UsageChartViewer: React.FunctionComponent<{
                     data={flattenedLines}
                 >
                     <XAxis dataKey={"timestamp"}/>
-                    <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
+                    <Tooltip labelFormatter={dateFormatter} formatter={formatter}/>
                     {names.map((it, index) =>
                         <Area
                             key={it}
@@ -800,9 +689,9 @@ const UsageChartViewer: React.FunctionComponent<{
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];
 
 interface BreakdownChart {
-    type: ProductArea;
-    chargeType: string;
-    unit: string;
+    type: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
     chart: { points: { name: string, value: number }[] }
 }
 
@@ -860,8 +749,9 @@ interface SubAllocation {
     endDate?: number | null;
 
     productCategoryId: ProductCategoryId;
-    chargeType: string;
-    unit: string;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
 
     workspaceId: string;
     workspaceTitle: string;
@@ -949,7 +839,7 @@ const SubAllocationRow: React.FunctionComponent<{ row: SubAllocation, cb: SubAll
             {row.workspaceTitle}
         </TableCell>
         <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
-        <TableCell>{creditFormatter(row.remaining)}</TableCell>
+        <TableCell>{usageExplainer(row.remaining, row.productType, row.chargeType, row.unit)}</TableCell>
         <TableCell><ExpiresIn startDate={row.startDate} endDate={row.endDate}/></TableCell>
         <TableCell>
             <Operations
@@ -1026,7 +916,6 @@ const SubAllocationEditModal: React.FunctionComponent<{
         props.onSubmit(newBalance, startDate, endDate);
     }, [props.onSubmit, startDate, endDate]);
 
-
     return <ReactModal
         isOpen={true}
         onRequestClose={props.onClose}
@@ -1058,7 +947,7 @@ const SubAllocationEditModal: React.FunctionComponent<{
             </Grid>
 
             <Button fullWidth type={"submit"}>
-                <Icon name={"edit"} mr={"8px"} size={"16px"} />Update
+                <Icon name={"edit"} mr={"8px"} size={"16px"}/>Update
             </Button>
         </form>
     </ReactModal>

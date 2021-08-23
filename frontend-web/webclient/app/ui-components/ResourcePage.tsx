@@ -9,7 +9,7 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import {dateToString} from "Utilities/DateUtilities";
 import {prettierString, shortUUID} from "UtilityFunctions";
 import {TextSpan} from "ui-components/Text";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 import {Section} from "ui-components/Section";
 import Grid from "ui-components/Grid";
 
@@ -82,7 +82,7 @@ export function ResourcePage<T extends ResourceDoc>(props: ResourcePageProps<T>)
                 {props.showBilling !== true ? null :
                     <Flex>
                         <Heading.h4 flexGrow={1}>Balance charged</Heading.h4>
-                        {creditFormatter(props.entity.billing.creditsCharged)}
+                        {currencyFormatter(props.entity.billing.creditsCharged)}
                     </Flex>
                 }
             </Section>

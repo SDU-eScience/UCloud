@@ -28,7 +28,7 @@ import Wallet = accounting.Wallet;
 import {PaymentModel} from "Accounting";
 import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
 import {InputLabel} from "ui-components/Input";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 
 const PaymentModelOptions: PaymentModel[] = ["PER_ACTIVATION", "FREE_BUT_REQUIRE_BALANCE"];
 
@@ -673,7 +673,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
             <Flex mb="1em">
                 <Box width="40%">
                     <Heading.h4>Price per unit</Heading.h4>
-                    {creditFormatter(licenseServer.pricePerUnit)}
+                    {currencyFormatter(licenseServer.pricePerUnit)}
                 </Box>
 
                 <Box width="40%">

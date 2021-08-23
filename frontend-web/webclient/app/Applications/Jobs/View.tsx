@@ -20,19 +20,25 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {creditFormatter} from "Project/Resources";
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {bulkRequestOf} from "DefaultObjects";
-import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
 import {accounting, compute} from "UCloud";
 import {ResolvedSupport} from "UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import ProductNS = accounting.ProductNS;
+import {
+    explainUsage,
+    priceExplainer,
+    Product,
+    ProductCompute,
+    retrieveBalance,
+    RetrieveBalanceResponse, usageExplainer
+} from "Accounting";
 
 const enterAnimation = keyframes`
   from {
@@ -270,8 +276,8 @@ export const View: React.FunctionComponent = () => {
                     message: <>
                         <Box mb="20px">You are trying to extend the allocation of the job beyond your current
                             funds.</Box>
-                        <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
-                        <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
+                        <Box><b>Current balance:</b> {currencyFormatter(wallet.balance)}</Box>
+                        <Box><b>New estimated cost for finishing the job:</b> {currencyFormatter(needed)}</Box>
                         <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when
                             your balance reaches 0 DKK.</Box>
                     </>,
@@ -623,7 +629,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
     const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
         "My Workspace";
 
-    const machine = job.status.resolvedProduct as ProductNS.Compute;
+    const machine = job.status.resolvedProduct! as unknown as ProductCompute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
     const estimatedCost = time ?
         (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
@@ -652,8 +658,12 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
                 icon={"hourglass"}
             >
                 {!isJobStateTerminal(status?.state) ? (<>
-                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
-                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                    {!time ? null : <>
+                        <b>Estimated price:</b>{" "}
+                        {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
+                        <br/>
+                    </>}
+                    <b>Price per hour:</b> {priceExplainer(machine)}
                 </>) : null}
             </InfoCard>
         }

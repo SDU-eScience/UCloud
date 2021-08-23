@@ -1,6 +1,6 @@
 import * as React from "react";
 import {PaymentModel} from "Accounting/index";
-import {creditFormatter} from "Project/Resources";
+import {currencyFormatter} from "Project/Resources";
 
 export const PaymentModelExplainer: React.FunctionComponent<{
     model: PaymentModel;
@@ -12,6 +12,6 @@ export const PaymentModelExplainer: React.FunctionComponent<{
 
     switch (model) {
         case "PER_ACTIVATION":
-            return <>Per activation: {creditFormatter(price)}</>;
+            return <>Per activation: {currencyFormatter(price)}</>;
     }
 }
