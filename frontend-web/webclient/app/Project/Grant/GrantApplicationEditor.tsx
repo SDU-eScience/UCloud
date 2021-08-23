@@ -4,23 +4,21 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {
-    Box,
-    Button,
-    ButtonGroup,
-    Card,
-    ExternalLink,
-    Flex,
-    Icon,
-    Input,
-    Label,
-    List,
-    Checkbox,
-    Text,
-    TextArea,
-    theme,
-    Tooltip
-} from "ui-components";
+import Box from "ui-components/Box";
+import Button  from "ui-components/Button";
+import ButtonGroup from "ui-components/ButtonGroup";
+import Card from "ui-components/Card";
+import ExternalLink from "ui-components/ExternalLink";
+import Flex from "ui-components/Flex";
+import Icon  from "ui-components/Icon";
+import Input from "ui-components/Input";
+import Label from "ui-components/Label";
+import List from "ui-components/List";
+import Checkbox from "ui-components/Checkbox";
+import Text from "ui-components/Text";
+import TextArea from "ui-components/TextArea";
+import theme from "ui-components/theme";
+import Tooltip from "ui-components/Tooltip";
 import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -32,7 +30,7 @@ import {
     WalletBalance
 } from "Accounting";
 import styled from "styled-components";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {
     approveGrantApplication,
     closeGrantApplication,
@@ -453,7 +451,7 @@ const StorageRequestCard: React.FunctionComponent<{
     };
 
     return <RequestForSingleResourceWrapper>
-        <DashboardCard color="blue" isLoading={false}>
+        <HighlightedCard color="blue" isLoading={false}>
             <table>
                 <tbody>
                     <tr>
@@ -567,7 +565,7 @@ const StorageRequestCard: React.FunctionComponent<{
                     </tr>
                 </tbody>
             </table>
-        </DashboardCard>
+        </HighlightedCard>
     </RequestForSingleResourceWrapper>;
 };
 
@@ -580,7 +578,7 @@ const GenericRequestCard: React.FunctionComponent<{
 }> = ({wb, state, grantFinalized, isLocked, icon}) => {
     if (wb.isFreeWithBalanceCheck) {
         return <RequestForSingleResourceWrapper>
-            <DashboardCard color={"blue"} isLoading={false}>
+            <HighlightedCard color={"blue"} isLoading={false}>
                 <Flex flexDirection={"row"} alignItems={"center"}>
                     <Box flexGrow={1}>
                         <Label>
@@ -622,11 +620,11 @@ const GenericRequestCard: React.FunctionComponent<{
                     type="hidden"
                     min={0}
                 />
-            </DashboardCard>
+            </HighlightedCard>
         </RequestForSingleResourceWrapper>
     } else {
         return <RequestForSingleResourceWrapper>
-            <DashboardCard color="blue" isLoading={false}>
+            <HighlightedCard color="blue" isLoading={false}>
                 <table>
                     <tbody>
                         <tr>
@@ -683,7 +681,7 @@ const GenericRequestCard: React.FunctionComponent<{
                         </tr>
                     </tbody>
                 </table>
-            </DashboardCard>
+            </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     }
 };
@@ -979,7 +977,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                 <>
-                                    <DashboardCard color="blue" isLoading={false}>
+                                    <HighlightedCard color="blue" isLoading={false}>
                                         <Heading.h4 mb={16}>Metadata</Heading.h4>
 
                                         <Text mb={16}>
@@ -1114,7 +1112,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                             </tbody>
                                         </Table>
-                                    </DashboardCard>
+                                    </HighlightedCard>
                                 </>
                             )}
 

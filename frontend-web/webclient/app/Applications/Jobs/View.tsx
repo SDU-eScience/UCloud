@@ -12,7 +12,7 @@ import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "Util
 import {AppToolLogo} from "Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
 import {Box, Button, Flex, Icon, Link} from "ui-components";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {IconName} from "ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "ui-components/Hide";
@@ -433,11 +433,11 @@ export const View: React.FunctionComponent = () => {
 
                             <Content>
                                 <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                    <DashboardCard color={"purple"}>
+                                    <HighlightedCard color={"purple"}>
                                         <Box py={"16px"}>
                                             <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
                                         </Box>
-                                    </DashboardCard>
+                                    </HighlightedCard>
                                 </Box>
                                 <InfoCards job={job} status={status}/>
                             </Content>
@@ -704,7 +704,7 @@ const InfoCard: React.FunctionComponent<{
     statTitle: string,
     icon: IconName,
 }> = props => {
-    return <DashboardCard color={"purple"} isLoading={false}>
+    return <HighlightedCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
             <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"}/>
             <div className={"stat"}>{props.stat}</div>
@@ -713,7 +713,7 @@ const InfoCard: React.FunctionComponent<{
                 {props.children}
             </div>
         </InfoCardContainer>
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
@@ -854,7 +854,7 @@ const RunningContent: React.FunctionComponent<{
 
     return <>
         <RunningInfoWrapper>
-            <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -866,10 +866,10 @@ const RunningContent: React.FunctionComponent<{
                         <CancelButton job={job} state={"RUNNING"} fullWidth/>
                     </Box>
                 </Flex>
-            </DashboardCard>
+            </HighlightedCard>
             {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
                 ? null :
-                <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+                <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                     <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                         <Box>
                             <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
@@ -903,11 +903,11 @@ const RunningContent: React.FunctionComponent<{
                             </Box>
                         }
                     </Flex>
-                </DashboardCard>
+                </HighlightedCard>
             }
-            <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+            <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
                 <ProviderUpdates job={job} updateListeners={updateListeners}/>
-            </DashboardCard>
+            </HighlightedCard>
         </RunningInfoWrapper>
 
         {!supportsLogs ? null :
@@ -1040,7 +1040,7 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <DashboardCard color={"purple"} isLoading={false}>
+        <HighlightedCard color={"purple"} isLoading={false}>
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
@@ -1054,7 +1054,7 @@ const RunningJobRank: React.FunctionComponent<{
                                         toggleExpand={toggleExpand}></RunningButtonGroup>
                 )}
             </RunningJobRankWrapper>
-        </DashboardCard>
+        </HighlightedCard>
     </>;
 };
 

@@ -5,19 +5,13 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.parameterList
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import java.util.*
 
 class MetadataService(
     private val db: DBContext,
@@ -526,6 +520,72 @@ class MetadataService(
             val collectionsAffected = pathsAffected.map { extractPathMetadata(it).collection }
             collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Admin), ctx = session)
         }
+    }
+
+    suspend fun browse(
+        actorAndProject: ActorAndProject,
+        request: FileMetadataBrowseRequest,
+        ctx: DBContext = this.db,
+    ): FileMetadataBrowseResponse {
+        return ctx.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.username)
+                        setParameter("project", actorAndProject.project)
+                        setParameter("version", request.filterVersion)
+                        setParameter("active", request.filterActive)
+                        setParameter("template", request.filterTemplate)
+                    },
+                    """
+                    declare c cursor for
+                    SELECT doc.path, file_orchestrator.metadata_document_to_json(doc) as json
+                    FROM
+                        file_orchestrator.metadata_documents doc JOIN
+                        file_orchestrator.metadata_templates temp ON
+                            doc.template_id = temp.namespace AND
+                            doc.template_version = temp.uversion left join
+                        project.project_members pm on
+                            doc.is_workspace_project = true and
+                            doc.workspace = pm.project_id and
+                            doc.workspace = :project and
+                            pm.username = :username
+                    WHERE
+                        (
+                            :template::text IS NULL OR
+                            temp.title = :template
+                        ) AND
+                        (
+                            (:active = false) OR
+                            (:active = doc.latest)
+                        ) AND
+                        (
+                            (:version::text IS NULL) OR
+                            (:version = doc.template_version)
+                        ) AND
+                        (
+                            doc.workspace = :username or
+                            (
+                                :project::text is not null and
+                                pm.username is not null
+                            )
+                        ) AND
+                        (
+                            doc.is_deletion = false
+                        )
+            """.trimIndent())
+            },
+            mapper = { _, rows ->
+                rows.map { row ->
+                    FileMetadataAttached(
+                        row.getString("path")!!,
+                        defaultMapper.decodeFromString(row.getString("json")!!)
+                    )
+                }
+            },
+        )
     }
 
     companion object {
