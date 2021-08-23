@@ -16,6 +16,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
 }> = ({file}) => {
     const [, invokeCommand, loading] = useCloudCommand();
     const [isFavorite, setFavorite] = useState(false);
+    const [mostRecentStatusId, setStatusId] = useState("");
 
     useEffect(() => {
         // NOTE(Dan): This should only run once on mount.
@@ -33,11 +34,13 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 realFileIsFavorite = mostRecent != null && mostRecent.type === "metadata" &&
                     mostRecent.specification.version === favoriteTemplateVersion &&
                     mostRecent.specification.document["favorite"];
+                setStatusId(mostRecent.id);
             }
         }
 
         setFavorite(realFileIsFavorite);
     }, []);
+
 
     const onToggle = useCallback(async (e?: React.SyntheticEvent) => {
         e?.stopPropagation();
@@ -61,18 +64,36 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 return;
             }
 
-            await invokeCommand(
-                metadataApi.create(bulkRequestOf({
-                    fileId: file.id,
-                    metadata: {
-                        document: {favorite: !isFavorite},
-                        version: favoriteTemplateVersion,
-                        changeLog: "New favorite status",
-                        templateId: favoriteTemplateId!
-                    }
-                })),
-                {defaultErrorHandler: false}
-            );
+            if (isFavorite) {
+                // Note(Jonas): New state will be _not_  favorite
+                
+                await invokeCommand(
+                    metadataApi.delete(
+                        bulkRequestOf({
+                            changeLog: "Remove favorite",
+                            id: mostRecentStatusId
+                        })
+                    ),
+                    {defaultErrorHandler: false}
+                )
+            } else {
+                // Note(Jonas): New state will be favorite
+                await invokeCommand(
+                    /* Note(Jonas): If already favorite, new */
+                    metadataApi.create(bulkRequestOf({
+                        fileId: file.id,
+                        metadata: {
+                            document: {favorite: !isFavorite},
+                            version: favoriteTemplateVersion,
+                            changeLog: "New favorite status",
+                            templateId: favoriteTemplateId!
+                        }
+                    })),
+                    {defaultErrorHandler: false}
+                );
+            }
+
+
         } catch (e) {
             setFavorite(isFavorite);
         }
