@@ -155,12 +155,9 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-
-        /*
-        testFilter = {title, subtitle ->
-            title == "Transfers"  //&& subtitle == "project to user - multiple transfers"
+        testFilter = { title, subtitle ->
+            title == "Differential quota products" //&& subtitle == "Multiple allocation, with over-charge in leaf"
         }
-         */
 
         run {
             class In(
@@ -1459,6 +1456,7 @@ class AccountingTest : IntegrationTest() {
                         assertEquals(-2000, output.wallets[1].allocations[0].localBalance)
                         assertEquals(0, output.wallets[1].allocations[1].balance)
                         assertEquals(0, output.wallets[1].allocations[1].localBalance)
+
                     }
                 }
             }
