@@ -11,8 +11,6 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {useProjectId} from "Project";
 import {MandatoryField} from "Applications/Jobs/Widgets/index";
-import {accounting} from "UCloud";
-import ProductNS = accounting.ProductNS;
 import {productCategoryEquals, ProductCompute} from "Accounting";
 import {emptyPageV2} from "DefaultObjects";
 import {joinToString} from "UtilityFunctions";
@@ -60,7 +58,7 @@ export const ReservationParameter: React.FunctionComponent<{
         }
     }, [wallet]);
 
-    const allMachines = ([] as ProductNS.Compute[]).concat.apply(
+    const allMachines = ([] as ProductCompute[]).concat.apply(
         [],
         Object.values(machineSupport.data.productsByProvider).map(products => {
             return products

@@ -27,14 +27,11 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {bulkRequestOf} from "DefaultObjects";
 import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
-import {accounting, compute} from "UCloud";
+import {compute} from "UCloud";
 import {ResolvedSupport} from "UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import ProductNS = accounting.ProductNS;
 import {
-    explainUsage,
     priceExplainer,
-    Product,
     ProductCompute,
     retrieveBalance,
     RetrieveBalanceResponse, usageExplainer

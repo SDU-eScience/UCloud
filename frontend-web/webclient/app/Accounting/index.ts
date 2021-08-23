@@ -1,16 +1,12 @@
 import {buildQueryString} from "Utilities/URIUtilities";
-import {PropType} from "UtilityFunctions";
 import * as UCloud from "UCloud";
 import {IconName} from "ui-components/Icon";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
-export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
-
 export type AccountType = "USER" | "PROJECT";
-export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
-export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByAreaRequest, "area">>;
-export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
+/* @deprecated */
+export type ProductArea = ProductType;
 
 export interface ProductCategoryId {
     name: string;

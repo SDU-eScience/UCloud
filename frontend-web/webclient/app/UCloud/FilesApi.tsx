@@ -8,9 +8,8 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, BulkResponse} from "UCloud/index";
+import {BulkRequest, BulkResponse} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
-import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Box, Button, FtIcon, Link} from "ui-components";
 import * as React from "react";
@@ -32,6 +31,7 @@ import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
+import {ProductStorage} from "Accounting";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -102,7 +102,7 @@ interface ExtraCallbacks {
     collection?: FileCollection;
 }
 
-class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
+class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");

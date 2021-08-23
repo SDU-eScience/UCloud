@@ -21,13 +21,10 @@ import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {useProjectStatus} from "Project/cache";
 import Wallet = accounting.Wallet;
-import {PaymentModel} from "Accounting";
 import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
 import {useProjectId} from "Project";
 import {InputLabel} from "ui-components/Input";
 import { TextSpan } from "ui-components/Text";
-
-const PaymentModelOptions: PaymentModel[] = ["PER_ACTIVATION", "FREE_BUT_REQUIRE_BALANCE"];
 
 const LeftAlignedTableHeader = styled(TableHeader)`
   text-align: left;
@@ -195,7 +192,7 @@ const LicenseServers: React.FunctionComponent = () => {
     const [granting, setGranting] = useState<KubernetesLicense | null>(null);
 
     const [isAvailable, setAvailable] = React.useState(true);
-    const [paymentModel, setPaymentModel] = React.useState<PaymentModel>("PER_ACTIVATION");
+    // const [paymentModel, setPaymentModel] = React.useState<PaymentModel>("PER_ACTIVATION");
 
     const projectId = useProjectId();
 
@@ -223,6 +220,7 @@ const LicenseServers: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Admin);
     useRefreshFunction(reload);
 
+    /*
     async function submit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
@@ -297,180 +295,182 @@ const LicenseServers: React.FunctionComponent = () => {
 
         }
     }
+     */
 
     const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
 
     if (!Client.userIsAdmin) return null;
+    return null;
 
 
-    return (
-        <MainContainer
-            header={<Heading.h1>License Servers</Heading.h1>}
-            headerSize={64}
-            main={(
-                <>
-                    <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
-                        <form onSubmit={e => submit(e)}>
-                            <Label mb="1em">
-                                Name
-                                <Input
-                                    ref={nameInput.ref}
-                                    error={nameInput.hasError}
-                                    placeholder={"Identifiable name for the license server"}
-                                />
-                            </Label>
-                            <Box marginBottom={30}>
-                                <Flex height={45}>
-                                    <Label mb="1em">
-                                        Address
-                                        <Input
-                                            ref={addressInput.ref}
-                                            error={addressInput.hasError}
-                                            rightLabel
-                                            placeholder={"IP address or URL"}
-                                        />
-                                    </Label>
-                                    <Label mb="1em" width="30%">
-                                        Port
-                                        <Input
-                                            ref={portInput.ref}
-                                            error={portInput.hasError}
-                                            type={"number"}
-                                            min={0}
-                                            max={65535}
-                                            leftLabel
-                                            maxLength={5}
-                                            placeholder={"Port"}
-                                        />
-                                    </Label>
-                                </Flex>
-                            </Box>
-                            <Label mb="1em">
-                                Key
-                                <Input
-                                    ref={licenseInput.ref}
-                                    error={licenseInput.hasError}
-                                    placeholder="License or key (if needed)"
-                                />
-                            </Label>
-
-                            <Label>
-                                Priority
-                                <Input mb="1em" type="number" autoComplete="off" ref={priorityInput.ref} defaultValue={0} />
-                            </Label>
-
-                            <Label mb="1em">
-                                Availability
-                                <Select
-                                    onChange={e => setAvailable(e.target.value === "available")}
-                                    defaultValue={isAvailable ? "Available" : "Unavailable"}
-                                >
-                                    <option value={"available"}>Available</option>
-                                    <option value={"unavailable"}>Unavailable</option>
-                                </Select>
-                            </Label>
-
-                            {isAvailable ? null :
-                                <Label mb="1em">
-                                    Unvailability reason
-                                    <Input ref={reasonInput.ref} />
-                                </Label>
-                            }
-
-                            <Label>
-                                Payment Model
-                                <Flex mb="1em">
-                                    <Select onChange={e => setPaymentModel(e.target.value as PaymentModel)} defaultValue={paymentModel[0]}>
-                                        {PaymentModelOptions.map(it =>
-                                            <option key={it} value={it}>{prettierString(it)}</option>
-                                        )}
-                                    </Select>
-                                </Flex>
-                            </Label>
-
-                            <Label>
-                                Price per unit
-                                <Flex mb="1em">
-                                    <Input autoComplete="off" min={0} defaultValue={1} type="number" ref={pricePerUnitInput.ref} rightLabel />
-                                    <InputLabel width="60px" rightLabel>DKK</InputLabel>
-                                </Flex>
-                            </Label>
-
-                            <TextArea error={descriptionTextArea.hasError} width={1} mb="1em" rows={4} ref={descriptionTextArea.ref} placeholder="License description..." />
-
-                            <Label width="auto" mb="1em">
-                                <Checkbox
-                                    checked={hiddenInGrantApplicationsInput}
-                                    onClick={() => setHiddenInGrantApplicationsInput(!hiddenInGrantApplicationsInput)}
-                                    onChange={stopPropagation}
-                                />
-                                Hide License Server from grant applicants
-                            </Label>
-
-                            <Button type="submit" color="green" disabled={loading}>Add License Server</Button>
-                        </form>
-
-                        {projectId == null ?
-                            <Text bold mt={8}>
-                                You must have an active project in order to grant copies of a license!
-                            </Text> : null
-                        }
-
-                        <ReactModal
-                            isOpen={editing != null}
-                            onRequestClose={() => setEditing(null)}
-                            shouldCloseOnEsc
-                            ariaHideApp={false}
-                            style={defaultModalStyle}
-                        >
-                            {!editing ? null : <LicenseServerTagsPrompt licenseServer={editing} onUpdate={reload} />}
-                        </ReactModal>
-
-                        <ReactModal
-                            isOpen={granting != null}
-                            onRequestClose={() => setGranting(null)}
-                            shouldCloseOnEsc
-                            ariaHideApp={false}
-                            style={defaultModalStyle}
-                        >
-                            {!granting ? null :
-                                <GrantCopies licenseServer={granting} onGrant={() => setGranting(null)} />}
-                        </ReactModal>
-
-                        <Box mt={30}>
-                            <Pagination.ListV2
-                                loading={licenses.loading}
-                                page={licenses.data}
-                                infiniteScrollGeneration={infScroll}
-                                onLoadMore={loadMore}
-                                pageRenderer={items => (
-                                    items.map(licenseServer =>
-                                        <LicenseServerCard
-                                            key={licenseServer.id}
-                                            reload={reload}
-                                            setGranting={setGranting}
-                                            setEditing={setEditing}
-                                            licenseServer={licenseServer}
-                                            openLicenses={openLicenses}
-                                            setOpenLicenses={license => {
-                                                const isSelected = openLicenses.has(license.id);
-                                                if (isSelected) {
-                                                    openLicenses.delete(license.id);
-                                                } else {
-                                                    openLicenses.add(license.id);
-                                                }
-                                                setOpenLicenses(new Set(openLicenses))
-                                            }}
-                                        />
-                                    )
-                                )}
-                            />
-                        </Box>
-                    </Box>
-                </>
-            )}
-        />
-    );
+    // return (
+    //     <MainContainer
+    //         header={<Heading.h1>License Servers</Heading.h1>}
+    //         headerSize={64}
+    //         main={(
+    //             <>
+    //                 <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
+    //                     <form onSubmit={e => submit(e)}>
+    //                         <Label mb="1em">
+    //                             Name
+    //                             <Input
+    //                                 ref={nameInput.ref}
+    //                                 error={nameInput.hasError}
+    //                                 placeholder={"Identifiable name for the license server"}
+    //                             />
+    //                         </Label>
+    //                         <Box marginBottom={30}>
+    //                             <Flex height={45}>
+    //                                 <Label mb="1em">
+    //                                     Address
+    //                                     <Input
+    //                                         ref={addressInput.ref}
+    //                                         error={addressInput.hasError}
+    //                                         rightLabel
+    //                                         placeholder={"IP address or URL"}
+    //                                     />
+    //                                 </Label>
+    //                                 <Label mb="1em" width="30%">
+    //                                     Port
+    //                                     <Input
+    //                                         ref={portInput.ref}
+    //                                         error={portInput.hasError}
+    //                                         type={"number"}
+    //                                         min={0}
+    //                                         max={65535}
+    //                                         leftLabel
+    //                                         maxLength={5}
+    //                                         placeholder={"Port"}
+    //                                     />
+    //                                 </Label>
+    //                             </Flex>
+    //                         </Box>
+    //                         <Label mb="1em">
+    //                             Key
+    //                             <Input
+    //                                 ref={licenseInput.ref}
+    //                                 error={licenseInput.hasError}
+    //                                 placeholder="License or key (if needed)"
+    //                             />
+    //                         </Label>
+    //
+    //                         <Label>
+    //                             Priority
+    //                             <Input mb="1em" type="number" autoComplete="off" ref={priorityInput.ref} defaultValue={0} />
+    //                         </Label>
+    //
+    //                         <Label mb="1em">
+    //                             Availability
+    //                             <Select
+    //                                 onChange={e => setAvailable(e.target.value === "available")}
+    //                                 defaultValue={isAvailable ? "Available" : "Unavailable"}
+    //                             >
+    //                                 <option value={"available"}>Available</option>
+    //                                 <option value={"unavailable"}>Unavailable</option>
+    //                             </Select>
+    //                         </Label>
+    //
+    //                         {isAvailable ? null :
+    //                             <Label mb="1em">
+    //                                 Unvailability reason
+    //                                 <Input ref={reasonInput.ref} />
+    //                             </Label>
+    //                         }
+    //
+    //                         <Label>
+    //                             Payment Model
+    //                             <Flex mb="1em">
+    //                                 <Select onChange={e => setPaymentModel(e.target.value as PaymentModel)} defaultValue={paymentModel[0]}>
+    //                                     {PaymentModelOptions.map(it =>
+    //                                         <option key={it} value={it}>{prettierString(it)}</option>
+    //                                     )}
+    //                                 </Select>
+    //                             </Flex>
+    //                         </Label>
+    //
+    //                         <Label>
+    //                             Price per unit
+    //                             <Flex mb="1em">
+    //                                 <Input autoComplete="off" min={0} defaultValue={1} type="number" ref={pricePerUnitInput.ref} rightLabel />
+    //                                 <InputLabel width="60px" rightLabel>DKK</InputLabel>
+    //                             </Flex>
+    //                         </Label>
+    //
+    //                         <TextArea error={descriptionTextArea.hasError} width={1} mb="1em" rows={4} ref={descriptionTextArea.ref} placeholder="License description..." />
+    //
+    //                         <Label width="auto" mb="1em">
+    //                             <Checkbox
+    //                                 checked={hiddenInGrantApplicationsInput}
+    //                                 onClick={() => setHiddenInGrantApplicationsInput(!hiddenInGrantApplicationsInput)}
+    //                                 onChange={stopPropagation}
+    //                             />
+    //                             Hide License Server from grant applicants
+    //                         </Label>
+    //
+    //                         <Button type="submit" color="green" disabled={loading}>Add License Server</Button>
+    //                     </form>
+    //
+    //                     {projectId == null ?
+    //                         <Text bold mt={8}>
+    //                             You must have an active project in order to grant copies of a license!
+    //                         </Text> : null
+    //                     }
+    //
+    //                     <ReactModal
+    //                         isOpen={editing != null}
+    //                         onRequestClose={() => setEditing(null)}
+    //                         shouldCloseOnEsc
+    //                         ariaHideApp={false}
+    //                         style={defaultModalStyle}
+    //                     >
+    //                         {!editing ? null : <LicenseServerTagsPrompt licenseServer={editing} onUpdate={reload} />}
+    //                     </ReactModal>
+    //
+    //                     <ReactModal
+    //                         isOpen={granting != null}
+    //                         onRequestClose={() => setGranting(null)}
+    //                         shouldCloseOnEsc
+    //                         ariaHideApp={false}
+    //                         style={defaultModalStyle}
+    //                     >
+    //                         {!granting ? null :
+    //                             <GrantCopies licenseServer={granting} onGrant={() => setGranting(null)} />}
+    //                     </ReactModal>
+    //
+    //                     <Box mt={30}>
+    //                         <Pagination.ListV2
+    //                             loading={licenses.loading}
+    //                             page={licenses.data}
+    //                             infiniteScrollGeneration={infScroll}
+    //                             onLoadMore={loadMore}
+    //                             pageRenderer={items => (
+    //                                 items.map(licenseServer =>
+    //                                     <LicenseServerCard
+    //                                         key={licenseServer.id}
+    //                                         reload={reload}
+    //                                         setGranting={setGranting}
+    //                                         setEditing={setEditing}
+    //                                         licenseServer={licenseServer}
+    //                                         openLicenses={openLicenses}
+    //                                         setOpenLicenses={license => {
+    //                                             const isSelected = openLicenses.has(license.id);
+    //                                             if (isSelected) {
+    //                                                 openLicenses.delete(license.id);
+    //                                             } else {
+    //                                                 openLicenses.add(license.id);
+    //                                             }
+    //                                             setOpenLicenses(new Set(openLicenses))
+    //                                         }}
+    //                                     />
+    //                                 )
+    //                             )}
+    //                         />
+    //                     </Box>
+    //                 </Box>
+    //             </>
+    //         )}
+    //     />
+    // );
 };
 
 interface LicenseServerCardProps {
@@ -483,24 +483,24 @@ interface LicenseServerCardProps {
 }
 
 function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses, setEditing, setGranting}: LicenseServerCardProps) {
-    const isSelected = openLicenses.has(licenseServer.id);
-    const [isEditing, setIsEditing] = useState(false);
-    const projectId = useProjectId();
-
-    /* Editing */
-
-    const addressInput = React.useRef<HTMLInputElement>(null);
-    const priorityInput = React.useRef<HTMLInputElement>(null);
-    const [isAvailable, setIsAvailable] = useState<boolean>(licenseServer.availability.type === "available");
-    const unavailableReasonInput = React.useRef<HTMLInputElement>(null);
-    const descriptionInput = React.useRef<HTMLTextAreaElement>(null);
-    const [hiddenInGrantApplications, setHiddenInGrantApplications] = useState<boolean>(licenseServer.hiddenInGrantApplications)
-    const [paymentModelEdit, setPaymentModelEdit] = React.useState<PaymentModel>(licenseServer.paymentModel);
-    const portInput = React.useRef<HTMLInputElement>(null);
-    const pricePerUnitInput = React.useRef<HTMLInputElement>(null);
-    const licenseInput = React.useRef<HTMLInputElement>(null);
-
-    const [loading, invokeCommand] = useCloudCommand();
+    // const isSelected = openLicenses.has(licenseServer.id);
+    // const [isEditing, setIsEditing] = useState(false);
+    // const projectId = useProjectId();
+    //
+    // /* Editing */
+    //
+    // const addressInput = React.useRef<HTMLInputElement>(null);
+    // const priorityInput = React.useRef<HTMLInputElement>(null);
+    // const [isAvailable, setIsAvailable] = useState<boolean>(licenseServer.availability.type === "available");
+    // const unavailableReasonInput = React.useRef<HTMLInputElement>(null);
+    // const descriptionInput = React.useRef<HTMLTextAreaElement>(null);
+    // const [hiddenInGrantApplications, setHiddenInGrantApplications] = useState<boolean>(licenseServer.hiddenInGrantApplications)
+    // const [paymentModelEdit, setPaymentModelEdit] = React.useState<PaymentModel>(licenseServer.paymentModel);
+    // const portInput = React.useRef<HTMLInputElement>(null);
+    // const pricePerUnitInput = React.useRef<HTMLInputElement>(null);
+    // const licenseInput = React.useRef<HTMLInputElement>(null);
+    //
+    // const [loading, invokeCommand] = useCloudCommand();
     return null;
 }
 

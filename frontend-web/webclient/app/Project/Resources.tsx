@@ -29,7 +29,6 @@ import {
 } from "Resource/Filter";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
-import {DashboardCard} from "Dashboard/Dashboard";
 import {ThemeColor} from "ui-components/theme";
 import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
@@ -60,6 +59,7 @@ import {
     productTypeToTitle, usageExplainer
 } from "Accounting";
 import {InputLabel} from "ui-components/Input";
+import HighlightedCard from "ui-components/HighlightedCard";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -366,7 +366,7 @@ const AllocationViewer: React.FunctionComponent<{
 
         setIsMoving(false);
     }, [isDeposit]);
-    return <DashboardCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
+    return <HighlightedCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
         <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
                               onSubmit={onTransferSubmit} wallet={wallet}/>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
@@ -392,7 +392,7 @@ const AllocationViewer: React.FunctionComponent<{
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate}/></div>
             </Flex>
         </Flex>
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 interface AllocationCallbacks {
@@ -654,7 +654,7 @@ const UsageChartViewer: React.FunctionComponent<{
         return usageExplainer(amount, c.type, c.chargeType, c.unit);
     }, [c.type, c.chargeType, c.unit])
 
-    return <DashboardCard color={"blue"} width={maximized ? "100%" : "400px"} height={maximized ? "900px" : undefined}>
+    return <HighlightedCard color={"blue"} width={maximized ? "100%" : "400px"} height={maximized ? "900px" : undefined}>
         <UsageChartStyle>
             <Flex alignItems={"center"}>
                 <div>
@@ -692,7 +692,7 @@ const UsageChartViewer: React.FunctionComponent<{
                 </AreaChart>
             </ResponsiveContainer>
         </UsageChartStyle>
-    </DashboardCard>
+    </HighlightedCard>
 };
 
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];
@@ -711,7 +711,7 @@ function toPercentageString(value: number) {
 const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => {
     const totalUsage = props.chart.chart.points.reduce((prev, current) => prev + current.value, 0);
     return (
-        <DashboardCard
+        <HighlightedCard
             height="400px"
             width={"400px"}
             color="purple"
@@ -748,7 +748,7 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
                     </Box>
                 )}
             </Flex>
-        </DashboardCard>
+        </HighlightedCard>
     )
 }
 
@@ -804,7 +804,7 @@ const SubAllocationViewer: React.FunctionComponent<{
             }
         }, [editingAllocation, closeEditing]);
 
-    return <DashboardCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
+    return <HighlightedCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
         <Text color="darkGray" fontSize={1}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
@@ -835,7 +835,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                 </Table>;
             }}
         />
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 const SubAllocationRow: React.FunctionComponent<{ row: SubAllocation, cb: SubAllocationCallbacks }> = ({row, cb}) => {

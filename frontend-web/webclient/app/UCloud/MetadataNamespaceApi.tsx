@@ -7,8 +7,7 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "UCloud/index";
-import Product = accounting.Product;
+import {BulkRequest, FindByStringId, PaginationRequestV2} from "UCloud/index";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Grid, Icon} from "ui-components";
 import * as React from "react";
@@ -26,6 +25,7 @@ import {Section} from "ui-components/Section";
 import * as Heading from "ui-components/Heading";
 import {JsonSchemaForm} from "Files/Metadata/JsonSchemaForm";
 import {prettierString} from "UtilityFunctions";
+import {Product} from "Accounting";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
