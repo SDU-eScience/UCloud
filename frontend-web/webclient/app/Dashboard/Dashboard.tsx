@@ -115,7 +115,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
             filterTemplate: "Favorite",
-            itemsPerPage: 10
+            itemsPerPage: 25
         }));
     }
 
@@ -135,7 +135,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
                     filterActive: true,
                     filterTemplate: "Favorite",
-                    itemsPerPage: 10
+                    itemsPerPage: 25
                 }))}
             />
 
@@ -163,7 +163,6 @@ interface DashboardFavoriteFilesProps {
     onDeFavorite(): void;
 }
 
-const favoriteTemplateVersion = "1.0.0";
 const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element => {
     const [, invokeCommand] = useCloudCommand();
 
@@ -174,7 +173,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
     const history = useHistory();
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite).slice(0, 7);
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite)//.slice(0, 7);
 
     return (
         <HighlightedCard
@@ -189,14 +188,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(
-                                metadataApi.create(bulkRequestOf({
-                                    fileId: it.path,
-                                    metadata: {
-                                        document: {favorite: false},
-                                        version: favoriteTemplateVersion,
-                                        changeLog: "New favorite status",
-                                        templateId: favoriteTemplateId
-                                    }
+                                metadataApi.delete(bulkRequestOf({
+                                    changeLog: "Remove favorite",
+                                    id: it.metadata.id
                                 })),
                                 {defaultErrorHandler: false}
                             );

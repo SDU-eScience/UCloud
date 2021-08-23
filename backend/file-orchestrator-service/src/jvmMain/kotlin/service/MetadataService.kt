@@ -8,10 +8,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.parameterList
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -530,16 +527,20 @@ class MetadataService(
         request: FileMetadataBrowseRequest,
         ctx: DBContext = this.db,
     ): FileMetadataBrowseResponse {
-        val result = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.username)
-                    setParameter("project", actorAndProject.project)
-                    setParameter("version", request.filterVersion)
-                    setParameter("active", request.filterActive)
-                    setParameter("template", request.filterTemplate)
-                },
-                """
+        return ctx.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.username)
+                        setParameter("project", actorAndProject.project)
+                        setParameter("version", request.filterVersion)
+                        setParameter("active", request.filterActive)
+                        setParameter("template", request.filterTemplate)
+                    },
+                    """
+                    declare c cursor for
                     SELECT doc.path, file_orchestrator.metadata_document_to_json(doc) as json
                     FROM
                         file_orchestrator.metadata_documents doc JOIN
@@ -570,16 +571,21 @@ class MetadataService(
                                 :project::text is not null and
                                 pm.username is not null
                             )
+                        ) AND
+                        (
+                            doc.is_deletion = false
                         )
-            """.trimIndent()
-            ).rows.map {
-                FileMetadataAttached(
-                    it.getString("path")!!,
-                    defaultMapper.decodeFromString(it.getString("json")!!)
-                )
-            }
-        }
-        return PageV2(request.itemsPerPage ?: 25, result, null)
+            """.trimIndent())
+            },
+            mapper = { _, rows ->
+                rows.map { row ->
+                    FileMetadataAttached(
+                        row.getString("path")!!,
+                        defaultMapper.decodeFromString(row.getString("json")!!)
+                    )
+                }
+            },
+        )
     }
 
     companion object {
