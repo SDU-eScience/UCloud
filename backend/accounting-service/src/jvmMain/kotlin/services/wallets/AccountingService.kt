@@ -256,7 +256,7 @@ class AccountingService(
                     on conflict do nothing
                 """
             ).rowsAffected
-
+            println(request)
             val rowsAffected = session.sendPreparedStatement(
                 parameters,
                 """
@@ -305,6 +305,8 @@ class AccountingService(
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {
+                println(rowsAffected)
+                println(request.items.size.toLong())
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }

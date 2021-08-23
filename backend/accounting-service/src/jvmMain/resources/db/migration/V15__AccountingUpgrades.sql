@@ -1177,7 +1177,10 @@ create or replace function accounting.wallet_to_json(
                 from unnest(allocations_in) alloc
                 order by alloc.id
             ) t
-        )
+        ),
+        'productType', category_in.product_type,
+        'chargeType', category_in.charge_type,
+        'unit', category_in.unit_of_price
     )
 $$;
 
