@@ -6,7 +6,7 @@ import {
     subprojectsCountRequest
 } from "Project";
 import * as React from "react";
-import {Flex, Card, Icon, Text, Box} from "ui-components";
+import {Flex, Card, Icon, Box} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -16,37 +16,15 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useCloudAPI} from "Authentication/DataHook";
-import {NativeChart} from "Accounting";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
 import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
-import {Client} from "Authentication/HttpClientInstance";
 import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import * as UCloud from "UCloud";
-
-export function computeUsageInPeriod(charts: NativeChart[]): number {
-    let result = 0;
-
-    for (const chart of charts) {
-        const usageByCurrentProvider: Record<string, number> = {};
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") continue;
-
-                const currentUsage = usageByCurrentProvider[category] ?? 0;
-                usageByCurrentProvider[category] = currentUsage + point[category];
-                result += point[category];
-            }
-        }
-    }
-
-    return result;
-}
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} =

@@ -2,14 +2,12 @@ import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "../ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {priceExplainer} from "Project/Resources";
 import {NoResultsCardBody} from "Dashboard/Dashboard";
 import {Button, Link, theme} from "ui-components";
 import styled from "styled-components";
 import Box from "../ui-components/Box";
-import {accounting} from "UCloud";
-import Product = accounting.Product;
 import {useEffect, useState} from "react";
+import {priceExplainer, Product} from "Accounting";
 
 export const ProductSelector: React.FunctionComponent<{
     initialSelection?: Product;
@@ -52,8 +50,8 @@ export const ProductSelector: React.FunctionComponent<{
                         <tbody>
                             {products.map(machine => {
                                 if (machine === null) return null;
-                                return <TableRow key={machine.id} onClick={() => setSelected(machine)}>
-                                    <TableCell pl="6px">{machine.id}</TableCell>
+                                return <TableRow key={machine.name} onClick={() => setSelected(machine)}>
+                                    <TableCell pl="6px">{machine.name}</TableCell>
                                     <TableCell>{priceExplainer(machine)}</TableCell>
                                 </TableRow>;
                             })}
@@ -120,7 +118,7 @@ const ProductBox: React.FunctionComponent<{product: Product | null}> = ({product
 
         {!product ? null : (
             <>
-                <b>{product.id}</b><br />
+                <b>{product.name}</b><br />
 
                 <ul>
                     <li>Price: {priceExplainer(product)}</li>

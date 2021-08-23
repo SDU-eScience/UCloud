@@ -57,7 +57,7 @@ import {
     ProductType,
     productTypes,
     productTypeToIcon,
-    productTypeToTitle
+    productTypeToTitle, usageExplainer
 } from "Accounting";
 
 function dateFormatter(timestamp: number): string {

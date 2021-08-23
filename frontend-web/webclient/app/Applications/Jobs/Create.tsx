@@ -21,7 +21,6 @@ import {
 } from "Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
-import {currencyFormatter} from "Project/Resources";
 import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {FavoriteToggle} from "Applications/FavoriteToggle";
@@ -33,6 +32,7 @@ import {bulkRequestOf} from "DefaultObjects";
 import {getQueryParam} from "Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "UCloud";
+import {usageExplainer} from "Accounting";
 
 interface InsufficientFunds {
     why?: string;
@@ -277,7 +277,8 @@ export const Create: React.FunctionComponent = () => {
                             <Icon name={"grant"} />{" "}
                             Estimated cost: <br />
 
-                            {currencyFormatter(estimatedCost.cost, 0)}
+                            TODO
+                            {/*{currencyFormatter(estimatedCost.cost, 0)}*/}
                         </>
                     )}
                 </Box>
@@ -287,7 +288,8 @@ export const Create: React.FunctionComponent = () => {
                             <Icon name="grant" />{" "}
                             Current balance: <br />
 
-                            {currencyFormatter(estimatedCost.balance, 0)}
+                            TODO
+                            {/*{usageExplainer(estimatedCost.balance, 0)}*/}
                         </>
                     )}
                 </Box>

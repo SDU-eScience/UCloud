@@ -13,7 +13,7 @@ import {useProjectId} from "Project";
 import {MandatoryField} from "Applications/Jobs/Widgets/index";
 import {accounting} from "UCloud";
 import ProductNS = accounting.ProductNS;
-import {productCategoryEquals} from "Accounting";
+import {productCategoryEquals, ProductCompute} from "Accounting";
 import {emptyPageV2} from "DefaultObjects";
 import {joinToString} from "UtilityFunctions";
 
@@ -28,11 +28,12 @@ export const ReservationParameter: React.FunctionComponent<{
     onEstimatedCostChange?: (cost: number, balance: number) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
-    const [selectedMachine, setSelectedMachine] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
-    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductNS.Compute>>({noop: true}, emptyPageV2);
+    const [selectedMachine, setSelectedMachine] = useState<ProductCompute | null>(null);
+    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
+    // TODO
     const balance = !selectedMachine ?
         0 :
-        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.balance ?? 0;
+        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.["balance"] ?? 0;
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},

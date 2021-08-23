@@ -4,15 +4,13 @@ import {
     Product,
     productCategoryEquals,
     ProductCategoryId,
-    UCLOUD_PROVIDER
+    UCLOUD_PROVIDER, usageExplainer
 } from "Accounting/index";
 import {Text, Tooltip} from "ui-components";
-import {addThousandSeparators, currencyFormatter} from "Project/Resources";
 import styled from "styled-components";
 import {TextAlignProps} from "styled-system";
 import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
-
 
 export const Balance: React.FunctionComponent<{
     amount: number;
@@ -24,7 +22,7 @@ export const Balance: React.FunctionComponent<{
             position={"top"}
             trigger={
                 <BalanceTextWrapper textAlign={props.textAlign}>
-                    {currencyFormatter(props.amount, props.precision)}
+                    TODO
                 </BalanceTextWrapper>
             }
         >
@@ -85,7 +83,7 @@ export const BalanceExplainer: React.FunctionComponent<{
             if (productCategoryEquals(prod.category, props.productCategory)) {
                 if (pricePerUnit === null || prod.pricePerUnit > pricePerUnit) {
                     pricePerUnit = prod.pricePerUnit;
-                    productName = prod.id;
+                    productName = prod.name;
                     productArea = prod.type;
                 }
             }
@@ -94,7 +92,7 @@ export const BalanceExplainer: React.FunctionComponent<{
             if (productCategoryEquals(prod.category, props.productCategory)) {
                 if (pricePerUnit === null || prod.pricePerUnit > pricePerUnit) {
                     pricePerUnit = prod.pricePerUnit;
-                    productName = prod.id;
+                    productName = prod.name;
                     productArea = prod.type;
                 }
             }
@@ -104,7 +102,7 @@ export const BalanceExplainer: React.FunctionComponent<{
     if (productArea === "ingress" || productArea === "license") return null;
 
     if (productName === null || pricePerUnit === null || productArea === null) {
-        return <>{currencyFormatter(props.amount)}</>;
+        return <>TODO</>;
     } else {
         let units = Math.floor(props.amount / pricePerUnit);
         const unitText = productArea === "compute" ? "hours on" : "months of 50 GB on";
@@ -114,7 +112,7 @@ export const BalanceExplainer: React.FunctionComponent<{
             units = Math.floor(units / 60);
         }
 
-        return <>{addThousandSeparators(units)} {unitText} {productName}</>;
+        return <>TODO</>;
     }
 };
 

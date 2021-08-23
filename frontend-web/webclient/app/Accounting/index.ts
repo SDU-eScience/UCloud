@@ -1,8 +1,9 @@
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 import {PropType} from "UtilityFunctions";
 import * as UCloud from "UCloud";
 import {IconName} from "ui-components/Icon";
+
+export const UCLOUD_PROVIDER = "ucloud";
 
 export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
 
