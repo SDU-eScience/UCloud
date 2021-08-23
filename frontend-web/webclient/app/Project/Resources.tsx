@@ -51,7 +51,7 @@ import {getStartOfDay} from "Activity/Page";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {deviceBreakpoint} from "ui-components/Hide";
 import {
-    ChargeType, explainPrice, explainUsage, normalizeBalanceForFrontend,
+    ChargeType, explainAllocation, explainPrice, explainUsage, normalizeBalanceForBackend, normalizeBalanceForFrontend,
     Product,
     ProductPriceUnit,
     ProductType,
@@ -59,6 +59,7 @@ import {
     productTypeToIcon,
     productTypeToTitle, usageExplainer
 } from "Accounting";
+import {InputLabel} from "ui-components/Input";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -367,7 +368,7 @@ const AllocationViewer: React.FunctionComponent<{
     }, [isDeposit]);
     return <DashboardCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
         <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
-                              onSubmit={onTransferSubmit}/>
+                              onSubmit={onTransferSubmit} wallet={wallet}/>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                   size={"54px"} mr={"16px"}/>
@@ -416,8 +417,9 @@ const TransferDepositModal: React.FunctionComponent<{
     isDeposit: boolean;
     isOpen: boolean;
     onRequestClose: () => void;
+    wallet: Wallet;
     onSubmit: (recipientId: string, recipientIsProject: boolean, amount: number, startDate: number, endDate: number) => void;
-}> = ({isDeposit, isOpen, onRequestClose, onSubmit}) => {
+}> = ({isDeposit, isOpen, onRequestClose, wallet, onSubmit}) => {
     const [recipient, setRecipient] = useState<TransferRecipient | null>(null);
     const [lookingForRecipient, setLookingForRecipient] = useState(false);
     const [recipientQuery, fetchRecipient] = useCloudAPI<TransferRecipient | null>({noop: true}, null);
@@ -457,7 +459,8 @@ const TransferDepositModal: React.FunctionComponent<{
 
     const doSubmit = useCallback(() => {
         if (recipient && createdBefore) {
-            const amount = parseInt(amountField.current?.value ?? "0");
+            const amount = normalizeBalanceForBackend(parseInt(amountField.current?.value ?? "0"),
+                wallet.productType, wallet.chargeType, wallet.unit);
             onSubmit(recipient.id, recipient.isProject, amount, createdAfter, createdBefore);
         } else {
             if (!recipient) snackbarStore.addFailure("Missing recipient", false);
@@ -487,7 +490,12 @@ const TransferDepositModal: React.FunctionComponent<{
 
                 <Label>
                     Amount:
-                    <Input ref={amountField}/>
+                    <Flex>
+                        <Input ref={amountField} rightLabel/>
+                        <InputLabel rightLabel>
+                            {explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)}
+                        </InputLabel>
+                    </Flex>
                 </Label>
 
                 <div>
@@ -651,7 +659,8 @@ const UsageChartViewer: React.FunctionComponent<{
             <Flex alignItems={"center"}>
                 <div>
                     <Text color="gray">{productTypeToTitle(c.type)}</Text>
-                    <Text bold my="-6px" fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
+                    <Text bold my="-6px"
+                          fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
                 <Box flexGrow={1}/>
                 <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
@@ -913,7 +922,9 @@ const SubAllocationEditModal: React.FunctionComponent<{
             return;
         }
 
-        props.onSubmit(newBalance, startDate, endDate);
+        const normalizedBalance = normalizeBalanceForBackend(newBalance, props.allocation.productType,
+            props.allocation.chargeType, props.allocation.unit);
+        props.onSubmit(normalizedBalance, startDate, endDate);
     }, [props.onSubmit, startDate, endDate]);
 
     return <ReactModal
@@ -927,7 +938,26 @@ const SubAllocationEditModal: React.FunctionComponent<{
             <Grid gridGap={"16px"}>
                 <Label>
                     Balance:
-                    <Input ref={balanceField} defaultValue={props.allocation.remaining.toString()}/>
+                    <Flex>
+                        <Input
+                            rightLabel
+                            ref={balanceField}
+                            defaultValue={
+                                normalizeBalanceForFrontend(
+                                    props.allocation.remaining,
+                                    props.allocation.productType,
+                                    props.allocation.chargeType,
+                                    props.allocation.unit,
+                                    false,
+                                    0
+                                )
+                            }
+                        />
+                        <InputLabel rightLabel>
+                            {explainAllocation(props.allocation.productType, props.allocation.chargeType,
+                                props.allocation.unit)}
+                        </InputLabel>
+                    </Flex>
                 </Label>
 
                 <div>

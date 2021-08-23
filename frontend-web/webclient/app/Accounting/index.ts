@@ -436,7 +436,8 @@ export function normalizeBalanceForFrontend(
     type: ProductType,
     chargeType: ChargeType,
     unit: ProductPriceUnit,
-    isPrice: boolean
+    isPrice: boolean,
+    precisionOverride?: number
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -448,7 +449,7 @@ export function normalizeBalanceForFrontend(
         case "CREDITS_PER_HOUR":
         case "CREDITS_PER_DAY": {
             if (!isPrice) {
-                return currencyFormatter(balance, 2);
+                return currencyFormatter(balance, precisionOverride ?? 2);
             }
 
             const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
@@ -456,23 +457,23 @@ export function normalizeBalanceForFrontend(
             switch (type) {
                 case "INGRESS": {
                     const factor = inputIs / DAY;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "NETWORK_IP": {
                     const factor = inputIs / DAY;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "LICENSE": {
                     const factor = inputIs / DAY;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "STORAGE": {
                     const factor = inputIs / DAY;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "COMPUTE": {
                     const factor = inputIs / HOUR;
-                    return currencyFormatter(balance * factor, 4);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
             }
         }
