@@ -40,8 +40,8 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     const [remoteResources, fetchResources] = useCloudAPI<PageV2<T>>({noop: true}, emptyPageV2);
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() => {
-            return hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data;
-        },
+        return hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data;
+    },
 
         [props.preloadedResources, remoteResources.data]
     );
@@ -74,15 +74,15 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     if (props.hide === true) return null;
 
     return <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-                              onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])}
-                              infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources}/>;
+        onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])}
+        infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />;
 }
 
 export interface ItemRenderer<T> {
-    Icon?: React.FunctionComponent<{ resource?: T, size: string; }>;
-    MainTitle?: React.FunctionComponent<{ resource?: T; }>;
-    Stats?: React.FunctionComponent<{ resource?: T }>;
-    ImportantStats?: React.FunctionComponent<{ resource?: T }>;
+    Icon?: React.FunctionComponent<{resource?: T, size: string;}>;
+    MainTitle?: React.FunctionComponent<{resource?: T;}>;
+    Stats?: React.FunctionComponent<{resource?: T}>;
+    ImportantStats?: React.FunctionComponent<{resource?: T}>;
 }
 
 interface ItemRowProps<T, CB> {
@@ -128,25 +128,25 @@ export const ItemRow = <T, CB>(
 
     return <ListRow
         onContextMenu={onContextMenu}
-        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"}/> : null}
+        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} /> : null}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
-                             inputRef={renameInputRef} onSubmit={onRename}
-                             defaultValue={renameValue}/> :
-                renderer.MainTitle ? <renderer.MainTitle resource={props.item}/> : null
+                    inputRef={renameInputRef} onSubmit={onRename}
+                    defaultValue={renameValue} /> :
+                renderer.MainTitle ? <renderer.MainTitle resource={props.item} /> : null
         }
         isSelected={props.item && props.toggleSet.checked.has(props.item)}
         select={() => props.item ? props.toggleSet.toggle(props.item) : 0}
         navigate={props.navigate && props.item ? () => props.navigate?.(props.item!) : undefined}
         leftSub={
             <ListStatContainer>
-                {renderer.Stats ? <renderer.Stats resource={props.item}/> : null}
+                {renderer.Stats ? <renderer.Stats resource={props.item} /> : null}
             </ListStatContainer>
         }
         right={
             <>
-                {renderer.ImportantStats ? <renderer.ImportantStats resource={props.item}/> : null}
+                {renderer.ImportantStats ? <renderer.ImportantStats resource={props.item} /> : null}
                 {props.item ?
                     <Operations
                         selected={props.toggleSet.checked.items}
@@ -286,9 +286,9 @@ export function StandardList<T, CB = EmptyObject>(
 
     const main = useMemo(() =>
         <StandardBrowse generateCall={props.generateCall} pageRenderer={pageRenderer}
-                        reloadRef={reloadRef} loadingRef={loadingRef}
-                        hide={props.hide} setRefreshFunction={isMainContainer}
-                        preloadedResources={props.preloadedResources}/>,
+            reloadRef={reloadRef} loadingRef={loadingRef}
+            hide={props.hide} setRefreshFunction={isMainContainer}
+            preloadedResources={props.preloadedResources} />,
         [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]);
     if (isMainContainer) {
         useTitle(titlePlural);
@@ -301,16 +301,16 @@ export function StandardList<T, CB = EmptyObject>(
         return <Box ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                            entityNameSingular={props.title} entityNamePlural={titlePlural}
-                            extra={callbacks} operations={allOperations}/>
+                    entityNameSingular={props.title} entityNamePlural={titlePlural}
+                    extra={callbacks} operations={allOperations} />
             </StickyBox>
             {main}
         </Box>;
     } else if (isInline) {
         return <>
             <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                        entityNameSingular={props.title} entityNamePlural={titlePlural}
-                        extra={callbacks} operations={allOperations}/>
+                entityNameSingular={props.title} entityNamePlural={titlePlural}
+                extra={callbacks} operations={allOperations} />
             {main}
         </>;
     } else {
@@ -318,8 +318,8 @@ export function StandardList<T, CB = EmptyObject>(
             main={main}
             sidebar={
                 <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                            entityNameSingular={props.title} entityNamePlural={titlePlural}
-                            extra={callbacks} operations={allOperations}/>
+                    entityNameSingular={props.title} entityNamePlural={titlePlural}
+                    extra={callbacks} operations={allOperations} />
             }
         />;
     }

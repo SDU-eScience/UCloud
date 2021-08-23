@@ -330,7 +330,7 @@ data class FileMetadataDocument(
     val specification: Spec,
     override val createdAt: Long,
     override val status: Status,
-    override val createdBy: String
+    override val createdBy: String,
 ) : FileMetadataOrDeleted(){
     @Serializable
     data class Spec(

@@ -9,8 +9,9 @@ import {useSidebarPage} from "ui-components/Sidebar";
 import {useProjectId} from "Project";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import * as Heading from "ui-components/Heading";
-import {Box, Flex} from "ui-components";
-import {DashboardCard} from "Dashboard/Dashboard";
+import Box from "ui-components/Box";
+import Flex from "ui-components/Flex";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {shortUUID} from "UtilityFunctions";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {dateToTimeOfDayString} from "Utilities/DateUtilities";
@@ -279,7 +280,7 @@ export function ResourceProperties<Res extends Resource>(
 
                 <InfoWrapper>
                     {props.showProperties === false ? null :
-                        <DashboardCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
+                        <HighlightedCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
                             <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                                 <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
                                 {resource.specification.product.provider === UCLOUD_CORE ? null : <>
@@ -291,21 +292,21 @@ export function ResourceProperties<Res extends Resource>(
                                 </>}
                                 <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
                             </Flex>
-                        </DashboardCard>
+                        </HighlightedCard>
                     }
                     {props.showMessages === false ? null :
-                        <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+                        <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
                             <Messages resource={resource}/>
-                        </DashboardCard>
+                        </HighlightedCard>
                     }
                     {infoChildrenResolved}
                 </InfoWrapper>
 
                 <ContentWrapper>
                     {props.showPermissions === false ? null :
-                        <DashboardCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
+                        <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
-                        </DashboardCard>
+                        </HighlightedCard>
                     }
                     {childrenResolved}
                 </ContentWrapper>

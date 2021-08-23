@@ -139,7 +139,7 @@ export abstract class ResourceApi<Res extends Resource,
         }
     ];
 
-    public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]) {
+   public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
         this.filterWidgets.push(w);
         this.filterPills.push(p);
     }
