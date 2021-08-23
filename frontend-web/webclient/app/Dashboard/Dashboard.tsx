@@ -183,7 +183,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             icon="starFilled"
             title="Favorites"
         >
-            <List>
+            <List childPadding="8px">
                 {favorites.map(it => (<Flex key={it.path} >
                     <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
@@ -205,9 +205,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text onClick={async () => {
+                    <Text fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
-                        if (result.status.type === "FILE") {
+                        if (result?.status.type === "FILE") {
                             history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
                         } else {
                             history.push(buildQueryString("/files", {path: it.path}))
