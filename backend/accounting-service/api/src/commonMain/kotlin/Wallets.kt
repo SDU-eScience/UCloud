@@ -91,6 +91,7 @@ data class SubAllocation(
     val endDate: Long?,
 
     val productCategoryId: ProductCategoryId,
+    val productType: ProductType,
     val chargeType: ChargeType,
     val unit: ProductPriceUnit,
 

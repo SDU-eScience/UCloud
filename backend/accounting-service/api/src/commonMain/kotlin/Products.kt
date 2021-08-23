@@ -2,10 +2,9 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
+import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.reflect.typeOf
 
@@ -40,11 +39,69 @@ enum class ChargeType {
 }
 
 enum class ProductPriceUnit {
-    PER_MINUTE,
-    PER_HOUR,
-    PER_DAY,
-    PER_WEEK,
-    PER_UNIT
+    @UCloudApiDoc("""
+        Used for resources which either: are charged once for the entire life-time (`ChargeType.ABSOLUTE`) or
+        used to enforce a quota (`ChargeType.DIFFERENTIAL_QUOTA`).
+        
+        When used in combination with `ChargeType.ABSOLUTE` then this is typically used for resources such as:
+        licenses, public IPs and links.
+        
+        When used in combination with `ChargeType.DIFFERENTIAL_QUOTA` it is used to enforce a quota. At any point in
+        time, a user should never be allowed to use more units than specified in their current `balance`. For example,
+        if `balance = 100` and `ProductType = ProductType.COMPUTE` then no more than 100 jobs should be allowed to run
+        at any given point in time. Similarly, this can be used to enforce a storage quota.
+    """)
+    PER_UNIT,
+
+    @UCloudApiDoc("""
+        Used for resources which are charged periodically in a pre-defined currency.
+        
+        This `ProductPriceUnit` can only be used in combination with `ChargeType.ABSOLUTE`.
+        
+        The pre-defined currency is decided between the UCloud/Core and the provider out-of-band. UCloud only supports
+        a single currency for the entire system.
+        
+        The accounting system only stores balances as an integer, for precision reasons. As a result, a charge using
+        `CREDITS_PER_X` will always refer to one-millionth of the currency (for example: 1 Credit = 0.000001 DKK).
+        
+        This price unit comes in several variants: `MINUTE`, `HOUR`, `DAY`. This period is used to define the `units`
+        of a `charge`. For example, if a `charge` is made on a product with `CREDITS_PER_MINUTE` then the `units`
+        property refer to the number of minutes which have elapsed. The provider is not required to perform `charge`
+        operations this often, it only serves to define the true meaning of `units` in the `charge` operation.
+        
+        The period used SHOULD always refer to monotonically increasing time. In practice, this means that a user should
+        not be charged differently because of summer/winter time.
+    """)
+    CREDITS_PER_MINUTE,
+    @UCloudApiDoc("See `CREDITS_PER_MINUTE`")
+    CREDITS_PER_HOUR,
+    @UCloudApiDoc("See `CREDITS_PER_MINUTE`")
+    CREDITS_PER_DAY,
+
+    @UCloudApiDoc("""
+        Used for resources which are charged periodically.
+        
+        This `ProductPriceUnit` can only be used in combination with `ChargeType.ABSOLUTE`.
+        
+        All allocations granted to a product of `UNITS_PER_X` specify the amount of units of the recipient can use.
+        Some examples include:
+        
+          - Core hours
+          - Public IP hours
+          
+        This price unit comes in several variants: `MINUTE`, `HOUR`, `DAY`. This period is used to define the `units`
+        of a `charge`. For example, if a `charge` is made on a product with `CREDITS_PER_MINUTE` then the `units`
+        property refer to the number of minutes which have elapsed. The provider is not required to perform `charge`
+        operations this often, it only serves to define the true meaning of `units` in the `charge` operation.
+        
+        The period used SHOULD always refer to monotonically increasing time. In practice, this means that a user should
+        not be charged differently because of summer/winter time.
+    """)
+    UNITS_PER_MINUTE,
+    @UCloudApiDoc("See `UNITS_PER_MINUTE`")
+    UNITS_PER_HOUR,
+    @UCloudApiDoc("See `UNITS_PER_MINUTE`")
+    UNITS_PER_DAY,
 }
 
 @Serializable
@@ -87,9 +144,34 @@ sealed class Product {
     @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
     var balance: Long? = null
 
-    @Deprecated("productType", ReplaceWith("productType"))
-    val area: ProductArea
-        get() = productType
+    protected fun verify() {
+        checkMinimumValue(::pricePerUnit, pricePerUnit, 0)
+        checkSingleLine(::name, name)
+        checkSingleLine(::description, description)
+
+        when (unitOfPrice) {
+            ProductPriceUnit.UNITS_PER_MINUTE,
+            ProductPriceUnit.UNITS_PER_HOUR,
+            ProductPriceUnit.UNITS_PER_DAY -> {
+                if (chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
+                    throw RPCException("UNITS_PER_X cannot be used with DIFFERENTIAL_QUOTA", HttpStatusCode.BadRequest)
+                }
+            }
+
+            ProductPriceUnit.CREDITS_PER_MINUTE,
+            ProductPriceUnit.CREDITS_PER_HOUR,
+            ProductPriceUnit.CREDITS_PER_DAY -> {
+                if (chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
+                    throw RPCException("CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
+                        HttpStatusCode.BadRequest)
+                }
+            }
+
+            ProductPriceUnit.PER_UNIT -> {
+                // OK
+            }
+        }
+    }
 
     @Serializable
     @SerialName("storage")
@@ -101,15 +183,13 @@ sealed class Product {
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
-        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_DAY,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_DAY,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.STORAGE
         init {
-            require(pricePerUnit >= 0)
-            require(name.isNotBlank())
-            require(description.count { it == '\n' } == 0)
+            verify()
         }
     }
 
@@ -126,20 +206,18 @@ sealed class Product {
         val gpu: Int? = null,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
-        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_MINUTE,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_MINUTE,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.COMPUTE
 
         init {
-            require(pricePerUnit >= 0)
-            require(name.isNotBlank())
-            require(description.count { it == '\n' } == 0)
+            verify()
 
-            if (gpu != null) require(gpu >= 0) { "gpu is negative ($this)" }
-            if (cpu != null) require(cpu >= 0) { "cpu is negative ($this)" }
-            if (memoryInGigs != null) require(memoryInGigs >= 0) { "memoryInGigs is negative ($this)" }
+            if (gpu != null) checkMinimumValue(::gpu, gpu, 0)
+            if (cpu != null) checkMinimumValue(::cpu, cpu, 0)
+            if (memoryInGigs != null) checkMinimumValue(::memoryInGigs, memoryInGigs, 0)
         }
     }
 
@@ -159,9 +237,7 @@ sealed class Product {
     ) : Product() {
         override val productType: ProductType = ProductType.INGRESS
         init {
-            require(pricePerUnit >= 0)
-            require(name.isNotBlank())
-            require(description.count { it == '\n' } == 0)
+            verify()
         }
     }
 
@@ -182,9 +258,7 @@ sealed class Product {
     ) : Product() {
         override val productType: ProductType = ProductType.LICENSE
         init {
-            require(pricePerUnit >= 0)
-            require(name.isNotBlank())
-            require(description.count { it == '\n' } == 0)
+            verify()
         }
     }
 
@@ -204,9 +278,7 @@ sealed class Product {
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
         init {
-            require(pricePerUnit >= 0)
-            require(name.isNotBlank())
-            require(description.count { it == '\n' } == 0)
+            verify()
         }
     }
 }

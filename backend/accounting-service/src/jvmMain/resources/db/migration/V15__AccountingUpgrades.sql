@@ -1,7 +1,11 @@
 create extension if not exists ltree schema public;
 create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
-create type accounting.product_price_unit as enum ('PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'PER_WEEK', 'PER_UNIT');
+create type accounting.product_price_unit as enum (
+    'PER_UNIT',
+    'CREDITS_PER_MINUTE', 'CREDITS_PER_HOUR', 'CREDITS_PER_DAY',
+    'UNITS_PER_MINUTE', 'UNITS_PER_HOUR', 'UNITS_PER_DAY'
+);
 create type accounting.allocation_selector_policy as enum ('EXPIRE_FIRST');
 create type accounting.transaction_type as enum ('transfer', 'charge', 'deposit', 'allocation_update');
 create type accounting.product_category_relationship_type as enum ('STORAGE_CREDITS', 'NODE_HOURS');
@@ -27,8 +31,8 @@ alter table accounting.products drop column availability;
 alter table accounting.product_categories add column unit_of_price accounting.product_price_unit;
 update accounting.product_categories pc
 set unit_of_price = case pc.product_type
-    when 'COMPUTE' then 'PER_MINUTE'::accounting.product_price_unit
-    when 'STORAGE' then 'PER_DAY'::accounting.product_price_unit
+    when 'COMPUTE' then 'CREDITS_PER_MINUTE'::accounting.product_price_unit
+    when 'STORAGE' then 'CREDITS_PER_DAY'::accounting.product_price_unit
     else 'PER_UNIT'::accounting.product_price_unit
 end
 where true;

@@ -663,6 +663,7 @@ class AccountingService(
                                     'name', pc.category,
                                     'provider', pc.provider
                                 ),
+                                'productType', pc.product_type,
                                 'chargeType', pc.charge_type,
                                 'unit', pc.unit_of_price,
                                 'startDate', provider.timestamp_to_unix(alloc.start_date),
