@@ -407,23 +407,23 @@ export function normalizeBalanceForBackend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "NETWORK_IP": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "LICENSE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "STORAGE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "COMPUTE": {
-                    const factor = inputIs / HOUR;
+                    const factor = HOUR / inputIs;
                     return Math.ceil(balance * factor);
                 }
             }
@@ -455,23 +455,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return currencyFormatter(balance * factor, 2);
                 }
                 case "NETWORK_IP": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return currencyFormatter(balance * factor, 2);
                 }
                 case "LICENSE": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return currencyFormatter(balance * factor, 2);
                 }
                 case "STORAGE": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return currencyFormatter(balance * factor, 2);
                 }
                 case "COMPUTE": {
-                    const factor = HOUR / inputIs;
+                    const factor = inputIs / HOUR;
                     return currencyFormatter(balance * factor, 4);
                 }
             }
@@ -485,23 +485,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return Math.floor(balance * factor).toString();
                 }
                 case "NETWORK_IP": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return Math.floor(balance * factor).toString();
                 }
                 case "LICENSE": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return Math.floor(balance * factor).toString();
                 }
                 case "STORAGE": {
-                    const factor = DAY / inputIs;
+                    const factor = inputIs / DAY;
                     return Math.floor(balance * factor).toString();
                 }
                 case "COMPUTE": {
-                    const factor = HOUR / inputIs;
+                    const factor = inputIs / HOUR;
                     return Math.floor(balance * factor).toString();
                 }
             }
@@ -516,12 +516,12 @@ function currencyFormatter(credits: number, precision = 2): string {
     if (credits < 0) {
         return "-" + currencyFormatter(-credits);
     } else if (credits === 0) {
-        return "0 DKK";
+        return "0";
     } else if (credits < Math.pow(10, 6 - precision)) {
-        if (precision === 0) return "< 1 DKK";
+        if (precision === 0) return "< 1";
         let builder = "< 0,";
         for (let i = 0; i < precision - 1; i++) builder += "0";
-        builder += "1 DKK";
+        builder += "1";
         return builder;
     }
 
@@ -554,8 +554,8 @@ function currencyFormatter(credits: number, precision = 2): string {
     // Thousand separator
     const beforeFormatted = addThousandSeparators(before);
 
-    if (after === "") return `${beforeFormatted} DKK`;
-    else return `${beforeFormatted},${after} DKK`;
+    if (after === "") return `${beforeFormatted}`;
+    else return `${beforeFormatted},${after}`;
 }
 
 function addThousandSeparators(numberOrString: string | number): string {

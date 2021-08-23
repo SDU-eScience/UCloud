@@ -870,7 +870,7 @@ with
             all_entries e join
             (
                 select category, provider, charge_type, provider.last(data_point) period_usage
-                from all_entries
+                from (select * from all_entries order by bucket) t
                 group by category, provider, charge_type
             ) l on
                 e.category = l.category and
