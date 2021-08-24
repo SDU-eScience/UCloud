@@ -365,7 +365,7 @@ export const SmallCard = styled(Link) <{color1: string; color2: string; color3: 
     }
 `;
 
-// TODO: Limit is too arbitrary currently. Find better solution.
+// NOTE: Limit is too arbitrary currently. Might need to find a better solution later.
 function buildTags(tags: string[]): string[] {
     let limit = 40;
     if (tags.join().length < limit && tags.length < 4) return tags;

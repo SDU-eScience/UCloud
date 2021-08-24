@@ -11,7 +11,7 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {useProjectId} from "Project";
 import {MandatoryField} from "Applications/Jobs/Widgets/index";
-import {productCategoryEquals, ProductCompute} from "Accounting";
+import {Product, productCategoryEquals, ProductCompute} from "Accounting";
 import {emptyPageV2} from "DefaultObjects";
 import {joinToString} from "UtilityFunctions";
 
@@ -23,7 +23,7 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: UCloud.compute.Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (cost: number, balance: number) => void;
+    onEstimatedCostChange?: (cost: number, balance: number, product: Product | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductCompute | null>(null);
@@ -90,7 +90,7 @@ export const ReservationParameter: React.FunctionComponent<{
             const estimatedCost =
                 (options.timeAllocation.hours * 60 * pricePerUnit +
                     (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
-            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance);
+            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance, selectedMachine);
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);
 

@@ -3,7 +3,6 @@ import {History} from "history";
 export interface RouterLocationProps {
     history: History;
     location: {
-        // TODO There is more here
         search: string;
     };
 }

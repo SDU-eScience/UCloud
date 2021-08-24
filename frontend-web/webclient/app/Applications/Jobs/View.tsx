@@ -178,7 +178,7 @@ const Container = styled.div`
   }
 `;
 
-// TODO WS calls don't currently have their types generated
+// NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
     log: { rank: number; stdout?: string; stderr?: string }[];

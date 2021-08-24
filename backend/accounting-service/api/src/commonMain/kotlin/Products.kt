@@ -345,7 +345,7 @@ object Products : CallDescriptionContainer("products") {
     val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>(
         "browse",
         {
-            httpBrowse(baseContext)
+            httpBrowse(baseContext, roles = Roles.PUBLIC)
         },
         ProductsBrowseRequest.serializer(),
         PageV2.serializer(Product.serializer()),
