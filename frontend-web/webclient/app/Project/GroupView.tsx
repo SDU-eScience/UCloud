@@ -78,10 +78,10 @@ const GroupView: React.FunctionComponent = () => {
                         />
                     </Flex>
                 ) : (
-                        <Flex width={"100%"}>
-                            <Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate>
-                        </Flex>
-                    )}
+                    <Flex width={"100%"}>
+                        <Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate>
+                    </Flex>
+                )}
 
                 {allowManagement ?
                     renamingGroup ? (
@@ -98,8 +98,8 @@ const GroupView: React.FunctionComponent = () => {
                             />
                         </Box>
                     ) : (
-                            <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
-                        )
+                        <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
+                    )
                     : null}
             </Flex>
         </form>
@@ -177,7 +177,7 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
     }, [props.projectId, props.groupId]);
 
     const reposWithPermissions = [] as File[];
-    outer: for (const repo of repoFiles.data.items) {
+    for (const repo of repoFiles.data.items) {
         const safeAcl = repo.acl ?? [];
         for (const aclEntry of safeAcl) {
             const hasAccess = aclEntry.rights.length > 0 &&
@@ -187,7 +187,6 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
                 aclEntry.entity.projectId === props.projectId;
 
             if (hasAccess) reposWithPermissions.push(repo);
-            continue outer;
         }
     }
 
