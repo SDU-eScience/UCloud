@@ -37,6 +37,8 @@ export const FilesBrowse: React.FunctionComponent<{
         FileCollectionsApi.browse({itemsPerPage: 10}), emptyPageV2
     );
 
+    const inspectValidator = useCallback((file: UFile): boolean => !!props.embedded && file.status.type === "FILE", []);
+
     const navigateToPath = useCallback((history: H.History, path: string) => {
         if (props.embedded === true) {
             setPathFromState(path);
@@ -155,6 +157,7 @@ export const FilesBrowse: React.FunctionComponent<{
         headerSize={48}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
+        inspectValidator={inspectValidator}
     />;
 };
 
