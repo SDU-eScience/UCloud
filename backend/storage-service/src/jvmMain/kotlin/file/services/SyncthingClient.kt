@@ -229,6 +229,10 @@ class SyncthingClient(
     }
     private val mutex = Mutex()
 
+    private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
+        return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
+    }
+
     suspend fun writeConfig(toDevices: List<LocalSyncthingDevice> = emptyList()) {
         mutex.withLock {
             val devices = toDevices.ifEmpty {
@@ -298,7 +302,7 @@ class SyncthingClient(
                     options = SyncthingOptions()
                 )
 
-                val resp = httpClient.put<HttpResponse>("http://" + device.hostname + "/rest/config") {
+                val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
                     body = TextContent(
                         defaultMapper.encodeToString(newConfig),
                         ContentType.Application.Json
@@ -319,7 +323,7 @@ class SyncthingClient(
     }
 
     suspend fun isReady(device: LocalSyncthingDevice): Boolean {
-        val resp = httpClient.get<HttpResponse>("http://" + device.hostname + "/rest/system/ping") {
+        val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/system/ping")) {
             headers {
                 append("X-API-Key", device.apiKey)
             }
@@ -334,7 +338,7 @@ class SyncthingClient(
 
     suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
         devices.ifEmpty { config.devices }.forEach { device ->
-            httpClient.post<HttpResponse>("http://" + device.hostname + "/rest/db/scan") {
+            httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
                 headers {
                     append("X-API-Key", device.apiKey)
                 }

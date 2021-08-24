@@ -7,6 +7,16 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 24-08-21
+
+Internal testing of synchronization feature.
+
+```
+✅  Deployment(webclient, 0.46.0) (UP-TO-DATE)
+✅  Deployment(storage, 4.5.1) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.5) (UP-TO-DATE)
+```
+
 ## 11-08-21
 
 Minor fix to permission UI.

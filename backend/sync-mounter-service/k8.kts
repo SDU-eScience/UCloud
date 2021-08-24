@@ -7,7 +7,7 @@ import io.fabric8.kubernetes.api.model.SecurityContext
 
 bundle {
     name = "sync-mounter"
-    version = "0.1.1"
+    version = "0.1.5"
 
     val deployment = withDeployment() {
         val cephfsVolume = "cephfs"
@@ -27,8 +27,7 @@ bundle {
             command = listOf(
                 "sh", "-c",
                 """
-                    touch /mnt/sync/ready
-                    while [ ! -f /mnt/cephfs/ready ]; do sleep 0.5; done;
+                    while [ ! -f /mnt/sync/ready ]; do sleep 0.5; done;
                     /init
                 """.trimIndent()
             )
@@ -52,6 +51,7 @@ bundle {
             volumeMounts.add(VolumeMount().apply {
                 name = syncthingSharedVolume
                 mountPath = "/mnt/sync"
+                mountPropagation = "Bidirectional"
             })
 
             volumeMounts.add(VolumeMount().apply {
@@ -59,6 +59,10 @@ bundle {
                 mountPath = "/config"
                 subPath = "syncthing1"
             })
+
+            securityContext = SecurityContext().apply {
+                privileged = true
+            }
         })
 
         serviceContainer.securityContext = SecurityContext().apply {
@@ -84,32 +88,6 @@ bundle {
     }
 
     withAmbassador(null) {}
-
-    withService(name = "syncthing-np", version = "0.1.0") {
-        service.spec.apply {
-            type = "NodePort"
-            ports = listOf(
-                ServicePort().apply {
-                    nodePort = 31400
-                    port = 22000
-                    name = "p22000tcp"
-                    protocol = "TCP"
-                },
-                ServicePort().apply {
-                    nodePort = 31400
-                    port = 22000
-                    name = "p22000udp"
-                    protocol = "UDP"
-                },
-                ServicePort().apply {
-                    nodePort = 31401
-                    port = 21027
-                    name = "p21027"
-                    protocol = "UDP"
-                }
-            )
-        }
-    }
 }
 
 

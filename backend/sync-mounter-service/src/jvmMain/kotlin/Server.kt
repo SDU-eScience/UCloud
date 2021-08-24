@@ -61,29 +61,33 @@ class Server(
     override fun onKtorReady() {
         runBlocking {
             val readyFile = File(joinPath(config.syncBaseMount, "ready"))
-
             readyFile.deleteOnExit()
 
-            val syncFolder = File(config.syncBaseMount)
-            if (!syncFolder.exists()) {
-                syncFolder.mkdir()
-            }
+            try {
+                val syncFolder = File(config.syncBaseMount)
+                if (!syncFolder.exists()) {
+                    syncFolder.mkdir()
+                }
 
-            val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-            val mountService = MountService(config, ready)
+                val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+                val mountService = MountService(config, ready)
 
-            val folders = FileSynchronization.browseFolders.call(
-                SynchronizationBrowseFoldersRequest(config.deviceId),
-                client
-            ).orThrow()
+                val folders = FileSynchronization.browseFolders.call(
+                    SynchronizationBrowseFoldersRequest(config.deviceId),
+                    client
+                ).orThrow()
 
-            mountService.mount(
-                MountRequest(
-                    folders.map { folder ->
-                        MountFolder(folder.id, folder.path)
-                    }
+                mountService.mount(
+                    MountRequest(
+                        folders.map { folder ->
+                            MountFolder(folder.id, folder.path)
+                        }
+                    )
                 )
-            )
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while initializing mounter (is storage down?)")
+                log.warn(ex.stackTraceToString())
+            }
 
             readyFile.createNewFile()
             ready.set(true)
