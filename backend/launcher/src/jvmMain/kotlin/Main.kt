@@ -79,7 +79,6 @@ suspend fun main(args: Array<String>) {
                 override val version: String = "1"
             }, args)
         }
-
         micro.databaseConfig.migrateAll()
         exitProcess(0)
     }

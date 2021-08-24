@@ -4,6 +4,8 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -13,31 +15,53 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.http.SynchronizationController
+import dk.sdu.cloud.file.processors.ProjectProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.AccountingScan
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.LimitChecker
+import dk.sdu.cloud.file.services.MetadataRecoveryService
+import dk.sdu.cloud.file.services.ProjectCache
+import dk.sdu.cloud.file.services.SynchronizationService
+import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataDao
 import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.backgroundScope
+import dk.sdu.cloud.micro.commandLineArguments
+import dk.sdu.cloud.micro.databaseConfig
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.file.processors.ProjectProcessor
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.sync.mounter.api.Mounts
+import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
-import kotlin.system.*
+import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
     private val cephConfig: CephConfiguration,
-    override val micro: Micro
+    override val micro: Micro,
+    private val syncConfig: SynchronizationConfiguration
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -63,13 +87,23 @@ class Server(
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
-        val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
+        val syncthingClient = SyncthingClient(syncConfig, db)
+        val newAclService = AclService(metadataService, homeFolderService, client, projectCache, db, syncthingClient)
+        val synchronizationService =
+            SynchronizationService(syncthingClient, fsRootFile.absolutePath, db, newAclService, client)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
         val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product, fs, processRunner)
         val coreFileSystem =
-            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
+            CoreFileSystemService(
+                fs,
+                wsClient,
+                micro.backgroundScope,
+                metadataService,
+                limitChecker,
+                synchronizationService
+            )
 
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService<LinuxFSRunner>(newAclService)
@@ -82,7 +116,7 @@ class Server(
             try {
                 AccountingScan(fs, processRunner, client, db).scan()
                 exitProcess(0)
-            } catch (throwable: Throwable){
+            } catch (throwable: Throwable) {
                 throwable.printStackTrace()
                 exitProcess(1)
             }
@@ -161,10 +195,54 @@ class Server(
                     micro.backgroundScope
                 ),
 
-                MetadataController(metadataService, metadataRecovery)
+                MetadataController(metadataService, metadataRecovery),
+
+                SynchronizationController(synchronizationService)
             )
         }
 
         startServices()
+    }
+
+    override fun onKtorReady() {
+        runBlocking {
+            try {
+                val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
+                    val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+                    var foldersMounted = false
+                    var retryCount = 0
+
+                    while (!foldersMounted && retryCount < 5) {
+                        delay(1000L)
+                        retryCount += 1
+
+                        val ready = Mounts.ready.call(
+                            Unit,
+                            client.withMounterInfo(device)
+                        )
+
+                        if (ready.statusCode == HttpStatusCode.OK) {
+                            if (ready.orThrow().ready) {
+                                foldersMounted = true
+                            }
+                        }
+                    }
+
+                    if (foldersMounted) {
+                        device
+                    } else {
+                        null
+                    }
+                }
+
+                val db = AsyncDBSessionFactory(micro.databaseConfig)
+                val syncthingClient = SyncthingClient(syncConfig, db)
+                syncthingClient.writeConfig(running)
+                syncthingClient.rescan(running)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while trying to configure sync-thing (is it running?)")
+                log.warn(ex.stackTraceToString())
+            }
+        }
     }
 }

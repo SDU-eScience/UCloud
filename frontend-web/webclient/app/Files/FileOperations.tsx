@@ -46,6 +46,7 @@ export interface FileOperationCallback {
     requestFileUpload: () => void;
     startRenaming: (file: File) => void;
     createNewUpload: (newUpload: Upload) => void;
+    startSynchronization: (file: File) => void;
     projects: ProjectName[],
     requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>;
     history: H.History;
@@ -316,5 +317,13 @@ export const defaultFileOperations: FileOperation[] = [
         icon: "trash",
         color: "red",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
+    },
+    {
+        text: "Synchronization",
+        onClick: (selected, cb) => {
+            cb.startSynchronization(selected[0])
+        },
+        disabled: files => files.length !== 1 || files[0].fileType !== "DIRECTORY" || isAnyMockFile(files) || !Client.userIsAdmin,
+        icon: "refresh"
     }
 ] as FileOperation[];

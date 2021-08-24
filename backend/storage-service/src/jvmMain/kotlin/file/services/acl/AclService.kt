@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services.acl
 
 import com.fasterxml.jackson.module.kotlin.treeToValue
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -10,8 +11,13 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.ProjectCache
+import dk.sdu.cloud.file.services.SynchronizedFoldersTable
+import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.file.withMounterInfo
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.sync.mounter.api.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -42,7 +48,9 @@ class AclService(
     private val metadataService: MetadataService,
     private val homeFolderService: HomeFolderService,
     private val serviceClient: AuthenticatedClient,
-    private val projectCache: ProjectCache
+    private val projectCache: ProjectCache,
+    private val db: AsyncDBSessionFactory,
+    private val syncthing: SyncthingClient
 ) {
     @Serializable
     private data class UserAclMetadata(val permissions: Set<AccessRight>)
@@ -127,6 +135,8 @@ class AclService(
                 ) as JsonObject
             )
         )
+
+        updateSynchronizationType(request.path.normalize())
     }
 
     suspend fun isOwner(path: String, username: String): Boolean {
@@ -285,6 +295,119 @@ class AclService(
                 }
             }
             .toMap()
+    }
+
+    private suspend fun updateSynchronizationType(path: String) {
+        data class SynchronizedFolderWithNewAccess(
+            val id: String,
+            val user: String,
+            val path: String,
+            val oldType: SynchronizationType,
+            val newType: SynchronizationType?
+        )
+
+        val changes = db.withSession { session ->
+            val syncedChildren = session.sendPreparedStatement(
+                {
+                    setParameter("path", path)
+                },
+                """
+                    select id, user_id, path, access_type from storage.synchronized_folders
+                    where path like :path || '/%'
+                """
+            ).rows
+
+            val changes: List<SynchronizedFolderWithNewAccess> = syncedChildren.map {
+                val newType = if (hasPermission(
+                        it.getField(SynchronizedFoldersTable.path),
+                        it.getField(SynchronizedFoldersTable.user),
+                        AccessRight.WRITE
+                    )
+                ) {
+                    SynchronizationType.SEND_RECEIVE
+                } else if (hasPermission(
+                        it.getField(SynchronizedFoldersTable.path),
+                        it.getField(SynchronizedFoldersTable.user),
+                        AccessRight.READ
+                    )
+                ) {
+                    SynchronizationType.SEND_ONLY
+                } else {
+                    null
+                }
+
+                SynchronizedFolderWithNewAccess(
+                    it.getField(SynchronizedFoldersTable.id),
+                    it.getField(SynchronizedFoldersTable.user),
+                    it.getField(SynchronizedFoldersTable.path),
+                    SynchronizationType.valueOf(it.getField(SynchronizedFoldersTable.accessType)),
+                    newType
+                )
+            }
+
+            val toUpdate = changes.filter { it.newType != null }
+            val toDelete = changes.filter { it.newType == null }
+
+            if (toUpdate.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", toUpdate.map { it.id })
+                        setParameter("users", toUpdate.map { it.user })
+                        setParameter("access", toUpdate.map { it.newType })
+                    },
+                    """
+                        update storage.synchronized_folders f
+                        set access_type = new.access
+                        from (
+                            select
+                                unnest(:ids::text[]) as id,
+                                unnest(:users::text[]) as user,
+                                unnest(:access::text[]) as access
+                        ) as new
+                        where f.id = new.id and f.user_id = new.user
+                    """
+                )
+            }
+
+            if (toDelete.isNotEmpty()) {
+                val devices = session.sendPreparedStatement(
+                    {
+                        setParameter("ids", toDelete.map { it.id })
+                    },
+                    """
+                        delete from storage.synchronized_folders f
+                        where f.id in (select unnest(:ids::text[]))
+                        returning id, device_id
+                    """
+                ).rows.mapNotNull {
+                    val id = it.getString(0)!!
+                    val deviceId = it.getString(1)!!
+                    val device = syncthing.config.devices.find { it.id == deviceId }
+                    if (device != null) {
+                        id to device
+                    } else {
+                        null
+                    }
+                }
+                val grouped = devices.groupBy { it.second.id }
+                grouped.forEach { (_, requests) ->
+                    Mounts.unmount.call(
+                        UnmountRequest(
+                            requests.map { MountFolderId(it.first) }
+                        ),
+                        serviceClient.withMounterInfo(requests[0].second)
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                }
+            }
+
+            changes.size
+        }
+
+        if (changes > 0) {
+            syncthing.writeConfig()
+        }
     }
 
     companion object : Loggable {
