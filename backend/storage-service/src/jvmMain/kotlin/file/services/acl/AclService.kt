@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.ProjectCache
 import dk.sdu.cloud.file.services.SynchronizedFoldersTable
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.file.withMounterInfo
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -369,22 +370,36 @@ class AclService(
             }
 
             if (toDelete.isNotEmpty()) {
-                session.sendPreparedStatement(
+                val devices = session.sendPreparedStatement(
                     {
                         setParameter("ids", toDelete.map { it.id })
                     },
                     """
                         delete from storage.synchronized_folders f
                         where f.id in (select unnest(:ids::text[]))
+                        returning id, device_id
                     """
-                )
-
-                Mounts.unmount.call(
-                    UnmountRequest(
-                        toDelete.map { MountFolderId(it.id) }
-                    ),
-                    serviceClient
-                )
+                ).rows.mapNotNull {
+                    val id = it.getString(0)!!
+                    val deviceId = it.getString(1)!!
+                    val device = syncthing.config.devices.find { it.id == deviceId }
+                    if (device != null) {
+                        id to device
+                    } else {
+                        null
+                    }
+                }
+                val grouped = devices.groupBy { it.second.id }
+                grouped.forEach { (_, requests) ->
+                    Mounts.unmount.call(
+                        UnmountRequest(
+                            requests.map { MountFolderId(it.first) }
+                        ),
+                        serviceClient.withMounterInfo(requests[0].second)
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                }
             }
 
             changes.size

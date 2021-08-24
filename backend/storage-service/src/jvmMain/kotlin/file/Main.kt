@@ -2,6 +2,9 @@ package dk.sdu.cloud.file
 
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.calls.client.withFixedHost
 import dk.sdu.cloud.file.api.NO_QUOTA
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -32,8 +35,17 @@ data class LocalSyncthingDevice(
     val name: String = "UCloud",
     val hostname: String = "",
     val apiKey: String = "",
-    val id: String = ""
+    val id: String = "",
+    val doNotChangeHostNameForMounter: Boolean = false,
 )
+
+fun AuthenticatedClient.withMounterInfo(device: LocalSyncthingDevice): AuthenticatedClient {
+    return if (device.doNotChangeHostNameForMounter) {
+        this
+    } else {
+        withFixedHost(HostInfo(device.hostname, port = 8080))
+    }
+}
 
 data class SynchronizationConfiguration(
     val devices: List<LocalSyncthingDevice> = emptyList()

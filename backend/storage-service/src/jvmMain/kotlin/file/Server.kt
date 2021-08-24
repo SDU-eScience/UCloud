@@ -2,10 +2,12 @@ package dk.sdu.cloud.file
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withFixedHost
 import dk.sdu.cloud.file.http.*
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.*
@@ -185,7 +187,7 @@ class Server(
 
                     val ready = Mounts.ready.call(
                         Unit,
-                        client
+                        client.withMounterInfo(device)
                     )
 
                     if (ready.statusCode == HttpStatusCode.OK) {

@@ -11,6 +11,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.synchronization.services.SyncthingClient
+import dk.sdu.cloud.file.withMounterInfo
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
@@ -98,7 +99,7 @@ class SynchronizationService(
                     MountRequest(
                         listOf(MountFolder(id, folder.path))
                     ),
-                    authenticatedClient
+                    authenticatedClient.withMounterInfo(device)
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
                 }
@@ -135,7 +136,7 @@ class SynchronizationService(
         }
 
         affectedDevices.forEach { device ->
-            val mounter = Mounts.ready.call(Unit, authenticatedClient)
+            val mounter = Mounts.ready.call(Unit, authenticatedClient.withMounterInfo(device))
 
             // Mounter is ready when all folders added to syncthing on that device is mounted.
             // Syncthing is ready when it's accessible.
@@ -154,16 +155,7 @@ class SynchronizationService(
 
     suspend fun removeFolder(actor: Actor, request: SynchronizationRemoveFolderRequest) {
         val affectedRows = db.withSession { session ->
-            Mounts.unmount.call(
-                UnmountRequest(
-                    request.items.map { MountFolderId(it.id) }
-                ),
-                authenticatedClient
-            ).orRethrowAs {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-            }
-
-            session.sendPreparedStatement(
+            val devices = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
                     setParameter("user", actor.username)
@@ -171,8 +163,31 @@ class SynchronizationService(
                 """
                     delete from storage.synchronized_folders
                     where id in (select unnest(:ids::text[])) and user_id = :user
+                    returning id, device_id
                 """
-            ).rowsAffected
+            ).rows.mapNotNull {
+                val id = it.getString(0)!!
+                val deviceId = it.getString(1)!!
+                val device = syncthing.config.devices.find { it.id == deviceId }
+                if (device != null) {
+                    id to device
+                } else {
+                    null
+                }
+            }
+            val grouped = devices.groupBy { it.second.id }
+            grouped.forEach { (_, requests) ->
+                Mounts.unmount.call(
+                    UnmountRequest(
+                        requests.map { MountFolderId(it.first) }
+                    ),
+                    authenticatedClient.withMounterInfo(requests[0].second)
+                ).orRethrowAs {
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
+            }
+
+            devices.size
         }
 
         if (affectedRows > 0) {
@@ -182,34 +197,39 @@ class SynchronizationService(
 
     internal suspend fun removeSubfolders(path: String) {
         val affectedRows = db.withSession { session ->
-            val idsToDelete = session.sendPreparedStatement(
+            val devices = session.sendPreparedStatement(
                 {
                     setParameter("path", path)
                 },
                 """
-                select id from storage.synchronized_folders
-                where path like :path || '/%' or path = :path
-            """
-            ).rows.map { it.getField(SynchronizedFoldersTable.id) }
-
-            Mounts.unmount.call(
-                UnmountRequest(
-                    idsToDelete.map { MountFolderId(it) }
-                ),
-                authenticatedClient
-            ).orRethrowAs {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    delete from storage.synchronized_folders
+                    where path like :path || '/%' or path = :path
+                    returning id, device_id
+                """
+            ).rows.mapNotNull {
+                val id = it.getString(0)!!
+                val deviceId = it.getString(1)!!
+                val device = syncthing.config.devices.find { it.id == deviceId }
+                if (device != null) {
+                    id to device
+                } else {
+                    null
+                }
             }
 
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", idsToDelete)
-                },
-                """
-                    delete from storage.synchronized_folders
-                    where id in (select unnest(:ids::text[]))
-                """
-            ).rowsAffected
+            val grouped = devices.groupBy { it.second.id }
+            grouped.forEach { (_, requests) ->
+                Mounts.unmount.call(
+                    UnmountRequest(
+                        requests.map { MountFolderId(it.first) }
+                    ),
+                    authenticatedClient.withMounterInfo(requests[0].second)
+                ).orRethrowAs {
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
+            }
+
+            devices.size
         }
 
         if (affectedRows > 0) {

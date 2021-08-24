@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.4.7"
+    version = "4.5.0"
 
     val mountLocation: String = config("mountLocation", "Sub path in volume (e.g. 'test')", "")
 
@@ -70,6 +70,7 @@ bundle { ctx ->
 
         injectConfiguration("storage-config")
         injectConfiguration("ceph-fs-config")
+        injectSecret("syncthing-storage-config", optional = true)
 
         val cephfsVolume = "cephfs"
         serviceContainer.volumeMounts.add(VolumeMount().apply {

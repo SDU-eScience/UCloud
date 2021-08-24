@@ -22,7 +22,7 @@ fun DeploymentResource.injectConfiguration(name: String, configDir: String = "/e
     })
 }
 
-fun DeploymentResource.injectSecret(name: String, configDir: String = "/etc/$name") {
+fun DeploymentResource.injectSecret(name: String, configDir: String = "/etc/$name", optional: Boolean = false) {
     serviceContainer.command.add("--config-dir")
     serviceContainer.command.add(configDir)
 
@@ -34,7 +34,7 @@ fun DeploymentResource.injectSecret(name: String, configDir: String = "/etc/$nam
     volumes.add(Volume().apply {
         this.name = name
         secret = SecretVolumeSource().apply {
-            optional = false
+            this.optional = optional
             secretName = name
         }
     })
