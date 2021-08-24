@@ -15,12 +15,20 @@ data class ProcessStreams(
 )
 
 fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf() ): Nothing {
-    val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
 
+    val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
     for (i in args.indices) {
         nativeArgs[i] = strdup(args[i])
     }
     nativeArgs[args.size] = null
+
+    var nativeEnv =  nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size)
+    for (i in envs.indices) {
+        nativeEnv[i] = strdup(envs[i])
+    }
+    nativeEnv[envs.size] = null
+
+
 
     if (newStreams.stdin != null) {
         close(0)
@@ -37,10 +45,7 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: Lis
         dup2(newStreams.stderr, 2)
     }
 
-    var nativeEnv =  nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size)
-    for (i in envs.indices) {
-        nativeEnv[i] = strdup(envs[i])
-    }
+
 
 
     execve(args[0], nativeArgs, nativeEnv)
@@ -262,6 +267,7 @@ fun startProcessAndCollectToString(
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResultText {
     val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
+    println("startProcessAndCollectToString  $res.statusCode $res.stdout $res.stderr")
     return ProcessResultText(res.statusCode, res.stdout.decodeToString(), res.stderr.decodeToString())
 }
 
@@ -272,8 +278,9 @@ data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableLi
         args.add(bin)
     }
     
-    fun addArg( arg:String, argValue: String = ""): CmdBuilder {
-        args.addAll(listOf(arg, argValue))
+    fun addArg( arg:String, argValue: String? = null): CmdBuilder {
+        args.add(arg)
+        argValue?.let{ args.add(it)}
         return this
     }
     
@@ -283,6 +290,7 @@ data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableLi
     }
 
     fun execute() : ProcessResultText {
+        println("EXECUTING: $args , $envs")
        return startProcessAndCollectToString( args, envs )
     }
     

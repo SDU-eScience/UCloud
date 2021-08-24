@@ -123,8 +123,6 @@ class ComputeController(
         implement(jobs.follow) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            println("we enetered  jobs.follow in process" + getpid() + "and request is " + request )
-
             when (request) {
                 is JobsProviderFollowRequest.Init -> {
                     val plugin = findPlugin(request.job)

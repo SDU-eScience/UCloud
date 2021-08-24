@@ -49,25 +49,24 @@ import kotlinx.coroutines.isActive
 data class SlurmJob(
     val ucloudId: String,
     val slurmId: String,
+    //val state: String?,
+    //val exitCode: String?
 )
 
 
-class SampleComputePlugin : ComputePlugin {
-
-    var compute: List<ProductReferenceWithoutProvider> = mutableListOf()
-
-
-    fun getComputeProducts() : List<ProductReferenceWithoutProvider>  {
+val compute : List<ProductReferenceWithoutProvider>?  by lazy {
 
         val plugins = Json.decodeFromString<IMConfiguration.Plugins>(
             NativeFile.open("/etc/ucloud/plugins.json", readOnly = true).readText()
         ) as IMConfiguration.Plugins
 
         val compute_products = plugins?.compute as ProductBasedConfiguration
-        return compute_products?.products
+        compute_products?.products
 
-    }
+}
 
+
+class SampleComputePlugin : ComputePlugin {
 
     override fun PluginContext.retrieveSupport(): ComputeSupport {
         return ComputeSupport(
@@ -111,11 +110,6 @@ class SampleComputePlugin : ComputePlugin {
             }
         )
 
-    compute = getComputeProducts()
-    println(compute)
-
-    //println( config.plugins.compute!!["products"] )
-
     }
 
 
@@ -126,7 +120,7 @@ class SampleComputePlugin : ComputePlugin {
         val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
         val request_product = job.specification?.product as ProductReference
 
-        val product = compute.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
         val job_partition = "normal" //product!!.id 
         val product_cpu = product!!.cpu
         val product_mem = product!!.mem
@@ -171,10 +165,7 @@ class SampleComputePlugin : ComputePlugin {
 
         val ipcClient = ipcClient ?: error("No ipc client")
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(SlurmJob(job.id, stdout)) as JsonObject ) ).orThrow<Unit>()
-
-
         sleep(2)
-
 
         JobsControl.update.call(
             bulkRequestOf(
@@ -185,9 +176,6 @@ class SampleComputePlugin : ComputePlugin {
                 )
             ), client
         ).orThrow()    
-
-
-        sleep(2)
 
 
         JobsControl.update.call(
@@ -209,14 +197,20 @@ class SampleComputePlugin : ComputePlugin {
 
         println("delete job")
         val request_product = job.specification?.product as ProductReference
-        val product = compute.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        val job_partition = "normal" //product!!.id 
 
-        popen("SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/scancel --partition normal -f --name ${job.id} ", "r")
+        // Sends SIGKILL or custom with -s INTEGER
+        val (code, stdout, stderr) = CmdBuilder("/usr/bin/scancel")
+                .addArg("--partition", "normal")    // ${job_partition}
+                .addArg("--full")
+                .addArg("--name", "${job.id}")
+                .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
+                .execute()
 
-        //if (status != 0) throw RPCException("Could not cancel job", HttpStatusCode.BadRequest)
+        println("CANCEL $code - $stdout - $stderr")
 
         sleep(2)
-
         runBlocking {
             JobsControl.update.call(
                 bulkRequestOf(
@@ -254,4 +248,10 @@ class SampleComputePlugin : ComputePlugin {
                 sleep(1)
             }
     }
+
+
+
+
+
+
 }
