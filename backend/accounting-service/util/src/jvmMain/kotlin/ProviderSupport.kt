@@ -52,6 +52,7 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
                     }
                 }
             }.getOrElse {
+                log.debug("Unable to fetch support for $provider")
                 log.debug(it.stackTraceToString())
                 null
             }
