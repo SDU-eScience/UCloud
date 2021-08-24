@@ -22,7 +22,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file} from "UCloud";
+import {compute} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -932,7 +932,7 @@ const RunningContent: React.FunctionComponent<{
         {!supportsLogs ? null :
             <RunningJobsWrapper>
                 {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
+                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
                 })}
             </RunningJobsWrapper>
         }
@@ -1169,7 +1169,7 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.specification.resolvedSupport;
     const supportTerminal = !support ? false :
         backendType === "VIRTUAL_MACHINE" ? support?.virtualMachine.terminal :
-        backendType === "DOCKER" ? support?.docker.terminal : false;
+            backendType === "DOCKER" ? support?.docker.terminal : false;
 
     const appType = appInvocation.applicationType;
     const supportsInterface =
@@ -1179,7 +1179,7 @@ const RunningButtonGroup: React.FunctionComponent<{
 
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
         {!supportTerminal ? null : (
-            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+            <Link style={{height: "40px"}} to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
                 window.open(
@@ -1194,12 +1194,12 @@ const RunningButtonGroup: React.FunctionComponent<{
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
-            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+            <Link style={{height: "40px"}} to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
-            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+            <Link style={{height: "40px"}} to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 
                 window.open(
