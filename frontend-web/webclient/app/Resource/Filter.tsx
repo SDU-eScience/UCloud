@@ -136,7 +136,7 @@ export const ResourceFilter: React.FunctionComponent<{
             Sort and filter
         </Heading.h4>}
         <Grid gridGap={"8px"}>
-            <WidgetWrapper embedded gridGap="12px">
+            <WidgetWrapper embedded={props.embedded} gridGap="12px">
                 <EnumPill propertyName={"direction"} properties={sortProperties} onDelete={onSortDeleted}
                     icon={"sortDescending"} title={"Sort direction"} options={sortDirections} />
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
