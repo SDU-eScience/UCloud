@@ -50,13 +50,26 @@ import {getStartOfDay} from "Activity/Page";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {deviceBreakpoint} from "ui-components/Hide";
 import {
-    ChargeType, explainAllocation, explainPrice, explainUsage, normalizeBalanceForBackend, normalizeBalanceForFrontend,
+    browseWallets,
+    ChargeType, deposit,
+    explainAllocation,
+    explainPrice,
+    explainUsage,
+    normalizeBalanceForBackend,
+    normalizeBalanceForFrontend,
     Product,
     ProductPriceUnit,
     ProductType,
     productTypes,
     productTypeToIcon,
-    productTypeToTitle, usageExplainer
+    productTypeToTitle,
+    retrieveBreakdown, retrieveRecipient,
+    retrieveUsage, transfer, TransferRecipient,
+    updateAllocation,
+    usageExplainer,
+    Wallet,
+    WalletAllocation,
+    WalletOwner
 } from "Accounting";
 import {InputLabel} from "ui-components/Input";
 import HighlightedCard from "ui-components/HighlightedCard";
@@ -97,76 +110,6 @@ filterWidgets.push(props =>
     <CheckboxFilterWidget propertyName={showSubAllocationsProp} icon={"grant"}
                           title={"Show sub-allocations"} {...props} />)
 
-interface VisualizationFlags {
-    filterStartDate?: number | null;
-    filterEndDate?: number | null;
-    filterType?: ProductType | null;
-    filterProvider?: string | null;
-    filterProductCategory?: string | null;
-    filterAllocation?: string | null;
-}
-
-function retrieveUsage(request: VisualizationFlags): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/visualization", "usage");
-}
-
-function retrieveBreakdown(request: VisualizationFlags): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/visualization", "breakdown");
-}
-
-function browseWallets(request: PaginationRequestV2): APICallParameters {
-    return apiBrowse(request, "/api/accounting/wallets");
-}
-
-interface TransferRecipient {
-    id: string;
-    isProject: boolean;
-    title: string;
-    principalInvestigator: string;
-    numberOfMembers: number;
-}
-
-function retrieveRecipient(request: { query: string }): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
-}
-
-interface DepositToWalletRequestItem {
-    recipient: WalletOwner;
-    sourceAllocation: string;
-    amount: number;
-    description: string;
-    startDate: number;
-    endDate: number;
-}
-
-interface TransferToWalletRequestItem {
-    categoryId: ProductCategoryId;
-    target: WalletOwner;
-    source: WalletOwner;
-    amount: number;
-    startDate: number;
-    endDate: number;
-}
-
-interface UpdateAllocationRequestItem {
-    id: string;
-    balance: number;
-    startDate: number;
-    endDate?: number | null;
-    reason: string;
-}
-
-function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "allocation");
-}
-
-function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "deposit");
-}
-
-function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "transfer");
-}
 
 const ResourcesGrid = styled.div`
   display: grid;
@@ -288,27 +231,6 @@ const Resources: React.FunctionComponent = props => {
     );
 };
 
-type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
-
-interface WalletAllocation {
-    id: string;
-    allocationPath: string;
-    balance: number;
-    initialBalance: number;
-    localBalance: number;
-    startDate: number;
-    endDate?: number | null;
-}
-
-interface Wallet {
-    owner: WalletOwner;
-    paysFor: ProductCategoryId;
-    allocations: WalletAllocation[];
-    chargePolicy: "EXPIRE_FIRST";
-    productType: ProductType;
-    chargeType: ChargeType;
-    unit: ProductPriceUnit;
-}
 
 const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
     return <>

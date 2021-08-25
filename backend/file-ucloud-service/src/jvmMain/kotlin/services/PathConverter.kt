@@ -49,7 +49,7 @@ class PathConverter(
     private val serviceClient: AuthenticatedClient,
 ) {
     private val collectionCache = SimpleCache<String, FileCollection>(
-        maxAge = 60_000 * 10,
+        maxAge = 60_000 * 10L,
         lookup = { collectionId ->
             FileCollectionsControl.retrieve.call(
                 ResourceRetrieveRequest(FileCollectionIncludeFlags(), collectionId),
@@ -206,7 +206,7 @@ class PathConverter(
         const val PROJECT_DIRECTORY = "projects"
         const val COLLECTION_DIRECTORY = "collections"
 
-        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs", UCLOUD_PROVIDER)
+        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
     }
 }
 

@@ -1,6 +1,8 @@
 import {buildQueryString} from "Utilities/URIUtilities";
 import * as UCloud from "UCloud";
 import {IconName} from "ui-components/Icon";
+import {apiBrowse, apiRetrieve, apiUpdate} from "Authentication/DataHook";
+import {BulkRequest, PaginationRequestV2} from "UCloud";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
@@ -39,101 +41,103 @@ export function productAreaTitle(area: ProductArea): string {
     }
 }
 
-export interface WalletBalance {
-    wallet: Wallet;
+export interface VisualizationFlags {
+    filterStartDate?: number | null;
+    filterEndDate?: number | null;
+    filterType?: ProductType | null;
+    filterProvider?: string | null;
+    filterProductCategory?: string | null;
+    filterAllocation?: string | null;
+}
+
+export function retrieveUsage(request: VisualizationFlags): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/visualization", "usage");
+}
+
+export function retrieveBreakdown(request: VisualizationFlags): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/visualization", "breakdown");
+}
+
+export function browseWallets(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets");
+}
+
+export interface TransferRecipient {
+    id: string;
+    isProject: boolean;
+    title: string;
+    principalInvestigator: string;
+    numberOfMembers: number;
+}
+
+export function retrieveRecipient(request: { query: string }): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
+}
+
+export interface DepositToWalletRequestItem {
+    recipient: WalletOwner;
+    sourceAllocation: string;
+    amount: number;
+    description: string;
+    startDate: number;
+    endDate: number;
+}
+
+export interface TransferToWalletRequestItem {
+    categoryId: ProductCategoryId;
+    target: WalletOwner;
+    source: WalletOwner;
+    amount: number;
+    startDate: number;
+    endDate: number;
+}
+
+export interface UpdateAllocationRequestItem {
+    id: string;
     balance: number;
-    allocated: number;
-    used: number;
-    area: ProductArea;
+    startDate: number;
+    endDate?: number | null;
+    reason: string;
+}
+
+export function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "allocation");
+}
+
+export function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "deposit");
+}
+
+export function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "transfer");
+}
+
+export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+
+export interface WalletAllocation {
+    id: string;
+    allocationPath: string;
+    balance: number;
+    initialBalance: number;
+    localBalance: number;
+    startDate: number;
+    endDate?: number | null;
 }
 
 export interface Wallet {
-    id: string;
-    type: AccountType;
+    owner: WalletOwner;
     paysFor: ProductCategoryId;
-}
-
-export function walletEquals(a: Wallet, b: Wallet): boolean {
-    return a.id === b.id && a.type === b.type && productCategoryEquals(a.paysFor, b.paysFor);
+    allocations: WalletAllocation[];
+    chargePolicy: "EXPIRE_FIRST";
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
 }
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
 }
 
-export interface RetrieveBalanceRequest {
-    id?: string;
-    type?: AccountType;
-    includeChildren?: boolean;
-}
-
-export interface RetrieveBalanceResponse {
-    wallets: WalletBalance[];
-}
-
-export function retrieveBalance(request: RetrieveBalanceRequest): APICallParameters<RetrieveBalanceRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/wallets/balance", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface GrantCreditsRequest {
-    wallet: Wallet;
-    credits: number;
-}
-
-export type GrantCreditsResponse = {};
-
-export function grantCredits(request: GrantCreditsRequest): APICallParameters<GrantCreditsRequest> {
-    return {
-        method: "POST",
-        path: "/accounting/wallets/add-credits",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface SetCreditsRequest {
-    wallet: Wallet;
-    lastKnownBalance: number;
-    newBalance: number;
-}
-
-export type SetCreditsResponse = {};
-
-export function setCredits(request: SetCreditsRequest): APICallParameters<SetCreditsRequest> {
-    return {
-        method: "POST",
-        path: "/accounting/wallets/set-balance",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface RetrieveCreditsRequest {
-    id: string;
-    type: AccountType;
-}
-
-export interface RetrieveCreditsResponse {
-    wallets: WalletBalance[];
-}
-
-export function retrieveCredits(request: RetrieveCreditsRequest): APICallParameters<RetrieveCreditsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/wallets/balance", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-// Machines
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;
 }
@@ -190,19 +194,22 @@ export type ProductPriceUnit =
 export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
 export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
 
-export interface ProductBase {
-    type: string;
+export interface ProductMetadata {
     category: ProductCategoryId;
-    pricePerUnit: number;
-    name: string;
-    description: string;
-    priority: number;
-    version: number;
     freeToUse: boolean;
     productType: ProductType;
     unitOfPrice: ProductPriceUnit;
     chargeType: ChargeType;
     hiddenInGrantApplications: boolean;
+}
+
+export interface ProductBase extends ProductMetadata {
+    type: string;
+    pricePerUnit: number;
+    name: string;
+    description: string;
+    priority: number;
+    version: number;
 }
 
 export interface ProductStorage extends ProductBase {
