@@ -32,6 +32,7 @@ import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
+import {Sensitivity} from "UtilityComponents";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -102,6 +103,26 @@ interface ExtraCallbacks {
     collection?: FileCollection;
 }
 
+// TODO Make version 1.0.0
+const FileSensitivityVersion = "0.2.0";
+const FileSensitivityNamespace = "sensitivity";
+function findSensitivity(file: UFile): "Private" | "Sensitive" | "Confidential" {
+    const templateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+    if (!templateId) return "Private";
+    // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
+    // TODO(Jonas): The type is not correct if this needs to be cast for this to work
+    const sensitivity = (Object.values(file.status.metadata?.metadata[templateId] ?? {})[0] as any)?.specification.document.Sensitivity ?? "Private";
+    return sensitivity;
+}
+
+function findTemplateId(file: UFile, namespace: string, version: string): string {
+    const template = Object.values(file.status.metadata?.templates ?? {}).find(it =>
+        it.namespaceName === namespace && it.version == version
+    );
+    if (!template) return "";
+    return template.namespaceId;
+}
+
 class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
@@ -145,6 +166,11 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                     size={props.size}
                 />;
             return <>{favoriteComponent}{icon}</>
+        },
+        ImportantStats({resource}) {
+            if (!resource) return null;
+            const sensitivity = findSensitivity(resource);
+            return <Sensitivity sensitivity={sensitivity} />
         }
     };
 
