@@ -29,9 +29,12 @@ Packages needed:
 #
 #SBATCH --nodes=1
 
-srun /usr/bin/echo "hellow_world"
-
-
+srun /usr/bin/echo "hellow_world1"
+/usr/bin/sleep 5s
+srun /usr/bin/echo "hellow_world2"
+/usr/bin/sleep 5s
+srun /usr/bin/echo "hellow_world3"
+/usr/bin/sleep 5m
 
 ```
 

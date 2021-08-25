@@ -280,7 +280,7 @@ data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableLi
     
     fun addArg( arg:String, argValue: String? = null): CmdBuilder {
         args.add(arg)
-        argValue?.let{ args.add(it)}
+        if(argValue != null) args.add(argValue)
         return this
     }
     

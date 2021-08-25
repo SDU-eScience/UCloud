@@ -9,7 +9,8 @@ fun V1__JobMapping(): MigrationScript = MigrationScript("V1__JobMapping") { conn
         """
             create table job_mapping(
                 ucloud_id text not null ,
-                local_id text primary key 
+                local_id text primary key,
+                partition text not null
             )
         """
     ).useAndInvokeAndDiscard()
