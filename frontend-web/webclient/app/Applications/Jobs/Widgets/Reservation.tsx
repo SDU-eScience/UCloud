@@ -11,7 +11,7 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {useProjectId} from "Project";
 import {MandatoryField} from "Applications/Jobs/Widgets/index";
-import {Product, productCategoryEquals, ProductCompute} from "Accounting";
+import {costOfDuration, Product, productCategoryEquals, ProductCompute, usageExplainer} from "Accounting";
 import {emptyPageV2} from "DefaultObjects";
 import {joinToString} from "UtilityFunctions";
 
@@ -86,10 +86,11 @@ export const ReservationParameter: React.FunctionComponent<{
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
         if (options != null && options.timeAllocation != null) {
-            const pricePerUnit = selectedMachine?.pricePerUnit ?? 0;
-            const estimatedCost =
-                (options.timeAllocation.hours * 60 * pricePerUnit +
-                    (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
+            let estimatedCost = 0;
+            if (selectedMachine != null) {
+                estimatedCost = costOfDuration(options.timeAllocation.hours * 60 + options.timeAllocation.minutes,
+                    options.replicas, selectedMachine);
+            }
             if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance, selectedMachine);
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);

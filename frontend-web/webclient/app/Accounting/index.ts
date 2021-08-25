@@ -452,23 +452,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "NETWORK_IP": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "LICENSE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "STORAGE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "COMPUTE": {
-                    const factor = inputIs / HOUR;
+                    const factor = HOUR / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
             }
@@ -482,23 +482,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
                 case "NETWORK_IP": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
                 case "LICENSE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
                 case "STORAGE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
                 case "COMPUTE": {
-                    const factor = inputIs / HOUR;
+                    const factor = HOUR / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
             }
@@ -580,6 +580,29 @@ export function priceExplainer(product: Product): string {
         product.unitOfPrice, true);
     const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
     return `${amount} ${suffix}`
+}
+
+export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
+    let unitsToBuy: number;
+    switch (product.unitOfPrice) {
+        case "PER_UNIT":
+            unitsToBuy = 1;
+            break;
+        case "CREDITS_PER_MINUTE":
+        case "UNITS_PER_MINUTE":
+            unitsToBuy = minutes;
+            break;
+        case "CREDITS_PER_HOUR":
+        case "UNITS_PER_HOUR":
+            unitsToBuy = Math.ceil(minutes / 60);
+            break;
+        case "CREDITS_PER_DAY":
+        case "UNITS_PER_DAY":
+            unitsToBuy = Math.ceil(minutes / (60 * 24));
+            break;
+    }
+
+    return unitsToBuy * product.pricePerUnit * numberOfProducts;
 }
 
 export function usageExplainer(
