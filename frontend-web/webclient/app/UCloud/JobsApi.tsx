@@ -11,7 +11,6 @@ import {accounting, BulkRequest, BulkResponse, compute, FindByStringId} from "UC
 import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {EnumFilter} from "Resource/Filter";
@@ -22,6 +21,7 @@ import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
 import View from "Applications/View";
 import {ItemRenderer} from "ui-components/Browse";
+import {ProductCompute} from "Accounting";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -190,7 +190,7 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
     return [icon, color];
 }
 
-class JobApi extends ResourceApi<Job, ProductNS.Compute, JobSpecification, JobUpdate, JobFlags,
+class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdate, JobFlags,
     JobStatus, ComputeSupport>  {
     routingNamespace = "jobs";
     title = "Run";

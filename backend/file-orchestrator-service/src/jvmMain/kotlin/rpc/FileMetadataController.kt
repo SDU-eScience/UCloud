@@ -38,6 +38,11 @@ class FileMetadataController(
             metadataService.reject(actorAndProject, request)
             ok(Unit)
         }
+
+        implement(FileMetadata.browse) {
+            ok(metadataService.browse(actorAndProject, request))
+        }
+
         return@with
     }
 }

@@ -216,7 +216,7 @@ suspend fun main(args: Array<String>) {
                         cpu = 1,
                         memoryInGigs = 1,
                         gpu = 0,
-                        unitOfPrice = ProductPriceUnit.PER_MINUTE,
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
                         freeToUse = false,
                         version = 1,
                     ),
@@ -224,7 +224,7 @@ suspend fun main(args: Array<String>) {
                         "u1-cephfs",
                         0L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.PER_DAY,
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
                         version = 1,
                         freeToUse = false
                     )

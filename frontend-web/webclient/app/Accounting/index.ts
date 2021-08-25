@@ -1,15 +1,12 @@
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {PropType} from "UtilityFunctions";
 import * as UCloud from "UCloud";
 import {IconName} from "ui-components/Icon";
 
-export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
+export const UCLOUD_PROVIDER = "ucloud";
 
 export type AccountType = "USER" | "PROJECT";
-export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
-export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByAreaRequest, "area">>;
-export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
+/* @deprecated */
+export type ProductArea = ProductType;
 
 export interface ProductCategoryId {
     name: string;
@@ -406,23 +403,23 @@ export function normalizeBalanceForBackend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "NETWORK_IP": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "LICENSE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "STORAGE": {
-                    const factor = inputIs / DAY;
+                    const factor = DAY / inputIs;
                     return Math.ceil(balance * factor);
                 }
                 case "COMPUTE": {
-                    const factor = inputIs / HOUR;
+                    const factor = HOUR / inputIs;
                     return Math.ceil(balance * factor);
                 }
             }
@@ -435,7 +432,8 @@ export function normalizeBalanceForFrontend(
     type: ProductType,
     chargeType: ChargeType,
     unit: ProductPriceUnit,
-    isPrice: boolean
+    isPrice: boolean,
+    precisionOverride?: number
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -447,7 +445,7 @@ export function normalizeBalanceForFrontend(
         case "CREDITS_PER_HOUR":
         case "CREDITS_PER_DAY": {
             if (!isPrice) {
-                return currencyFormatter(balance, 2);
+                return currencyFormatter(balance, precisionOverride ?? 2);
             }
 
             const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
@@ -455,23 +453,23 @@ export function normalizeBalanceForFrontend(
             switch (type) {
                 case "INGRESS": {
                     const factor = DAY / inputIs;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "NETWORK_IP": {
                     const factor = DAY / inputIs;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "LICENSE": {
                     const factor = DAY / inputIs;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "STORAGE": {
                     const factor = DAY / inputIs;
-                    return currencyFormatter(balance * factor, 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "COMPUTE": {
                     const factor = HOUR / inputIs;
-                    return currencyFormatter(balance * factor, 4);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
             }
         }
@@ -515,12 +513,12 @@ function currencyFormatter(credits: number, precision = 2): string {
     if (credits < 0) {
         return "-" + currencyFormatter(-credits);
     } else if (credits === 0) {
-        return "0 DKK";
+        return "0";
     } else if (credits < Math.pow(10, 6 - precision)) {
-        if (precision === 0) return "< 1 DKK";
+        if (precision === 0) return "< 1";
         let builder = "< 0,";
         for (let i = 0; i < precision - 1; i++) builder += "0";
-        builder += "1 DKK";
+        builder += "1";
         return builder;
     }
 
@@ -553,8 +551,8 @@ function currencyFormatter(credits: number, precision = 2): string {
     // Thousand separator
     const beforeFormatted = addThousandSeparators(before);
 
-    if (after === "") return `${beforeFormatted} DKK`;
-    else return `${beforeFormatted},${after} DKK`;
+    if (after === "") return `${beforeFormatted}`;
+    else return `${beforeFormatted},${after}`;
 }
 
 function addThousandSeparators(numberOrString: string | number): string {
@@ -582,6 +580,29 @@ export function priceExplainer(product: Product): string {
         product.unitOfPrice, true);
     const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
     return `${amount} ${suffix}`
+}
+
+export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
+    let unitsToBuy: number;
+    switch (product.unitOfPrice) {
+        case "PER_UNIT":
+            unitsToBuy = 1;
+            break;
+        case "CREDITS_PER_MINUTE":
+        case "UNITS_PER_MINUTE":
+            unitsToBuy = minutes;
+            break;
+        case "CREDITS_PER_HOUR":
+        case "UNITS_PER_HOUR":
+            unitsToBuy = Math.ceil(minutes / 60);
+            break;
+        case "CREDITS_PER_DAY":
+        case "UNITS_PER_DAY":
+            unitsToBuy = Math.ceil(minutes / (60 * 24));
+            break;
+    }
+
+    return unitsToBuy * product.pricePerUnit * numberOfProducts;
 }
 
 export function usageExplainer(

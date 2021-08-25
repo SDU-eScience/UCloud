@@ -7,34 +7,32 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "UCloud/index";
-import Product = accounting.Product;
+import {BulkRequest, FindByStringId, PaginationRequestV2} from "UCloud/index";
 import {SidebarPages} from "ui-components/Sidebar";
-import {FtIcon, Grid, Icon} from "ui-components";
+import {Grid, Icon} from "ui-components";
 import * as React from "react";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Operation} from "ui-components/Operation";
 import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
 import {ListRowStat} from "ui-components/List";
 import {ResourceProperties} from "Resource/Properties";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {SvgFt} from "ui-components/FtIcon";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
+import {dateToString} from "Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
 import {Section} from "ui-components/Section";
 import * as Heading from "ui-components/Heading";
 import {JsonSchemaForm} from "Files/Metadata/JsonSchemaForm";
 import {prettierString} from "UtilityFunctions";
+import {Product} from "Accounting";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
-export interface FileMetadataTemplateNamespace extends Resource<FileMetadataTemplateNamespaceUpdate,
-    FileMetadataTemplateNamespaceStatus, FileMetadataTemplateNamespaceSpecification> {
-}
+export type FileMetadataTemplateNamespace = Resource<FileMetadataTemplateNamespaceUpdate,
+    FileMetadataTemplateNamespaceStatus, FileMetadataTemplateNamespaceSpecification>;
 
-export interface FileMetadataTemplateNamespaceUpdate extends ResourceUpdate {
-}
+export type FileMetadataTemplateNamespaceUpdate = ResourceUpdate;
 
 export interface FileMetadataTemplateNamespaceStatus extends ResourceStatus {
     latestTitle?: string;
@@ -83,7 +81,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     page = SidebarPages.Files;
 
     renderer: ItemRenderer<FileMetadataTemplateNamespace> = {
-        Icon: ({resource, size}) => <Icon name={"docs"} size={size}/>,
+        Icon: ({resource, size}) => <Icon name={"docs"} size={size} />,
         MainTitle: ({resource}) =>
             <>{resource?.status?.latestTitle ?? resource?.specification?.name ?? ""}</>,
         Stats: ({resource}) => !resource ? null : <>
@@ -93,8 +91,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
 
     templateRenderer: ItemRenderer<FileMetadataTemplate> = {
         Icon: ({resource, size}) => <SvgFt width={size} height={size} type={"text"} ext={""}
-                                           color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-                                           hasExt={false}/>,
+            color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+            hasExt={false} />,
         MainTitle: ({resource}) => !resource ? null : <>{resource.title}</>,
         Stats: ({resource}) => !resource ? null : <>
             <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt ?? 0)}</ListRowStat>
@@ -145,7 +143,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             const generateCall = useCallback((next?: string): APICallParameters => {
                 return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
             }, []);
-            return <DashboardCard color={"purple"}>
+            return <HighlightedCard color={"purple"}>
                 <StandardList
                     generateCall={generateCall}
                     renderer={this.templateRenderer}
@@ -195,15 +193,15 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                         </Section>
                     </Grid>
                 </> : null}
-            </DashboardCard>
+            </HighlightedCard>
         };
 
     Properties = (props) => {
         const contentChildren = useMemo(() => ({resource, reload}) => {
-                return <this.TemplateBrowse
-                    resource={resource as FileMetadataTemplateNamespace} reload={reload}
-                    onSelect={props["onTemplateSelect"]}/>
-            },
+            return <this.TemplateBrowse
+                resource={resource as FileMetadataTemplateNamespace} reload={reload}
+                onSelect={props["onTemplateSelect"]} />
+        },
             []
         );
         return <ResourceProperties

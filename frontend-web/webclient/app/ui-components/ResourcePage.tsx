@@ -9,7 +9,6 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import {dateToString} from "Utilities/DateUtilities";
 import {prettierString, shortUUID} from "UtilityFunctions";
 import {TextSpan} from "ui-components/Text";
-import {currencyFormatter} from "Project/Resources";
 import {Section} from "ui-components/Section";
 import Grid from "ui-components/Grid";
 
@@ -29,7 +28,6 @@ interface ResourcePageProps<T extends ResourceDoc> {
     showId?: boolean;
     showState?: boolean;
     showProduct?: boolean;
-    showBilling?: boolean;
     showMissingPermissionHelp?: boolean;
 }
 
@@ -76,13 +74,6 @@ export function ResourcePage<T extends ResourceDoc>(props: ResourcePageProps<T>)
                     <Flex>
                         <Heading.h4 flexGrow={1}>Product</Heading.h4>
                         {props.entity.specification.product?.provider} / {props.entity.specification.product?.id}
-                    </Flex>
-                }
-
-                {props.showBilling !== true ? null :
-                    <Flex>
-                        <Heading.h4 flexGrow={1}>Balance charged</Heading.h4>
-                        {currencyFormatter(props.entity.billing.creditsCharged)}
                     </Flex>
                 }
             </Section>

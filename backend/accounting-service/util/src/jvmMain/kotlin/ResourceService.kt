@@ -813,37 +813,29 @@ abstract class ResourceService<
                         setParameter("username", actorAndProject.actor.safeUsername())
                     },
                     """
-                        with personal_wallets as (
-                            select pc.provider
-                            from
-                                accounting.product_categories pc join
-                                accounting.products product on product.category = pc.id left join
-                                accounting.wallets w on pc.id = w.category
-                            where
-                                pc.area = :area and
+                        select distinct pc.provider
+                        from
+                            accounting.product_categories pc join
+                            accounting.products product on product.category = pc.id left join
+                            accounting.wallets w on pc.id = w.category left join
+                            accounting.wallet_owner wo on wo.id = w.owned_by left join
+                            project.project_members pm on
+                                wo.project_id = pm.project_id and
+                                pm.project_id = :project::text and
+                                pm.username = :username
+                        where
+                            pc.product_type = :area::accounting.product_type and
+                            (
+                                product.free_to_use or
                                 (
-                                    product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or
-                                    (
-                                        w.account_type = 'USER' and
-                                        w.account_id = :username and
-                                        w.balance > 0
-                                    )
+                                    wo.username = :username and
+                                    w.id is not null
+                                ) or
+                                (
+                                    wo.project_id = :project::text and
+                                    w.id is not null
                                 )
-                        ),
-                        project_wallets as (
-                            select pc.provider
-                            from
-                                accounting.product_categories pc left join
-                                accounting.products product on product.category = pc.id left join
-                                accounting.wallets w on pc.id = w.category join
-                                project.projects p on w.account_id = p.id and w.account_type = 'PROJECT' join
-                                project.project_members pm on p.id = pm.project_id
-                            where
-                                pc.area = :area and
-                                pm.username = :username and
-                                (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
-                        )
-                        select * from personal_wallets union select * from project_wallets
+                            )
                     """
                 )
                 .rows

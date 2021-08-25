@@ -7,13 +7,12 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting} from "UCloud/index";
-import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
-import {CheckboxFilter, DateRangeFilter, EnumFilter, TextFilter} from "Resource/Filter";
+import {EnumFilter} from "Resource/Filter";
 import {JobBinding} from "UCloud/JobsApi";
 import {ItemRenderer} from "ui-components/Browse";
+import {ProductLicense} from "Accounting";
 
 export interface LicenseSpecification extends ResourceSpecification {
 }
@@ -41,7 +40,7 @@ export interface LicenseFlags extends ResourceIncludeFlags {
 
 export interface License extends Resource<LicenseUpdate, LicenseStatus, LicenseSpecification> {}
 
-class LicenseApi extends ResourceApi<License, ProductNS.License, LicenseSpecification, LicenseUpdate,
+class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecification, LicenseUpdate,
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";

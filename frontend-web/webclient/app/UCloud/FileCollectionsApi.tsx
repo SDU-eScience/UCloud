@@ -10,11 +10,10 @@ import {
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
 import * as React from "react";
-import {accounting} from "UCloud/index";
-import ProductNS = accounting.ProductNS;
 import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ItemRenderer} from "ui-components/Browse";
+import {ProductStorage} from "Accounting";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -58,7 +57,7 @@ export interface FileCollectionSupport extends ProductSupport {
     }
 }
 
-class FileCollectionsApi extends ResourceApi<FileCollection, ProductNS.Storage, FileCollectionSpecification,
+class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, FileCollectionSpecification,
     FileCollectionUpdate, FileCollectionFlags, FileCollectionStatus, FileCollectionSupport> {
     routingNamespace = "drives";
     title = "Drive";

@@ -20,7 +20,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
-import {currencyFormatter} from "Project/Resources";
 import {HiddenInputField} from "ui-components/Input";
 import {dialogStore} from "Dialog/DialogStore";
 import {Client} from "Authentication/HttpClientInstance";
@@ -345,7 +344,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                     <Flex alignItems={"center"}>
                         {editingLimit !== key ?
                             <Text width={350} textAlign={"right"}>
-                                {currencyFormatter(credits, 0)}
+                                {credits} {/* TODO */}
                             </Text> : null}
                         {editingLimit !== key ?
                             <Button

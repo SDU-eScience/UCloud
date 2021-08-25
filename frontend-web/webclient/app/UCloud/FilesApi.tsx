@@ -8,9 +8,8 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, BulkResponse} from "UCloud/index";
+import {BulkRequest, BulkResponse} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
-import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Box, Button, FtIcon, Link} from "ui-components";
 import * as React from "react";
@@ -23,7 +22,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {FilesBrowse} from "Files/Files";
 import {ResourceProperties} from "Resource/Properties";
 import {ItemRenderer} from "ui-components/Browse";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {MetadataBrowse} from "Files/Metadata/Documents/Browse";
 import {FileMetadataHistory} from "UCloud/MetadataDocumentApi";
 import {FileFavoriteToggle} from "Files/FavoriteToggle";
@@ -32,6 +31,7 @@ import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
+import {ProductStorage} from "Accounting";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -102,7 +102,7 @@ interface ExtraCallbacks {
     collection?: FileCollection;
 }
 
-class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
+class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");
@@ -163,7 +163,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             InfoChildren={props => {
                 const file = props.resource as UFile;
                 return <>
-                    <DashboardCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
+                    <HighlightedCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
                         <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
@@ -176,8 +176,8 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                                 <Button fullWidth>View in folder</Button>
                             </Link>
                         </Box>
-                    </DashboardCard>
-                    <DashboardCard color={"purple"} title={"Properties"} icon={"properties"}>
+                    </HighlightedCard>
+                    <HighlightedCard color={"purple"} title={"Properties"} icon={"properties"}>
                         <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
                         {file.status.modifiedAt ?
                             <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
@@ -197,22 +197,22 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
                             null
                         }
-                    </DashboardCard>
+                    </HighlightedCard>
                 </>
             }}
             ContentChildren={props => (
                 <>
-                    <DashboardCard color={"purple"}>
+                    <HighlightedCard color={"purple"}>
                         <MetadataBrowse
                             file={props.resource as UFile}
                             metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
                             reload={props.reload}
                         />
-                    </DashboardCard>
+                    </HighlightedCard>
                     {(props.resource as UFile).status.type !== "FILE" ? null :
-                        <DashboardCard color={"purple"} title={"Preview"} icon={"search"}>
+                        <HighlightedCard color={"purple"} title={"Preview"} icon={"search"}>
                             <FilePreview file={props.resource as UFile} />
-                        </DashboardCard>
+                        </HighlightedCard>
                     }
                 </>
             )}

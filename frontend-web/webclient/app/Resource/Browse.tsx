@@ -8,7 +8,6 @@ import {
     UCLOUD_CORE
 } from "UCloud/ResourceApi";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {accounting} from "UCloud";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {bulkRequestOf} from "DefaultObjects";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
@@ -21,7 +20,6 @@ import {Operation, Operations} from "ui-components/Operation";
 import {dateToString} from "Utilities/DateUtilities";
 import MainContainer from "MainContainer/MainContainer";
 import {StickyBox} from "ui-components/StickyBox";
-import Product = accounting.Product;
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
@@ -35,6 +33,7 @@ import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
 import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
+import {Product} from "Accounting";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -109,7 +108,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         const allProducts: Product[] = [];
         for (const provider of Object.keys(productsWithSupport.data.productsByProvider)) {
             for (const productWithSupport of productsWithSupport.data.productsByProvider[provider]) {
-                allProducts.push(productWithSupport.product);
+                allProducts.push(productWithSupport.product as unknown as Product);
             }
         }
         return allProducts;
@@ -118,7 +117,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                ?.find(it => it.product.id === selectedProduct.id &&
+                ?.find(it => it.product.id === selectedProduct.name &&
                     it.product.category.name === selectedProduct.category.name) ?? null;
         }
         return null;
@@ -249,7 +248,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
                 <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
                 {!selectedProduct ? null : <>
-                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.id} / {selectedProduct.category.name}</ListRowStat>
+                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
                 </>}
             </> : <>
                 <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>

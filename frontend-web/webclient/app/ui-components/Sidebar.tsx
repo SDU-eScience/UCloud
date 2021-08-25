@@ -215,7 +215,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     const projectId = useProjectId();
     const projectStatus = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
     const projectPath = joinToString(
-        [...(projectStatus.projectDetails.data.ancestorPath?.split("/") ?? []), projectStatus.projectDetails.data.title],
+        [...(projectStatus.projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectStatus.projectDetails.data.title],
         "/"
     );
     const copyProjectPath = useCallback(() => {
