@@ -155,9 +155,9 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-        testFilter = { title, subtitle ->
-            title == "Differential quota products" //&& subtitle == "Multiple allocation, with over-charge in leaf"
-        }
+        //testFilter = { title, subtitle ->
+         //   title == "Bad uses of rootDeposit" && subtitle == "Bad product"
+        //}
 
         run {
             class In(

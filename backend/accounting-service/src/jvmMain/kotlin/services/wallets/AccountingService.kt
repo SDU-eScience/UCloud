@@ -301,7 +301,7 @@ class AccountingService(
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
-                """
+                """, debug = true
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {
