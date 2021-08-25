@@ -138,7 +138,7 @@ export const FilesBrowse: React.FunctionComponent<{
             id: removeTrailingSlash(path) + "/" + text,
             conflictPolicy: "RENAME"
         }));
-    }, []);
+    }, [path]);
 
     const callbacks = useMemo(() => ({
         collection: collection?.data ?? undefined
