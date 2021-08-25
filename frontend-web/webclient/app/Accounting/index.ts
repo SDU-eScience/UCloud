@@ -210,6 +210,7 @@ export interface ProductBase extends ProductMetadata {
     description: string;
     priority: number;
     version: number;
+    balance?: number | null;
 }
 
 export interface ProductStorage extends ProductBase {

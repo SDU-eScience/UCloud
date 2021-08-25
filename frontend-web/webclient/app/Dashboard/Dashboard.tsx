@@ -1,4 +1,3 @@
-import {Client} from "Authentication/HttpClientInstance";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "DefaultObjects";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -14,7 +13,7 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {fileName, getParentPath, sizeToString} from "Utilities/FileUtilities";
+import {fileName, getParentPath} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
@@ -27,7 +26,6 @@ import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {Balance} from "Accounting/Balance";
 import {
     GrantApplication,
     GrantApplicationFilter,
@@ -38,8 +36,7 @@ import {
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {useProjectManagementStatus} from "Project";
 import * as UCloud from "UCloud";
-import {accounting, PageV2} from "UCloud";
-import Product = accounting.Product;
+import {PageV2} from "UCloud";
 import {groupBy} from "Utilities/CollectionUtilities";
 import FilesApi, {UFile} from "UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
@@ -47,8 +44,9 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/Metada
 import HighlightedCard from "ui-components/HighlightedCard";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
+import {Product, productCategoryEquals, ProductMetadata, usageExplainer} from "Accounting";
 
-function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
+function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -112,7 +110,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
-            <DashboardNews news={news.data.items} loading={news.loading} />
+            <DashboardNews news={news.data.items} loading={news.loading}/>
 
             <DashboardFavoriteFiles
                 favoriteFiles={favoriteFiles}
@@ -133,16 +131,17 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 products={products.data.items}
                 loading={products.loading}
             />
-            <DashboardProjectUsage />
-            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+            <DashboardProjectUsage/>
+            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps}/>
         </GridCardGroup>
     );
 
-    return (<MainContainer main={main} />);
+    return (<MainContainer main={main}/>);
 }
 
 interface DashboardFavoriteFilesProps {
     favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
+
     onDeFavorite(): void;
 }
 
@@ -166,7 +165,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             title="Favorites"
         >
             <List childPadding="8px">
-                {favorites.map(it => (<Flex key={it.path} >
+                {favorites.map(it => (<Flex key={it.path}>
                     <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
@@ -181,7 +180,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                         } catch (e) {
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
-                    }} />
+                    }}/>
                     <Text fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
@@ -244,7 +243,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
         <List>
             {props.notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+                    <NotificationEntry notification={n} onAction={props.onNotificationAction}/>
                 </Flex>
             ))}
         </List>
@@ -276,7 +275,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+export const NoResultsCardBody: React.FunctionComponent<{ title: string }> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"
@@ -296,9 +295,9 @@ function DashboardProjectUsage(): JSX.Element | null {
 
     return (
         <HighlightedCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
-            icon="hourglass"
-            color="yellow"
-            isLoading={false}
+                         icon="hourglass"
+                         color="yellow"
+                         isLoading={false}
         >
         </HighlightedCard>
     );
@@ -308,18 +307,24 @@ function DashboardResources({products, loading}: {
     products: Product[];
     loading: boolean
 }): JSX.Element | null {
-    const productsByCategory = groupBy(products, it => `${it.category.name}-${it.category.provider}`);
-    const wallets: { category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean }[] = [];
-    Object.values(productsByCategory).forEach(group => {
-        if (group.length === 0) return;
-        const category = group[0].category.name;
-        const provider = group[0].category.provider;
-        const balance = group[0].balance!;
-        const isFreeWithBalanceCheck = group
-            .every(it => "paymentModel" in it && it.paymentModel === "FREE_BUT_REQUIRE_BALANCE");
+    const wallets: (ProductMetadata & { balance: number })[] = [];
 
-        wallets.push({category, provider, balance, isFreeWithBalanceCheck});
-    });
+    for (const product of products) {
+        const metadata: (ProductMetadata & { balance: number }) = {
+            category: product.category,
+            freeToUse: product.freeToUse,
+            productType: product.productType,
+            chargeType: product.chargeType,
+            hiddenInGrantApplications: product.hiddenInGrantApplications,
+            unitOfPrice: product.unitOfPrice,
+            balance: product.balance!
+        };
+
+        if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+            wallets.push(metadata);
+        }
+    }
+
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
@@ -333,13 +338,13 @@ function DashboardResources({products, loading}: {
             icon={"grant"}
         >
             {products.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
-                    <Text>
-                        Apply for resources to use storage and compute on UCloud.
-                        {applyLinkButton}
-                    </Text>
-                </NoResultsCardBody>
-            ) :
+                    <NoResultsCardBody title={"No available resources"}>
+                        <Text>
+                            Apply for resources to use storage and compute on UCloud.
+                            {applyLinkButton}
+                        </Text>
+                    </NoResultsCardBody>
+                ) :
                 <>
                     {/* height is 100% - height of Heading 36px  */}
                     <Flex flexDirection="column" height={"calc(100% - 36px)"}>
@@ -348,24 +353,16 @@ function DashboardResources({products, loading}: {
                                 <tbody>
                                 {wallets.slice(0, 7).map((n, i) => (
                                     <TableRow key={i}>
-                                        <TableCell>{n.provider} / {n.category}</TableCell>
+                                        <TableCell>{n.category.provider} / {n.category.name}</TableCell>
                                         <TableCell textAlign={"right"}>
-                                            {!n.isFreeWithBalanceCheck ? null :
-                                                n.balance > 0 ? <Icon name={"check"} color={"green"}/> : null
-                                            }
-                                            {n.isFreeWithBalanceCheck ? null :
-                                                <Balance
-                                                    amount={n.balance}
-                                                    productCategory={{name: n.category, provider: n.provider}}
-                                                />
-                                            }
+                                            {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 </tbody>
                             </Table>
                         </Box>
-                        <Box flexGrow={1} />
+                        <Box flexGrow={1}/>
                         {applyLinkButton}
                     </Flex>
                 </>
@@ -383,10 +380,10 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
     const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
-        : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
-                <Heading.h3>Grant Applications</Heading.h3>
-            </Link>
+            : both ? <Heading.h3>Grant Applications</Heading.h3>
+                : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+                    <Heading.h3>Grant Applications</Heading.h3>
+                </Link>
     );
 
     return <HighlightedCard
@@ -397,14 +394,14 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
     >
         {ingoingApps.error !== undefined ? null : (
-            <Error error={ingoingApps.error} />
+            <Error error={ingoingApps.error}/>
         )}
 
         {outgoingApps.error !== undefined ? null : (
-            <Error error={outgoingApps.error} />
+            <Error error={outgoingApps.error}/>
         )}
         {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
-        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
+        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim/>)}
 
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
@@ -420,13 +417,13 @@ const DashboardGrantApplications: React.FunctionComponent<{
                         </Text>
                     </>
                 )}
-                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim/>
             </>
         )}
     </HighlightedCard>;
 };
 
-function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
+function DashboardNews({news, loading}: { news: NewsPost[]; loading: boolean }): JSX.Element | null {
     return (
         <HighlightedCard
             title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}
