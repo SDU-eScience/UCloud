@@ -34,7 +34,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 realFileIsFavorite = mostRecent != null && mostRecent.type === "metadata" &&
                     mostRecent.specification.version === favoriteTemplateVersion &&
                     mostRecent.specification.document["favorite"];
-                setStatusId(mostRecent.id);
+                if (mostRecent) setStatusId(mostRecent.id);
             }
         }
 
