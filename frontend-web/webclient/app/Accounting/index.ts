@@ -185,6 +185,23 @@ export function retrieveFromProvider(
     };
 }
 
+export interface UsageChart {
+    type: ProductType;
+    periodUsage: number;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+    chart: {
+        lines: {
+            name: string;
+            points: {
+                timestamp: number;
+                value: number;
+            }[]
+        }[]
+    }
+}
+
+
 export type ChargeType = "ABSOLUTE" | "DIFFERENTIAL_QUOTA";
 export type ProductPriceUnit =
     "PER_UNIT" |

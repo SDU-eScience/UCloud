@@ -17,7 +17,7 @@ import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "UCloud";
+import {accounting, PageV2, PaginationRequestV2} from "UCloud";
 import {
     CheckboxFilterWidget,
     DateRangeFilter,
@@ -35,7 +35,7 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
@@ -53,11 +53,8 @@ import {
     browseWallets,
     ChargeType, deposit,
     explainAllocation,
-    explainPrice,
-    explainUsage,
     normalizeBalanceForBackend,
     normalizeBalanceForFrontend,
-    Product,
     ProductPriceUnit,
     ProductType,
     productTypes,
@@ -65,11 +62,10 @@ import {
     productTypeToTitle,
     retrieveBreakdown, retrieveRecipient,
     retrieveUsage, transfer, TransferRecipient,
-    updateAllocation,
+    updateAllocation, UsageChart,
     usageExplainer,
     Wallet,
     WalletAllocation,
-    WalletOwner
 } from "Accounting";
 import {InputLabel} from "ui-components/Input";
 import HighlightedCard from "ui-components/HighlightedCard";
@@ -124,7 +120,8 @@ const ResourcesGrid = styled.div`
 `;
 
 const Resources: React.FunctionComponent = props => {
-    const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
     const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
@@ -489,21 +486,6 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
     }
 };
 
-interface UsageChart {
-    type: ProductType;
-    periodUsage: number;
-    chargeType: ChargeType;
-    unit: ProductPriceUnit;
-    chart: {
-        lines: {
-            name: string;
-            points: {
-                timestamp: number;
-                value: number;
-            }[]
-        }[]
-    }
-}
 
 const VisualizationSection = styled.div`
   --gutter: 16px;

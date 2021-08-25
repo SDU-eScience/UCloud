@@ -36,7 +36,7 @@ import {
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {useProjectManagementStatus} from "Project";
 import * as UCloud from "UCloud";
-import {PageV2} from "UCloud";
+import {accounting, PageV2} from "UCloud";
 import {groupBy} from "Utilities/CollectionUtilities";
 import FilesApi, {UFile} from "UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
@@ -44,7 +44,16 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/Metada
 import HighlightedCard from "ui-components/HighlightedCard";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
-import {Product, productCategoryEquals, ProductMetadata, usageExplainer} from "Accounting";
+import {
+    explainUsage,
+    Product,
+    productCategoryEquals,
+    ProductMetadata,
+    productTypes, productTypeToIcon, productTypeToTitle,
+    retrieveUsage,
+    UsageChart,
+    usageExplainer
+} from "Accounting";
 
 function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -56,6 +65,7 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     }), emptyPage);
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
+    const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
 
     const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
@@ -99,6 +109,7 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
             filterTemplate: "Favorite",
             itemsPerPage: 10
         }));
+        fetchUsage(retrieveUsage({}));
     }
 
     const {
@@ -131,7 +142,7 @@ function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
                 products={products.data.items}
                 loading={products.loading}
             />
-            <DashboardProjectUsage/>
+            <DashboardProjectUsage charts={usage.data.charts}/>
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps}/>
         </GridCardGroup>
     );
@@ -290,15 +301,29 @@ export const NoResultsCardBody: React.FunctionComponent<{ title: string }> = pro
     </Flex>
 );
 
-function DashboardProjectUsage(): JSX.Element | null {
-    const {projectId} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-
+function DashboardProjectUsage(props: {charts: UsageChart[]}): JSX.Element | null {
     return (
-        <HighlightedCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
-                         icon="hourglass"
-                         color="yellow"
-                         isLoading={false}
+        <HighlightedCard
+            title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
+            icon="hourglass"
+            color="yellow"
         >
+            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
+            <Table>
+                <tbody>
+                {props.charts.map((it, idx) => (
+                    <TableRow key={idx}>
+                        <TableCell>
+                            <Icon name={productTypeToIcon(it.type)} mr={8}/>
+                            {productTypeToTitle(it.type)}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            {usageExplainer(it.periodUsage, it.type, it.chargeType, it.unit)}
+                        </TableCell>
+                    </TableRow>
+                ))}
+                </tbody>
+            </Table>
         </HighlightedCard>
     );
 }
@@ -332,7 +357,7 @@ function DashboardResources({products, loading}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/subprojects"}><Heading.h3>Resources</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resources</Heading.h3></Link>}
             color="red"
             isLoading={loading}
             icon={"grant"}
