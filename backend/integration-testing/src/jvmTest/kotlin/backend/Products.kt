@@ -27,7 +27,8 @@ const val OTHER_PROVIDER = "NewProvider"
 val sampleIngress = Product.Ingress(
     "u1-ingress",
     0,
-    ProductCategoryId("ingress", UCLOUD_PROVIDER)
+    ProductCategoryId("ingress", UCLOUD_PROVIDER),
+    description = "product description"
 )
 
 val sampleCompute = Product.Compute(
@@ -35,7 +36,8 @@ val sampleCompute = Product.Compute(
     100_000,
     ProductCategoryId("standard", UCLOUD_PROVIDER),
     cpu = 1,
-    memoryInGigs = 1
+    memoryInGigs = 1,
+    description = "product description"
 )
 
 val sampleCompute2 = sampleCompute.copy(
@@ -70,13 +72,16 @@ val sampleStorageDifferential = Product.Storage(
     "u1-cephfs-quota",
     1L,
     ProductCategoryId("cephfs-quota", UCLOUD_PROVIDER),
-    chargeType = ChargeType.DIFFERENTIAL_QUOTA
+    chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+    description = "product description",
+    unitOfPrice = ProductPriceUnit.PER_UNIT
 )
 
 val sampleStorage = Product.Storage(
     "u1-cephfs",
     100_000,
-    ProductCategoryId("cephfs", UCLOUD_PROVIDER)
+    ProductCategoryId("cephfs", UCLOUD_PROVIDER),
+    description = "product description"
 )
 
 val sampleStorage2 = sampleStorage.copy(
@@ -90,7 +95,8 @@ val sampleStorageOtherProvider = sampleStorage.copy(
 val sampleNetworkIp = Product.NetworkIP(
     "u1-public-ip",
     1_000_000,
-    ProductCategoryId("public-ip", UCLOUD_PROVIDER)
+    ProductCategoryId("public-ip", UCLOUD_PROVIDER),
+    description = "product description"
 )
 
 val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp, sampleStorageDifferential,
