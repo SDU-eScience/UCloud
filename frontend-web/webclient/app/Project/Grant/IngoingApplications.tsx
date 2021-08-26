@@ -14,7 +14,7 @@ import {emptyPage} from "DefaultObjects";
 import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
 import {ListRow, ListRowStat} from "ui-components/List";
-import {Flex, Icon, Label, List, Text, Tooltip, Truncate, VerticalButtonGroup} from "ui-components";
+import {Flex, Label, List, Text, Truncate, VerticalButtonGroup} from "ui-components";
 import {useAvatars} from "AvataaarLib/hook";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {defaultAvatar} from "UserSettings/Avataaar";
@@ -153,24 +153,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             )}
                         </Flex>
                     }
-                    right={(
-                        <Tooltip
-                            trigger={
-                                <Flex width="auto" alignItems="center">
-                                    <Flex flexGrow={1} justifyContent="flex-end">
-                                        TODO
-                                        {/*{currencyFormatter(*/}
-                                        {/*    app.requestedResources.reduce(*/}
-                                        {/*        (prev, curr) => prev + (curr.creditsRequested ?? 0), 0*/}
-                                        {/*    ), 0)}*/}
-                                    </Flex>
-                                    <Icon name={icon} color={iconColor} ml={8} />
-                                </Flex>
-                            }
-                        >
-                            Resource request in DKK
-                        </Tooltip>
-                    )}
+                    right={null}
                     leftSub={
                         <>
                             {slim ? null : (

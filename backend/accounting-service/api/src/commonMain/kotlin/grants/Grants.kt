@@ -271,24 +271,20 @@ data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
     val creditsRequested: Long? = null,
-    val quotaRequested: Long? = null,
 ) {
     init {
         if (creditsRequested != null && creditsRequested < 0) {
             throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
         }
-        if (quotaRequested != null && quotaRequested < 0) {
-            throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
-        }
     }
 
     companion object {
         fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
-            return ResourceRequest(product.category.name, product.category.provider, credits, null)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
 
         fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
-            return ResourceRequest(product.category.name, product.category.provider, credits, quota)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
     }
 }

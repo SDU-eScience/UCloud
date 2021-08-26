@@ -33,8 +33,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {
     priceExplainer,
     ProductCompute,
-    retrieveBalance,
-    RetrieveBalanceResponse, usageExplainer
+    usageExplainer
 } from "Accounting";
 
 const enterAnimation = keyframes`
@@ -225,10 +224,10 @@ export const View: React.FunctionComponent = () => {
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-    const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({includeChildren: true}),
-        {wallets: []}
-    );
+    // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
+    //     retrieveBalance({includeChildren: true}),
+    //     {wallets: []}
+    // );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -252,19 +251,19 @@ export const View: React.FunctionComponent = () => {
 
     async function confirmExtendAllocation(duration: number): Promise<boolean> {
         if (showInsufficientFundsWarning) {
-            fetchBalance({...balanceParams, reloadId: Math.random()});
-            const balance = balanceFetcher.data;
-            if (!balance || !status?.expiresAt || !job) {
-                return true;
-            }
-
-            const expires = status.expiresAt + (3600 * 1000 * duration);
-            //const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
-            const wallet = balance.wallets.find(it => it.wallet.paysFor.name === job.status.resolvedProduct?.category.name);
-
-            if (!wallet) {
-                return true;
-            }
+            // fetchBalance({...balanceParams, reloadId: Math.random()});
+            // const balance = balanceFetcher.data;
+            // if (!balance || !status?.expiresAt || !job) {
+            //     return true;
+            // }
+            //
+            // const expires = status.expiresAt + (3600 * 1000 * duration);
+            // const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
+            // const wallet = balance.wallets.find(it => it.wallet.paysFor.name === job.status.resolvedProduct?.category.name);
+            //
+            // if (!wallet) {
+            //     return true;
+            // }
 
             /*
             if (wallet.balance < needed) {

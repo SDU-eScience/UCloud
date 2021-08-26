@@ -54,6 +54,8 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
     extraCallbacks?: any;
+
+    inspectValidator?: (res: Res) => boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -68,6 +70,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         onSelect, api, ...props
     }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
+
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
         {productsByProvider: {}})
     const includeOthers = !props.embedded;
@@ -284,7 +287,9 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ItemRow
                     key={it.id}
                     navigate={() => {
-                        if (props.navigateToChildren) {
+                        if (props.inspectValidator?.(it)) {
+                            viewProperties(it);
+                        } else if (props.navigateToChildren) {
                             props.navigateToChildren?.(history, it)
                         } else {
                             viewProperties(it);

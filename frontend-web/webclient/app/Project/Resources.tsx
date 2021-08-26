@@ -17,7 +17,7 @@ import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "UCloud";
+import {accounting, PageV2, PaginationRequestV2} from "UCloud";
 import {
     CheckboxFilterWidget,
     DateRangeFilter,
@@ -35,7 +35,7 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
@@ -50,13 +50,22 @@ import {getStartOfDay} from "Activity/Page";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {deviceBreakpoint} from "ui-components/Hide";
 import {
-    ChargeType, explainAllocation, explainPrice, explainUsage, normalizeBalanceForBackend, normalizeBalanceForFrontend,
-    Product,
+    browseWallets,
+    ChargeType, deposit,
+    explainAllocation,
+    normalizeBalanceForBackend,
+    normalizeBalanceForFrontend,
     ProductPriceUnit,
     ProductType,
     productTypes,
     productTypeToIcon,
-    productTypeToTitle, usageExplainer
+    productTypeToTitle,
+    retrieveBreakdown, retrieveRecipient,
+    retrieveUsage, transfer, TransferRecipient,
+    updateAllocation, UsageChart,
+    usageExplainer,
+    Wallet,
+    WalletAllocation,
 } from "Accounting";
 import {InputLabel} from "ui-components/Input";
 import HighlightedCard from "ui-components/HighlightedCard";
@@ -97,76 +106,6 @@ filterWidgets.push(props =>
     <CheckboxFilterWidget propertyName={showSubAllocationsProp} icon={"grant"}
                           title={"Show sub-allocations"} {...props} />)
 
-interface VisualizationFlags {
-    filterStartDate?: number | null;
-    filterEndDate?: number | null;
-    filterType?: ProductType | null;
-    filterProvider?: string | null;
-    filterProductCategory?: string | null;
-    filterAllocation?: string | null;
-}
-
-function retrieveUsage(request: VisualizationFlags): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/visualization", "usage");
-}
-
-function retrieveBreakdown(request: VisualizationFlags): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/visualization", "breakdown");
-}
-
-function browseWallets(request: PaginationRequestV2): APICallParameters {
-    return apiBrowse(request, "/api/accounting/wallets");
-}
-
-interface TransferRecipient {
-    id: string;
-    isProject: boolean;
-    title: string;
-    principalInvestigator: string;
-    numberOfMembers: number;
-}
-
-function retrieveRecipient(request: { query: string }): APICallParameters {
-    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
-}
-
-interface DepositToWalletRequestItem {
-    recipient: WalletOwner;
-    sourceAllocation: string;
-    amount: number;
-    description: string;
-    startDate: number;
-    endDate: number;
-}
-
-interface TransferToWalletRequestItem {
-    categoryId: ProductCategoryId;
-    target: WalletOwner;
-    source: WalletOwner;
-    amount: number;
-    startDate: number;
-    endDate: number;
-}
-
-interface UpdateAllocationRequestItem {
-    id: string;
-    balance: number;
-    startDate: number;
-    endDate?: number | null;
-    reason: string;
-}
-
-function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "allocation");
-}
-
-function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "deposit");
-}
-
-function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
-    return apiUpdate(request, "/api/accounting", "transfer");
-}
 
 const ResourcesGrid = styled.div`
   display: grid;
@@ -181,7 +120,8 @@ const ResourcesGrid = styled.div`
 `;
 
 const Resources: React.FunctionComponent = props => {
-    const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
     const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
@@ -288,27 +228,6 @@ const Resources: React.FunctionComponent = props => {
     );
 };
 
-type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
-
-interface WalletAllocation {
-    id: string;
-    allocationPath: string;
-    balance: number;
-    initialBalance: number;
-    localBalance: number;
-    startDate: number;
-    endDate?: number | null;
-}
-
-interface Wallet {
-    owner: WalletOwner;
-    paysFor: ProductCategoryId;
-    allocations: WalletAllocation[];
-    chargePolicy: "EXPIRE_FIRST";
-    productType: ProductType;
-    chargeType: ChargeType;
-    unit: ProductPriceUnit;
-}
 
 const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
     return <>
@@ -567,21 +486,6 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
     }
 };
 
-interface UsageChart {
-    type: ProductType;
-    periodUsage: number;
-    chargeType: ChargeType;
-    unit: ProductPriceUnit;
-    chart: {
-        lines: {
-            name: string;
-            points: {
-                timestamp: number;
-                value: number;
-            }[]
-        }[]
-    }
-}
 
 const VisualizationSection = styled.div`
   --gutter: 16px;

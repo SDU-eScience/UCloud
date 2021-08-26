@@ -1,6 +1,5 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.Wallets
