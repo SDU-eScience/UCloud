@@ -15,6 +15,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
 import org.elasticsearch.client.Requests.bulkRequest
 import kotlin.test.assertEquals
@@ -162,6 +163,7 @@ fun Product.toReference(): ProductReference = ProductReference(name, category.na
 
 class ProductTest : IntegrationTest() {
     override fun defineTests() {
+
         run {
             class In(
                 val createZeroProducts: Boolean = false,
@@ -673,9 +675,7 @@ class ProductTest : IntegrationTest() {
                 }
             }
         }
-        testFilter = { title, subtitle ->
-            title == "browsing and retrieving newest versions" && subtitle == "browse without filters"
-        }
+        
         run {
             class In(
                 val browseRequest: ProductsBrowseRequest? = null,

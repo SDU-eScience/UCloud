@@ -37,6 +37,18 @@ set unit_of_price = case pc.product_type
 end
 where true;
 
+create or replace function accounting.require_product_description() returns trigger language plpgsql as $$
+begin
+    if (new.description = '' or new.description is null) then
+        raise exception 'description cannot be empty or null';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_product_description
+after update or insert on accounting.products
+for each row execute procedure accounting.require_product_description();
 
 create or replace function accounting.require_immutable_product_category() returns trigger language plpgsql as $$
 begin
