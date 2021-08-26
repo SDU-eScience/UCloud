@@ -139,7 +139,7 @@ export abstract class ResourceApi<Res extends Resource,
         }
     ];
 
-    public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]) {
+   public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
         this.filterWidgets.push(w);
         this.filterPills.push(p);
     }
@@ -160,7 +160,7 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
-    }> = (props) => <ResourceProperties {...props} api={this}/>
+    }> = props => <ResourceProperties {...props} api={this}/>
 
     protected constructor(namespace: string) {
         this.namespace = namespace;

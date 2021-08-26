@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {accounting, BulkRequest, BulkResponse, file} from "UCloud/index";
+import {accounting, BulkRequest, BulkResponse} from "UCloud/index";
 import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
@@ -23,7 +23,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {FilesBrowse} from "Files/Files";
 import {ResourceProperties} from "Resource/Properties";
 import {ItemRenderer} from "ui-components/Browse";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "ui-components/HighlightedCard";
 import {MetadataBrowse} from "Files/Metadata/Documents/Browse";
 import {FileMetadataHistory} from "UCloud/MetadataDocumentApi";
 import {FileFavoriteToggle} from "Files/FavoriteToggle";
@@ -106,6 +106,23 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");
+        this.sortEntries = [];
+        this.sortEntries.push({
+            column: "PATH",
+            icon: "id",
+            title: "Filename",
+            helpText: "By the file's name"
+        }, {
+            column: "MODIFIED_AT",
+            icon: "edit",
+            title: "Modified time",
+            helpText: "When the file was last modified"
+        }, {
+            column: "SIZE",
+            icon: "fullscreen",
+            title: "Size",
+            helpText: "By size of the file"
+        });
     }
 
     routingNamespace = "files";
@@ -138,7 +155,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         includeUnixInfo: true
     };
 
-    Properties = (props) => {
+    public Properties = (props) => {
         return <ResourceProperties
             {...props} api={this}
             showMessages={false} showPermissions={false} showProperties={false}
@@ -146,7 +163,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
             InfoChildren={props => {
                 const file = props.resource as UFile;
                 return <>
-                    <DashboardCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
+                    <HighlightedCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
                         <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
@@ -158,8 +175,8 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                                 <Button fullWidth>View in folder</Button>
                             </Link>
                         </Box>
-                    </DashboardCard>
-                    <DashboardCard color={"purple"} title={"Properties"} icon={"properties"}>
+                    </HighlightedCard>
+                    <HighlightedCard color={"purple"} title={"Properties"} icon={"properties"}>
                         <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
                         {file.status.modifiedAt ?
                             <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
@@ -179,29 +196,29 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                             <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
                             null
                         }
-                    </DashboardCard>
+                    </HighlightedCard>
                 </>
             }}
             ContentChildren={props => (
                 <>
-                    <DashboardCard color={"purple"}>
+                    <HighlightedCard color={"purple"}>
                         <MetadataBrowse
                             file={props.resource as UFile}
                             metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
                             reload={props.reload}
                         />
-                    </DashboardCard>
+                    </HighlightedCard>
                     {(props.resource as UFile).status.type !== "FILE" ? null :
-                        <DashboardCard color={"purple"} title={"Preview"} icon={"search"}>
+                        <HighlightedCard color={"purple"} title={"Preview"} icon={"search"}>
                             <FilePreview file={props.resource as UFile} />
-                        </DashboardCard>
+                        </HighlightedCard>
                     }
                 </>
             )}
         />;
     };
 
-    retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
+    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
         const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] = [
@@ -299,7 +316,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
-                        <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+                        <FilesBrowse embedded pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -373,7 +390,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         return ourOps.concat(base);
     }
 
-    copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
+    public copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
         return {
             context: "",
             method: "POST",
@@ -383,7 +400,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
+    public move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
         return {
             context: "",
             method: "POST",
@@ -393,7 +410,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createUpload(
+    public createUpload(
         request: BulkRequest<FilesCreateUploadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateUploadRequestItem>> {
         return {
@@ -405,7 +422,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createDownload(
+    public createDownload(
         request: BulkRequest<FilesCreateDownloadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateDownloadRequestItem>> {
         return {
@@ -417,7 +434,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    createFolder(
+    public createFolder(
         request: BulkRequest<FilesCreateFolderRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateFolderRequestItem>> {
         return {
@@ -429,7 +446,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         };
     }
 
-    trash(
+    public trash(
         request: BulkRequest<FilesTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesTrashRequestItem>> {
         return {

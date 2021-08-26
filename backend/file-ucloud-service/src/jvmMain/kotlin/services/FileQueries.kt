@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.DistributedStateFactory
@@ -10,9 +11,9 @@ import dk.sdu.cloud.service.create
 import io.ktor.http.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.collections.ArrayList
 
 const val PERSONAL_REPOSITORY = "Members' Files"
+const val MAX_FILE_COUNT_FOR_SORTING = 25_000
 
 class FileQueries(
     private val pathConverter: PathConverter,
@@ -66,6 +67,8 @@ class FileQueries(
         file: UCloudFile,
         flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
+        sortBy: FilesSortBy,
+        sortOrder: SortDirection?,
     ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
@@ -91,25 +94,54 @@ class FileQueries(
             }
         }
 
+        // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
+        val allowedSortBy = if (foundFiles.size <= MAX_FILE_COUNT_FOR_SORTING) {
+            sortBy
+        } else {
+            FilesSortBy.PATH
+        }
+
+        val foundFilesToStat = HashMap<String, NativeStat>()
+        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat)
+
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
         val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
-        while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-            try {
-                val nextInternalFile = foundFiles[i++]
-                items.add(
-                    convertNativeStatToUFile(
-                        nextInternalFile,
-                        nativeFs.stat(nextInternalFile),
+        when (allowedSortBy) {
+            FilesSortBy.PATH -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    try {
+                        val nextInternalFile = foundFiles[i++]
+
+                        items.add(
+                            convertNativeStatToUFile(
+                                nextInternalFile,
+                                nativeFs.stat(nextInternalFile),
+                            )
+                        )
+                    } catch (ex: FSException.NotFound) {
+                        // NOTE(Dan): File might have gone away between these two calls
+                        didSkipFiles = true
+                    } catch (ex: Throwable) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            else -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    val nextInternalFile = foundFiles[i++]
+
+                    items.add(
+                        convertNativeStatToUFile(
+                            nextInternalFile,
+                            foundFilesToStat[nextInternalFile.path]!!
+                        )
                     )
-                )
-            } catch (ex: FSException.NotFound) {
-                // NOTE(Dan): File might have gone away between these two calls
-                didSkipFiles = true
-            } catch (ex: Throwable) {
-                ex.printStackTrace()
+
+                    // TODO(jonas): Can we expect exceptions here? We have already stat'ed the file.
+                }
             }
         }
 
@@ -136,6 +168,7 @@ class FileQueries(
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
+
     companion object : Loggable {
         override val log = logger()
 
@@ -147,4 +180,26 @@ class FileQueries(
         private val sessionIdCounter = AtomicInteger(0)
         private const val DIR_CACHE_EXPIRATION = 1000L * 60 * 5
     }
+}
+
+fun sortFiles(
+    nativeFs: NativeFS,
+    sortBy: FilesSortBy,
+    sortOrder: SortDirection?,
+    foundFiles: List<InternalFile>,
+    foundFilesToStat: HashMap<String, NativeStat>
+): List<InternalFile> {
+    if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
+    val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
+    var comparator = when (sortBy) {
+        FilesSortBy.PATH -> pathComparator
+        FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+        FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+    }
+    if (sortOrder != SortDirection.ascending) comparator = comparator.reversed()
+    return foundFiles.sortedWith(comparator)
 }

@@ -61,6 +61,8 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
     extraCallbacks?: any;
+
+    inspectValidator?: (res: Res) => boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -75,6 +77,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         onSelect, api, ...props
     }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
+
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
         {productsByProvider: {}})
     const includeOthers = !props.embedded;
@@ -124,7 +127,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                .find(it => it.product.id === selectedProduct.id &&
+                ?.find(it => it.product.id === selectedProduct.id &&
                     it.product.category.id === selectedProduct.category.id) ?? null;
         }
         return null;
@@ -301,7 +304,9 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ItemRow
                     key={it.id}
                     navigate={() => {
-                        if (props.navigateToChildren) {
+                        if (props.inspectValidator?.(it)) {
+                            viewProperties(it);
+                        } else if (props.navigateToChildren) {
                             props.navigateToChildren?.(history, it)
                         } else {
                             viewProperties(it);
@@ -341,6 +346,12 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             entityNameSingular={api.title} entityNamePlural={api.titlePlural}
                             extra={callbacks} operations={operations} />
                         {props.header}
+                        <ResourceFilter
+                            embedded
+                            pills={api.filterPills} filterWidgets={api.filterWidgets}
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            onApplyFilters={reloadRef.current} />
                     </>
                 }
             </StickyBox>

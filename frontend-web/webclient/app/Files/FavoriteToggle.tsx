@@ -16,6 +16,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
 }> = ({file}) => {
     const [, invokeCommand, loading] = useCloudCommand();
     const [isFavorite, setFavorite] = useState(false);
+    const [mostRecentStatusId, setStatusId] = useState("");
 
     useEffect(() => {
         // NOTE(Dan): This should only run once on mount.
@@ -32,12 +33,14 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 const mostRecent = metadata.metadata[favoriteTemplateId]?.[0];
                 realFileIsFavorite = mostRecent != null && mostRecent.type === "metadata" &&
                     mostRecent.specification.version === favoriteTemplateVersion &&
-                    mostRecent.specification.document["isFavorite"];
+                    mostRecent.specification.document["favorite"];
+                if (mostRecent) setStatusId(mostRecent.id);
             }
         }
 
         setFavorite(realFileIsFavorite);
     }, []);
+
 
     const onToggle = useCallback(async (e?: React.SyntheticEvent) => {
         e?.stopPropagation();
@@ -47,9 +50,8 @@ export const FileFavoriteToggle: React.FunctionComponent<{
         setFavorite(!isFavorite);
         try {
             if (!favoriteTemplateId) {
-                console.log("Looking for the ID");
                 const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
-                    metadataNsApi.browse(({ filterName: "favorite", itemsPerPage: 50}))
+                    metadataNsApi.browse(({filterName: "favorite", itemsPerPage: 50}))
                 );
                 const ns = page?.items?.[0];
                 if (ns) {
@@ -62,18 +64,36 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 return;
             }
 
-            await invokeCommand(
-                metadataApi.create(bulkRequestOf({
-                    fileId: file.id,
-                    metadata: {
-                        document: {isFavorite: !isFavorite},
-                        version: favoriteTemplateVersion,
-                        changeLog: "New favorite status",
-                        templateId: favoriteTemplateId!
-                    }
-                })),
-                {defaultErrorHandler: false}
-            );
+            if (isFavorite) {
+                // Note(Jonas): New state will be _not_  favorite
+                
+                await invokeCommand(
+                    metadataApi.delete(
+                        bulkRequestOf({
+                            changeLog: "Remove favorite",
+                            id: mostRecentStatusId
+                        })
+                    ),
+                    {defaultErrorHandler: false}
+                )
+            } else {
+                // Note(Jonas): New state will be favorite
+                await invokeCommand(
+                    /* Note(Jonas): If already favorite, new */
+                    metadataApi.create(bulkRequestOf({
+                        fileId: file.id,
+                        metadata: {
+                            document: {favorite: !isFavorite},
+                            version: favoriteTemplateVersion,
+                            changeLog: "New favorite status",
+                            templateId: favoriteTemplateId!
+                        }
+                    })),
+                    {defaultErrorHandler: false}
+                );
+            }
+
+
         } catch (e) {
             setFavorite(isFavorite);
         }
