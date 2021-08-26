@@ -106,12 +106,21 @@ interface ExtraCallbacks {
 // TODO Make version 1.0.0
 const FileSensitivityVersion = "0.2.0";
 const FileSensitivityNamespace = "sensitivity";
-function findSensitivity(file: UFile): "Private" | "Sensitive" | "Confidential" {
-    const templateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
-    if (!templateId) return "Private";
+type SensitivityLevel = | "Private" | "Sensitive" | "Confidential";
+let sensitivityTemplateId = "";
+function findSensitivity(file: UFile): SensitivityLevel {
+    if (!sensitivityTemplateId) {
+        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+        if (!sensitivityTemplateId) {
+            return "Private";
+        }
+    }
+
     // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
     // TODO(Jonas): The type is not correct if this needs to be cast for this to work
-    const sensitivity = (Object.values(file.status.metadata?.metadata[templateId] ?? {})[0] as any)?.specification.document.Sensitivity ?? "Private";
+    const sensitivity = (
+        Object.values(file.status.metadata?.metadata[sensitivityTemplateId] ?? {})[0] as any
+    )?.specification.document.Sensitivity ?? "Private";
     return sensitivity;
 }
 
@@ -170,7 +179,7 @@ class FilesApi extends ResourceApi<UFile, ProductNS.Storage, UFileSpecification,
         ImportantStats({resource}) {
             if (!resource) return null;
             const sensitivity = findSensitivity(resource);
-            return <Sensitivity sensitivity={sensitivity} />
+            return <div><Sensitivity sensitivity={sensitivity} /></div>;
         }
     };
 
