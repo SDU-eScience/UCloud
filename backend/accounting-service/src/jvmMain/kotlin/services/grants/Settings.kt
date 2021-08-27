@@ -68,8 +68,7 @@ class GrantSettingsService(
                     request.automaticApproval.maxResources.split {
                         into("auto_approve_category") { it.productCategory }
                         into("auto_approve_provider") { it.productProvider }
-                        into("auto_approve_credits") { it.creditsRequested }
-                        into("auto_approve_quota") { it.creditsRequested }
+                        into("auto_approve_credits") { it.balanceRequested }
                     }
                 },
                 """

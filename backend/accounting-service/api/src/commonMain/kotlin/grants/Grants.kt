@@ -270,10 +270,10 @@ sealed class GrantRecipient {
 data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
-    val creditsRequested: Long? = null,
+    val balanceRequested: Long? = null,
 ) {
     init {
-        if (creditsRequested != null && creditsRequested < 0) {
+        if (balanceRequested != null && balanceRequested < 0) {
             throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
         }
     }

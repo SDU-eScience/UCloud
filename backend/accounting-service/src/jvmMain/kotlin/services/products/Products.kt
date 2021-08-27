@@ -24,38 +24,35 @@ class ProductService(
             requirePermission(actorAndProject.actor, req.category.provider, readOnly = false)
         }
 
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val providers by parameterList<String>()
-                    val categories by parameterList<String>()
-                    val chargeTypes by parameterList<String>()
-                    val productTypes by parameterList<String>()
-                    val unitsOfPrice by parameterList<String>()
+        db.withSession(remapExceptions = true) { session ->
 
-                    for (req in request.items) {
-                        providers.add(req.category.provider)
-                        categories.add(req.category.name)
-                        chargeTypes.add(req.chargeType.name)
-                        productTypes.add(req.productType.name)
-                        unitsOfPrice.add(req.unitOfPrice.name)
-                    }
-                },
-                """
-                    insert into accounting.product_categories
+            for (req in request.items) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("provider", req.category.provider)
+                        setParameter("category", req.category.name)
+                        setParameter("charge_type", req.chargeType.name)
+                        setParameter("product_type", req.productType.name)
+                        setParameter("unit_of_price", req.unitOfPrice.name)
+                    },
+                    """
+                        insert into accounting.product_categories
                         (provider, category, product_type, charge_type, unit_of_price) 
-                    select
-                        unnest(:providers::text[]),
-                        unnest(:categories::text[]),
-                        unnest(:product_types::accounting.product_type[]),
-                        unnest(:charge_types::accounting.charge_type[]),
-                        unnest(:units_of_price::accounting.product_price_unit[]) unit_of_price
-                    on conflict (provider, category)
-                    do update set
-                        charge_type = excluded.charge_type,
-                        product_type = excluded.product_type
-                """
-            ).rowsAffected
+                        values (
+                            :provider, 
+                            :category, 
+                            :product_type::accounting.product_type, 
+                            :charge_type::accounting.charge_type, 
+                            :unit_of_price::accounting.product_price_unit
+                        )
+                        on conflict (provider, category)  
+                        do update set
+                            charge_type = excluded.charge_type,
+                            product_type = excluded.product_type,
+                            unit_of_price = excluded.unit_of_price
+                    """
+                )
+            }
 
             session.sendPreparedStatement(
                 {

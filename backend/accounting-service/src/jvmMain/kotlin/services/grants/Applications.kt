@@ -152,8 +152,7 @@ class GrantApplicationService(
             {
                 setParameter("id", applicationId)
                 resources.split {
-                    into("credits_requested") { it.creditsRequested }
-                    into("quota_requested") { it.quotaRequested }
+                    into("credits_requested") { it.balanceRequested }
                     into("categories") { it.productCategory }
                     into("providers") { it.productProvider }
                 }

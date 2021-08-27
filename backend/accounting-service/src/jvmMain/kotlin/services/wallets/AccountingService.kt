@@ -444,7 +444,6 @@ class AccountingService(
                     on conflict do nothing
                 """
             )
-            println("create allocation")
             val rowsAffected = session.sendPreparedStatement(
                 {
                     parameters()

@@ -52,7 +52,7 @@ for each row execute procedure accounting.require_product_description();
 
 create or replace function accounting.require_immutable_product_category() returns trigger language plpgsql as $$
 begin
-    if old.charge_type != new.charge_type or old.product_type != new.product_type then
+    if old.charge_type != new.charge_type or old.product_type != new.product_type or old.unit_of_price != new.unit_of_price then
         raise exception 'Cannot change the definition of a category after its initial creation';
     end if;
     return null;

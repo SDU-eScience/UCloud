@@ -345,7 +345,7 @@ class GrantTest : IntegrationTest() {
                         EditApplicationRequest(
                             applicationId,
                             "Evil document",
-                            input.resourcesRequested.map { it.copy(creditsRequested = 1337.DKK) }
+                            input.resourcesRequested.map { it.copy(balanceRequested = 1337.DKK) }
                         ),
                         evilUser.client
                     ).assertUserError()
@@ -508,7 +508,7 @@ class GrantTest : IntegrationTest() {
                                             it.productProvider == wallet.paysFor.provider
                                 } ?: throw AssertionError("Received wallet but no such request was made: $wallet")
 
-                                val expectedBalance = resolvedRequest.creditsRequested ?: resolvedRequest.quotaRequested
+                                val expectedBalance = resolvedRequest.balanceRequested
                                 assertThatPropertyEquals(
                                     wallet,
                                     { it.allocations.sumOf { it.balance } },

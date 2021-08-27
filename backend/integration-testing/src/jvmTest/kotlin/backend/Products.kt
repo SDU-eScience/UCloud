@@ -163,7 +163,95 @@ fun Product.toReference(): ProductReference = ProductReference(name, category.na
 
 class ProductTest : IntegrationTest() {
     override fun defineTests() {
+        testFilter = { title, subtitle ->
+            title == "Create tests" //&& subtitle == "different product category products insert"
+        }
+        run {
+            class In(
+                val products: List<Product>
+            )
 
+            class Out(
+                val page: PageV2<Product>
+            )
+
+            test<In, Out>("Create tests") {
+                execute {
+                    createProvider("ucloud")
+                    Products.create.call(
+                        bulkRequestOf(
+                            *input.products.toTypedArray()
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    Out(
+                        Products.browse.call(
+                            ProductsBrowseRequest(),
+                            adminClient
+                        ).orThrow()
+                    )
+                }
+
+                case("Same product category products insert") {
+                    input(
+                        In(
+                            listOf(
+                                Product.Compute(
+                                    "standard",
+                                    20L,
+                                    ProductCategoryId(
+                                        "ucloud", "ucloud"
+                                    ),
+                                    description = "description"
+                                ),
+                                Product.Compute(
+                                    "standard2",
+                                    40L,
+                                    ProductCategoryId(
+                                        "ucloud", "ucloud"
+                                    ),
+                                    description = "description"
+                                )
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(2, output.page.items.size)
+                    }
+                }
+
+                case("different product category products insert") {
+                    input(
+                        In(
+                            listOf(
+                                Product.Compute(
+                                    "standard",
+                                    20L,
+                                    ProductCategoryId(
+                                        "ucloud", "ucloud"
+                                    ),
+                                    description = "description"
+                                ),
+                                Product.Compute(
+                                    "standard2",
+                                    40L,
+                                    ProductCategoryId(
+                                        "ucloud", "ucloud"
+                                    ),
+                                    description = "description",
+                                    chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+                                    unitOfPrice = ProductPriceUnit.PER_UNIT
+                                )
+                            )
+                        )
+                    )
+                    expectStatusCode(HttpStatusCode.BadRequest)
+                }
+            }
+
+
+        }
         run {
             class In(
                 val createZeroProducts: Boolean = false,
@@ -675,7 +763,7 @@ class ProductTest : IntegrationTest() {
                 }
             }
         }
-        
+
         run {
             class In(
                 val browseRequest: ProductsBrowseRequest? = null,
