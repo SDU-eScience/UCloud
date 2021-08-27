@@ -845,7 +845,7 @@ div.tooltip-content.centered {
         }
     }
     
-    .drivebox {
+    .product-box {
         margin-left: 2px;
         text-align: left;
         span {

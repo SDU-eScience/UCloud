@@ -41,6 +41,7 @@ import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-compon
 import {useAvatars} from "AvataaarLib/hook";
 import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import {IconName} from "ui-components/Icon";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -274,7 +275,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
                         <div className="tooltip-content">
-                            <DriveBox resource={resource} />
+                            <ProductBox resource={resource} icon="ftFileSystem" />
                         </div>
                     </div>
                 }
@@ -396,11 +397,16 @@ function UserBox(props: {username: string}) {
     </div>;
 }
 
-function DriveBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceSpecification>>(props: {resource: T}) {
+function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceSpecification>>(
+    props: {
+        resource: T;
+        icon: IconName
+    }
+) {
     const {resource} = props;
     const {product} = resource.specification;
-    return <div className="drive-box">
-        <Icon size="36px" mr="4px" name="ftFileSystem" /><span>{product.id} / {product.category}</span>
+    return <div className="product-box">
+        <Icon size="36px" mr="4px" name={props.icon} /><span>{product.id} / {product.category}</span>
         <div><b>ID:</b> {product.id}</div>
         <div><b>Category:</b> {product.category}</div>
         <div><b>Provider:</b> {product.provider}</div>
