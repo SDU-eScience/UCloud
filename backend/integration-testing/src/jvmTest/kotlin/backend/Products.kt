@@ -163,9 +163,7 @@ fun Product.toReference(): ProductReference = ProductReference(name, category.na
 
 class ProductTest : IntegrationTest() {
     override fun defineTests() {
-        testFilter = { title, subtitle ->
-            title == "Create tests" //&& subtitle == "different product category products insert"
-        }
+        
         run {
             class In(
                 val products: List<Product>
@@ -203,7 +201,8 @@ class ProductTest : IntegrationTest() {
                                     ProductCategoryId(
                                         "ucloud", "ucloud"
                                     ),
-                                    description = "description"
+                                    description = "description",
+                                    unitOfPrice = ProductPriceUnit.PER_UNIT
                                 ),
                                 Product.Compute(
                                     "standard2",
@@ -211,7 +210,8 @@ class ProductTest : IntegrationTest() {
                                     ProductCategoryId(
                                         "ucloud", "ucloud"
                                     ),
-                                    description = "description"
+                                    description = "description",
+                                    unitOfPrice = ProductPriceUnit.PER_UNIT
                                 )
                             )
                         )

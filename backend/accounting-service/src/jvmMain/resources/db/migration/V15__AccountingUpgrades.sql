@@ -37,6 +37,19 @@ set unit_of_price = case pc.product_type
 end
 where true;
 
+with per_unit_products as (
+    select products.id product_id, product_categories.unit_of_price unit
+    from
+    accounting.products  join
+    accounting.product_categories  on
+        products.category = product_categories.id
+)
+UPDATE accounting.products
+SET price_per_unit = 1
+from per_unit_products
+WHERE id = per_unit_products.product_id and
+        per_unit_products.unit = 'PER_UNIT'::accounting.product_price_unit;
+
 create or replace function accounting.require_product_description() returns trigger language plpgsql as $$
 begin
     if (new.description = '' or new.description is null) then
