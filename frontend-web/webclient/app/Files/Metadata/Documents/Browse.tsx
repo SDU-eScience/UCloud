@@ -99,7 +99,7 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
             hasExt={true} />
     },
     MainTitle({resource}) {return !resource ? null : <>{resource.template.title}</>},
-    Stats: ({resource}) => {
+    Stats({resource}) {
         if (!resource) return null;
         const allApproved = resource.docs.every(it =>
             it.type === "deleted" ||
@@ -109,14 +109,18 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
             )
         );
         return <>
-            <ListRowStat icon={"hourglass"}
-                children={`${resource.docs.length} version` + (resource.docs.length > 1 ? "s" : "")} />
+            <ListRowStat icon={"hourglass"}>
+                {resource.docs.length} version {resource.docs.length > 1 ? "s" : ""}
+            </ListRowStat>
+
             {allApproved ?
-                <ListRowStat textColor={"green"} color={"green"} icon={"verified"}
-                    children={"All entries approved"} />
+                <ListRowStat textColor={"green"} color={"green"} icon={"verified"}>
+                    All entries approved
+                </ListRowStat>
                 :
-                <ListRowStat textColor={"red"} color={"red"} icon={"verified"}
-                    children={"Updates are pending approval"} />
+                <ListRowStat textColor={"red"} color={"red"} icon={"verified"}>
+                    Updates are pending approval
+                </ListRowStat>
             }
         </>;
     }
