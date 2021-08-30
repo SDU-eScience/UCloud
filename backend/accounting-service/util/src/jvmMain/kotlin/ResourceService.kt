@@ -321,6 +321,18 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
+                        if (!isCoreResource) {
+                            val project = actorAndProject.project
+                            payment.creditCheck(
+                                if (project != null) {
+                                    WalletOwner.Project(project)
+                                } else {
+                                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                                },
+                                resources.map { it.second.reference }
+                            )
+                        }
+
                         val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(

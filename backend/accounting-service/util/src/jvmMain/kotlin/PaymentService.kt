@@ -52,25 +52,27 @@ class PaymentService(
     }
 
     suspend fun creditCheck(
-        product: ProductReference,
         owner: WalletOwner,
+        products: List<ProductReference>
     ) {
         val success = Accounting.check.call(
-            bulkRequestOf(
-                ChargeWalletRequestItem(
-                    owner,
-                    1L, 1L,
-                    product,
-                    "_ucloud",
-                    "Credit check"
-                )
+            BulkRequest(
+                products.map { product ->
+                    ChargeWalletRequestItem(
+                        owner,
+                        1L, 1L,
+                        product,
+                        "_ucloud",
+                        "Credit check"
+                    )
+                }
             ),
             serviceClient
         ).orThrow().responses.all { it }
 
         if (!success) {
             throw RPCException(
-                "Insufficient funds for ${product.category} / ${product.provider}",
+                "Insufficient funds",
                 HttpStatusCode.PaymentRequired
             )
         }
