@@ -553,6 +553,16 @@ drop table accounting.old_transactions;
 
 ---- /Remove legacy tables ----
 
+---- Deposit notifications ----
+create table accounting.deposit_notifications(
+    id bigserial primary key,
+    created_at timestamptz default now(),
+    username text references auth.principals(id),
+    project_id text references project.projects(id),
+    category_id bigint not null references accounting.product_categories(id),
+    balance bigint not null
+);
+---- /Deposit notifications ----
 
 ---- Procedures ----
 
@@ -1000,6 +1010,20 @@ begin
             (r.recipient_is_project and wo.project_id = r.recipient) or
             (not r.recipient_is_project and wo.username = r.recipient)
         );
+
+    insert into accounting.deposit_notifications (username, project_id, category_id, balance)
+    select
+        case
+            when r.recipient_is_project = true then null
+            else r.recipient
+        end,
+        case
+            when r.recipient_is_project = true then r.recipient
+            else null
+        end,
+        r.category,
+        r.desired_balance
+    from deposit_result r;
 
     -- NOTE(Dan): Create allocations and insert transactions
     with new_allocations as (

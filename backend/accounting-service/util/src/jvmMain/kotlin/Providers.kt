@@ -20,7 +20,7 @@ interface ProviderComms {
     val provider: ProviderSpecification
 }
 
-private data class SimpleProviderCommunication(
+data class SimpleProviderCommunication(
     override val client: AuthenticatedClient,
     override val wsClient: AuthenticatedClient,
     override val provider: ProviderSpecification
