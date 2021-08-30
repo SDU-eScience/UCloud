@@ -296,7 +296,9 @@ class SyncthingClient(
                     defaults = SyncthingDefaults(),
                     gui = SyncthingGui(
                         address = device.hostname,
-                        apiKey = device.apiKey
+                        apiKey = device.apiKey,
+                        user = device.username,
+                        password = device.password
                     ),
                     ldap = SyncthingLdap(),
                     options = SyncthingOptions()

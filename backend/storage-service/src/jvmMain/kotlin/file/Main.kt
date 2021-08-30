@@ -37,6 +37,8 @@ data class LocalSyncthingDevice(
     val apiKey: String = "",
     val id: String = "",
     val port: Int = 80,
+    val username: String = "",
+    val password: String = "",
     val doNotChangeHostNameForMounter: Boolean = false,
 )
 
