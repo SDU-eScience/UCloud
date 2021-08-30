@@ -162,7 +162,7 @@ class GrantApplicationService(
                         (application_id, credits_requested, quota_requested_bytes, product_category) 
                     with requests as (
                         select :id application_id, unnest(:credits_requested::bigint[]) credits_requested,
-                               unnest(:quota_requested::bigint[]) quota_requested,
+                               0::bigint as quota_requested,
                                unnest(:categories::text[]) category, unnest(:providers::text[]) provider_id
                     )
                     select

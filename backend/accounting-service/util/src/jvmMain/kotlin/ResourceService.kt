@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -859,39 +860,39 @@ abstract class ResourceService<
             includeUnconfirmed = true,
         ).associateBy { it.id }
 
-        val chargeResults = ArrayList<Pair<Res, PaymentService.ChargeResult>>()
-        for (reqItem in request.items) {
+        val paymentRequests = request.items.map { reqItem ->
             val resource = allResources.getValue(reqItem.id)
-            chargeResults.add(
-                resource to payment.charge(
-                    Payment(
-                        reqItem.chargeId,
-                        reqItem.units,
-                        resource.status.resolvedSupport!!.product.pricePerUnit,
-                        reqItem.id,
-                        resource.owner.createdBy,
-                        resource.owner.project,
-                        resource.specification.product,
-                        productArea
-                    )
-                )
+            val project = resource.owner.project
+
+            Payment(
+                reqItem.chargeId,
+                reqItem.numberOfProducts,
+                reqItem.units,
+                resource.status.resolvedSupport!!.product.pricePerUnit,
+                reqItem.id,
+                reqItem.performedBy ?: resource.owner.createdBy,
+                if (project != null) {
+                    WalletOwner.Project(project)
+                } else {
+                    WalletOwner.User(resource.owner.createdBy)
+                },
+                resource.specification.product,
+                reqItem.description,
             )
         }
-        val insufficient = chargeResults
-            .filter { (_, result) -> result is PaymentService.ChargeResult.InsufficientFunds }
-            .map { FindByStringId(it.first.id) }
 
-        if (insufficient.size == request.items.size) {
-            throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+        val chargeResult = payment.charge(paymentRequests)
+
+        val insufficient = chargeResult.mapIndexedNotNull { index, result ->
+            val request = request.items[index]
+            when (result) {
+                PaymentService.ChargeResult.Charged -> null
+                PaymentService.ChargeResult.Duplicate -> null
+                PaymentService.ChargeResult.InsufficientFunds -> FindByStringId(request.id)
+            }
         }
 
-        return ResourceChargeCreditsResponse(
-            insufficientFunds = insufficient,
-
-            duplicateCharges = chargeResults
-                .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
-                .map { FindByStringId(it.first.id) },
-        )
+        return ResourceChargeCreditsResponse(insufficient, emptyList())
     }
 
     override suspend fun search(

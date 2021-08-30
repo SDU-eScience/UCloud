@@ -199,7 +199,7 @@ data class ChargeWalletRequestItem(
     }
 }
 
-typealias ChargeWalletResponse = Unit
+typealias ChargeWalletResponse = BulkResponse<Boolean>
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

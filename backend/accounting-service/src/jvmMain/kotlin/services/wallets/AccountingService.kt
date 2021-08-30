@@ -34,10 +34,15 @@ class AccountingService(
     suspend fun charge(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
-    ) {
+    ): BulkResponse<Boolean> {
         val actor = actorAndProject.actor
         if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        val result = ArrayList<Boolean>()
+        repeat(request.items.size) {
+            result.add(true)
         }
 
         db.withSession(remapExceptions = true, transactionMode) { session ->
@@ -60,8 +65,10 @@ class AccountingService(
                     select accounting.charge(array_agg(req))
                     from requests;
                 """
-            )
+            ).rows.forEach { result[it.getInt(0)!!] = false }
         }
+
+        return BulkResponse(result)
     }
 
     suspend fun check(
