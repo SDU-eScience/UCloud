@@ -290,7 +290,8 @@ class SyncthingClient(
                                         SyncthingFolderDevice(it.getField(UserDevicesTable.device))
                                     },
                                 path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.id)).absolutePath,
-                                type = SynchronizationType.valueOf(row.getField(SynchronizedFoldersTable.accessType)).syncthingValue
+                                type = SynchronizationType.valueOf(row.getField(SynchronizedFoldersTable.accessType)).syncthingValue,
+                                rescanIntervalS = device.rescanIntervalSeconds
                             )
                         },
                     defaults = SyncthingDefaults(),

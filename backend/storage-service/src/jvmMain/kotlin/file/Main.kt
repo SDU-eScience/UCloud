@@ -39,6 +39,7 @@ data class LocalSyncthingDevice(
     val port: Int = 80,
     val username: String = "",
     val password: String = "",
+    val rescanIntervalSeconds: Int = 3600,
     val doNotChangeHostNameForMounter: Boolean = false,
 )
 
