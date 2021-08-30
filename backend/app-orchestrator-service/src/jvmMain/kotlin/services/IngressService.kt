@@ -37,8 +37,6 @@ class IngressService(
 
     override fun isReady(res: Ingress): Boolean = res.status.state == IngressState.READY
     override fun resourcesFromJob(job: Job): List<AppParameterValue.Ingress> = job.ingressPoints
-    override fun requireCreditCheck(res: Ingress, product: Product.Ingress): Boolean =
-        !product.freeToUse
 
     override fun userApi() = Ingresses
     override fun controlApi() = IngressControl

@@ -48,8 +48,6 @@ class NetworkIPService(
     override fun resourcesFromJob(job: Job): List<AppParameterValue.Network> = job.networks
     override fun isReady(res: NetworkIP): Boolean = res.status.state == NetworkIPState.READY
     override fun boundUpdate(binding: JobBinding): NetworkIPUpdate = NetworkIPUpdate(binding = binding)
-    override fun requireCreditCheck(res: NetworkIP, product: Product.NetworkIP): Boolean =
-        !product.freeToUse
 
     override fun userApi() = NetworkIPs
     override fun controlApi() = NetworkIPControl

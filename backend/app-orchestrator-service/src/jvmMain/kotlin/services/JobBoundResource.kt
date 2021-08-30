@@ -35,7 +35,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     protected abstract fun resourcesFromJob(job: Job): List<Val>
     protected abstract fun isReady(res: Res): Boolean
     protected abstract fun boundUpdate(binding: JobBinding): Update
-    protected abstract fun requireCreditCheck(res: Res, product: Prod): Boolean
     protected open fun bindsExclusively(): Boolean = true
 
     init {
@@ -73,18 +72,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         throw RPCException(
                             "Not all resources can be used in this application",
                             HttpStatusCode.BadRequest
-                        )
-                    }
-
-                    val product = resource.status.resolvedSupport!!.product
-                    if (requireCreditCheck(resource, product)) {
-                        payment.creditCheck(
-                            ProductReference(product.id, product.category.name, product.category.provider),
-                            if (jobProject != null) {
-                                WalletOwner.Project(jobProject)
-                            } else {
-                                WalletOwner.User(jobLauncher)
-                            }
                         )
                     }
                 }
