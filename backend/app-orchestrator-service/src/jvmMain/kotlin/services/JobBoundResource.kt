@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.util.*
@@ -77,9 +79,12 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     val product = resource.status.resolvedSupport!!.product
                     if (requireCreditCheck(resource, product)) {
                         payment.creditCheck(
-                            product,
-                            jobProject ?: jobLauncher,
-                            if (jobProject != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
+                            ProductReference(product.id, product.category.name, product.category.provider),
+                            if (jobProject != null) {
+                                WalletOwner.Project(jobProject)
+                            } else {
+                                WalletOwner.User(jobLauncher)
+                            }
                         )
                     }
                 }
