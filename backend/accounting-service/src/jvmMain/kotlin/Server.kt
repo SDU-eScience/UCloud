@@ -47,7 +47,7 @@ class Server(
         val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
         val grantApplicationService = GrantApplicationService(db, notifications)
-        val templates = GrantTemplateService(db)
+        val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 
         val providerProviders =

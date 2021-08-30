@@ -76,6 +76,10 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
+        testFilter = { title, subtitle ->
+            title == "Grant applications, metadata"
+        }
+
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
 
@@ -758,9 +762,15 @@ class GrantTest : IntegrationTest() {
                 val description: String,
                 val personalTemplate: String,
                 val newTemplate: String,
-                val existingTemplate: String
+                val existingTemplate: String,
+                val useDefaultTemplate: Boolean = false
+
             )
-            class Out()
+            class Out(
+                val personaltemplate: String,
+                val newTemplate: String,
+                val exisitingtemplate: String
+            )
 
             test<In, Out>("Grant applications, metadata") {
                 execute {
@@ -806,14 +816,16 @@ class GrantTest : IntegrationTest() {
 
                     assertEquals(base64Encode(logo), base64Encode(fetchedLogoBytes))
 
-                    Grants.uploadTemplates.call(
-                        UploadTemplatesRequest(
-                            input.personalTemplate,
-                            input.newTemplate,
-                            input.existingTemplate
-                        ),
-                        grantPi.client.withProject(createdProject)
-                    ).orThrow()
+                    if (!input.useDefaultTemplate) {
+                        Grants.uploadTemplates.call(
+                            UploadTemplatesRequest(
+                                input.personalTemplate,
+                                input.newTemplate,
+                                input.existingTemplate
+                            ),
+                            grantPi.client.withProject(createdProject)
+                        ).orThrow()
+                    }
 
                     Grants.uploadTemplates.call(
                         UploadTemplatesRequest("Evil 1", "Evil 2", "Evil 3"),
@@ -825,15 +837,27 @@ class GrantTest : IntegrationTest() {
                         grantPi.client
                     ).orThrow()
 
-                    assertEquals(input.newTemplate, fetchedTemplates.newProject)
-                    assertEquals(input.existingTemplate, fetchedTemplates.existingProject)
-                    assertEquals(input.personalTemplate, fetchedTemplates.personalProject)
-                    Out()
+                    Out(fetchedTemplates.personalProject, fetchedTemplates.newProject, fetchedTemplates.existingProject)
                 }
 
-                case("Normal data") {
+                case("Normal data - insert template") {
                     input(In("Some description", "some template", "another template", "more templates"))
-                    check {}
+                    check {
+                        assertEquals(input.newTemplate, output.newTemplate)
+                        assertEquals(input.existingTemplate, output.exisitingtemplate)
+                        assertEquals(input.personalTemplate, output.personaltemplate)
+                    }
+                }
+
+                case("Normal data - default templates") {
+                    //Does not change the descriptions. Default message is found in Grant/main
+                    val defaultMessage = "Please describe the reason for applying for resources"
+                    input(In("Some description", "some template", "another template", "more templates", true))
+                    check {
+                        assertEquals(defaultMessage, output.personaltemplate)
+                        assertEquals(defaultMessage, output.newTemplate)
+                        assertEquals(defaultMessage, output.exisitingtemplate)
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
@@ -10,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 
 class GrantTemplateService(
     private val db: DBContext,
+    private val config: Configuration
 ) {
     suspend fun uploadTemplates(
         actorAndProject: ActorAndProject,
@@ -88,7 +90,7 @@ class GrantTemplateService(
                         )
                 """
             ).rows.map { ReadTemplatesResponse(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }.singleOrNull()
-                ?: throw RPCException("Could not find any templates", HttpStatusCode.NotFound)
+                ?:  ReadTemplatesResponse(config.defaultTemplate, config.defaultTemplate, config.defaultTemplate)
         }
     }
 }

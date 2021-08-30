@@ -159,14 +159,13 @@ class GrantApplicationService(
             },
             """
                     insert into "grant".requested_resources
-                        (application_id, credits_requested, quota_requested_bytes, product_category) 
+                        (application_id, credits_requested, product_category) 
                     with requests as (
                         select :id application_id, unnest(:credits_requested::bigint[]) credits_requested,
-                               unnest(:quota_requested::bigint[]) quota_requested,
                                unnest(:categories::text[]) category, unnest(:providers::text[]) provider_id
                     )
                     select
-                        req.application_id, req.credits_requested, req.quota_requested, pc.id
+                        req.application_id, req.credits_requested, pc.id
                     from
                         requests req join
                         accounting.product_categories pc on

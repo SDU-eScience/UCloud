@@ -40,7 +40,6 @@ class GrantSettingsService(
         if (actorAndProject.project == null) throw RPCException("Must supply a project", HttpStatusCode.BadRequest)
 
         db.withSession(remapExceptions = true) { session ->
-            // First we find
             session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
@@ -68,6 +67,7 @@ class GrantSettingsService(
                     request.automaticApproval.maxResources.split {
                         into("auto_approve_category") { it.productCategory }
                         into("auto_approve_provider") { it.productProvider }
+                        into("auto_approve_quota") { null }
                         into("auto_approve_credits") { it.balanceRequested }
                     }
                 },
