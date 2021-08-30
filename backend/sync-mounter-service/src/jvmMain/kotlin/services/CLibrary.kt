@@ -22,7 +22,7 @@ interface CLibrary : Library {
     fun fchown(fd: Int, uid: Int, gid: Int): Int
     fun fchmod(fd: Int, mode: Int): Int
     fun mount(source: String?, target: String?, fileSystemType: String?, mountFlags: Long?, data: Pointer?): Int
-    fun umount(target: String?)
+    fun umount(target: String?): Int
     // The function in the stat family are linked statically. As a result we must use the __xstat family, more info:
     // https://refspecs.linuxfoundation.org/LSB_1.1.0/gLSB/baselib-xstat-1.html
     // https://stackoverflow.com/questions/45634018/why-are-stat-fstat-linked-statically
