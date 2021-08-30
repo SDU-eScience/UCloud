@@ -4,7 +4,10 @@ import {
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
+    ResourceStatus,
+    ResourceUpdate,
     SupportByProvider,
+    ResourceSpecification,
     UCLOUD_CORE
 } from "UCloud/ResourceApi";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
@@ -15,7 +18,7 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import {PageRenderer} from "Pagination/PaginationV2";
-import {Box, List} from "ui-components";
+import {Box, Icon, List} from "ui-components";
 import {ListRowStat} from "ui-components/List";
 import {Operation, Operations} from "ui-components/Operation";
 import {dateToString} from "Utilities/DateUtilities";
@@ -35,6 +38,10 @@ import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
 import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
+import {useAvatars} from "AvataaarLib/hook";
+import {Avatar} from "AvataaarLib";
+import {defaultAvatar} from "UserSettings/Avataaar";
+import {IconName} from "ui-components/Icon";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -256,11 +263,21 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 </>}
             </> : <>
                 <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>
-                <ListRowStat icon={"user"}>{resource.owner.createdBy}</ListRowStat>
+                <div className="tooltip">
+                    <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
+                    <div className="tooltip-content centered">
+                        <UserBox username={resource.owner.createdBy} />
+                    </div>
+                </div>
                 {resource.specification.product.provider === UCLOUD_CORE ? null :
-                    <ListRowStat icon={"cubeSolid"}>
-                        {resource.specification.product.id} / {resource.specification.product.category}
-                    </ListRowStat>
+                    <div className="tooltip">
+                        <ListRowStat icon={"cubeSolid"}>
+                            {" "}{resource.specification.product.id} / {resource.specification.product.category}
+                        </ListRowStat>
+                        <div className="tooltip-content">
+                            <ProductBox resource={resource} icon="ftFileSystem" />
+                        </div>
+                    </div>
                 }
             </>}
             {RemainingStats ? <RemainingStats resource={resource} /> : null}
@@ -362,3 +379,36 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         />
     }
 };
+
+function UserBox(props: {username: string}) {
+    const avatars = useAvatars();
+    const avatar = avatars.cache[props.username] ?? defaultAvatar;
+    return <div className="user-box" style={{display: "relative"}}>
+        <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />
+        <div className="centered" style={{display: "flex", justifyContent: "center"}}>
+            <h1>{props.username}</h1>
+        </div>
+        {/* Re-add when we know what to render below  */}
+        {/* <div style={{justifyContent: "left", textAlign: "left"}}>
+            <div><b>INFO:</b> The lifespan of foxes depend on where they live.</div>
+            <div><b>INFO:</b> A fox living in the city, usually lives 3-5 years.</div>
+            <div><b>INFO:</b> A fox living in a forest, usually lives 12-15 years.</div>
+        </div> */}
+    </div>;
+}
+
+function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceSpecification>>(
+    props: {
+        resource: T;
+        icon: IconName
+    }
+) {
+    const {resource} = props;
+    const {product} = resource.specification;
+    return <div className="product-box">
+        <Icon size="36px" mr="4px" name={props.icon} /><span>{product.id} / {product.category}</span>
+        <div><b>ID:</b> {product.id}</div>
+        <div><b>Category:</b> {product.category}</div>
+        <div><b>Provider:</b> {product.provider}</div>
+    </div>
+}

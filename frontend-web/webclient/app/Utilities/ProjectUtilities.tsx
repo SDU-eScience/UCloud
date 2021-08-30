@@ -1,4 +1,3 @@
-import * as React from "react";
 import {ProjectName, ProjectRole} from "Project";
 import {ProjectStatus} from "Project/cache";
 
