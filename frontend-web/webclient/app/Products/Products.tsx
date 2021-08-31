@@ -61,14 +61,14 @@ function Products(): JSX.Element {
 }
 
 const DetailedView = styled(Table)`
-  th {
-    text-align: left;
-    border-top: 1px solid rgba(34, 36, 38, .1);
-  }
+    th {
+        text-align: left;
+        border-top: 1px solid rgba(34, 36, 38, .1);
+    }
 
-  th, ${TableCell} {
-    padding: 16px 0;
-  }
+    th, ${TableCell} {
+        padding: 16px 0;
+    }
 `;
 
 const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string }> = ({area, provider}) => {
