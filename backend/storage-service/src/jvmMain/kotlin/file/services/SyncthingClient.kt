@@ -7,6 +7,9 @@ import dk.sdu.cloud.file.SynchronizationConfiguration
 import dk.sdu.cloud.file.api.SynchronizationType
 import dk.sdu.cloud.file.services.SynchronizedFoldersTable
 import dk.sdu.cloud.file.services.UserDevicesTable
+import dk.sdu.cloud.service.DistributedLock
+import dk.sdu.cloud.service.DistributedLockBestEffortFactory
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -223,105 +226,114 @@ data class SyncthingFolderDevice(
 class SyncthingClient(
     val config: SynchronizationConfiguration,
     val db: DBContext,
+    distributedLocks: DistributedLockBestEffortFactory
 ) {
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
     }
     private val mutex = Mutex()
+    private val lock = distributedLocks.create("syncthing-client-writer", duration = 10_000)
 
     private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
         return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
     }
 
     suspend fun writeConfig(toDevices: List<LocalSyncthingDevice> = emptyList()) {
-        mutex.withLock {
-            val devices = toDevices.ifEmpty {
-                config.devices
-            }
+        if (lock.acquire()) {
+            mutex.withLock {
+                val devices = toDevices.ifEmpty {
+                    config.devices
+                }
 
-            val result = db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("devices", devices.map { it.id })
-                    },
-                    """
-                           select id, path, access_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                           from
-                              storage.synchronized_folders f join
-                              storage.user_devices d on f.user_id = d.user_id
-                           where
-                              f.device_id in (select unnest(:devices::text[]))
-                        """
-                )
-            }.rows
-
-            devices.forEach { device ->
-                val newConfig = SyncthingConfig(
-                    devices = result
-                        .filter {
-                            it.getString("local_device_id") == device.id
-                        }
-                        .distinctBy { it.getField(UserDevicesTable.device) }
-                        .map { row ->
-                            SyncthingDevice(
-                                deviceID = row.getField(UserDevicesTable.device),
-                                name = row.getField(UserDevicesTable.device)
-                            )
-                        } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
-                    folders = result
-                        .filter {
-                            it.getString("local_device_id") == device.id
-                        }
-                        .distinctBy { it.getField(SynchronizedFoldersTable.id) }
-                        .map { row ->
-                            SyncthingFolder(
-                                id = row.getField(SynchronizedFoldersTable.id),
-                                label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
-                                devices = result
-                                    .filter {
-                                        it.getString("local_device_id") == device.id &&
-                                            it.getField(SynchronizedFoldersTable.id) == row.getField(
-                                            SynchronizedFoldersTable.id
-                                        ) &&
-                                            it.getField(UserDevicesTable.user) == row.getField(
-                                            SynchronizedFoldersTable.user
-                                        )
-                                    }.map {
-                                        SyncthingFolderDevice(it.getField(UserDevicesTable.device))
-                                    },
-                                path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.id)).absolutePath,
-                                type = SynchronizationType.valueOf(row.getField(SynchronizedFoldersTable.accessType)).syncthingValue,
-                                rescanIntervalS = device.rescanIntervalSeconds
-                            )
+                val result = db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("devices", devices.map { it.id })
                         },
-                    defaults = SyncthingDefaults(),
-                    gui = SyncthingGui(
-                        address = device.hostname,
-                        apiKey = device.apiKey,
-                        user = device.username,
-                        password = device.password
-                    ),
-                    ldap = SyncthingLdap(),
-                    options = SyncthingOptions()
-                )
-
-                val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
-                    body = TextContent(
-                        defaultMapper.encodeToString(newConfig),
-                        ContentType.Application.Json
+                        """
+                               select id, path, access_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                               from
+                                  storage.synchronized_folders f join
+                                  storage.user_devices d on f.user_id = d.user_id
+                               where
+                                  f.device_id in (select unnest(:devices::text[]))
+                            """
                     )
-                    headers {
-                        append("X-API-Key", device.apiKey)
+                }.rows
+
+                if (!lock.renew(10_000)) return@withLock
+
+                devices.forEach { device ->
+                    val newConfig = SyncthingConfig(
+                        devices = result
+                            .filter {
+                                it.getString("local_device_id") == device.id
+                            }
+                            .distinctBy { it.getField(UserDevicesTable.device) }
+                            .map { row ->
+                                SyncthingDevice(
+                                    deviceID = row.getField(UserDevicesTable.device),
+                                    name = row.getField(UserDevicesTable.device)
+                                )
+                            } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                        folders = result
+                            .filter {
+                                it.getString("local_device_id") == device.id
+                            }
+                            .distinctBy { it.getField(SynchronizedFoldersTable.id) }
+                            .map { row ->
+                                SyncthingFolder(
+                                    id = row.getField(SynchronizedFoldersTable.id),
+                                    label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
+                                    devices = result
+                                        .filter {
+                                            it.getString("local_device_id") == device.id &&
+                                                it.getField(SynchronizedFoldersTable.id) == row.getField(
+                                                SynchronizedFoldersTable.id
+                                            ) &&
+                                                it.getField(UserDevicesTable.user) == row.getField(
+                                                SynchronizedFoldersTable.user
+                                            )
+                                        }.map {
+                                            SyncthingFolderDevice(it.getField(UserDevicesTable.device))
+                                        },
+                                    path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.id)).absolutePath,
+                                    type = SynchronizationType.valueOf(row.getField(SynchronizedFoldersTable.accessType)).syncthingValue,
+                                    rescanIntervalS = device.rescanIntervalSeconds
+                                )
+                            },
+                        defaults = SyncthingDefaults(),
+                        gui = SyncthingGui(
+                            address = device.hostname,
+                            apiKey = device.apiKey,
+                            user = device.username,
+                            password = device.password
+                        ),
+                        ldap = SyncthingLdap(),
+                        options = SyncthingOptions()
+                    )
+
+                    val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
+                        body = TextContent(
+                            defaultMapper.encodeToString(newConfig),
+                            ContentType.Application.Json
+                        )
+                        headers {
+                            append("X-API-Key", device.apiKey)
+                        }
+                    }
+
+
+                    if (resp.status != HttpStatusCode.OK) {
+                        throw RPCException(
+                            resp.content.toByteArray().toString(Charsets.UTF_8),
+                            HttpStatusCode.BadRequest
+                        )
                     }
                 }
-
-                if (resp.status != HttpStatusCode.OK) {
-                    throw RPCException(
-                        resp.content.toByteArray().toString(Charsets.UTF_8),
-                        HttpStatusCode.BadRequest
-                    )
-                }
             }
+
+            lock.release()
         }
     }
 
@@ -347,5 +359,9 @@ class SyncthingClient(
                 }
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
