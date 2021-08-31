@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
 import * as Heading from "ui-components/Heading";

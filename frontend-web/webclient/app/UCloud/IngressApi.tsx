@@ -39,17 +39,18 @@ export interface IngressFlags extends ResourceIncludeFlags {
     filterState?: string;
 }
 
-export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}
+export type Ingress = Resource<IngressUpdate, IngressStatus, IngressSpecification>;
 
 class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecification, IngressUpdate,
     IngressFlags, IngressStatus, IngressSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
     page = SidebarPages.Runs;
+    productType = "INGRESS" as const;
 
     renderer: ItemRenderer<Ingress> = {
-        Icon: ({resource, size}) => <Icon name={"globeEuropeSolid"} size={size}/>,
-        MainTitle: ({resource}) => <>{resource?.specification?.domain ?? ""}</>
+        Icon({resource, size}) {return <Icon name={"globeEuropeSolid"} size={size}/>},
+        MainTitle({resource}) {return <>{resource?.specification?.domain ?? ""}</>}
     };
 
     constructor() {
