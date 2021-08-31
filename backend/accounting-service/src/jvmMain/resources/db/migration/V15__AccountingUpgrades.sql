@@ -611,7 +611,7 @@ begin
             accounting.product_categories pc on
                 p.category = pc.id and
                 pc.category = request.product_cat_name and
-                pc.provider = request.product_provider
+                pc.provider = request.product_provider 
         where
             p.version = (
                 select max(version)

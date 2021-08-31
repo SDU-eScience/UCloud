@@ -155,9 +155,58 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-        //testFilter = { title, subtitle ->
-         //   title == "Bad uses of rootDeposit" && subtitle == "Bad product"
-        //}
+        testFilter = { title, subtitle ->
+            title == "Free to use products"
+        }
+
+        run {
+            test<Unit, Unit>("Free to use products") {
+                execute {
+                    createProvider("ucloud")
+
+                    val product = Product.Compute(
+                        "freeCompute",
+                        20L,
+                        ProductCategoryId("ucloud", "ucloud"),
+                        "new description",
+                        freeToUse = true
+                    )
+
+                    Products.create.call(
+                        bulkRequestOf(
+                            product
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    val user1 = createUser("user1")
+                    val targetOwner = WalletOwner.User(user1.username)
+
+                    Accounting.charge.call(
+                        bulkRequestOf(
+                            ChargeWalletRequestItem(
+                                targetOwner,
+                                200000L,
+                                40L,
+                                product.toReference(),
+                                user1.username,
+                                "test charging"
+                            )
+                        ),
+                        serviceClient
+                    )
+                }
+
+                case("charge free to use") {
+                    input(Unit)
+                    check {
+
+                    }
+                }
+
+            }
+
+        }
 
         run {
             class In(

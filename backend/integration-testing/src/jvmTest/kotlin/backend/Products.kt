@@ -163,7 +163,7 @@ fun Product.toReference(): ProductReference = ProductReference(name, category.na
 
 class ProductTest : IntegrationTest() {
     override fun defineTests() {
-        
+
         run {
             class In(
                 val products: List<Product>
