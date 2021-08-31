@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.util.*
@@ -33,7 +35,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     protected abstract fun resourcesFromJob(job: Job): List<Val>
     protected abstract fun isReady(res: Res): Boolean
     protected abstract fun boundUpdate(binding: JobBinding): Update
-    protected abstract fun requireCreditCheck(res: Res, product: Prod): Boolean
     protected open fun bindsExclusively(): Boolean = true
 
     init {
@@ -71,15 +72,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         throw RPCException(
                             "Not all resources can be used in this application",
                             HttpStatusCode.BadRequest
-                        )
-                    }
-
-                    val product = resource.status.resolvedSupport!!.product
-                    if (requireCreditCheck(resource, product)) {
-                        payment.creditCheck(
-                            product,
-                            jobProject ?: jobLauncher,
-                            if (jobProject != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                         )
                     }
                 }

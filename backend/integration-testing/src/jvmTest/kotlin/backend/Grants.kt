@@ -76,9 +76,6 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
-        testFilter = { title, subtitle ->
-            title == "Grant applications, metadata"
-        }
 
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)

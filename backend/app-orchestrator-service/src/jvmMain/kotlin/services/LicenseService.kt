@@ -38,8 +38,6 @@ class LicenseService(
     override val productArea = ProductArea.LICENSE
 
     override fun bindsExclusively(): Boolean = false
-    override fun requireCreditCheck(res: License, product: Product.License): Boolean =
-        !product.freeToUse
 
     override fun userApi() = Licenses
     override fun controlApi() = LicenseControl

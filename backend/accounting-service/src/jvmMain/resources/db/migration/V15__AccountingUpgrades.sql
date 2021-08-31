@@ -1,3 +1,5 @@
+drop extension if exists "uuid-ossp";
+create extension "uuid-ossp" schema public;
 create extension if not exists ltree schema public;
 create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
@@ -599,7 +601,7 @@ begin
             accounting.product_categories pc on
                 p.category = pc.id and
                 pc.category = request.product_cat_name and
-                pc.provider = request.product_provider
+                pc.provider = request.product_provider 
         where
             p.version = (
                 select max(version)
@@ -608,6 +610,47 @@ begin
                     p2.name = p.name and
                     p2.category = p.category
             );
+
+    -- If a request has active allocations with credit remaining, then these must be used
+    -- However, if a request only has active allocations with no credit, then one must be picked.
+    -- We create a single table of all relevant product_and_price + allocations. Later, we will remove allocations
+    -- with a negative balance, but only if we have any allocation with balance remaining.
+
+    create temporary table absolute_allocations on commit drop as
+        select *
+        from
+            product_and_price p left join lateral (
+                select
+                    alloc.id,
+                    alloc.balance,
+                    alloc.allocation_path,
+                    alloc.associated_wallet,
+                    alloc.end_date
+                from
+                    accounting.wallet_allocations alloc join
+                    accounting.wallets w on
+                        alloc.associated_wallet = w.id and
+                        w.category = p.product_category join
+                    accounting.wallet_owner wo on w.owned_by = wo.id
+                where
+                    p.charge_type = 'ABSOLUTE' and
+                    (
+                        (payer_is_project and wo.project_id = payer) or
+                        (not payer_is_project and wo.username = payer)
+                    ) and
+                    now() >= alloc.start_date and
+                    (alloc.end_date is null or now() <= alloc.end_date)
+            ) allocations on true;
+
+    delete from absolute_allocations alloc
+    where
+        balance is null or
+        (
+            balance <= 0 and
+            local_request_id in (
+                select local_request_id from absolute_allocations where balance > 0
+            )
+        );
 
     create temporary table absolute_leaves on commit drop as
         -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
@@ -625,39 +668,25 @@ begin
             id,
             allocation_path,
             associated_wallet,
-            balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
+            greatest(0, balance - greatest(0, balance - (payment_required - (balance_available - balance)))) as subtracted,
             product_id,
             units, number_of_products, performed_by, description,
             payment_required, local_request_id,
             balance_available
         from
-            product_and_price p,
-            lateral (
+            (
                 select
+                    product_id, units, number_of_products, performed_by, description, payment_required, local_request_id,
                     alloc.id,
                     alloc.balance,
                     alloc.allocation_path,
                     alloc.associated_wallet,
                     -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will
                     -- cause invalid results, hence we sort by the ID when we have identical end dates.
-                    sum(alloc.balance) over (order by alloc.end_date nulls last, alloc.id) as balance_available
-                from
-                    accounting.wallet_allocations alloc join
-                    accounting.wallets w on
-                        alloc.associated_wallet = w.id and
-                        w.category = p.product_category join
-                    accounting.wallet_owner wo on w.owned_by = wo.id
-                where
-                    (
-                        (payer_is_project and wo.project_id = payer) or
-                        (not payer_is_project and wo.username = payer)
-                    ) and
-                    now() >= alloc.start_date and
-                    (alloc.end_date is null or now() <= alloc.end_date) and
-                    alloc.balance > 0
-            ) allocations
+                    sum(greatest(0, alloc.balance)) over (partition by local_request_id order by alloc.end_date nulls last, alloc.id) as balance_available
+                from absolute_allocations alloc
+            ) t
         where
-            p.charge_type = 'ABSOLUTE' and
             balance_available - balance < payment_required;
 
     create temporary table differential_leaves on commit drop as
@@ -754,6 +783,8 @@ begin
             from all_leaves a
         ) l join
         (
+            -- NOTE(Dan): Recall that balance_available is the rolling sum over multiple allocations. This is why we
+            -- are interested in the max, to determine how much has actually been charged.
             select local_request_id, max(balance_available) as max_balance
             from all_leaves
             group by local_request_id
@@ -791,34 +822,56 @@ $$;
 -- noinspection SqlResolve
 create or replace function accounting.charge(
     requests accounting.charge_request[]
-) returns void language plpgsql as $$
+) returns setof int language plpgsql as $$
 begin
     -- TODO(Dan): This is currently lacking replay protection
     perform accounting.process_charge_requests(requests);
 
+    create temporary table failed_charges(request_index int) on commit drop;
+
     -- NOTE(Dan): Update the balance of every relevant allocation
     -- NOTE(Dan): We _must_ sum over the local_subtractions. During the update every read of balance will always
     -- return the same value, thus we would get the wrong results if we don't sum to the total change.
-    with combined_balance_subtractions as (
-        select local_id, sum(local_subtraction) local_subtraction
-        from charge_result
-        group by local_id
-    )
-    update accounting.wallet_allocations alloc
-    set balance = balance - local_subtraction
-    from combined_balance_subtractions sub
-    where alloc.id = sub.local_id;
+    with
+        combined_balance_subtractions as (
+            select local_id, sum(local_subtraction) local_subtraction
+            from charge_result
+            group by local_id
+        ),
+        updates as (
+            update accounting.wallet_allocations alloc
+            set balance = balance - local_subtraction
+            from combined_balance_subtractions sub
+            where alloc.id = sub.local_id
+            returning balance - local_subtraction as new_balance, alloc.id as local_id
+        )
+    insert into failed_charges (request_index)
+    select local_request_id
+    from
+        updates u join
+        charge_result c on u.local_id = c.local_id
+    where u.new_balance < 0;
 
-    with combined_local_balance_subtractions as (
-        select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction
-        from charge_result
-        group by local_id
-        having sum(case when leaf_id = local_id then local_subtraction else 0 end) != 0
-    )
-    update accounting.wallet_allocations alloc
-    set local_balance = local_balance - local_subtraction
-    from combined_local_balance_subtractions sub
-    where alloc.id = sub.local_id;
+    with
+        combined_local_balance_subtractions as (
+            select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction
+            from charge_result
+            group by local_id
+            having sum(case when leaf_id = local_id then local_subtraction else 0 end) != 0
+        ),
+        updates as (
+            update accounting.wallet_allocations alloc
+            set local_balance = local_balance - local_subtraction
+            from combined_local_balance_subtractions sub
+            where alloc.id = sub.local_id
+            returning local_balance - local_subtraction as new_balance, alloc.id as local_id
+        )
+    insert into failed_charges (request_index)
+    select local_request_id
+    from
+        updates u join
+        charge_result c on u.local_id = c.local_id
+    where new_balance < 0;
 
     -- NOTE(Dan): Insert a record of every change we did in the transactions table
     insert into accounting.transactions
@@ -827,6 +880,8 @@ begin
     select 'charge', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
            res.leaf_id, res.product_id, res.number_of_products, res.units
     from charge_result res;
+
+    return query select distinct request_index - 1 from failed_charges;
 end;
 $$;
 

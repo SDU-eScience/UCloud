@@ -175,6 +175,7 @@ class GiftService(
                         into("resource_cat_name") { it.productCategory }
                         into("resource_provider") { it.productProvider }
                         into("credits") { it.balanceRequested }
+                        into("quota") { 0 }
                     }
                 },
                 """

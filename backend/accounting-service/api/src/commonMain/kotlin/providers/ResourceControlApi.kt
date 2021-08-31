@@ -25,7 +25,13 @@ data class ResourceChargeCredits(
     val chargeId: String,
 
     @UCloudApiDoc("Amount of units to charge the user")
-    val units: Long
+    val units: Long,
+
+    val numberOfProducts: Long = 1L,
+
+    val performedBy: String? = null,
+
+    val description: String? = null,
 )
 
 @Serializable
