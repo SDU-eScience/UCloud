@@ -31,6 +31,7 @@ import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
+import {Sensitivity} from "UtilityComponents";
 import {ProductStorage} from "Accounting";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
@@ -102,6 +103,35 @@ interface ExtraCallbacks {
     collection?: FileCollection;
 }
 
+// TODO Make version 1.0.0
+const FileSensitivityVersion = "0.2.0";
+const FileSensitivityNamespace = "sensitivity";
+type SensitivityLevel = | "Private" | "Sensitive" | "Confidential";
+let sensitivityTemplateId = "";
+function findSensitivity(file: UFile): SensitivityLevel {
+    if (!sensitivityTemplateId) {
+        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+        if (!sensitivityTemplateId) {
+            return "Private";
+        }
+    }
+
+    // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
+    // TODO(Jonas): The type is not correct if this needs to be cast for this to work
+    const sensitivity = (
+        Object.values(file.status.metadata?.metadata[sensitivityTemplateId] ?? {})[0] as any
+    )?.specification.document.Sensitivity ?? "Private";
+    return sensitivity;
+}
+
+function findTemplateId(file: UFile, namespace: string, version: string): string {
+    const template = Object.values(file.status.metadata?.templates ?? {}).find(it =>
+        it.namespaceName === namespace && it.version == version
+    );
+    if (!template) return "";
+    return template.namespaceId;
+}
+
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
@@ -145,6 +175,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     size={props.size}
                 />;
             return <>{favoriteComponent}{icon}</>
+        },
+        ImportantStats({resource}) {
+            if (!resource) return null;
+            const sensitivity = findSensitivity(resource);
+            return <div><Sensitivity sensitivity={sensitivity} /></div>;
         }
     };
 

@@ -15,6 +15,7 @@ import {Spacer} from "ui-components/Spacer";
 import {ErrorWrapper} from "ui-components/Error";
 import {ThemeColor} from "ui-components/theme";
 import {stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 interface StandardDialog {
     title?: string;
@@ -403,3 +404,33 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
             return <></>;
     }
 }
+
+export function Sensitivity({sensitivity}: {sensitivity: "Private" | "Confidential" | "Sensitive"}): JSX.Element {
+    switch (sensitivity) {
+        case "Confidential":
+            return <SensitivityBadge bg={getCssVar("purple")}>
+                C
+            </SensitivityBadge>
+        case "Sensitive":
+            return <SensitivityBadge bg={"#ff0004"}>
+                S
+            </SensitivityBadge>
+        case "Private":
+        default:
+            return <SensitivityBadge bg={getCssVar("midGray")}>
+                P
+            </SensitivityBadge>;
+    }
+}
+
+const SensitivityBadge = styled.div<{bg: string}>`
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    margin-right: 5px;
+    align-items: center;
+    justify-content: center;
+    border: 0.2em solid ${props => props.bg};
+    border-radius: 100%;
+`;
