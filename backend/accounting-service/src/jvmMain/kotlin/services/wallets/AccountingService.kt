@@ -6,9 +6,12 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
@@ -28,6 +31,7 @@ import okhttp3.internal.toLongOrDefault
 
 class AccountingService(
     val db: DBContext,
+    val providers: Providers<SimpleProviderCommunication>
 ) {
     private val transactionMode = TransactionMode.Serializable(readWrite = true)
 
@@ -142,7 +146,7 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<DepositToWalletRequestItem>,
     ) {
-        db.withSession(remapExceptions = true, transactionMode) { session ->
+        val providerIds = db.withSession(remapExceptions = true, transactionMode) { session ->
             session.sendPreparedStatement(
                 {
                     val initiatedBy by parameterList<String>()
@@ -189,6 +193,28 @@ class AccountingService(
                     from requests
                 """
             )
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("source_allocation") { it.sourceAllocation.toLongOrNull() ?: -1 }
+                    }
+                },
+                """
+                    select distinct pc.provider
+                    from
+                        accounting.wallet_allocations alloc join
+                        accounting.wallets w on alloc.associated_wallet = w.id join
+                        accounting.product_categories pc on w.category = pc.id
+                    where
+                        alloc.id = some(:source_allocation::bigint[])
+                """
+            ).rows.map { it.getString(0)!! }
+        }
+
+        providerIds.forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
         }
     }
 
