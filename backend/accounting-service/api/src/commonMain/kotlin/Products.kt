@@ -19,7 +19,8 @@ enum class ProductType {
     COMPUTE,
     INGRESS,
     LICENSE,
-    NETWORK_IP
+    NETWORK_IP,
+    SYNCHRONIZATION
 }
 
 @Serializable
@@ -277,6 +278,27 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
+        init {
+            verify()
+        }
+    }
+
+    @Serializable
+    @SerialName("synchronization")
+    data class Synchronization(
+        override val name: String,
+        override val pricePerUnit: Long,
+        override val category: ProductCategoryId,
+        override val description: String = "",
+        override val priority: Int = 0,
+        val tags: List<String> = emptyList(),
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
+    ) : Product() {
+        override val productType: ProductType = ProductType.SYNCHRONIZATION
         init {
             verify()
         }

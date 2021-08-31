@@ -2,14 +2,14 @@ package dk.sdu.cloud.file.orchestrator
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
-import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
-import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
@@ -45,6 +45,18 @@ class Server(override val micro: Micro) : CommonServer {
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(fileCollections, providers, providerSupport, metadataService, serviceClient, db)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
+
+        val syncProviders = Providers(serviceClient) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
+        val syncSupport = ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncDeviceSupport>(
+            syncProviders,
+            serviceClient,
+        ) { comms ->
+            SyncFolderProvider(comms.provider.id).retrieveProducts.call(Unit, comms.client).orThrow().responses
+        }
+        val syncDeviceService = SyncDeviceService(db, syncProviders, syncSupport, serviceClient)
+        val syncFolderService = SyncFolderService(db, syncProviders, syncSupport, serviceClient,
+            fileCollections)
+
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)
 
@@ -53,7 +65,9 @@ class Server(override val micro: Micro) : CommonServer {
             FileController(filesService),
             fileCollections.asController(),
             FileMetadataTemplateController(metadataTemplateNamespaces),
-            ShareController(shares)
+            ShareController(shares),
+            syncDeviceService.asController(),
+            syncFolderService.asController()
         )
 
         startServices()

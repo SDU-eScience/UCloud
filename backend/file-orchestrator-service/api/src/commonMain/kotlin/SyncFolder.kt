@@ -1,0 +1,92 @@
+package dk.sdu.cloud.file.orchestrator.api
+
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.*
+import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.provider.api.*
+import kotlinx.serialization.Serializable
+
+enum class SynchronizationType(val syncthingValue: String) {
+    SEND_RECEIVE("sendreceive"),
+    SEND_ONLY("sendonly")
+}
+
+@Serializable
+data class SyncFolder(
+    override val id: String,
+    override val specification: Spec,
+    override val createdAt: Long,
+    override val status: Status,
+    override val updates: List<Update>,
+    override val owner: ResourceOwner,
+    override val permissions: ResourcePermissions?
+) : Resource<Product.Synchronization, SyncFolderSupport> {
+    override val billing: ResourceBilling = ResourceBilling.Free
+    override val acl: List<ResourceAclEntry>? = null
+
+    @Serializable
+    data class Spec(
+        val path: String,
+        override val product: ProductReference,
+    ) : ResourceSpecification
+
+    @Serializable
+    data class Status(
+        val deviceId: String?,
+        val syncType: SynchronizationType,
+        override var resolvedSupport: ResolvedSupport<Product.Synchronization, SyncFolderSupport>? = null,
+        override var resolvedProduct: Product.Synchronization? = null
+    ) : ResourceStatus<Product.Synchronization, SyncFolderSupport>
+
+    @Serializable
+    data class Update(
+        override val timestamp: Long,
+        override val status: String?
+    ) : ResourceUpdate
+}
+
+@Serializable
+data class SyncFolderSupport(override val product: ProductReference) : ProductSupport
+
+@Serializable
+data class SyncFolderIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+) : ResourceIncludeFlags
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
+    Product.Synchronization, SyncFolderSupport>("syncfolders") {
+    override val typeInfo = ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
+        SyncFolder.Status, Product.Synchronization, SyncFolderSupport>()
+
+    override val create get() = super.create!!
+    override val delete get() = super.delete!!
+    override val search get() = super.search!!
+}
+
+object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
+    SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("syncfolders") {
+    override val typeInfo =
+        ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
+            Product.Synchronization, SyncFolderSupport>()
+}
+
+open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
+    SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("syncfolders", provider) {
+    override val typeInfo =
+        ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
+            Product.Synchronization, SyncFolderSupport>()
+
+    override val delete get() = super.delete!!
+}
