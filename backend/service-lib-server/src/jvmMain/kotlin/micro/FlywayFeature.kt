@@ -80,6 +80,8 @@ fun DatabaseConfig.migrateAll() {
         "newaccounting" to 100,
         "file_orchestrator" to 101,
         "app_orchestrator" to 102,
+        "file_ucloud" to 103,
+        "app_kubernetes" to 104,
     )
     var priorityDontCareCounter = 0
 
