@@ -1,3 +1,5 @@
+create extension if not exists "uuid-ossp" schema public;
+
 insert into provider.resource (type, provider, created_by, project, product, provider_generated_id, created_at)
 select 'provider', null, created_by, project, null, i.id, i.created_at
 from provider.providers i;
@@ -83,7 +85,7 @@ begin
         insert into project.projects
         (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
         values (
-           gen_random_uuid()::text,
+           uuid_generate_v4()::text,
            now(),
            now(),
            'Provider: ' || request.requested_id,
@@ -109,7 +111,7 @@ begin
         returning id into resource_id;
     end if;
 
-    select gen_random_uuid() into generated_refresh_token;
+    select uuid_generate_v4() into generated_refresh_token;
 
     insert into provider.providers
         (unique_name, domain, https, port, refresh_token, public_key, resource)
@@ -129,7 +131,7 @@ begin
         public_key_in,
         private_key_in,
         generated_refresh_token,
-        '',
+        uuid_generate_v4()::text,
         true
     );
 

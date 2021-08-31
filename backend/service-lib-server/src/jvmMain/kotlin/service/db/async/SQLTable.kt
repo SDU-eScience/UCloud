@@ -3,6 +3,7 @@ package dk.sdu.cloud.service.db.async
 import org.joda.time.LocalDateTime
 import java.sql.SQLType
 
+@Deprecated("Should be replaced with more efficient queries")
 /**
  * A type safe definition of a SQL table.
  *

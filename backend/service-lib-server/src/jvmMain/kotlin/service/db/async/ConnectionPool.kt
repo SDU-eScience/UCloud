@@ -14,16 +14,36 @@ import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
 import kotlinx.coroutines.future.await
 
+sealed class TransactionMode {
+    abstract val readWrite: Boolean
+    abstract fun toSql(): String
+    protected fun readWriteToSql(): String = if (readWrite) "read write" else "read only"
+
+    class Serializable(override val readWrite: Boolean) : TransactionMode() {
+        override fun toSql(): String = "serializable ${readWriteToSql()}"
+    }
+    class RepeatableRead(override val readWrite: Boolean) : TransactionMode() {
+        override fun toSql(): String = "repeatable read ${readWriteToSql()}"
+    }
+    class ReadCommitted(override val readWrite: Boolean) : TransactionMode() {
+        override fun toSql(): String = "read committed ${readWriteToSql()}"
+    }
+    class ReadUncommitted(override val readWrite: Boolean) : TransactionMode() {
+        override fun toSql(): String = "read uncommitted ${readWriteToSql()}"
+    }
+}
+
 sealed class DBContext
 
 suspend fun <R> DBContext.withSession(
     remapExceptions: Boolean = false,
+    transactionMode: TransactionMode? = null,
     block: suspend (session: AsyncDBConnection) -> R
 ): R {
     try {
         return when (this) {
             is AsyncDBSessionFactory -> {
-                withTransaction<R, AsyncDBConnection> { session ->
+                withTransaction<R, AsyncDBConnection>(transactionMode = transactionMode) { session ->
                     block(session)
                 }
             }
@@ -98,11 +118,15 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
         session.sendQuery("rollback")
     }
 
-    override suspend fun openTransaction(session: AsyncDBConnection) {
+    override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
-        session.sendQuery("set search_path to \"$schema\"")
-        session.sendQuery("begin")
+        session.sendQuery("set search_path to \"$schema\",public")
+        if (transactionMode == null) {
+            session.sendQuery("begin")
+        } else {
+            session.sendQuery("begin transaction isolation level ${transactionMode.toSql()}")
+        }
     }
 
     companion object : Loggable {

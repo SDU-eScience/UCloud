@@ -7,12 +7,11 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting} from "UCloud/index";
-import ProductNS = accounting.ProductNS;
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
-import {CheckboxFilter, DateRangeFilter, EnumFilter, TextFilter} from "Resource/Filter";
+import {EnumFilter} from "Resource/Filter";
 import {ItemRenderer} from "ui-components/Browse";
+import {ProductIngress} from "Accounting";
 
 export interface IngressSpecification extends ResourceSpecification {
     domain: string;
@@ -42,7 +41,7 @@ export interface IngressFlags extends ResourceIncludeFlags {
 
 export interface Ingress extends Resource<IngressUpdate, IngressStatus, IngressSpecification> {}
 
-class IngressApi extends ResourceApi<Ingress, ProductNS.Ingress, IngressSpecification, IngressUpdate,
+class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecification, IngressUpdate,
     IngressFlags, IngressStatus, IngressSupport> {
     routingNamespace = "public-links";
     title = "Public Link";

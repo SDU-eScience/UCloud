@@ -561,16 +561,16 @@ class JobManagement(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
-        Products.retrieveAllFromProvider.call(
-            RetrieveAllFromProviderRequest(UCLOUD_PROVIDER),
+        Products.browse.call(
+            ProductsBrowseRequest(filterProvider = UCLOUD_PROVIDER, filterArea = ProductType.COMPUTE),
             k8.serviceClient
-        ).orThrow().filterIsInstance<Product.Compute>()
+        ).orThrow().items.filterIsInstance<Product.Compute>()
     })
 
     suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
         return BulkResponse(productCache.get(Unit)?.map {
             ComputeSupport(
-                ProductReference(it.id, it.category.id, it.category.provider),
+                ProductReference(it.name, it.category.name, it.category.provider),
                 ComputeSupport.Docker(
                     enabled = true,
                     web = true,

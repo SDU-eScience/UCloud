@@ -22,6 +22,7 @@ data class Configuration(
     val networkInterface: String? = null,
     val providerRefreshToken: String? = null,
     val ucloudCertificate: String? = null,
+    val enabled: Boolean = true
 )
 
 data class CephConfiguration(

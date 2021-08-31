@@ -45,6 +45,7 @@ class Server(
     private var requireTokenInit = false
 
     override fun start() {
+        if (!configuration.enabled) return
         val (refreshToken, validation) =
             if (configuration.providerRefreshToken == null || configuration.ucloudCertificate == null) {
                 if (!micro.developmentModeEnabled && integrationTestingIsKubernetesReady) {
@@ -219,6 +220,7 @@ class Server(
     }
 
     override fun onKtorReady() {
+        if (!configuration.enabled) return
         val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
 
         ktorEngine.application.routing {
@@ -229,6 +231,7 @@ class Server(
 
     override fun stop() {
         super.stop()
+        if (!configuration.enabled) return
         tunnelManager.shutdown()
     }
 }

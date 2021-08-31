@@ -18,7 +18,8 @@ object AccountingService : Service {
 }
 
 data class Configuration(
-    val notificationLimit: Long
+    val notificationLimit: Long,
+    val defaultTemplate: String = "Please describe the reason for applying for resources"
 )
 
 fun main(args: Array<String>) {

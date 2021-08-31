@@ -20,19 +20,21 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {creditFormatter} from "Project/ProjectUsage";
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {bulkRequestOf} from "DefaultObjects";
-import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
-import {accounting, compute} from "UCloud";
+import {compute} from "UCloud";
 import {ResolvedSupport} from "UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import ProductNS = accounting.ProductNS;
+import {
+    priceExplainer,
+    ProductCompute,
+    usageExplainer
+} from "Accounting";
 
 const enterAnimation = keyframes`
   from {
@@ -175,7 +177,7 @@ const Container = styled.div`
   }
 `;
 
-// TODO WS calls don't currently have their types generated
+// NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
     log: { rank: number; stdout?: string; stderr?: string }[];
@@ -222,10 +224,10 @@ export const View: React.FunctionComponent = () => {
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-    const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({includeChildren: true}),
-        {wallets: []}
-    );
+    // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
+    //     retrieveBalance({includeChildren: true}),
+    //     {wallets: []}
+    // );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -249,19 +251,19 @@ export const View: React.FunctionComponent = () => {
 
     async function confirmExtendAllocation(duration: number): Promise<boolean> {
         if (showInsufficientFundsWarning) {
-            fetchBalance({...balanceParams, reloadId: Math.random()});
-            const balance = balanceFetcher.data;
-            if (!balance || !status?.expiresAt || !job) {
-                return true;
-            }
-
-            const expires = status.expiresAt + (3600 * 1000 * duration);
-            //const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
-            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.status.resolvedProduct?.category.id);
-
-            if (!wallet) {
-                return true;
-            }
+            // fetchBalance({...balanceParams, reloadId: Math.random()});
+            // const balance = balanceFetcher.data;
+            // if (!balance || !status?.expiresAt || !job) {
+            //     return true;
+            // }
+            //
+            // const expires = status.expiresAt + (3600 * 1000 * duration);
+            // const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
+            // const wallet = balance.wallets.find(it => it.wallet.paysFor.name === job.status.resolvedProduct?.category.name);
+            //
+            // if (!wallet) {
+            //     return true;
+            // }
 
             /*
             if (wallet.balance < needed) {
@@ -270,8 +272,8 @@ export const View: React.FunctionComponent = () => {
                     message: <>
                         <Box mb="20px">You are trying to extend the allocation of the job beyond your current
                             funds.</Box>
-                        <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
-                        <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
+                        <Box><b>Current balance:</b> {currencyFormatter(wallet.balance)}</Box>
+                        <Box><b>New estimated cost for finishing the job:</b> {currencyFormatter(needed)}</Box>
                         <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when
                             your balance reaches 0 DKK.</Box>
                     </>,
@@ -623,7 +625,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
     const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
         "My Workspace";
 
-    const machine = job.status.resolvedProduct as ProductNS.Compute;
+    const machine = job.status.resolvedProduct! as unknown as ProductCompute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
     const estimatedCost = time ?
         (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
@@ -652,8 +654,12 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
                 icon={"hourglass"}
             >
                 {!isJobStateTerminal(status?.state) ? (<>
-                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
-                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                    {!time ? null : <>
+                        <b>Estimated price:</b>{" "}
+                        {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
+                        <br/>
+                    </>}
+                    <b>Price per hour:</b> {priceExplainer(machine)}
                 </>) : null}
             </InfoCard>
         }

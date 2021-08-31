@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.Role
@@ -208,3 +209,6 @@ class ProviderTest : IntegrationTest() {
         ).orThrow()
     }
 }
+
+
+ */

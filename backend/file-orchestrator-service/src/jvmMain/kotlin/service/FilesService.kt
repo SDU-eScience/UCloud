@@ -521,13 +521,15 @@ class FilesService(
         permission: Permission,
         idGetter: (R) -> String,
     ): List<Pair<R, ProductRefOrResource.SomeResource<FileCollection>>> {
+        val uniqueCollections = request.items.map(idGetter).toSet()
         val collections = fileCollections.retrieveBulk(
             actorAndProject,
-            request.items.map(idGetter),
+            uniqueCollections,
             listOf(permission)
-        )
+        ).associateBy { it.id }
 
-        return request.items.zip(collections).map { (req, coll) ->
+        return request.items.map { req ->
+            val coll = collections.getValue(idGetter(req))
             req to ProductRefOrResource.SomeResource(coll)
         }
     }

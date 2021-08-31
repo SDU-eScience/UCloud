@@ -70,6 +70,14 @@ class EnhancedPreparedStatement(
         parameters = Array(parameterIndex) { null }
     }
 
+    fun retain(vararg names: String) {
+        val newMap = rawParameters.filterKeys { it in names }
+        println(rawParameters)
+        println(newMap)
+        rawParameters.clear()
+        rawParameters.putAll(newMap)
+    }
+
     fun setParameterAsNull(name: String) {
         setParameterUntyped(name, null)
     }
@@ -119,9 +127,7 @@ class EnhancedPreparedStatement(
     }
 
     fun setParameterUntyped(name: String, value: Any?) {
-        val indices = parameterNamesToIndex[name] ?: return run {
-            log.debug("Unused parameter '$name'")
-        }
+        val indices = parameterNamesToIndex[name] ?: return
         for (index in indices) {
             parameters[index] = value
         }
@@ -136,6 +142,14 @@ class EnhancedPreparedStatement(
                     "parameters: ${parameterNamesToIndex.keys}"
         }
         return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+    }
+
+    inline fun <T> splitCollection(collection: Collection<T>, builder: SplitBuilder<T>.() -> Unit) {
+        collection.split(builder)
+    }
+
+    inline fun <T> Collection<T>.split(builder: SplitBuilder<T>.() -> Unit) {
+        SplitBuilder(this, this@EnhancedPreparedStatement).also(builder).endSplitting()
     }
 
     override fun toString(): String {
@@ -196,5 +210,32 @@ class SqlBoundDelegate<T>(
     operator fun setValue(thisRef: Nothing?, property: KProperty<*>, value: T) {
         this.value = value
         statement.setParameterUntyped(property.name.convertCamelToSnake(), value)
+    }
+}
+
+class SplitBuilder<T>(
+    private val collection: Collection<T>,
+    private val statement: EnhancedPreparedStatement
+) {
+    private val splits = ArrayList<Pair<String, (T) -> Any?>>()
+
+    fun <R> into(name: String, splitter: (T) -> R): SplitBuilder<T> {
+        splits.add(Pair(name, splitter))
+        return this
+    }
+
+    fun endSplitting() {
+        val allArgumentLists = HashMap<String, ArrayList<Any?>>()
+        for ((name) in splits) {
+            val args = ArrayList<Any?>()
+            allArgumentLists[name] = args
+            statement.setParameter(name, args)
+        }
+
+        for (item in collection) {
+            for ((name, splitter) in splits) {
+                allArgumentLists.getValue(name).add(splitter(item))
+            }
+        }
     }
 }

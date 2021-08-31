@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
@@ -21,13 +21,15 @@ import theme from "ui-components/theme";
 import Tooltip from "ui-components/Tooltip";
 import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {
-    ProductArea,
-    productCategoryEquals,
-    productToArea,
     ProductCategoryId,
-    retrieveBalance,
-    RetrieveBalanceResponse,
-    WalletBalance
+    ProductMetadata,
+    Product,
+    productCategoryEquals,
+    usageExplainer,
+    productTypeToIcon,
+    ProductType,
+    productTypeToTitle,
+    productTypes, explainAllocation, normalizeBalanceForBackend, normalizeBalanceForFrontend,
 } from "Accounting";
 import styled from "styled-components";
 import HighlightedCard from "ui-components/HighlightedCard";
@@ -61,16 +63,11 @@ import {AvatarHook, useAvatars} from "AvataaarLib/hook";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {Balance, BalanceExplainer, useStoragePrice} from "Accounting/Balance";
 import {useDispatch} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import * as UCloud from "UCloud";
 import grantApi = UCloud.grant.grant;
-import {grant} from "UCloud";
-import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
-import {IconName} from "ui-components/Icon";
-import {AppToolLogo} from "Applications/AppToolLogo";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import ReactModal from "react-modal";
@@ -145,16 +142,14 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-interface WalletBalanceWithEditorInfo extends WalletBalance {
-    /**
-     * `true` if all products have the payment model `FREE_BUT_REQUIRES_BALANCE` in all other cases `false`
-     */
-    isFreeWithBalanceCheck: boolean;
+interface GrantProductCategory {
+    metadata: ProductMetadata;
+    currentBalance?: number;
+    requestedBalance?: number;
 }
 
 interface UseRequestInformation {
-    wallets: WalletBalanceWithEditorInfo[];
-    reloadWallets: () => void;
+    productCategories: GrantProductCategory[];
     targetProject?: string;
     documentRef: React.RefObject<HTMLTextAreaElement>;
     templates: APICallState<ReadTemplatesResponse>;
@@ -167,23 +162,8 @@ interface UseRequestInformation {
     loading: boolean;
 }
 
-interface ProductCategory {
-    area: ProductArea;
-    category: string;
-    provider: string;
-
-    /**
-     * `true` if all products have the payment model `FREE_BUT_REQUIRES_BALANCE` in all other cases `false`
-     */
-    isFreeWithBalanceCheck: boolean;
-}
-
 function useRequestInformation(target: RequestTarget): UseRequestInformation {
     let targetProject: string | undefined;
-    let wallets: WalletBalance[] = [];
-    let reloadWallets = () => {
-        /* empty */
-    };
     let recipient: GrantRecipient;
     let editingApplication: GrantApplication | undefined;
     let approver = false;
@@ -191,8 +171,29 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
     const avatars = useAvatars();
     let loading = false;
 
-    let availableProducts: ProductCategory[];
-    let reloadProducts: () => void;
+    const {appId} = useParams<{appId?: string}>();
+
+    const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
+        {noop: true},
+        {
+            application: {
+                document: "",
+                grantRecipient: {type: "personal", username: Client.username ?? ""},
+                requestedBy: Client.username ?? "",
+                requestedResources: [],
+                resourcesOwnedBy: "unknown",
+                status: GrantApplicationStatus.IN_PROGRESS,
+                grantRecipientPi: Client.username ?? "",
+                id: 0,
+                resourcesOwnedByTitle: "unknown",
+                grantRecipientTitle: "",
+                createdAt: 0,
+                updatedAt: 0
+            },
+            comments: [],
+            approver: false
+        }
+    );
 
     const documentRef = useRef<HTMLTextAreaElement>(null);
     const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
@@ -204,14 +205,6 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         case RequestTarget.EXISTING_PROJECT: {
             const {projectId, projectDetails} = useProjectManagementStatus({isRootComponent: true});
             targetProject = projectDetails.data.parent;
-            const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
-                {noop: true},
-                {wallets: []}
-            );
-            wallets = w.data.wallets;
-            reloadWallets = useCallback(() => {
-                fetchWallets(retrieveBalance({id: projectId, type: "PROJECT", includeChildren: false}));
-            }, [projectId]);
             recipient = {type: "existing_project", projectId};
             break;
         }
@@ -220,14 +213,6 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         case RequestTarget.PERSONAL_PROJECT: {
             const {projectId} = useParams<{projectId: string}>();
             targetProject = projectId;
-            const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
-                {noop: true},
-                {wallets: []}
-            );
-            wallets = w.data.wallets;
-            reloadWallets = useCallback(() => {
-                fetchWallets(retrieveBalance({id: Client.username!, type: "USER", includeChildren: false}));
-            }, [projectId]);
             if (target === RequestTarget.NEW_PROJECT) {
                 recipient = {type: "new_project", projectTitle: "placeholder"};
             } else {
@@ -237,120 +222,83 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         }
 
         case RequestTarget.VIEW_APPLICATION: {
-            const {appId} = useParams<{appId: string}>();
-
-            const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
-                {noop: true},
-                {
-                    application: {
-                        document: "",
-                        grantRecipient: {type: "personal", username: Client.username ?? ""},
-                        requestedBy: Client.username ?? "",
-                        requestedResources: [],
-                        resourcesOwnedBy: "unknown",
-                        status: GrantApplicationStatus.IN_PROGRESS,
-                        grantRecipientPi: Client.username ?? "",
-                        id: 0,
-                        resourcesOwnedByTitle: "unknown",
-                        grantRecipientTitle: "",
-                        createdAt: 0,
-                        updatedAt: 0
-                    },
-                    comments: [],
-                    approver: false
-                }
-            );
-
             targetProject = grantApplication.data.application.resourcesOwnedBy;
-            wallets = grantApplication.data.application.requestedResources.map(it => {
-                // Note: Some of these are simply placeholder values and are replaced later
-                return {
-                    wallet: {
-                        paysFor: {
-                            id: it.productCategory,
-                            provider: it.productProvider
-                        },
-                        id: "unknown",
-                        type: "USER"
-                    },
-                    balance: it.creditsRequested ?? 0,
-                    used: 0,
-                    allocated: 0,
-                    area: "COMPUTE"
-                };
-            });
             recipient = grantApplication.data.application.grantRecipient;
             comments = grantApplication.data.comments;
             approver = grantApplication.data.approver;
             editingApplication = grantApplication.data.application;
-
-            reloadWallets = useCallback(() => {
-                fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
-            }, [appId]);
-
-            useEffect(() => {
-                reloadWallets();
-            }, [appId]);
 
             loading = loading || grantApplication.loading;
             break;
         }
     }
 
-    {
-        const [products, fetchProducts] = useCloudAPI<GrantsRetrieveProductsResponse>(
-            {noop: true},
-            {availableProducts: []}
-        );
+    const [products, fetchProducts] = useCloudAPI<{ availableProducts: Product[] }>(
+        {noop: true},
+        {availableProducts: []}
+    );
 
-        availableProducts = [];
+    const reloadProducts = useCallback(() => {
+        if (targetProject && targetProject !== "unknown") {
+            fetchProducts(grantApi.retrieveProducts({
+                projectId: targetProject,
+                recipientType: recipient.type,
+                recipientId:
+                    recipient.type === "existing_project" ? recipient.projectId :
+                        recipient.type === "new_project" ? recipient.projectTitle :
+                            recipient.type === "personal" ? recipient.username : "",
+                showHidden: false
+            }));
+        }
+    }, [targetProject, recipient.type]);
+
+    const productCategories: GrantProductCategory[] = useMemo(() => {
+        const result: GrantProductCategory[] = [];
         for (const product of products.data.availableProducts) {
-            const isFreeWithBalanceCheck = "paymentModel" in product &&
-                product.paymentModel === "FREE_BUT_REQUIRE_BALANCE";
+            const metadata: ProductMetadata = {
+                category: product.category,
+                freeToUse: product.freeToUse,
+                productType: product.productType,
+                chargeType: product.chargeType,
+                hiddenInGrantApplications: product.hiddenInGrantApplications,
+                unitOfPrice: product.unitOfPrice
+            };
 
-            const existing = availableProducts.find(it =>
-                it.category === product.category.id &&
-                it.provider === product.category.provider
-            );
-
-            if (existing && existing.isFreeWithBalanceCheck) {
-                existing.isFreeWithBalanceCheck = isFreeWithBalanceCheck;
-            } else if (!existing) {
-                availableProducts.push({
-                    isFreeWithBalanceCheck,
-                    provider: product.category.provider,
-                    category: product.category.id,
-                    area: productToArea(product)
-                })
+            if (result.find(it => productCategoryEquals(it.metadata.category, metadata.category)) === undefined) {
+                result.push({metadata});
             }
         }
 
-        reloadProducts = useCallback(() => {
-            if (targetProject && targetProject !== "unknown") {
-                fetchProducts(grantApi.retrieveProducts({
-                    projectId: targetProject,
-                    recipientType: recipient.type,
-                    recipientId:
-                        recipient.type === "existing_project" ? recipient.projectId :
-                            recipient.type === "new_project" ? recipient.projectTitle :
-                                recipient.type === "personal" ? recipient.username : "",
-                    showHidden: false
-                }));
+        if (editingApplication !== undefined) {
+            for (const request of editingApplication.requestedResources) {
+                const existing = result.find(it =>
+                    productCategoryEquals(
+                        it.metadata.category,
+                        {name: request.productCategory, provider: request.productProvider})
+                );
+
+                if (existing) {
+                    existing.requestedBalance = request.creditsRequested;
+                }
             }
-        }, [targetProject, recipient.type]);
-    }
+        }
+        return result;
+    }, [products.data, editingApplication]);
 
     const reload = useCallback(() => {
         if (targetProject && targetProject !== "unknown") {
             fetchTemplates(readTemplates({projectId: targetProject}));
-            reloadWallets();
             reloadProducts();
         }
-    }, [targetProject]);
+
+        if (appId) {
+            fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
+        }
+    }, [targetProject, appId]);
 
     useEffect(() => {
         reload();
-    }, [targetProject]);
+    }, [targetProject, appId]);
 
     useEffect(() => {
         if (documentRef.current) {
@@ -377,42 +325,14 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         avatars.updateCache(usernames);
     }, [comments]);
 
-    const mergedWallets: WalletBalanceWithEditorInfo[] = [];
-    {
-        // Put in all products and attach a price, if there is one
-        for (const product of availableProducts) {
-            mergedWallets.push({
-                area: product.area,
-                balance: 0,
-                used: 0,
-                allocated: 0,
-                wallet: {
-                    type: "USER",
-                    id: "unknown",
-                    paysFor: {id: product.category, provider: product.provider}
-                },
-                isFreeWithBalanceCheck: product.isFreeWithBalanceCheck
-            });
-        }
-
-        for (const wallet of wallets) {
-            for (const pWallet of mergedWallets) {
-                if (productCategoryEquals(pWallet.wallet.paysFor, wallet.wallet.paysFor)) {
-                    pWallet.balance = wallet.balance;
-                    break;
-                }
-            }
-        }
-    }
-
     return {
-        wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, editingApplication,
+        productCategories, targetProject, documentRef, templates, recipient, editingApplication,
         comments, avatars, reload, approver, loading
     };
 }
 
 function productCategoryId(pid: ProductCategoryId): string {
-    return `${pid.id}/${pid.provider}`;
+    return `${pid.name}/${pid.provider}`;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -423,160 +343,13 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     return parsed;
 }
 
-const StorageRequestCard: React.FunctionComponent<{
-    wb: WalletBalance,
-    state: UseRequestInformation,
-    grantFinalized: boolean,
-    isLocked: boolean,
-    storagePrice: number
-}> = ({wb, state, grantFinalized, isLocked, storagePrice}) => {
-    const onQuotaChange = (): void => {
-        const quota = document.querySelector(
-            `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
-        )! as HTMLInputElement;
-
-        const duration = document.querySelector(
-            `input[data-target="duration-${productCategoryId(wb.wallet.paysFor)}"]`
-        )! as HTMLInputElement;
-
-        const balance = document.querySelector(
-            `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
-        )! as HTMLInputElement;
-
-        const durationMonths = parseInt(duration.value, 10);
-        const quotaGb = parseInt(quota.value, 10);
-        if (balance) {
-            balance.value = Math.ceil((durationMonths * 30 * quotaGb * storagePrice) / 1000000).toString();
-        }
-    };
-
-    return <RequestForSingleResourceWrapper>
-        <HighlightedCard color="blue" isLoading={false}>
-            <table>
-                <tbody>
-                    <tr>
-                        <th>Product</th>
-                        <td>
-                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
-                            <Icon
-                                name={"ftFileSystem"}
-                                size={40}
-                            />
-                        </td>
-                    </tr>
-
-
-                    <tr>
-                        <th>
-                            How much&nbsp;
-                        {state.recipient.type !== "new_project" ?
-                                "additional " : ""
-                            }
-                        data will be stored?
-                        <br />
-                            <HelpText>
-                                You will not be able to store more data than the amount specified here.
-                        </HelpText>
-                        </th>
-                        <td>
-                            <Flex alignItems="center">
-                                <Input
-                                    placeholder="0"
-                                    disabled={grantFinalized || isLocked}
-                                    data-target={
-                                        "quota-" +
-                                        productCategoryId(wb.wallet.paysFor)
-                                    }
-                                    onInput={onQuotaChange}
-                                    autoComplete="off"
-                                    type="number"
-                                    min={0}
-                                />
-                                <div className="unit">GB</div>
-                            </Flex>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>
-                            For how long should the&nbsp;
-                        {state.recipient.type !== "new_project" ?
-                                "additional " : ""
-                            }
-                        data be stored?
-                        <br />
-                            <HelpText>
-                                You will be granted enough credits to store your files for at least this long.
-                                We will always attempt to notify you before deleting your data.
-                        </HelpText>
-                        </th>
-                        <td>
-                            <Flex alignItems={"center"}>
-                                <Input
-                                    placeholder={"0"}
-                                    disabled={grantFinalized || isLocked}
-                                    data-target={
-                                        "duration-" +
-                                        productCategoryId(wb.wallet.paysFor)
-                                    }
-                                    onInput={onQuotaChange}
-                                    autoComplete="off"
-                                    type="number"
-                                    min={0}
-                                />
-                                <div className={"unit"}>Months</div>
-                            </Flex>
-                        </td>
-                    </tr>
-                    <tr />
-                    {state.editingApplication !== undefined || state.recipient.type === "new_project" ? null : (
-                        <tr>
-                            <th>Current balance</th>
-                            <td>
-                                <Balance
-                                    amount={wb.balance}
-                                    productCategory={wb.wallet.paysFor}
-                                />
-                            </td>
-                        </tr>
-                    )}
-                    <tr>
-                        <th>
-                            Balance requested
-                        <br />
-                            <HelpText>
-                                Note: You only pay for what you use.
-                                If you only use 50% of your quota you will
-                                be able to store your data for twice as long.
-                        </HelpText>
-                        </th>
-                        <td>
-                            <Flex alignItems={"center"}>
-                                <Input
-                                    placeholder={"0"}
-                                    disabled={true}
-                                    data-target={productCategoryId(wb.wallet.paysFor)}
-                                    autoComplete="off"
-                                    type="number"
-                                    min={0}
-                                />
-                                <div className={"unit"}>DKK</div>
-                            </Flex>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </HighlightedCard>
-    </RequestForSingleResourceWrapper>;
-};
-
 const GenericRequestCard: React.FunctionComponent<{
-    wb: WalletBalanceWithEditorInfo,
+    wb: GrantProductCategory,
     state: UseRequestInformation,
     grantFinalized: boolean,
     isLocked: boolean
-    icon: IconName;
-}> = ({wb, state, grantFinalized, isLocked, icon}) => {
-    if (wb.isFreeWithBalanceCheck) {
+}> = ({wb, grantFinalized, isLocked}) => {
+    if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color={"blue"} isLoading={false}>
                 <Flex flexDirection={"row"} alignItems={"center"}>
@@ -584,16 +357,13 @@ const GenericRequestCard: React.FunctionComponent<{
                         <Label>
                             <Checkbox
                                 size={32}
-                                defaultChecked={wb.balance > 0 && state.recipient.type !== "new_project"}
-                                disabled={
-                                    grantFinalized || isLocked || (state.editingApplication === undefined &&
-                                        state.recipient.type !== "new_project" && wb.balance > 0)
-                                }
-                                data-target={"checkbox-" + productCategoryId(wb.wallet.paysFor)}
+                                defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
+                                disabled={grantFinalized || isLocked}
+                                data-target={"checkbox-" + productCategoryId(wb.metadata.category)}
                                 onChange={e => {
                                     const checkbox = e.target as HTMLInputElement;
                                     const input = document.querySelector(
-                                        `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
+                                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
                                     ) as HTMLInputElement;
 
                                     if (input) {
@@ -603,19 +373,15 @@ const GenericRequestCard: React.FunctionComponent<{
                                     }
                                 }}
                             />
-                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                            {wb.metadata.category.provider} / {wb.metadata.category.name}
                         </Label>
                     </Box>
-                    {wb.area !== "LICENSE" ? (
-                        <Icon name={icon} size={40} />
-                    ) : (
-                        <AppToolLogo name={wb.wallet.paysFor.id} type={"TOOL"} size={"40px"} />
-                    )}
+                    <Icon name={productTypeToIcon(wb.metadata.productType)} size={40}/>
                 </Flex>
 
                 <Input
                     disabled={grantFinalized || isLocked}
-                    data-target={productCategoryId(wb.wallet.paysFor)}
+                    data-target={productCategoryId(wb.metadata.category)}
                     autoComplete="off"
                     type="hidden"
                     min={0}
@@ -630,53 +396,41 @@ const GenericRequestCard: React.FunctionComponent<{
                         <tr>
                             <th>Product</th>
                             <td>
-                                {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
-                                <Icon
-                                    name={icon}
-                                    size={40}
-                                />
+                                {wb.metadata.category.provider} / {wb.metadata.category.name}
+                                <Icon name={productTypeToIcon(wb.metadata.productType)} size={40}/>
                             </td>
                         </tr>
-                        {state.editingApplication !== undefined || state.recipient.type === "new_project" ? null : (
+                        {wb.currentBalance === undefined ? null : (
                             <tr>
                                 <th>Current balance</th>
                                 <td>
-                                    <Balance
-                                        amount={wb.balance}
-                                        productCategory={wb.wallet.paysFor}
-                                    />
+                                    {usageExplainer(wb.currentBalance, wb.metadata.productType, wb.metadata.chargeType,
+                                        wb.metadata.unitOfPrice)}
                                 </td>
                             </tr>
                         )}
                         <tr>
-                            <th>Balance requested</th>
+                            <th>
+                                {wb.metadata.chargeType === "ABSOLUTE" ?
+                                    <>Balance requested</> :
+                                    <>Quota requested</>
+                                }
+                            </th>
                             <td>
                                 <Flex alignItems={"center"}>
                                     <Input
                                         placeholder={"0"}
                                         disabled={grantFinalized || isLocked}
-                                        data-target={productCategoryId(wb.wallet.paysFor)}
+                                        data-target={productCategoryId(wb.metadata.category)}
                                         autoComplete="off"
                                         type="number"
                                         min={0}
                                     />
-                                    <div className={"unit"}>DKK</div>
+                                    <div className={"unit"}>
+                                        {explainAllocation(wb.metadata.productType, wb.metadata.chargeType,
+                                            wb.metadata.unitOfPrice)}
+                                    </div>
                                 </Flex>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th />
-                            <td>
-                                {wb.area !== "COMPUTE" ? null :
-                                    <HelpText>
-                                        1.000 DKK ={" "}
-                                        <BalanceExplainer
-                                            amount={1_000_000_000}
-                                            productCategory={wb.wallet.paysFor}
-                                        />
-
-                                    </HelpText>
-                                }
                             </td>
                         </tr>
                     </tbody>
@@ -699,7 +453,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const history = useHistory();
         const dispatch = useDispatch();
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-        const storagePrice = useStoragePrice(); // Note: This will change later
 
         switch (target) {
             case RequestTarget.EXISTING_PROJECT:
@@ -740,40 +493,27 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
             }
 
-            const requestedResources = state.wallets.map(wb => {
+            const requestedResources = state.productCategories.map(wb => {
                 let creditsRequested = parseIntegerFromInput(
                     document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
+                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
                     )
                 );
-                if (creditsRequested) creditsRequested = creditsRequested * 1000000;
-
-                let quotaRequested = parseIntegerFromInput(
-                    document.querySelector<HTMLInputElement>(
-                        `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
-                    )
-                );
-
-                if (wb.area === "STORAGE") {
-                    if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
-                        if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
-                            snackbarStore.addFailure("Please fill out both \"Resources\" and \"Quota\" for requested storage product", false);
-                            return;
-                        }
-                    }
+                if (creditsRequested) {
+                    creditsRequested = normalizeBalanceForBackend(
+                        creditsRequested,
+                        wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
+                    );
                 }
 
-                if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
-
-                if (creditsRequested === undefined && quotaRequested === undefined) {
+                if (creditsRequested === undefined) {
                     return null;
                 }
 
                 return {
                     creditsRequested,
-                    quotaRequested,
-                    productCategory: wb.wallet.paysFor.id,
-                    productProvider: wb.wallet.paysFor.provider
+                    productCategory: wb.metadata.category.name,
+                    productProvider: wb.metadata.category.provider
                 } as ResourceRequest;
             }).filter(it => it !== null) as ResourceRequest[];
 
@@ -798,7 +538,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 state.reload();
                 setIsLocked(true);
             }
-        }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
+        }, [state.targetProject, state.documentRef, state.recipient, state.productCategories, projectTitleRef,
         state.editingApplication?.id, state.reload]);
 
         const approveRequest = useCallback(async () => {
@@ -851,10 +591,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [state.editingApplication?.id]);
 
         useEffect(() => {
+            let timeout = 0;
             if (state.editingApplication !== undefined) {
                 for (const resource of state.editingApplication.requestedResources) {
                     const credits = resource.creditsRequested;
-                    const quota = resource.quotaRequested;
 
                     // TODO(Dan): The following code is a terrible idea.
                     // This code is in here only because we did not notice the error until it was already in production
@@ -872,34 +612,36 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         const creditsInput = document.querySelector<HTMLInputElement>(
                             `input[data-target="${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
-                            })}"]`
-                        );
-
-                        const quotaCredits = document.querySelector<HTMLInputElement>(
-                            `input[data-target="quota-${productCategoryId({
-                                provider: resource.productProvider,
-                                id: resource.productCategory
-                            })}"]`
-                        );
-
-                        const durationInput = document.querySelector<HTMLInputElement>(
-                            `input[data-target="duration-${productCategoryId({
-                                provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 
                         const freeButRequireBalanceCheckbox = document.querySelector<HTMLInputElement>(
                             `input[data-target="checkbox-${productCategoryId({
                                 provider: resource.productProvider,
-                                id: resource.productCategory
+                                name: resource.productCategory
                             })}"]`
                         );
 
                         if (credits !== undefined) {
                             if (creditsInput) {
-                                creditsInput.value = (credits / 1000000).toFixed(0);
+                                const category = state.productCategories.find(it =>
+                                    productCategoryEquals(
+                                        it.metadata.category,
+                                        {name: resource.productCategory, provider: resource.productProvider}
+                                    )
+                                );
+
+                                if (category == null) {
+                                    success = false;
+                                } else {
+                                    const meta = category.metadata;
+                                    creditsInput.value = normalizeBalanceForFrontend(
+                                        credits,
+                                        meta.productType, meta.chargeType, meta.unitOfPrice,
+                                        false, 0
+                                    );
+                                }
                             } else {
                                 success = false;
                             }
@@ -911,39 +653,23 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             }
                         }
 
-                        if (quota) {
-                            if (quotaCredits) {
-                                quotaCredits.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
-                            } else {
-                                success = false;
-                            }
-                        }
-
-                        if (quota != null && credits != null && storagePrice != null) {
-                            const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
-                            if (durationInput) {
-                                if (pricePerMonth !== 0) {
-                                    durationInput.value = Math.floor(credits / pricePerMonth).toString();
-                                }
-                            } else {
-                                success = false;
-                            }
-                        }
-
                         if (!success) {
                             if (attempts > 10) {
-                                snackbarStore.addFailure("Unable to render application", true);
+                                return;
                             } else {
                                 attempts++;
-                                setTimeout(work, 500);
+                                timeout = setTimeout(work, 500);
                             }
                         }
                     };
 
-                    setTimeout(work, 0);
+                    timeout = setTimeout(work, 0);
                 }
             }
-        }, [state.editingApplication, storagePrice]);
+            return () => {
+                clearTimeout(timeout);
+            }
+        }, [state.editingApplication, state.productCategories]);
 
         const [transferringApplication, setTransferringApplication] = useState(false);
 
@@ -1120,85 +846,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
                             </Heading.h3>
 
-                            {state.wallets.filter(wallet => wallet.area == "STORAGE").length < 1 ? null :
-                                <>
-                                    <Heading.h4 mt={32}><Flex>Storage <ProductLink /></Flex></Heading.h4>
-                                    <ResourceContainer>
-                                        {state.wallets.map((it, idx) => (
-                                            it.area !== "STORAGE" ? null :
-                                                <StorageRequestCard
-                                                    wb={it}
-                                                    state={state}
-                                                    grantFinalized={grantFinalized}
-                                                    isLocked={isLocked}
-                                                    storagePrice={storagePrice}
-                                                    key={idx}
-                                                />
-                                        ))}
-                                    </ResourceContainer>
-                                </>
-                            }
-
-                            {state.wallets.filter(wallet => wallet.area == "COMPUTE").length < 1 ? null :
-                                <>
-                                    <Heading.h4 mt={32}><Flex>Compute <ProductLink /></Flex></Heading.h4>
-                                    <ResourceContainer>
-                                        {state.wallets.map((it, idx) => (
-                                            it.area !== "COMPUTE" ? null :
-                                                <GenericRequestCard
-                                                    key={idx}
-                                                    wb={it}
-                                                    state={state}
-                                                    grantFinalized={grantFinalized}
-                                                    isLocked={isLocked}
-                                                    icon={"cpu"}
-                                                />
-                                        ))}
-                                    </ResourceContainer>
-                                </>
-                            }
-
-                            {state.wallets.filter(wallet => wallet.area == "INGRESS").length < 1 ? null :
-                                <>
-                                    <Heading.h4 mt={32}><Flex>Public Links <ProductLink /></Flex></Heading.h4>
-                                    <ResourceContainer>
-                                        {state.wallets.map((it, idx) => (
-                                            it.area !== "INGRESS" ? null :
-                                                <GenericRequestCard key={idx} wb={it} state={state}
-                                                    grantFinalized={grantFinalized} isLocked={isLocked}
-                                                    icon={"favIcon"} />
-                                        ))}
-                                    </ResourceContainer>
-                                </>
-                            }
-
-                            {state.wallets.filter(wallet => wallet.area == "LICENSE").length < 1 ? null :
-                                <>
-                                    <Heading.h4 mt={32}><Flex>Application Licenses <ProductLink /></Flex></Heading.h4>
-                                    <ResourceContainer>
-                                        {state.wallets.map((it, idx) => (
-                                            it.area !== "LICENSE" ? null :
-                                                <GenericRequestCard key={idx} wb={it} state={state}
-                                                    grantFinalized={grantFinalized} isLocked={isLocked}
-                                                    icon={"license"} />
-                                        ))}
-                                    </ResourceContainer>
-                                </>
-                            }
-
-                            {state.wallets.filter(wallet => wallet.area == "NETWORK_IP").length < 1 ? null :
-                                <>
-                                    <Heading.h4 mt={32}><Flex>Public IPs <ProductLink /></Flex></Heading.h4>
-                                    <ResourceContainer>
-                                        {state.wallets.map((it, idx) => (
-                                            it.area !== "NETWORK_IP" ? null :
-                                                <GenericRequestCard key={idx} wb={it} state={state}
-                                                    grantFinalized={grantFinalized} isLocked={isLocked}
-                                                    icon={"moon"} />
-                                        ))}
-                                    </ResourceContainer>
-                                </>
-                            }
+                            {productTypes.map(type => (
+                                <ProductCategorySection state={state} type={type} isLocked={isLocked} key={type}/>
+                            ))}
 
                             <CommentApplicationWrapper>
                                 <RequestFormContainer>
@@ -1278,6 +928,34 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         );
     };
 
+const ProductCategorySection: React.FunctionComponent<{
+    state: UseRequestInformation;
+    type: ProductType;
+    isLocked: boolean;
+}> = ({state, type, isLocked}) => {
+    const grantFinalized = isGrantFinalized(state.editingApplication?.status);
+    const filtered = useMemo(
+        () => state.productCategories.filter(pc => pc.metadata.productType == type),
+        [state.productCategories, type]
+    );
+
+    if (filtered.length < 1) return null;
+    return <>
+        <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
+        <ResourceContainer>
+            {filtered.map((it, idx) => (
+                <GenericRequestCard
+                    key={idx}
+                    wb={it}
+                    state={state}
+                    grantFinalized={grantFinalized}
+                    isLocked={isLocked}
+                />
+            ))}
+        </ResourceContainer>
+    </>
+};
+
 interface TransferApplicationPromptProps {
     isActive: boolean;
     grantId: number;
@@ -1325,7 +1003,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                                 height="40px"
                                 onAction={async () => {
                                     close();
-                                    //Show that we are transfering
+                                    // Show that we are transferring
                                     dispatch(setLoading(true));
                                     await transfer(it.projectId);
                                     dispatch(setLoading(false));

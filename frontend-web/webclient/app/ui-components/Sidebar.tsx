@@ -2,7 +2,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, useFrameHidden} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, joinToString, useFrameHidden} from "UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -14,8 +14,9 @@ import RBox from "./RBox";
 import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
-import {useEffect} from "react";
+import {useCallback, useEffect} from "react";
 import {setActivePage} from "Navigation/Redux/StatusActions";
+import {useProjectId, useProjectManagementStatus} from "Project";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -211,6 +212,16 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
 
     if (useFrameHidden()) return null;
 
+    const projectId = useProjectId();
+    const projectStatus = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
+    const projectPath = joinToString(
+        [...(projectStatus.projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectStatus.projectDetails.data.title],
+        "/"
+    );
+    const copyProjectPath = useCallback(() => {
+        copyToClipboard({ value: projectPath, message: "Project copied to clipboard!" });
+    }, [projectPath]);
+
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
@@ -234,6 +245,27 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {!projectId ? null : <>
+                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
+                                  title={projectPath}>
+                    <Tooltip
+                        left="-50%"
+                        top="1"
+                        mb="35px"
+                        trigger={(
+                            <EllipsedText
+                                cursor="pointer"
+                                onClick={copyProjectPath}
+                                width="140px"
+                            >
+                                {projectPath}
+                            </EllipsedText>
+                        )}
+                    >
+                        Click to copy to clipboard
+                    </Tooltip>
+                </SidebarTextLabel>
+            </>}
             {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"

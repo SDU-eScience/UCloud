@@ -49,7 +49,7 @@ class PathConverter(
     private val serviceClient: AuthenticatedClient,
 ) {
     private val collectionCache = SimpleCache<String, FileCollection>(
-        maxAge = 60_000 * 10,
+        maxAge = 60_000 * 10L,
         lookup = { collectionId ->
             FileCollectionsControl.retrieve.call(
                 ResourceRetrieveRequest(FileCollectionIncludeFlags(), collectionId),
@@ -64,6 +64,8 @@ class PathConverter(
         val collectionId = components[0]
         val withoutCollection = components.drop(1)
 
+        println(file)
+        println("collectionId = $collectionId")
         val collection = collectionCache.get(collectionId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val storedName = collection.providerGeneratedId ?: collection.id
 
@@ -74,7 +76,7 @@ class PathConverter(
                     append('/')
                     append(HOME_DIRECTORY)
                     append('/')
-                    append(collectionId.removePrefix(COLLECTION_HOME_PREFIX))
+                    append(storedName.removePrefix(COLLECTION_HOME_PREFIX))
                     for ((idx, component) in withoutCollection.withIndex()) {
                         if (idx == 0) continue
                         append('/')
@@ -83,8 +85,7 @@ class PathConverter(
                 }
             )
         } else if (storedName.startsWith(COLLECTION_PROJECT_PREFIX)) {
-            val (projectId, repository) = collectionToProjectRepositoryOrNull(collectionId)
-                ?: throw FSException.NotFound()
+            val (projectId, repository) = storedName.removePrefix(COLLECTION_PROJECT_PREFIX).split("/")
 
             return InternalFile(
                 buildString {
@@ -119,6 +120,18 @@ class PathConverter(
         }
     }
 
+    fun collectionLocation(collectionId: String): InternalFile {
+        return InternalFile(
+            buildString {
+                append(rootDirectory.path)
+                append('/')
+                append(COLLECTION_DIRECTORY)
+                append('/')
+                append(collectionId)
+            }
+        )
+    }
+
     fun projectRepositoryLocation(projectId: String, repository: String): InternalFile {
         return InternalFile(
             buildString {
@@ -131,19 +144,6 @@ class PathConverter(
                 append(repository)
             }
         )
-    }
-
-    private data class ProjectRepository(val projectId: String, val repository: String)
-    private fun collectionToProjectRepositoryOrNull(collection: String): ProjectRepository? {
-        if (!collection.startsWith(COLLECTION_PROJECT_PREFIX)) return null
-        val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
-        val splitterIdx = withoutPrefix.indexOfLast { it == '_' }
-        if (splitterIdx == -1) throw FSException.NotFound()
-        if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
-        val projectId = withoutPrefix.substring(0, splitterIdx)
-        val repository = withoutPrefix.substring(splitterIdx + 1)
-
-        return ProjectRepository(projectId, repository)
     }
 
     fun internalToUCloud(file: InternalFile): UCloudFile {
@@ -206,7 +206,7 @@ class PathConverter(
         const val PROJECT_DIRECTORY = "projects"
         const val COLLECTION_DIRECTORY = "collections"
 
-        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs", UCLOUD_PROVIDER)
+        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
     }
 }
 

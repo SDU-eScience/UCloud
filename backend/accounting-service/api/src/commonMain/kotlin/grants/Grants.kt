@@ -97,7 +97,15 @@ sealed class UserCriteria {
      */
     @Serializable
     @SerialName(UserCriteria.ANYONE_TYPE)
-    class Anyone : UserCriteria()
+    class Anyone : UserCriteria() {
+        override fun equals(other: Any?): Boolean {
+            return other is Anyone
+        }
+
+        override fun hashCode(): Int {
+            return this::class.hashCode()
+        }
+    }
 
     /**
      * Matches any user with an email domain equal to [domain]
@@ -191,11 +199,13 @@ enum class GrantApplicationFilter {
 
 @Serializable
 data class IngoingApplicationsRequest(
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
-) : WithPaginationRequest
-typealias IngoingApplicationsResponse = Page<Application>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias IngoingApplicationsResponse = PageV2<Application>
 
 @Serializable
 data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
@@ -204,11 +214,13 @@ data class ApplicationWithComments(val application: Application, val comments: L
 
 @Serializable
 data class OutgoingApplicationsRequest(
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
-) : WithPaginationRequest
-typealias OutgoingApplicationsResponse = Page<Application>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias OutgoingApplicationsResponse = PageV2<Application>
 
 typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
@@ -233,15 +245,15 @@ enum class ApplicationStatus {
 sealed class GrantRecipient {
     @Serializable
     @SerialName(GrantRecipient.PERSONAL_TYPE)
-    class PersonalProject(val username: String) : GrantRecipient()
+    data class PersonalProject(val username: String) : GrantRecipient()
 
     @Serializable
     @SerialName(GrantRecipient.EXISTING_PROJECT_TYPE)
-    class ExistingProject(val projectId: String) : GrantRecipient()
+    data class ExistingProject(val projectId: String) : GrantRecipient()
 
     @Serializable
     @SerialName(GrantRecipient.NEW_PROJECT_TYPE)
-    class NewProject(val projectTitle: String) : GrantRecipient() {
+    data class NewProject(val projectTitle: String) : GrantRecipient() {
         init {
             CreateProjectRequest(projectTitle, null) // Trigger validation
         }
@@ -258,25 +270,21 @@ sealed class GrantRecipient {
 data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
-    val creditsRequested: Long? = null,
-    val quotaRequested: Long? = null,
+    val balanceRequested: Long? = null,
 ) {
     init {
-        if (creditsRequested != null && creditsRequested < 0) {
+        if (balanceRequested != null && balanceRequested < 0) {
             throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
-        }
-        if (quotaRequested != null && quotaRequested < 0) {
-            throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
         }
     }
 
     companion object {
         fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, null)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
 
         fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, quota)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
     }
 }
@@ -328,9 +336,11 @@ data class IsEnabledResponse(val enabled: Boolean)
 @Serializable
 data class BrowseProjectsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias BrowseProjectsResponse = Page<ProjectWithTitle>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias BrowseProjectsResponse = PageV2<ProjectWithTitle>
 @Serializable
 data class ProjectWithTitle(val projectId: String, val title: String)
 
@@ -338,9 +348,11 @@ data class ProjectWithTitle(val projectId: String, val title: String)
 data class GrantsRetrieveAffiliationsRequest(
     val grantId: Long,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias GrantsRetrieveAffiliationsResponse = Page<ProjectWithTitle>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias GrantsRetrieveAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
 data class GrantsRetrieveProductsRequest(
@@ -355,26 +367,37 @@ data class GrantsRetrieveProductsResponse(
     val availableProducts: List<Product>
 )
 
-/**
- * [Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any [GrantRecipient]
- *
- * In order for any user to use UCloud they must have resources. Resources, see [dk.sdu.cloud.accounting.api.Wallets],
- * are required for use of any compute or storage. There are only two ways of receiving any credits, either through
- * an admin directly granting you the credits or by receiving them from a project
- * (see [dk.sdu.cloud.accounting.api.Wallets.setBalance] and [dk.sdu.cloud.accounting.api.Wallets.transferToPersonal]).
- *
- * The [Grants] service acts as a more user-friendly gateway to receiving resources from a project. Every [Application]
- * goes through the following steps:
- *
- * 1. User submits application to relevant project using [Grants.submitApplication]
- * 2. Project administrator of [Application.resourcesOwnedBy] reviews the application
- *    - User and reviewer can comment on the application via [Grants.commentOnApplication]
- *    - User and reviewer can perform edits to the application via [Grants.editApplication]
- * 3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
- * 4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]
- */
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
+
+    init {
+        title = "Grant Applications"
+        description = """
+            ---
+            
+            __📝 NOTE:__ Section being reworked (see issue #2026)
+            
+            ---
+            
+            [Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any
+            [GrantRecipient]
+
+            In order for any user to use UCloud they must have resources. Resources, see
+            [dk.sdu.cloud.accounting.api.Wallets], are required for use of any compute or storage. There are only two
+            ways of receiving any credits, either through an admin directly granting you the credits or by receiving
+            them from a project.
+
+            The [Grants] service acts as a more user-friendly gateway to receiving resources from a project. Every
+            [Application] goes through the following steps:
+
+            1. User submits application to relevant project using [Grants.submitApplication]
+            2. Project administrator of [Application.resourcesOwnedBy] reviews the application
+               - User and reviewer can comment on the application via [Grants.commentOnApplication]
+               - User and reviewer can perform edits to the application via [Grants.editApplication]
+            3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
+            4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]           
+        """.trimIndent()
+    }
 
     /**
      * Uploads a description of a project which is enabled
@@ -778,9 +801,12 @@ object Grants : CallDescriptionContainer("grant") {
                 }
 
                 params {
-                    +boundTo(IngoingApplicationsRequest::itemsPerPage)
-                    +boundTo(IngoingApplicationsRequest::page)
-                    +boundTo(IngoingApplicationsRequest::filter)
+
+                    +boundTo(OutgoingApplicationsRequest::itemsPerPage)
+                    +boundTo(OutgoingApplicationsRequest::consistency)
+                    +boundTo(OutgoingApplicationsRequest::next)
+                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
+                    +boundTo(OutgoingApplicationsRequest::filter)
                 }
             }
         }
@@ -804,7 +830,9 @@ object Grants : CallDescriptionContainer("grant") {
 
                 params {
                     +boundTo(OutgoingApplicationsRequest::itemsPerPage)
-                    +boundTo(OutgoingApplicationsRequest::page)
+                    +boundTo(OutgoingApplicationsRequest::consistency)
+                    +boundTo(OutgoingApplicationsRequest::next)
+                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
                     +boundTo(OutgoingApplicationsRequest::filter)
                 }
             }
@@ -879,7 +907,9 @@ object Grants : CallDescriptionContainer("grant") {
 
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
-                +boundTo(BrowseProjectsRequest::page)
+                +boundTo(BrowseProjectsRequest::consistency)
+                +boundTo(BrowseProjectsRequest::next)
+                +boundTo(BrowseProjectsRequest::itemsToSkip)
             }
         }
     }
@@ -903,7 +933,9 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(GrantsRetrieveAffiliationsRequest::grantId)
                 +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
-                +boundTo(GrantsRetrieveAffiliationsRequest::page)
+                +boundTo(GrantsRetrieveAffiliationsRequest::next)
+                +boundTo(GrantsRetrieveAffiliationsRequest::itemsToSkip)
+                +boundTo(GrantsRetrieveAffiliationsRequest::consistency)
             }
         }
     }

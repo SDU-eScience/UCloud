@@ -1,3 +1,5 @@
+create extension if not exists "uuid-ossp" schema public;
+
 alter table provider.resource add column provider_generated_id text unique default null;
 
 create table provider.resource_update(
@@ -268,7 +270,7 @@ declare
     pid text;
     gid text;
 begin
-    select gen_random_uuid() into pid;
+    select uuid_generate_v4() into pid;
 
     insert into project.projects(id, created_at, modified_at, title, parent, dmp) values(
         pid,

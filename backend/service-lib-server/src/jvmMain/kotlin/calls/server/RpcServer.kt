@@ -176,14 +176,14 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
         val result: S,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "$statusCode, ${result.toString().take(240)}"
+        override fun toString() = "$statusCode, ${result.toString().take(20_000)}"
     }
 
     class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "$statusCode, ${error.toString().take(240)}"
+        override fun toString() = "$statusCode, ${error.toString().take(20_000)}"
     }
 
     /**
@@ -353,7 +353,7 @@ class RpcServer {
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
 
-            log.debug("Parsing call: $call")
+            log.trace("Parsing call: $call")
             @Suppress("TooGenericExceptionCaught")
             val capturedRequest = try {
                 val capturedRequest = source.parseRequest(ctx, call)
@@ -363,7 +363,7 @@ class RpcServer {
                 when (ex) {
                     is RPCException -> throw ex
                     else -> {
-                        log.debug("Suppressed parsing exception follows:")
+                        log.debug("Suppressed parsing exception follows $call:")
                         log.debug(ex.stackTraceToString())
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }

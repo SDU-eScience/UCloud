@@ -7,8 +7,7 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "UCloud/ResourceApi";
-import {accounting, BulkRequest, compute} from "UCloud/index";
-import ProductNS = accounting.ProductNS;
+import {BulkRequest, compute} from "UCloud/index";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
 import {EnumFilter} from "Resource/Filter";
@@ -17,6 +16,7 @@ import PortRangeAndProto = compute.PortRangeAndProto;
 import {ResourceProperties} from "Resource/Properties";
 import {FirewallEditor} from "Applications/NetworkIP/FirewallEditor";
 import {ItemRenderer} from "ui-components/Browse";
+import {ProductNetworkIP} from "Accounting";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -55,7 +55,7 @@ export interface FirewallAndId {
     firewall: Firewall;
 }
 
-class NetworkIPApi extends ResourceApi<NetworkIP, ProductNS.NetworkIP, NetworkIPSpecification, NetworkIPUpdate,
+class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpecification, NetworkIPUpdate,
     NetworkIPFlags, NetworkIPStatus, NetworkIPSupport> {
     routingNamespace = "public-ips";
     title = "Public IP";

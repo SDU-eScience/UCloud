@@ -1,12 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.providers.ResourceApi
-import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
-import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -18,7 +14,6 @@ import dk.sdu.cloud.accounting.util.SqlObject
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
 class LicenseService(
@@ -43,8 +38,6 @@ class LicenseService(
     override val productArea = ProductArea.LICENSE
 
     override fun bindsExclusively(): Boolean = false
-    override fun requireCreditCheck(res: License, product: Product.License): Boolean =
-        product.paymentModel != PaymentModel.FREE_BUT_REQUIRE_BALANCE
 
     override fun userApi() = Licenses
     override fun controlApi() = LicenseControl

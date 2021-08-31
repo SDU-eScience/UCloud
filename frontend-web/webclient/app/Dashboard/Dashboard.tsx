@@ -1,4 +1,3 @@
-import {Client} from "Authentication/HttpClientInstance";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "DefaultObjects";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -14,7 +13,7 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {fileName, getParentPath, sizeToString} from "Utilities/FileUtilities";
+import {fileName, getParentPath} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
@@ -22,15 +21,11 @@ import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHoo
 import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
-import {
-    retrieveQuota, RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
-} from "Accounting";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {Balance} from "Accounting/Balance";
 import {
     GrantApplication,
     GrantApplicationFilter,
@@ -39,12 +34,9 @@ import {
     listOutgoingApplications
 } from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
-import {creditFormatter, durationOptions} from "Project/ProjectUsage";
-import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
 import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
-import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
 import FilesApi, {UFile} from "UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
@@ -52,8 +44,18 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/Metada
 import HighlightedCard from "ui-components/HighlightedCard";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
+import {
+    explainUsage,
+    Product,
+    productCategoryEquals,
+    ProductMetadata,
+    productTypes, productTypeToIcon, productTypeToTitle,
+    retrieveUsage,
+    UsageChart,
+    usageExplainer
+} from "Accounting";
 
-function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
+function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -62,21 +64,17 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         withHidden: false,
     }), emptyPage);
 
-    const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
-        {noop: true},
-        {quotaInBytes: 0, quotaUsed: 0, quotaInTotal: 0}
-    );
-
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
+    const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
 
-    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
+    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
-        emptyPage
+        emptyPageV2
     );
 
     const [ingoingApps, fetchIngoingApps] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
-        emptyPage
+        emptyPageV2
     );
 
     const [favoriteFiles, fetchFavoriteFiles] = useCloudAPI<PageV2<FileMetadataAttached>>(
@@ -93,10 +91,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
-        fetchQuota(retrieveQuota({
-            path: Client.activeHomeFolder,
-            includeUsage: true
-        }));
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
@@ -104,12 +98,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }));
         fetchOutgoingApps(listOutgoingApplications({
             itemsPerPage: 10,
-            page: 0,
             filter: GrantApplicationFilter.SHOW_ALL
         }));
         fetchIngoingApps(ingoingGrantApplications({
             itemsPerPage: 10,
-            page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
         fetchFavoriteFiles(metadataApi.browse({
@@ -117,6 +109,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             filterTemplate: "Favorite",
             itemsPerPage: 10
         }));
+        fetchUsage(retrieveUsage({}));
     }
 
     const {
@@ -128,7 +121,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
-            <DashboardNews news={news.data.items} loading={news.loading} />
+            <DashboardNews news={news.data.items} loading={news.loading}/>
 
             <DashboardFavoriteFiles
                 favoriteFiles={favoriteFiles}
@@ -147,19 +140,19 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
             <DashboardResources
                 products={products.data.items}
-                quota={quota.data}
-                loading={products.loading || quota.loading}
+                loading={products.loading}
             />
-            <DashboardProjectUsage />
-            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+            <DashboardProjectUsage charts={usage.data.charts}/>
+            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps}/>
         </GridCardGroup>
     );
 
-    return (<MainContainer main={main} />);
+    return (<MainContainer main={main}/>);
 }
 
 interface DashboardFavoriteFilesProps {
     favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
+
     onDeFavorite(): void;
 }
 
@@ -183,7 +176,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             title="Favorites"
         >
             <List childPadding="8px">
-                {favorites.map(it => (<Flex key={it.path} >
+                {favorites.map(it => (<Flex key={it.path}>
                     <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
@@ -198,7 +191,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                         } catch (e) {
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
-                    }} />
+                    }}/>
                     <Text fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
@@ -261,7 +254,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
         <List>
             {props.notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+                    <NotificationEntry notification={n} onAction={props.onNotificationAction}/>
                 </Flex>
             ))}
         </List>
@@ -293,7 +286,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+export const NoResultsCardBody: React.FunctionComponent<{ title: string }> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"
@@ -308,70 +301,55 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
     </Flex>
 );
 
-function DashboardProjectUsage(): JSX.Element | null {
-    const {projectId} =
-        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
-        {noop: true},
-        {charts: []}
-    );
-    React.useEffect(() => {
-        setUsageParams(usage({
-            bucketSize: durationOption.bucketSize,
-            periodStart: now - durationOption.timeInPast,
-            periodEnd: now
-        }));
-    }, [projectId]);
-
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
-    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
-    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
-
+function DashboardProjectUsage(props: {charts: UsageChart[]}): JSX.Element | null {
     return (
-        <HighlightedCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+        <HighlightedCard
+            title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
-            isLoading={false}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
             <Table>
                 <tbody>
-                    <TableRow>
-                        <TableCell>Storage</TableCell>
-                        <TableCell
-                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                {props.charts.map((it, idx) => (
+                    <TableRow key={idx}>
+                        <TableCell>
+                            <Icon name={productTypeToIcon(it.type)} mr={8}/>
+                            {productTypeToTitle(it.type)}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            {usageExplainer(it.periodUsage, it.type, it.chargeType, it.unit)}
+                        </TableCell>
                     </TableRow>
-                    <TableRow>
-                        <TableCell>Compute</TableCell>
-                        <TableCell
-                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                    </TableRow>
+                ))}
                 </tbody>
             </Table>
         </HighlightedCard>
     );
 }
 
-function DashboardResources({products, loading, quota}: {
+function DashboardResources({products, loading}: {
     products: Product[];
-    quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
-    const productsByCategory = groupBy(products, it => `${it.category.id}-${it.category.provider}`);
-    const wallets: {category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean}[] = [];
-    Object.values(productsByCategory).forEach(group => {
-        if (group.length === 0) return;
-        const category = group[0].category.id;
-        const provider = group[0].category.provider;
-        const balance = group[0].balance!;
-        const isFreeWithBalanceCheck = group
-            .every(it => "paymentModel" in it && it.paymentModel === "FREE_BUT_REQUIRE_BALANCE");
+    const wallets: (ProductMetadata & { balance: number })[] = [];
 
-        wallets.push({category, provider, balance, isFreeWithBalanceCheck});
-    });
+    for (const product of products) {
+        const metadata: (ProductMetadata & { balance: number }) = {
+            category: product.category,
+            freeToUse: product.freeToUse,
+            productType: product.productType,
+            chargeType: product.chargeType,
+            hiddenInGrantApplications: product.hiddenInGrantApplications,
+            unitOfPrice: product.unitOfPrice,
+            balance: product.balance!
+        };
+
+        if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+            wallets.push(metadata);
+        }
+    }
+
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
@@ -379,57 +357,37 @@ function DashboardResources({products, loading, quota}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/subprojects"}><Heading.h3>Resources</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resources</Heading.h3></Link>}
             color="red"
             isLoading={loading}
             icon={"grant"}
         >
             {products.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
-                    <Text>
-                        Apply for resources to use storage and compute on UCloud.
-                        {applyLinkButton}
-                    </Text>
-                </NoResultsCardBody>
-            ) :
+                    <NoResultsCardBody title={"No available resources"}>
+                        <Text>
+                            Apply for resources to use storage and compute on UCloud.
+                            {applyLinkButton}
+                        </Text>
+                    </NoResultsCardBody>
+                ) :
                 <>
                     {/* height is 100% - height of Heading 36px  */}
                     <Flex flexDirection="column" height={"calc(100% - 36px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
-                                    {wallets.slice(0, 7).map((n, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{n.provider} / {n.category}</TableCell>
-                                            <TableCell textAlign={"right"}>
-                                                {!n.isFreeWithBalanceCheck ? null :
-                                                    n.balance > 0 ? <Icon name={"check"} color={"green"} /> : null
-                                                }
-                                                {n.isFreeWithBalanceCheck ? null :
-                                                    <Balance
-                                                        amount={n.balance}
-                                                        productCategory={{id: n.category, provider: n.provider}}
-                                                    />
-                                                }
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    <TableRow>
-                                        {/* This is hardcoded for now (pending issue #1246) */}
-                                        <TableCell>ucloud / u1-cephfs (Quota)</TableCell>
+                                {wallets.slice(0, 7).map((n, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{n.category.provider} / {n.category.name}</TableCell>
                                         <TableCell textAlign={"right"}>
-                                            {sizeToString(quota.quotaUsed ?? 0)}
-                                            {" "}of{" "}
-                                            {sizeToString(quota.quotaInBytes)}
-                                            {" "}({(100 * (quota.quotaInBytes !== 0 ?
-                                                ((quota.quotaUsed ?? 0) / quota.quotaInBytes) : 1
-                                            )).toFixed(2)}%)
+                                            {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
                                         </TableCell>
                                     </TableRow>
+                                ))}
                                 </tbody>
                             </Table>
                         </Box>
-                        <Box flexGrow={1} />
+                        <Box flexGrow={1}/>
                         {applyLinkButton}
                     </Flex>
                 </>
@@ -439,18 +397,18 @@ function DashboardResources({products, loading, quota}: {
 }
 
 const DashboardGrantApplications: React.FunctionComponent<{
-    outgoingApps: APICallState<Page<GrantApplication>>,
-    ingoingApps: APICallState<Page<GrantApplication>>
+    outgoingApps: APICallState<PageV2<GrantApplication>>,
+    ingoingApps: APICallState<PageV2<GrantApplication>>
 }> = ({outgoingApps, ingoingApps}) => {
     const none = outgoingApps.data.items.length === 0 && ingoingApps.data.items.length === 0;
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
     const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
-        : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
-                <Heading.h3>Grant Applications</Heading.h3>
-            </Link>
+            : both ? <Heading.h3>Grant Applications</Heading.h3>
+                : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+                    <Heading.h3>Grant Applications</Heading.h3>
+                </Link>
     );
 
     return <HighlightedCard
@@ -461,14 +419,14 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
     >
         {ingoingApps.error !== undefined ? null : (
-            <Error error={ingoingApps.error} />
+            <Error error={ingoingApps.error}/>
         )}
 
         {outgoingApps.error !== undefined ? null : (
-            <Error error={outgoingApps.error} />
+            <Error error={outgoingApps.error}/>
         )}
         {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
-        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
+        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim/>)}
 
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
@@ -484,13 +442,13 @@ const DashboardGrantApplications: React.FunctionComponent<{
                         </Text>
                     </>
                 )}
-                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim/>
             </>
         )}
     </HighlightedCard>;
 };
 
-function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
+function DashboardNews({news, loading}: { news: NewsPost[]; loading: boolean }): JSX.Element | null {
     return (
         <HighlightedCard
             title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}

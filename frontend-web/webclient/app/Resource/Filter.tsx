@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -12,7 +12,7 @@ import {SlimDatePickerWrapper} from "ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "ui-components/Toggle";
-import {doNothing, timestampUnixMs} from "UtilityFunctions";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Activity/Page";
 import {dateToStringNoTime} from "Utilities/DateUtilities";
 import {SortEntry} from "UCloud/ResourceApi";
@@ -63,6 +63,10 @@ export const ResourceFilter: React.FunctionComponent<{
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
     const [isDirty, setIsDirty] = useState(false);
+
+    useEffectSkipMount(() => {
+        setIsDirty(true)
+    }, [properties, setIsDirty]);
 
     const onSortDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(sortProperties)};
@@ -130,10 +134,12 @@ export const ResourceFilter: React.FunctionComponent<{
         setIsDirty(false);
     }, [props.onApplyFilters, setIsDirty, sortProperties]);
 
+    const onlyFilter = props.sortEntries.length === 0;
+
     return <>
         {props.embedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
             <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-            Sort and filter
+            {onlyFilter ? "Filter" : "Sort and filter"}
         </Heading.h4>}
         <Grid gridGap={"8px"}>
             <WidgetWrapper embedded={props.embedded} gridGap="12px">
@@ -155,20 +161,22 @@ export const ResourceFilter: React.FunctionComponent<{
         <Grid gridGap={props.embedded ? "8px" : "20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
 
-            <WidgetWrapper embedded={props.embedded} gridGap="12px">
-                <EnumFilterWidget
-                    propertyName="direction" icon="sortDescending" title="Sort direction" expanded={false}
-                    id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                    options={sortDirections}
-                />
-                <EnumFilterWidget
-                    propertyName="column" icon="properties" title="Sort by" expanded={false}
-                    id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                    options={sortOptions}
-                />
-            </WidgetWrapper>
+            {onlyFilter ? null : <>
+                <WidgetWrapper embedded={props.embedded} gridGap="12px">
+                    <EnumFilterWidget
+                        propertyName="direction" icon="sortDescending" title="Sort direction" expanded={false}
+                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                        options={sortDirections}
+                    />
+                    <EnumFilterWidget
+                        propertyName="column" icon="properties" title="Sort by" expanded={false}
+                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
+                        options={sortOptions}
+                    />
+                </WidgetWrapper>
 
-            {props.embedded ? null : <Divider />}
+                {props.embedded ? null : <Divider />}
+            </>}
 
             <WidgetWrapper embedded={props.embedded} gridGap="12px">
                 {props.filterWidgets.map((Widget, idx) =>
@@ -454,6 +462,25 @@ export function DateRangeFilter(
             icon={icon} title={title} {...props} />,
     ];
 }
+
+export const ValuePill: React.FunctionComponent<{
+    propertyName: string;
+    showValue: boolean;
+    secondaryProperties?: string[];
+} & PillProps & BaseFilterWidgetProps> = (props) => {
+    const onRemove = useCallback(() => {
+        const allProperties = [...(props.secondaryProperties ?? [])];
+        allProperties.push(props.propertyName);
+        props.onDelete(allProperties);
+    }, [props.secondaryProperties, props.onDelete, props.propertyName]);
+
+    const value = props.properties[props.propertyName];
+    if (!value) return null;
+
+    return <FilterPill icon={props.icon} onRemove={onRemove}>
+        {props.title}{!props.showValue ? null : <>: {value}</>}
+    </FilterPill>;
+};
 
 interface EnumOption {
     icon?: IconName;

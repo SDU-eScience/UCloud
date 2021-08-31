@@ -5,7 +5,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.aau.services.ResourceCache
@@ -74,7 +73,7 @@ class ComputeController(
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
-                                        "machine_template" to JsonPrimitive(resources.product.id),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
                                         // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )
@@ -123,7 +122,7 @@ class ComputeController(
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
-                                        "machine_template" to JsonPrimitive(resources.product.id),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
                                         // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )
@@ -270,10 +269,13 @@ class ComputeController(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
+        TODO()
+        /*
         Products.retrieveAllFromProvider.call(
             RetrieveAllFromProviderRequest("aau"),
             client.client
         ).orThrow().filterIsInstance<Product.Compute>()
+         */
     })
 
     /*

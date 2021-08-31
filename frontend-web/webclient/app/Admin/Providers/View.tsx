@@ -17,25 +17,23 @@ import {accounting, auth, BulkResponse, PageV2, provider} from "UCloud";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {ListV2} from "Pagination";
 import {NoResultsCardBody} from "Dashboard/Dashboard";
-import Product = accounting.Product;
 import Warning from "ui-components/Warning";
 import Provider = provider.Provider;
 import AccessToken = auth.AccessToken;
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import ProductNS = accounting.ProductNS;
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {creditFormatter} from "Project/ProjectUsage";
 import {useProjectId} from "Project";
 import {Client} from "Authentication/HttpClientInstance";
 import ResourceDoc = provider.ResourceDoc;
+import {priceExplainer, Product} from "Accounting";
 
 const entityName = "Provider";
 
 function View(): JSX.Element | null {
     const match = useRouteMatch<{id: string}>();
     const {id} = match.params;
-    const [provider, fetchProvider] = useCloudAPI<UCloud.provider.Provider | null>({noop: true}, null);
-    const [products, fetchProducts] = useCloudAPI<PageV2<UCloud.accounting.Product>>({noop: true}, emptyPageV2);
+    const [provider, fetchProvider] = useCloudAPI<Provider | null>({noop: true}, null);
+    const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [productGeneration, setProductGeneration] = useState(0);
     const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
@@ -144,14 +142,14 @@ function View(): JSX.Element | null {
                                     page={products.data}
                                     pageRenderer={p => isCreatingProduct ? null : p.map(item =>
                                         <ListRow
-                                            key={item.id}
-                                            left={item.id}
+                                            key={item.name}
+                                            left={item.name}
                                             right={<></>}
                                             leftSub={
                                                 <ListStatContainer>
-                                                    <ListRowStat icon={"id"}>{item.category.id}</ListRowStat>
+                                                    <ListRowStat icon={"id"}>{item.category.name}</ListRowStat>
                                                     <ListRowStat icon={"grant"}>
-                                                        Unit price: {creditFormatter(item.pricePerUnit)}
+                                                        Unit price: {priceExplainer(item)}
                                                     </ListRowStat>
                                                 </ListStatContainer>
                                             }
@@ -235,163 +233,163 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
-    const addProduct = useCallback(async () => {
-        const wholePricePart = parseInt(pricePerUnit, 10);
-        const decimalPricePart = parseInt(pricePerUnitDecimal.padEnd(6, '0'), 10);
+    return null;
+    /*
+const addProduct = useCallback(async () => {
+    const wholePricePart = parseInt(pricePerUnit, 10);
+    const decimalPricePart = parseInt(pricePerUnitDecimal.padEnd(6, '0'), 10);
 
-        if (isNaN(wholePricePart) || isNaN(decimalPricePart)) {
-            snackbarStore.addFailure("Invalid price per unit", false);
-            return;
-        }
+    if (isNaN(wholePricePart) || isNaN(decimalPricePart)) {
+        snackbarStore.addFailure("Invalid price per unit", false);
+        return;
+    }
 
-        if (decimalPricePart >= 1000000) {
-            snackbarStore.addFailure(
-                "The decimal part of the price is too specific. " +
-                "Try rounding your number to a less precise one.",
-                false
-            );
-            return;
-        }
-
-        const actualPricePerUnit = wholePricePart * 1_000_000 + decimalPricePart;
-
-        const actualCpu = parseInt(cpu, 10);
-        if (isNaN(actualCpu) || actualCpu < 1) {
-            snackbarStore.addFailure("Invalid number of vCPU", false);
-            return;
-        }
-
-        const actualMemoryInGigs = parseInt(memoryInGigs, 10);
-        if (isNaN(actualMemoryInGigs) || actualMemoryInGigs < 1) {
-            snackbarStore.addFailure("Invalid amount of memory", false);
-            return;
-        }
-
-        const actualGpu = parseInt(gpus, 10);
-        if (isNaN(actualGpu) || actualGpu < 0) {
-            snackbarStore.addFailure("Invalid number of GPUs", false);
-            return;
-        }
-
-        const tokens = await invokeCommand<BulkResponse<AccessToken>>(UCloud.auth.providers.refresh(
-            bulkRequestOf({refreshToken: props.provider.refreshToken}))
+    if (decimalPricePart >= 1000000) {
+        snackbarStore.addFailure(
+            "The decimal part of the price is too specific. " +
+            "Try rounding your number to a less precise one.",
+            false
         );
-        const accessToken = tokens?.responses[0]?.accessToken;
+        return;
+    }
 
-        let product: Product | null = null;
-        switch (type) {
-            case "storage":
-                /*
-                product = {
-                    type: "storage",
-                    id: id,
-                    description: description,
-                    pricePerUnit: actualPricePerUnit,
-                    category: {id: category, provider: props.provider.id},
-                    hiddenInGrantApplications: false,
-                    priority: 1,
-                } as ProductNS.Storage;
-                 */
-                break;
-            case "compute":
-                product = {
-                    type: "compute",
-                    id,
-                    description,
-                    pricePerUnit: actualPricePerUnit,
-                    category: {id: category, provider: props.provider.id},
-                    hiddenInGrantApplications: false,
-                    priority: 1,
-                    cpu: actualCpu,
-                    memoryInGigs: actualMemoryInGigs,
-                    gpu: actualGpu
-                } as ProductNS.Compute;
-                break;
-        }
+    const actualPricePerUnit = wholePricePart * 1_000_000 + decimalPricePart;
 
-        if (product === null) {
-            snackbarStore.addFailure("Provider support has not yet been implemented for this type of product", true);
-            return;
-        } else {
+    const actualCpu = parseInt(cpu, 10);
+    if (isNaN(actualCpu) || actualCpu < 1) {
+        snackbarStore.addFailure("Invalid number of vCPU", false);
+        return;
+    }
+
+    const actualMemoryInGigs = parseInt(memoryInGigs, 10);
+    if (isNaN(actualMemoryInGigs) || actualMemoryInGigs < 1) {
+        snackbarStore.addFailure("Invalid amount of memory", false);
+        return;
+    }
+
+    const actualGpu = parseInt(gpus, 10);
+    if (isNaN(actualGpu) || actualGpu < 0) {
+        snackbarStore.addFailure("Invalid number of GPUs", false);
+        return;
+    }
+
+    const tokens = await invokeCommand<BulkResponse<AccessToken>>(UCloud.auth.providers.refresh(
+        bulkRequestOf({refreshToken: props.provider.refreshToken}))
+    );
+    const accessToken = tokens?.responses[0]?.accessToken;
+    let product: Product | null = null;
+    switch (type) {
+        case "storage":
+            product = {
+                type: "storage",
+                id: id,
+                description: description,
+                pricePerUnit: actualPricePerUnit,
+                category: {id: category, provider: props.provider.id},
+                hiddenInGrantApplications: false,
+                priority: 1,
+            } as ProductNS.Storage;
+            break;
+        case "compute":
+            product = {
+                type: "compute",
+                id,
+                description,
+                pricePerUnit: actualPricePerUnit,
+                category: {name: category, provider: props.provider.id},
+                hiddenInGrantApplications: false,
+                priority: 1,
+                cpu: actualCpu,
+                memoryInGigs: actualMemoryInGigs,
+                gpu: actualGpu
+            } as ProductNS.Compute;
+            break;
+    }
+
+    if (product === null) {
+        snackbarStore.addFailure("Provider support has not yet been implemented for this type of product", true);
+        return;
+    } else {
+        await invokeCommand(
+            {...UCloud.accounting.products.createProduct(product), accessTokenOverride: accessToken}
+        );
+
+        if (inDevEnvironment() || onDevSite()) {
             await invokeCommand(
-                {...UCloud.accounting.products.createProduct(product), accessTokenOverride: accessToken}
+                UCloud.accounting.wallets.setBalance({
+                    wallet: {
+                        paysFor: {provider: product.category.provider, name: product.category.name},
+                        type: projectId === undefined ? "USER" : "PROJECT",
+                        id: projectId === undefined ? Client.username! : projectId
+                    },
+                    lastKnownBalance: 0,
+                    newBalance: 1000000 * 10000
+                })
             );
-
-            if (inDevEnvironment() || onDevSite()) {
-                await invokeCommand(
-                    UCloud.accounting.wallets.setBalance({
-                        wallet: {
-                            paysFor: {provider: product.category.provider, id: product.category.id},
-                            type: projectId === undefined ? "USER" : "PROJECT",
-                            id: projectId === undefined ? Client.username! : projectId
-                        },
-                        lastKnownBalance: 0,
-                        newBalance: 1000000 * 10000
-                    })
-                );
-            }
-            props.onComplete();
         }
-    }, [type, pricePerUnit, pricePerUnitDecimal, id, category, description, invokeCommand, cpu, memoryInGigs, gpus]);
+        props.onComplete();
+    }
+}, [type, pricePerUnit, pricePerUnitDecimal, id, category, description, invokeCommand, cpu, memoryInGigs, gpus]);
 
-    const unitName = unitNameFromType(type);
+const unitName = unitNameFromType(type);
 
-    return <Grid gridTemplateColumns={"1 fr"} gridGap={"16px"}>
-        {type === "compute" ? null : <Warning>Provider support not yet implemented for this type of product</Warning>}
+return <Grid gridTemplateColumns={"1 fr"} gridGap={"16px"}>
+    {type === "compute" ? null : <Warning>Provider support not yet implemented for this type of product</Warning>}
 
-        <Label>
-            Type
-            <Select value={type} onChange={onTypeChange}>
-                {productTypes.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
-            </Select>
-        </Label>
+    <Label>
+        Type
+        <Select value={type} onChange={onTypeChange}>
+            {productTypes.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
+        </Select>
+    </Label>
 
-        <Label>
-            Category (e.g. u1-standard)
-            <Input value={category} onChange={onCategoryChange} />
-        </Label>
+    <Label>
+        Category (e.g. u1-standard)
+        <Input value={category} onChange={onCategoryChange} />
+    </Label>
 
-        <Label>
-            ID (e.g. u1-standard-1)
-            <Input value={id} onChange={onIdChange} />
-        </Label>
+    <Label>
+        ID (e.g. u1-standard-1)
+        <Input value={id} onChange={onIdChange} />
+    </Label>
 
-        <Label>
-            Price per {unitName}
-            <Flex alignItems={"end"}>
-                <Input type={"number"} value={pricePerUnit} onChange={onPriceChange} mr={"8px"} />
-                ,
-                <Input type={"number"} value={pricePerUnitDecimal} onChange={onPriceDecimalChange} mx={"8px"} />
-                DKK
-            </Flex>
-        </Label>
+    <Label>
+        Price per {unitName}
+        <Flex alignItems={"end"}>
+            <Input type={"number"} value={pricePerUnit} onChange={onPriceChange} mr={"8px"} />
+            ,
+            <Input type={"number"} value={pricePerUnitDecimal} onChange={onPriceDecimalChange} mx={"8px"} />
+            DKK
+        </Flex>
+    </Label>
 
-        <Label>
-            Description <br />
-            <TextArea width={"100%"} rows={10} value={description} onChange={onDescriptionChange} />
-        </Label>
+    <Label>
+        Description <br />
+        <TextArea width={"100%"} rows={10} value={description} onChange={onDescriptionChange} />
+    </Label>
 
-        {type !== "compute" ? null :
-            <>
-                <Label>
-                    vCPU
-                    <Input type={"number"} value={cpu} onChange={onCpuChange} />
-                </Label>
+    {type !== "compute" ? null :
+        <>
+            <Label>
+                vCPU
+                <Input type={"number"} value={cpu} onChange={onCpuChange} />
+            </Label>
 
-                <Label>
-                    Memory in GB
-                    <Input type={"number"} value={memoryInGigs} onChange={onMemoryInGigsChange} />
-                </Label>
+            <Label>
+                Memory in GB
+                <Input type={"number"} value={memoryInGigs} onChange={onMemoryInGigsChange} />
+            </Label>
 
-                <Label>
-                    Number of GPUs
-                    <Input type={"number"} value={gpus} onChange={onGpusChange} />
-                </Label>
-            </>
-        }
+            <Label>
+                Number of GPUs
+                <Input type={"number"} value={gpus} onChange={onGpusChange} />
+            </Label>
+        </>
+    }
 
-        <Button fullWidth onClick={addProduct}>Add new product</Button>
-    </Grid>;
+    <Button fullWidth onClick={addProduct}>Add new product</Button>
+</Grid>;
+     */
 };
 
 interface OpCallbacks {

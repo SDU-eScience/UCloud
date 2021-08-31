@@ -20,7 +20,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
-import {creditFormatter} from "Project/ProjectUsage";
 import {HiddenInputField} from "ui-components/Input";
 import {dialogStore} from "Dialog/DialogStore";
 import {Client} from "Authentication/HttpClientInstance";
@@ -46,7 +45,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
         request.onreadystatechange = () => {
             if (request.status !== 0) {
                 if (!inSuccessRange(request.status)) {
-                    let message: string = "Logo upload failed";
+                    let message = "Logo upload failed";
                     try {
                         message = JSON.parse(request.responseText).why;
                     } catch (e) {
@@ -289,7 +288,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     {
         const categoriesStringified = new Set<string>();
         for (const product of products.data) {
-            const stringified = `${product.category.id}/${product.category.provider}`;
+            const stringified = `${product.category.name}/${product.category.provider}`;
             if (!categoriesStringified.has(stringified)) {
                 categoriesStringified.add(stringified);
                 categories.push(product.category);
@@ -302,7 +301,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
         const settingsCopy = {...settings.data};
         const idx = settingsCopy.automaticApproval.maxResources
             .findIndex(it =>
-                it.productCategory === category.id &&
+                it.productCategory === category.name &&
                 it.productProvider === category.provider
             );
 
@@ -318,7 +317,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
         }
         settingsCopy.automaticApproval.maxResources.push({
             productProvider: category.provider,
-            productCategory: category.id,
+            productCategory: category.name,
             creditsRequested: parsedValue * 1000000
         });
         await runWork(uploadGrantRequestSettings(settingsCopy));
@@ -333,19 +332,19 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
             const credits = settings.data.automaticApproval
                 .maxResources
                 .find(
-                    mr => mr.productCategory === it.id &&
+                    mr => mr.productCategory === it.name &&
                         mr.productProvider === it.provider
                 )
                 ?.creditsRequested ?? 0;
             return <React.Fragment key={key}>
                 <form onSubmit={(e) => updateApprovalLimit(it, e)}>
                     <Label htmlFor={key}>
-                        {it.id} / {it.provider}
+                        {it.name} / {it.provider}
                     </Label>
                     <Flex alignItems={"center"}>
                         {editingLimit !== key ?
                             <Text width={350} textAlign={"right"}>
-                                {creditFormatter(credits, 0)}
+                                {credits} {/* TODO */}
                             </Text> : null}
                         {editingLimit !== key ?
                             <Button
@@ -630,7 +629,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
 };
 
 function productCategoryId(pid: ProductCategoryId): string {
-    return `${pid.id}/${pid.provider}`;
+    return `${pid.name}/${pid.provider}`;
 }
 
 const TemplateEditor: React.FunctionComponent<{

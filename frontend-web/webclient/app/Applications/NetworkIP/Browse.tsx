@@ -12,7 +12,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
         api={NetworkIPApi}
         onSelect={props.onSelect}
         onInlineCreation={((text, product, cb) => ({
-                product: {id: product.id, category: product.category.id, provider: product.category.provider},
+                product: {id: product.name, category: product.category.name, provider: product.category.provider},
             })
         )}
         inlineCreationMode={"NONE"}

@@ -21,7 +21,6 @@ import {
 } from "Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
-import {creditFormatter} from "Project/ProjectUsage";
 import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {FavoriteToggle} from "Applications/FavoriteToggle";
@@ -33,6 +32,7 @@ import {bulkRequestOf} from "DefaultObjects";
 import {getQueryParam} from "Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "UCloud";
+import {explainUsage, Product, usageExplainer} from "Accounting";
 
 interface InsufficientFunds {
     why?: string;
@@ -55,7 +55,9 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number}>({cost: 0, balance: 0});
+    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
+        cost: 0, balance: 0, product: null
+    });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -272,22 +274,24 @@ export const Create: React.FunctionComponent = () => {
                 </Button>
 
                 <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
-                    {estimatedCost.balance === 0 ? null : (
+                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
                         <>
                             <Icon name={"grant"} />{" "}
                             Estimated cost: <br />
 
-                            {creditFormatter(estimatedCost.cost, 0)}
+                            {usageExplainer(estimatedCost.cost, estimatedCost.product.productType,
+                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
                         </>
                     )}
                 </Box>
                 <Box mt={32} color="black" textAlign="center">
-                    {estimatedCost.balance === 0 ? null : (
+                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
                         <>
                             <Icon name="grant" />{" "}
                             Current balance: <br />
 
-                            {creditFormatter(estimatedCost.balance, 0)}
+                            {usageExplainer(estimatedCost.balance, estimatedCost.product.productType,
+                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
                         </>
                     )}
                 </Box>
@@ -303,7 +307,7 @@ export const Create: React.FunctionComponent = () => {
                     <ReservationParameter
                         application={application}
                         errors={reservationErrors}
-                        onEstimatedCostChange={(cost, balance) => setEstimatedCost({cost, balance})}
+                        onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
                     />
 
                     {/* Parameters */}

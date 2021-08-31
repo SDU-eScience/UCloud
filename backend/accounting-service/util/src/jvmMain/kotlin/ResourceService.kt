@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -320,6 +321,18 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
+                        if (!isCoreResource) {
+                            val project = actorAndProject.project
+                            payment.creditCheck(
+                                if (project != null) {
+                                    WalletOwner.Project(project)
+                                } else {
+                                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                                },
+                                resources.map { it.second.reference }
+                            )
+                        }
+
                         val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(
@@ -813,37 +826,29 @@ abstract class ResourceService<
                         setParameter("username", actorAndProject.actor.safeUsername())
                     },
                     """
-                        with personal_wallets as (
-                            select pc.provider
-                            from
-                                accounting.product_categories pc join
-                                accounting.products product on product.category = pc.id left join
-                                accounting.wallets w on pc.id = w.category
-                            where
-                                pc.area = :area and
+                        select distinct pc.provider
+                        from
+                            accounting.product_categories pc join
+                            accounting.products product on product.category = pc.id left join
+                            accounting.wallets w on pc.id = w.category left join
+                            accounting.wallet_owner wo on wo.id = w.owned_by left join
+                            project.project_members pm on
+                                wo.project_id = pm.project_id and
+                                pm.project_id = :project::text and
+                                pm.username = :username
+                        where
+                            pc.product_type = :area::accounting.product_type and
+                            (
+                                product.free_to_use or
                                 (
-                                    product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or
-                                    (
-                                        w.account_type = 'USER' and
-                                        w.account_id = :username and
-                                        w.balance > 0
-                                    )
+                                    wo.username = :username and
+                                    w.id is not null
+                                ) or
+                                (
+                                    wo.project_id = :project::text and
+                                    w.id is not null
                                 )
-                        ),
-                        project_wallets as (
-                            select pc.provider
-                            from
-                                accounting.product_categories pc left join
-                                accounting.products product on product.category = pc.id left join
-                                accounting.wallets w on pc.id = w.category join
-                                project.projects p on w.account_id = p.id and w.account_type = 'PROJECT' join
-                                project.project_members pm on p.id = pm.project_id
-                            where
-                                pc.area = :area and
-                                pm.username = :username and
-                                (product.payment_model = 'FREE_BUT_REQUIRE_BALANCE' or w.balance > 0)
-                        )
-                        select * from personal_wallets union select * from project_wallets
+                            )
                     """
                 )
                 .rows
@@ -867,39 +872,39 @@ abstract class ResourceService<
             includeUnconfirmed = true,
         ).associateBy { it.id }
 
-        val chargeResults = ArrayList<Pair<Res, PaymentService.ChargeResult>>()
-        for (reqItem in request.items) {
+        val paymentRequests = request.items.map { reqItem ->
             val resource = allResources.getValue(reqItem.id)
-            chargeResults.add(
-                resource to payment.charge(
-                    Payment(
-                        reqItem.chargeId,
-                        reqItem.units,
-                        resource.status.resolvedSupport!!.product.pricePerUnit,
-                        reqItem.id,
-                        resource.owner.createdBy,
-                        resource.owner.project,
-                        resource.specification.product,
-                        productArea
-                    )
-                )
+            val project = resource.owner.project
+
+            Payment(
+                reqItem.chargeId,
+                reqItem.numberOfProducts,
+                reqItem.units,
+                resource.status.resolvedSupport!!.product.pricePerUnit,
+                reqItem.id,
+                reqItem.performedBy ?: resource.owner.createdBy,
+                if (project != null) {
+                    WalletOwner.Project(project)
+                } else {
+                    WalletOwner.User(resource.owner.createdBy)
+                },
+                resource.specification.product,
+                reqItem.description,
             )
         }
-        val insufficient = chargeResults
-            .filter { (_, result) -> result is PaymentService.ChargeResult.InsufficientFunds }
-            .map { FindByStringId(it.first.id) }
 
-        if (insufficient.size == request.items.size) {
-            throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+        val chargeResult = payment.charge(paymentRequests)
+
+        val insufficient = chargeResult.mapIndexedNotNull { index, result ->
+            val request = request.items[index]
+            when (result) {
+                PaymentService.ChargeResult.Charged -> null
+                PaymentService.ChargeResult.Duplicate -> null
+                PaymentService.ChargeResult.InsufficientFunds -> FindByStringId(request.id)
+            }
         }
 
-        return ResourceChargeCreditsResponse(
-            insufficientFunds = insufficient,
-
-            duplicateCharges = chargeResults
-                .filter { (_, result) -> result is PaymentService.ChargeResult.Duplicate }
-                .map { FindByStringId(it.first.id) },
-        )
+        return ResourceChargeCreditsResponse(insufficient, emptyList())
     }
 
     override suspend fun search(

@@ -6,48 +6,25 @@ import {
     subprojectsCountRequest
 } from "Project";
 import * as React from "react";
-import {Flex, Card, Icon, Text, Box} from "ui-components";
+import {Flex, Card, Icon, Box} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import HighlightedCard from "ui-components/HighlightedCard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useCloudAPI} from "Authentication/DataHook";
-import {UsageResponse, transformUsageChartForCharting, usage, NativeChart} from "Accounting";
-import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
 import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
-import {Client} from "Authentication/HttpClientInstance";
 import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import * as UCloud from "UCloud";
-
-export function computeUsageInPeriod(charts: NativeChart[]): number {
-    let result = 0;
-
-    for (const chart of charts) {
-        const usageByCurrentProvider: Record<string, number> = {};
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") continue;
-
-                const currentUsage = usageByCurrentProvider[category] ?? 0;
-                usageByCurrentProvider[category] = currentUsage + point[category];
-                result += point[category];
-            }
-        }
-    }
-
-    return result;
-}
+import HighlightedCard from "ui-components/HighlightedCard";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} =
@@ -87,31 +64,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-
-    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
-        {noop: true},
-        {charts: []}
-    );
-
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
-        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
-        setUsageParams(usage({
-            bucketSize: durationOption.bucketSize,
-            periodStart: now - durationOption.timeInPast,
-            periodEnd: now
-        }));
     }, [projectId]);
-
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
-    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
-    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     function isAdmin(): boolean {
         if (membersCount.error?.statusCode === 403) {
@@ -120,7 +79,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             return false;
         } else if (subprojectsCount.error?.statusCode === 403) {
             return false;
-        } else {return true;}
+        } else {
+            return true;
+        }
     }
 
     return (
@@ -161,45 +122,15 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </HighlightedCard>
                         ) : null}
                         <HighlightedCard
-                            title={"Resource Allocation"}
+                            title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
                             isLoading={false}
-                            onClick={() => history.push("/project/subprojects")}
+                            onClick={() => history.push("/project/resources")}
                             subtitle={<RightArrow />}
                         >
-                            {Client.hasActiveProject ? <Table>
-                                {isAdmin() ? (
-                                    <tbody>
-                                        <TableRow cursor="pointer">
-                                            <TableCell>Subprojects</TableCell>
-                                            <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
-                                        </TableRow>
-                                    </tbody>) : null}
-                            </Table> : null}
                         </HighlightedCard>
 
-                        <HighlightedCard title="Usage" icon="hourglass" color="green"
-                            isLoading={false}
-                            subtitle={<RightArrow />}
-                            onClick={() => history.push("/project/usage")}
-                        >
-                            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
-                            <Table>
-                                <tbody>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Storage</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Compute</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                </tbody>
-                            </Table>
-                        </HighlightedCard>
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
@@ -213,7 +144,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>In Progress</TableCell>
-                                            <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                            <TableCell textAlign="right">{apps.data.items.length}+</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>

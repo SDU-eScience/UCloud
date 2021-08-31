@@ -17,7 +17,8 @@ fun <T : MicroFeature> Micro.featureOrNull(factory: MicroFeatureFactory<T, *>): 
 }
 
 fun Micro.requireFeature(factory: MicroFeatureFactory<*, *>) {
-    featureOrNull(factory) ?: throw IllegalStateException("$factory is a required feature")
+    featureOrNull(factory)
+        ?: throw IllegalStateException("$factory is a required feature (Launched with: ${commandLineArguments})")
 }
 
 @Deprecated("Replace with Service")

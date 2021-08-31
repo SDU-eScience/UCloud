@@ -12,11 +12,11 @@ import {FileCollection} from "UCloud/FileCollectionsApi";
 import JobsApi from "UCloud/JobsApi";
 import {SupportByProvider} from "UCloud/ResourceApi";
 import {Button} from "ui-components";
-import Product = accounting.Product;
 import {bulkRequestOf} from "DefaultObjects";
 import {getParentPath} from "Utilities/FileUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
+import {Product} from "Accounting";
 
 function findApplicationsByExtension(
     request: { files: string[] } & PaginationRequestV2
@@ -64,7 +64,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
     const products = useMemo(() => {
         const relevantProducts = productsWithSupport.data.productsByProvider[collection.specification.product.provider];
         if (relevantProducts) {
-            return relevantProducts.map(it => it.product)
+            return relevantProducts.map(it => it.product as unknown as Product)
         } else {
             return [];
         }
@@ -94,9 +94,9 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                         version: selectedApplication.metadata.version,
                     },
                     product: {
-                        id: selectedProduct.id,
+                        id: selectedProduct.name,
                         provider: selectedProduct.category.provider,
-                        category: selectedProduct.category.id
+                        category: selectedProduct.category.name
                     },
                     parameters: {},
                     replicas: 1,

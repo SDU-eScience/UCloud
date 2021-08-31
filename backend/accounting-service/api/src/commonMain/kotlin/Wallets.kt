@@ -1,399 +1,356 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@Deprecated("APIs will switch to WalletOwner instead")
 enum class WalletOwnerType {
     USER,
     PROJECT
 }
 
 @Serializable
-enum class TransactionType {
-    GIFTED,
-    TRANSFERRED_TO_PERSONAL,
-    TRANSFERRED_TO_PROJECT,
-    PAYMENT
-}
-
-fun transactionComment(amount: Long, receiverId: String, transactionType: TransactionType) : String {
-    val dkk = amount / 1000000
-    return when (transactionType) {
-        TransactionType.GIFTED -> {
-            "Gifted $dkk DKK to $receiverId"
-        }
-        TransactionType.PAYMENT -> {
-            "Payed $dkk DKK for $receiverId "
-        }
-        TransactionType.TRANSFERRED_TO_PERSONAL -> {
-            "Transferred $dkk DKK to personal project: $receiverId"
-        }
-        TransactionType.TRANSFERRED_TO_PROJECT -> {
-            "Transferred $dkk DKK to project: $receiverId"
-        }
-    }
-}
-
-@Serializable
-data class RetrieveBalanceRequest(
-    val id: String? = null,
-    val type: WalletOwnerType? = null,
-    val includeChildren: Boolean? = null,
-    val showHidden: Boolean? = true
-) {
-    init {
-        if (id != null || type != null) {
-            if (id == null || type == null) {
-                throw RPCException("Must specify no parameters or all parameters!", HttpStatusCode.BadRequest)
-            }
-        }
-    }
-}
-
-@Serializable
-data class WalletBalance(
-    val wallet: Wallet,
-    val balance: Long,
-    val allocated: Long,
-    val used: Long,
-    val area: ProductArea
-)
-
-@Serializable
-data class RetrieveBalanceResponse(
-    val wallets: List<WalletBalance>
-)
-
-@Serializable
 data class Wallet(
+    val owner: WalletOwner,
+    val paysFor: ProductCategoryId,
+    val allocations: List<WalletAllocation>,
+    val chargePolicy: AllocationSelectorPolicy,
+    val productType: ProductType? = null,
+    val chargeType: ChargeType? = null,
+    val unit: ProductPriceUnit? = null,
+)
+
+/*
+ * EXPIRE_FIRST takes the wallet allocation with end date closes to now.
+ * ORDERED takes the wallet allocation in a user specified order.
+ */
+@Serializable
+enum class AllocationSelectorPolicy {
+    EXPIRE_FIRST,
+    // ORDERED (Planned not yet implemented)
+}
+
+@Serializable
+data class WalletAllocation(
+    @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
-    val type: WalletOwnerType,
-    val paysFor: ProductCategoryId
+    @UCloudApiDoc(
+        """
+        A path, starting from the top, through the allocations that will be charged, when a charge is made
+
+        Note that this allocation path will always include, as its last element, this allocation.
+    """
+    )
+    val allocationPath: List<String>,
+    @UCloudApiDoc("The current balance of this wallet allocation's subtree")
+    val balance: Long,
+    @UCloudApiDoc("The initial balance which was granted to this allocation")
+    val initialBalance: Long,
+    @UCloudApiDoc("The current balance of this wallet allocation")
+    val localBalance: Long,
+    @UCloudApiDoc("Timestamp for when this allocation becomes valid")
+    val startDate: Long,
+    @UCloudApiDoc(
+        "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
+            "expire automatically"
+    )
+    val endDate: Long?
 )
 
 @Serializable
-data class AddToBalanceRequest(
-    val wallet: Wallet,
-    val credits: Long
-) {
-    init {
-        if (credits < 0) throw RPCException("credits must be non-negative", HttpStatusCode.BadRequest)
-    }
-}
-
-typealias AddToBalanceResponse = Unit
-
-@Serializable
-data class AddToBalanceBulkRequest(
-    val requests: List<AddToBalanceRequest>
-)
-
-typealias AddToBalanceBulkResponse = Unit
-
-@Serializable
-data class SetBalanceRequest(
-    val wallet: Wallet,
-    val lastKnownBalance: Long,
-    val newBalance: Long
-)
-
-typealias SetBalanceResponse = Unit
-
-@Serializable
-data class ReserveCreditsRequest(
-    val jobId: String,
+data class PushWalletChangeRequestItem(
+    val owner: WalletOwner,
     val amount: Long,
-    val expiresAt: Long,
-    val account: Wallet,
-    val jobInitiatedBy: String,
-    val productId: String,
-    val productUnits: Long,
-
-    /**
-     * If this is true the reservation will be deleted immediately after the limit check has passed
-     *
-     * The reservation will never be committed. This allows clients to perform a limit check without actually
-     * committing anything.
-     */
-    val discardAfterLimitCheck: Boolean = false,
-
-    /**
-     * Immediately charge the wallet for the [amount] specified.
-     */
-    val chargeImmediately: Boolean = false,
-
-    /**
-     * Ignore any errors if an entry with this [jobId] already exists
-     */
-    val skipIfExists: Boolean = false,
-
-    /**
-     * `true` if we should skip the limit check otherwise `false` (default) if limit checking should be active
-     */
-    val skipLimitCheck: Boolean = false,
-
-    /**
-     * A comment stating what the transaction is used in. Can be :
-     *  GIFTED, (transferred as is a gift claim)
-     *  TRANSFERRED_TO_PERSONAL, (credits are moved from project to a personal project)
-     *  TRANSFERRED_TO_PROJECT, (usually only used in reservations in applications)
-     *  PAYMENT (Credits are used as payment for services)
-     */
-    val transactionType: TransactionType
-) {
-    init {
-        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
-        if (discardAfterLimitCheck && chargeImmediately) {
-            throw RPCException("Cannot discard and charge at the same time", HttpStatusCode.BadRequest)
-        }
-    }
-}
-
-typealias ReserveCreditsResponse = Unit
-
-@Serializable
-data class ReserveCreditsBulkRequest(
-    val reservations: List<ReserveCreditsRequest>
+    val productId: ProductReference,
 )
 
-typealias ReserveCreditsBulkResponse = Unit
+@Serializable
+data class WalletBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    val filterType: ProductType? = null
+) : WithPaginationRequestV2
+
+typealias PushWalletChangeResponse = Unit
 
 @Serializable
-data class ChargeReservationRequest(
-    val name: String,
-    val amount: Long,
-    val productUnits: Long
-) {
-    init {
-        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
-    }
-}
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
+data class SubAllocation(
+    val id: String,
+    val startDate: Long,
+    val endDate: Long?,
 
-typealias ChargeReservationResponse = Unit
+    val productCategoryId: ProductCategoryId,
+    val productType: ProductType,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
 
-@Serializable
-data class TransferToPersonalRequest(val transfers: List<SingleTransferRequest>)
-@Serializable
-data class SingleTransferRequest(
-    val initiatedBy: String,
-    val amount: Long,
-    val sourceAccount: Wallet,
-    val destinationAccount: Wallet
-) {
-    init {
-        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
+    val workspaceId: String,
+    val workspaceTitle: String,
+    val workspaceIsProject: Boolean,
 
-        if (destinationAccount.type != WalletOwnerType.USER) {
-            throw RPCException("Destination account must be a personal project!", HttpStatusCode.BadRequest)
-        }
-
-        if (sourceAccount.paysFor != destinationAccount.paysFor) {
-            throw RPCException("Both source and destination must target same wallet", HttpStatusCode.BadRequest)
-        }
-    }
-}
-
-typealias TransferToPersonalResponse = Unit
-
-@Serializable
-data class RetrieveWalletsForProjectsRequest(
-    val projectIds: List<String>
+    val remaining: Long,
 )
 
-typealias RetrieveWalletsForProjectsResponse = List<Wallet>
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class WalletsBrowseSubAllocationsRequest(
+    val sortBy: SortSubAllocationsBy? = null,
+    val filterType: ProductType? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+
+enum class SortSubAllocationsBy {
+    GRANT_ALLOCATION,
+    PRODUCT_CATEGORY
+}
+
+typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
 @Serializable
-data class WalletsGrantProviderCreditsRequest(val provider: String)
-typealias WalletsGrantProviderCreditsResponse = Unit
+data class WalletsRetrieveRecipientRequest(
+    val query: String,
+)
 
-object Wallets : CallDescriptionContainer("wallets") {
+@Serializable
+data class WalletsRetrieveRecipientResponse(
+    val id: String,
+    val isProject: Boolean,
+    val title: String,
+    val principalInvestigator: String,
+    val numberOfMembers: Int,
+)
+
+object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
-    val retrieveBalance = call<RetrieveBalanceRequest, RetrieveBalanceResponse, CommonErrorMessage>("retrieveBalance") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"balance"
-            }
-
-            params {
-                +boundTo(RetrieveBalanceRequest::id)
-                +boundTo(RetrieveBalanceRequest::type)
-                +boundTo(RetrieveBalanceRequest::includeChildren)
-                +boundTo(RetrieveBalanceRequest::showHidden)
-            }
-        }
-    }
-
-    val addToBalance = call<AddToBalanceRequest, AddToBalanceResponse, CommonErrorMessage>("addToBalance") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"add-credits"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val addToBalanceBulk = call<AddToBalanceBulkRequest, AddToBalanceBulkResponse, CommonErrorMessage>("addToBalanceBulk") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"add-credits-bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val setBalance = call<SetBalanceRequest, SetBalanceResponse, CommonErrorMessage>("setBalance") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"set-balance"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val reserveCredits = call<ReserveCreditsRequest, ReserveCreditsResponse, CommonErrorMessage>("reserveCredits") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"reserve-credits"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val reserveCreditsBulk = call<ReserveCreditsBulkRequest, ReserveCreditsBulkResponse, CommonErrorMessage>("reserveCreditsBulk") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"reserve-credits-bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-
-    val chargeReservation = call<ChargeReservationRequest, ChargeReservationResponse, CommonErrorMessage>(
-        "chargeReservation"
+    val push = call<BulkRequest<PushWalletChangeRequestItem>, PushWalletChangeResponse, CommonErrorMessage>(
+        "push"
     ) {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"charge-reservation"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(baseContext, "push", roles = Roles.SERVICE)
     }
 
-    val transferToPersonal = call<TransferToPersonalRequest, TransferToPersonalResponse, CommonErrorMessage>(
-        "transferToPersonal"
+    val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
+    }
+
+    val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
+        CommonErrorMessage>("browseSubAllocations") {
+        httpBrowse(baseContext, "subAllocation")
+    }
+
+    val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
+        CommonErrorMessage>("retrieveRecipient") {
+        httpRetrieve(baseContext, "recipient")
+    }
+}
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+sealed class WalletOwner {
+    @Serializable
+    @SerialName("user")
+    data class User(val username: String) : WalletOwner()
+
+    @Serializable
+    @SerialName("project")
+    data class Project(val projectId: String) : WalletOwner()
+}
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ChargeWalletRequestItem(
+    @UCloudApiDoc("The payer of this charge")
+    val payer: WalletOwner,
+    @UCloudApiDoc(
+        """
+        The number of units that this charge is about
+        
+        The unit itself is defined by the product. The unit can, for example, describe that the 'units' describe the
+        number of minutes/hours/days.
+    """
+    )
+    val units: Long,
+    @UCloudApiDoc("The number of products involved in this charge, for example the number of nodes")
+    val numberOfProducts: Long,
+    @UCloudApiDoc("A reference to the product which the service is charging for")
+    val product: ProductReference,
+    @UCloudApiDoc("The username of the user who generated this request")
+    val performedBy: String,
+    @UCloudApiDoc("A description of the charge this is used purely for presentation purposes")
+    val description: String
+) {
+    init {
+        checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
+        checkMinimumValue(this::units, units, 1)
+    }
+}
+
+typealias ChargeWalletResponse = BulkResponse<Boolean>
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class DepositToWalletRequestItem(
+    @UCloudApiDoc("The recipient of this deposit")
+    val recipient: WalletOwner,
+    @UCloudApiDoc("A reference to the source allocation which the deposit will draw from")
+    val sourceAllocation: String,
+    @UCloudApiDoc("The amount of credits to deposit into the recipient's wallet")
+    val amount: Long,
+    @UCloudApiDoc("A description of this change. This is used purely for presentation purposes.")
+    val description: String,
+    @UCloudApiDoc(
+        """
+        A timestamp for when this deposit should become valid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
+        immediately.
+    """
+    )
+    val startDate: Long? = null,
+    @UCloudApiDoc(
+        """
+        A timestamp for when this deposit should become invalid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation will never
+        expire.
+    """
+    )
+    val endDate: Long? = null,
+)
+
+typealias DepositToWalletResponse = Unit
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class TransferToWalletRequestItem(
+    @UCloudApiDoc("The category to transfer from")
+    val categoryId: ProductCategoryId,
+    @UCloudApiDoc("The target wallet to insert the credits into")
+    val target: WalletOwner,
+    @UCloudApiDoc("The source wallet from where the credits is transferred from")
+    val source: WalletOwner,
+    @UCloudApiDoc("The amount of credits to transfer")
+    val amount: Long,
+    @UCloudApiDoc(
+        """
+        A timestamp for when this deposit should become valid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
+        immediately.
+    """
+    )
+    val startDate: Long? = null,
+    @UCloudApiDoc(
+        """
+        A timestamp for when this deposit should become invalid
+        
+        This value must overlap with the source allocation. A value of null indicates that the allocation will never
+        expire.
+    """
+    )
+    val endDate: Long? = null,
+)
+
+typealias TransferToWalletResponse = Unit
+
+@Serializable
+data class UpdateAllocationRequestItem(
+    val id: String,
+    val balance: Long,
+    val startDate: Long,
+    val endDate: Long?,
+    val reason: String,
+)
+
+typealias UpdateAllocationResponse = Unit
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("See `DepositToWalletRequestItem`")
+@Serializable
+data class RootDepositRequestItem(
+    val categoryId: ProductCategoryId,
+    val recipient: WalletOwner,
+    val amount: Long,
+    val description: String,
+    val startDate: Long? = null,
+    val endDate: Long? = null
+)
+
+object Accounting : CallDescriptionContainer("accounting") {
+    const val baseContext = "/api/accounting"
+
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(WalletOwner.User.serializer()),
+            serializerEntry(WalletOwner.Project.serializer())
+        )
+    }
+
+    val charge = call<BulkRequest<ChargeWalletRequestItem>, ChargeWalletResponse, CommonErrorMessage>(
+        "charge"
     ) {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
+        httpUpdate(baseContext, "charge", roles = Roles.SERVICE)
+    }
 
-        http {
-            method = HttpMethod.Post
+    val deposit = call<BulkRequest<DepositToWalletRequestItem>, DepositToWalletResponse, CommonErrorMessage>(
+        "deposit"
+    ) {
+        httpUpdate(baseContext, "deposit")
+    }
 
-            path {
-                using(baseContext)
-                +"transfer"
-            }
+    val transfer = call<BulkRequest<TransferToWalletRequestItem>, TransferToWalletResponse, CommonErrorMessage>(
+        "transfer"
+    ) {
+        httpUpdate(baseContext, "transfer")
+    }
 
-            body { bindEntireRequestFromBody() }
+    val updateAllocation = call<BulkRequest<UpdateAllocationRequestItem>, UpdateAllocationResponse, CommonErrorMessage>(
+        "updateAllocation"
+    ) {
+        httpUpdate(baseContext, "allocation")
+
+        documentation {
+            summary = "Update an existing allocation"
+
+            description = """
+                Updates one or more existing allocations. This endpoint will use all the provided values. That is,
+                you must provide all values, even if they do not change. This will generate a transaction indicating
+                the change. This will set the initial balance of the allocation, as if it was initially created with
+                this value.
+                
+                The constraints that are in place during a standard creation are still in place when updating the
+                values. This means that the new start and end dates _must_ overlap with the values of all ancestors.
+            """.trimIndent()
         }
     }
 
-    val retrieveWalletsFromProjects =
-        call<RetrieveWalletsForProjectsRequest,
-            RetrieveWalletsForProjectsResponse,
-            CommonErrorMessage>("retrieveWalletsFromProjects")
-        {
-            auth {
-                access = AccessRight.READ
-                roles = Roles.PRIVILEGED
-            }
+    val check = call<BulkRequest<ChargeWalletRequestItem>, BulkResponse<Boolean>, CommonErrorMessage>("check") {
+        httpUpdate(baseContext, "check", roles = Roles.SERVICE)
 
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"retrieveWallets"
-                }
-
-                body { bindEntireRequestFromBody()}
-            }
+        documentation {
+            summary = "Checks if one or more wallets are able to carry a charge"
+            description = """
+                Checks if one or more charges would succeed without lacking credits. This will not generate a
+                transaction message, and as a result, the description will never be used.
+            """.trimIndent()
         }
+    }
 
-    val grantProviderCredits = call<WalletsGrantProviderCreditsRequest, WalletsGrantProviderCreditsResponse,
-        CommonErrorMessage>("grantProviderCredits") {
-        httpUpdate(baseContext, "grantProviderCredits", roles = Roles.PRIVILEGED)
+    val rootDeposit = call<BulkRequest<RootDepositRequestItem>, Unit, CommonErrorMessage>("rootDeposit") {
+        httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
     }
 }

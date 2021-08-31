@@ -124,6 +124,7 @@ sealed class Person : Principal() {
         override val uid: Long = 0,
         override val twoFactorAuthentication: Boolean,
         override val serviceLicenseAgreement: Int,
+        val organizationId: String?,
 
         @Transient
         val password: ByteArray = ByteArray(0),

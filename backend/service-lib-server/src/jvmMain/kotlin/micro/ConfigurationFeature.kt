@@ -52,6 +52,7 @@ class ConfigurationFeature : MicroFeature {
                 val configDirectory = (if (argIterator.hasNext()) argIterator.next() else null)?.let { File(it) }
                 if (configDirectory == null) {
                     log.info("Dangling --config-dir. Correct syntax is --config-dir <directory>")
+                    log.info("Received: $cliArgs")
                 } else {
                     configDirs.add(configDirectory)
                     if (configDirectory.exists() && configDirectory.isDirectory) {

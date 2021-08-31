@@ -12,12 +12,13 @@ const HighlightedCard: React.FunctionComponent<{
     subtitle?: React.ReactNode;
     color: ThemeColor;
     isLoading?: boolean;
-    icon?: IconName,
-    height?: string,
-    minHeight?: string,
-    width?: string,
-    minWidth?: string,
+    icon?: IconName;
+    height?: string;
+    minHeight?: string;
+    width?: string;
+    minWidth?: string;
     onClick?: () => void;
+    onContextMenu?: (e: React.MouseEvent) => void;
 }> = ({
     title,
     subtitle,
@@ -29,7 +30,8 @@ const HighlightedCard: React.FunctionComponent<{
     height = "auto",
     minHeight,
     width = "100%",
-    minWidth
+    minWidth,
+    onContextMenu
 }) => (
         <Card
             onClick={onClick}
@@ -41,6 +43,7 @@ const HighlightedCard: React.FunctionComponent<{
             borderWidth={0}
             borderRadius={6}
             minHeight={minHeight}
+            onContextMenu={onContextMenu}
         >
             <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
             <Box px={3} py={1} height={"calc(100% - 5px)"}>

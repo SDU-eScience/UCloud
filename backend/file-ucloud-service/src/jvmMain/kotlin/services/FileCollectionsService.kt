@@ -19,8 +19,7 @@ class FileCollectionsService(
 ) {
     suspend fun create(request: BulkRequest<FileCollection>): BulkResponse<FindByStringId?> {
         for (item in request.items) {
-            val project = item.owner.project ?: TODO("Not supported yet for personal workspaces")
-            nativeFs.createDirectories(pathConverter.projectRepositoryLocation(project, item.id))
+            nativeFs.createDirectories(pathConverter.collectionLocation(item.id))
         }
         return BulkResponse(request.items.map { null })
     }
@@ -29,14 +28,11 @@ class FileCollectionsService(
         taskSystem.submitTask(
             Files.delete.fullName,
             defaultMapper.encodeToJsonElement(
-                collections.items.map { collection ->
-                    val project = collection.owner.project ?: TODO("Not supported yet for personal workspaces")
-                    FindByPath(
-                        pathConverter.internalToUCloud(
-                            pathConverter.projectRepositoryLocation(project, collection.id)
-                        ).path
-                    )
-                }
+                BulkRequest(
+                    collections.items.map { collection ->
+                        FindByPath("/${collection.id}")
+                    }
+                ) as FilesDeleteRequest
             ) as JsonObject
         )
     }
@@ -44,7 +40,7 @@ class FileCollectionsService(
     suspend fun rename(
         renames: BulkRequest<FileCollectionsProviderRenameRequestItem>,
     ) {
-        TODO()
+        // Do nothing
     }
 
     companion object : Loggable {

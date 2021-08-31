@@ -1,160 +1,146 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.grant.api.Application
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.ApplicationWithComments
-import dk.sdu.cloud.grant.api.Comment
-import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.grant.api.CommentOnApplicationRequest
+import dk.sdu.cloud.grant.api.DeleteCommentRequest
+import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
-
-object CommentTable : SQLTable("grant.comments") {
-    val applicationId = long("application_id", notNull = true)
-    val comment = text("comment", notNull = true)
-    val postedBy = text("posted_by", notNull = true)
-    val createdAt = timestamp("created_at", notNull = true)
-    val id = long("id", notNull = true)
-}
+import kotlinx.serialization.decodeFromString
 
 class GrantCommentService(
-    private val applications: GrantApplicationService,
-    private val notifications: GrantNotificationService,
-    private val projectCache: ProjectCache
+    private val db: DBContext,
 ) {
-    suspend fun addComment(
-        ctx: DBContext,
-        actor: Actor,
-        id: Long,
-        comment: String
+    suspend fun postComment(
+        actorAndProject: ActorAndProject,
+        request: CommentOnApplicationRequest
     ) {
-        lateinit var application: Application
-        ctx.withSession { session ->
-            application = checkPermissions(session, id, actor).first
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("postedBy", actor.safeUsername())
-                        setParameter("id", id)
-                        setParameter("comment", comment)
-                    },
-                    "insert into \"grant\".comments (application_id, comment, posted_by) values (:id, :comment, :postedBy)"
-                )
-        }
-
-        val admins = projectCache.admins.get(application.resourcesOwnedBy)
-        if (admins != null && (admins.find { it.username == actor.username } != null) ) {
-            //admin wrote comment
-            notifications.notify(
-                GrantNotification(
-                    application,
-                    adminMessage= null,
-                    userMessage =
-                    UserGrantNotificationMessage(
-                        subject = { "Comment on Application" },
-                        type = "COMMENT_GRANT_APPLICATION",
-                        email = Mail.NewCommentOnApplicationMail(
-                            actor.safeUsername(),
-                            application.resourcesOwnedByTitle,
-                            application.grantRecipientTitle
-                        ),
-                        application.requestedBy
-                    )
-                ),
-                actor.safeUsername(),
-                JsonObject(mapOf("appId" to JsonPrimitive(application.id))),
-            )
-        }
-        else {
-            notifications.notify(
-                GrantNotification(
-                    application,
-                    AdminGrantNotificationMessage(
-                        subject = { "Comment on Application" },
-                        type = "COMMENT_GRANT_APPLICATION",
-                        Mail.NewCommentOnApplicationMail(
-                            actor.safeUsername(),
-                            application.resourcesOwnedByTitle,
-                            application.grantRecipientTitle
+        db.withSession(remapExceptions = true) { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("id", request.requestId)
+                    setParameter("comment", request.comment)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    insert into "grant".comments
+                        (application_id, comment, posted_by) 
+                    select :id, :comment, :username
+                    from
+                        "grant".applications app left join
+                        project.project_members pm on
+                            pm.project_id = app.resources_owned_by and
+                            pm.username = :username and
+                            (pm.role = 'PI' or pm.role = 'ADMIN')
+                    where
+                        app.id = :id and
+                        (
+                            :username = app.requested_by or
+                            pm.username is not null
                         )
-                    ),
-                    userMessage = null
-                ),
-                actor.safeUsername(),
-                JsonObject(mapOf("appId" to JsonPrimitive(application.id))),
-            )
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException("Unable to post your comment", HttpStatusCode.BadRequest)
+            }
+
+            // TODO Notify
         }
     }
 
     suspend fun deleteComment(
-        ctx: DBContext,
-        actor: Actor,
-        commentId: Long
+        actorAndProject: ActorAndProject,
+        request: DeleteCommentRequest
     ) {
-        ctx.withSession { session ->
-            val row = session
-                .sendPreparedStatement(
-                    { setParameter("commentId", commentId) },
-                    "delete from \"grant\".comments where id = :commentId returning application_id, posted_by"
+        db.withSession(remapExceptions = true) { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", request.commentId)
+                },
+                """
+                    delete from "grant".comments comment
+                    using
+                        "grant".applications app left join
+                        project.project_members pm on
+                            pm.project_id = app.resources_owned_by and
+                            pm.username = :username and
+                            (pm.role = 'PI' or pm.role = 'ADMIN')
+                    where
+                        comment.id = :id and
+                        comment.application_id = app.id and
+                        posted_by = :username and
+                        (app.requested_by = :username or pm.username is not null)
+                """
+            ).rowsAffected > 0L
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete this comment. Has it already been deleted?",
+                    HttpStatusCode.BadRequest
                 )
-                .rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            val projectId = row.getLong(0)!!
-            val postedBy = row.getString(1)!!
-
-            checkPermissions(session, projectId, actor)
-            if (actor !is Actor.System && actor.safeUsername() != postedBy) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
         }
     }
 
     suspend fun viewComments(
-        ctx: DBContext,
-        actor: Actor,
-        applicationId: Long
+        actorAndProject: ActorAndProject,
+        request: ViewApplicationRequest
     ): ApplicationWithComments {
-        return ctx.withSession { session ->
-            val (application, approver) = applications.viewApplicationById(session, actor, applicationId)
-            val comments = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("applicationId", applicationId)
-                    },
-
-                    """
-                        select * from "grant".comments
-                        where application_id = :applicationId
-                        order by comments.created_at
-                        limit 5000
-                    """
-                )
-                .rows
-                .map {
-                    Comment(
-                        it.getField(CommentTable.id),
-                        it.getField(CommentTable.postedBy),
-                        it.getField(CommentTable.createdAt).toTimestamp(),
-                        it.getField(CommentTable.comment)
-                    )
-                }
-
-            ApplicationWithComments(application, comments, approver)
+        return db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", request.id)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    select
+                        jsonb_build_object(
+                            'application', 
+                            "grant".application_to_json(
+                                app,
+                                array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
+                                owner_project,
+                                existing_project,
+                                existing_project_pi.username
+                            ),
+                            'comments', array_remove(array_agg("grant".comment_to_json(posted_comment)), null),
+                            'approver', pm.username is not null
+                        )
+                    from
+                        "grant".applications app join
+                        "grant".requested_resources request on app.id = request.application_id join
+                        accounting.product_categories pc on request.product_category = pc.id join
+                        project.projects owner_project on
+                            owner_project.id = app.resources_owned_by left join
+                        project.projects existing_project on
+                            app.grant_recipient_type = 'existing_project' and
+                            existing_project.id = app.grant_recipient left join
+                        project.project_members existing_project_pi on
+                            existing_project_pi.role = 'PI' and
+                            existing_project_pi.project_id = existing_project.id left join
+                        project.project_members pm on
+                            pm.project_id = app.resources_owned_by and
+                            pm.username = :username and
+                            (pm.role = 'ADMIN' or pm.role = 'PI') left join
+                        "grant".comments posted_comment on
+                            app.id = posted_comment.application_id
+                    where
+                        app.id = :id and
+                        (
+                            app.requested_by = :username or
+                            pm.username is not null
+                        )
+                    group by 
+                        app.*, existing_project.*, owner_project.*, existing_project_pi.username, pm.username
+                """
+            ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
+                ?: throw RPCException("Unknown application, does it exist?", HttpStatusCode.NotFound)
         }
     }
-
-    private suspend fun checkPermissions(
-        session: AsyncDBConnection,
-        id: Long,
-        actor: Actor
-    ): Pair<Application, Boolean> {
-        return applications.viewApplicationById(session, actor, id)
-    }
-
-    private fun LocalDateTime.toTimestamp(): Long = toDateTime(DateTimeZone.UTC).millis
 }

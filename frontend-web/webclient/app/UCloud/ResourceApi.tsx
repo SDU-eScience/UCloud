@@ -2,7 +2,6 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import Product = accounting.Product;
 import {buildQueryString} from "Utilities/URIUtilities";
 import {SidebarPages} from "ui-components/Sidebar";
 import {InvokeCommand} from "Authentication/DataHook";
@@ -17,6 +16,7 @@ import * as H from "history";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "Resource/Properties";
 import {ItemRenderer} from "ui-components/Browse";
+import {Product} from "Accounting";
 
 export interface ProductSupport {
     product: ProductReference;

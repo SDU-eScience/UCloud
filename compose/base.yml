@@ -19,7 +19,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
     volumes:
-      - postgresData:/var/lib/postgresql/data
+      - ${PWD}/.compose/postgres:/var/lib/postgresql/data
     ports:
     - 35432:5432
     hostname: postgres

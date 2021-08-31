@@ -821,6 +821,45 @@ textarea,
 .ReactModal__Overlay {
     z-index: 100;
     height: auto;
-}`;
+}
+
+div.tooltip-content {
+    box-shadow: ${theme.shadows.sm};
+    position: absolute;
+    margin-left: 50px;
+    padding: 5px 5px 5px 5px;
+    width: 350px;
+    height: auto;
+    display: none;
+    color: var(--black);
+    background-color: var(--white);
+}
+
+div.tooltip-content.centered {
+    justify-content: center;
+
+    .user-box {
+        .centered {
+            display: flex;
+            justify-content: center;
+        }
+    }
+    
+    .product-box {
+        margin-left: 2px;
+        text-align: left;
+        span {
+            word-break: keep-all;
+        }
+    }   
+}
+
+div.tooltip:hover {
+    div.tooltip-content {
+        display: flex;
+    }
+}
+
+`;
 
 export default UIGlobalStyle;

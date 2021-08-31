@@ -1,4 +1,5 @@
 import {buildQueryString} from "Utilities/URIUtilities";
+import {PageV2, PaginationRequestV2} from "UCloud";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -273,10 +274,10 @@ export function grantApplicationFilterPrettify(filter: GrantApplicationFilter): 
     }
 }
 
-export interface IngoingGrantApplicationsRequest extends PaginationRequest {
+export interface IngoingGrantApplicationsRequest extends PaginationRequestV2 {
     filter?: GrantApplicationFilter;
 }
-export type IngoingGrantApplicationsResponse = Page<GrantApplication>;
+export type IngoingGrantApplicationsResponse = PageV2<GrantApplication>;
 
 export function ingoingGrantApplications(
     request: IngoingGrantApplicationsRequest
@@ -436,7 +437,7 @@ export function transferApplication(request: TransferApplicationRequest): APICal
     };
 }
 
-export interface ListOutgoingApplications extends PaginationRequest {
+export interface ListOutgoingApplications extends PaginationRequestV2 {
     filter?: GrantApplicationFilter;
 }
 
