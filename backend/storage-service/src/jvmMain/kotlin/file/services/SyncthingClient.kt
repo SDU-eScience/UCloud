@@ -232,7 +232,7 @@ class SyncthingClient(
         expectSuccess = false
     }
     private val mutex = Mutex()
-    private val lock = distributedLocks.create("syncthing-client-writer", duration = 10_000)
+    private val lock = distributedLocks.create("syncthing-client-writer", duration = 2_000)
 
     private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
         return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
@@ -260,8 +260,6 @@ class SyncthingClient(
                             """
                     )
                 }.rows
-
-                if (!lock.renew(10_000)) return@withLock
 
                 devices.forEach { device ->
                     val newConfig = SyncthingConfig(
