@@ -64,6 +64,8 @@ class PathConverter(
         val collectionId = components[0]
         val withoutCollection = components.drop(1)
 
+        println(file)
+        println("collectionId = $collectionId")
         val collection = collectionCache.get(collectionId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val storedName = collection.providerGeneratedId ?: collection.id
 
@@ -116,6 +118,18 @@ class PathConverter(
                 }
             )
         }
+    }
+
+    fun collectionLocation(collectionId: String): InternalFile {
+        return InternalFile(
+            buildString {
+                append(rootDirectory.path)
+                append('/')
+                append(COLLECTION_DIRECTORY)
+                append('/')
+                append(collectionId)
+            }
+        )
     }
 
     fun projectRepositoryLocation(projectId: String, repository: String): InternalFile {
