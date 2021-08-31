@@ -1,10 +1,11 @@
-create table quotas
+create schema if not exists storage;
+create table storage.quotas
 (
     path           text   not null primary key,
     quota_in_bytes bigint not null
 );
 
-create table quota_allocation
+create table storage.quota_allocation
 (
     from_directory text   not null,
     to_directory   text   not null,
@@ -13,7 +14,7 @@ create table quota_allocation
         primary key (from_directory, to_directory)
 );
 
-create table metadata
+create table storage.metadata
 (
     path           text      not null,
     path_moving_to text,
@@ -25,6 +26,6 @@ create table metadata
         primary key (path, type, username)
 );
 
-create index metadata_path on metadata (path text_pattern_ops);
-create index metadata_username on metadata (username);
-create index metadata_type on metadata (type);
+create index metadata_path on storage.metadata (path text_pattern_ops);
+create index metadata_username on storage.metadata (username);
+create index metadata_type on storage.metadata (type);

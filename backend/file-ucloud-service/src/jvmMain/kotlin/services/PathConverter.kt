@@ -74,7 +74,7 @@ class PathConverter(
                     append('/')
                     append(HOME_DIRECTORY)
                     append('/')
-                    append(collectionId.removePrefix(COLLECTION_HOME_PREFIX))
+                    append(storedName.removePrefix(COLLECTION_HOME_PREFIX))
                     for ((idx, component) in withoutCollection.withIndex()) {
                         if (idx == 0) continue
                         append('/')
@@ -83,8 +83,7 @@ class PathConverter(
                 }
             )
         } else if (storedName.startsWith(COLLECTION_PROJECT_PREFIX)) {
-            val (projectId, repository) = collectionToProjectRepositoryOrNull(collectionId)
-                ?: throw FSException.NotFound()
+            val (projectId, repository) = storedName.removePrefix(COLLECTION_PROJECT_PREFIX).split("/")
 
             return InternalFile(
                 buildString {
@@ -131,19 +130,6 @@ class PathConverter(
                 append(repository)
             }
         )
-    }
-
-    private data class ProjectRepository(val projectId: String, val repository: String)
-    private fun collectionToProjectRepositoryOrNull(collection: String): ProjectRepository? {
-        if (!collection.startsWith(COLLECTION_PROJECT_PREFIX)) return null
-        val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
-        val splitterIdx = withoutPrefix.indexOfLast { it == '_' }
-        if (splitterIdx == -1) throw FSException.NotFound()
-        if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
-        val projectId = withoutPrefix.substring(0, splitterIdx)
-        val repository = withoutPrefix.substring(splitterIdx + 1)
-
-        return ProjectRepository(projectId, repository)
     }
 
     fun internalToUCloud(file: InternalFile): UCloudFile {
