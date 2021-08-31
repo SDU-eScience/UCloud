@@ -5,6 +5,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ucloud.data.extraction.api.*
 import org.joda.time.Days
 import org.joda.time.LocalDateTime
+import java.io.File
 import java.security.MessageDigest
 import kotlin.math.min
 
@@ -40,6 +41,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         )
         val json = jsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerReport)
         println("$json,")
+
     }
 
     fun reportCenterDaily(startDate: LocalDateTime, endDate: LocalDateTime) {
@@ -67,8 +69,10 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
 
     fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
         //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
+        val fileName = "/tmp/CenterDaily.json"
+        val file = File(fileName)
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
-        println("[")
+        file.writeText("[\n")
         for (day in 0..daysInPeriod) {
             val start = startDate.plusDays(day)
             val numberOfGPUCores = TYPE_1_GPU_CORES
@@ -127,11 +131,14 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     )
 
                     val json = jsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerDaily)
-                    println("$json,")
+                    file.appendText("\t$json,\n")
                 }
             }
         }
-        println("]")
+        file.appendText("]\n")
+        println(file.absolutePath)
+        println(file.canonicalPath)
+        while(true){}
     }
 
     fun reportPerson() {
