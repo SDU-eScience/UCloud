@@ -104,7 +104,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }));
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
-            filterTemplate: "Favorite",
+            filterTemplate: "UCloud favorite",
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
@@ -125,7 +125,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favoriteFiles={favoriteFiles}
                 onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
                     filterActive: true,
-                    filterTemplate: "Favorite",
+                    filterTemplate: "UCloud favorite",
                     itemsPerPage: 10
                 }))}
             />
@@ -164,12 +164,12 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
     const history = useHistory();
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite)//.slice(0, 7);
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.isFavorite).slice(0, 7);
 
     return (
         <HighlightedCard
             color="darkBlue"
-            isLoading={props.favoriteFiles.loading}
+            isLoading={false}
             icon="starFilled"
             title="Favorites"
         >

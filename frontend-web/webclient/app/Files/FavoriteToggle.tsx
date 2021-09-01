@@ -33,7 +33,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                 const mostRecent = metadata.metadata[favoriteTemplateId]?.[0];
                 realFileIsFavorite = mostRecent != null && mostRecent.type === "metadata" &&
                     mostRecent.specification.version === favoriteTemplateVersion &&
-                    mostRecent.specification.document["favorite"];
+                    mostRecent.specification.document["isFavorite"];
                 if (mostRecent) setStatusId(mostRecent.id);
             }
         }
@@ -66,7 +66,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
 
             if (isFavorite) {
                 // Note(Jonas): New state will be _not_  favorite
-                
+
                 await invokeCommand(
                     metadataApi.delete(
                         bulkRequestOf({
@@ -83,7 +83,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                     metadataApi.create(bulkRequestOf({
                         fileId: file.id,
                         metadata: {
-                            document: {favorite: !isFavorite},
+                            document: {isFavorite: !isFavorite},
                             version: favoriteTemplateVersion,
                             changeLog: "New favorite status",
                             templateId: favoriteTemplateId!
