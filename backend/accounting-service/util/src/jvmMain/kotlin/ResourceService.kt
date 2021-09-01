@@ -1011,7 +1011,7 @@ abstract class ResourceService<
                     """
                         where
                            (confirmed_by_provider = true or :include_unconfirmed) and
-                           (:project_filter = '' or :project_filter is not distinct from r.project) and
+                           (r.public_read or :project_filter = '' or :project_filter is not distinct from r.project) and
                            (:resource_id::bigint is null or r.id = :resource_id) and
                            r.type = :resource_type and
                            (

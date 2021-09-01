@@ -1,9 +1,7 @@
-import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {DashboardStateProps} from "Dashboard";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
-import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -79,22 +77,12 @@ export interface ComponentWithPage<T> extends ComponentWithLoadingState {
     page: Page<T>;
 }
 
-export interface ComponentWithScroll<Item, OffsetType> extends ComponentWithLoadingState {
-    scroll?: ScrollResult<Item, OffsetType>;
-}
-
 export interface ResponsiveReduxObject {
     mediaType: string;
     orientation: string;
     lessThan: Record<string, boolean>;
     greaterThan: Record<string, boolean>;
     is: Record<string, boolean>;
-}
-
-export interface FileInfoReduxObject {
-    error?: string;
-    activity: Page<ActivityForFrontend>;
-    loading: boolean;
 }
 
 export interface NotificationsReduxObject {
@@ -121,8 +109,6 @@ export interface HeaderSearchReduxObject {
     refresh?: () => void;
 }
 
-export type ActivityReduxObject = ComponentWithScroll<ActivityForFrontend, number> & ActivityFilter;
-
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 export interface UploaderReduxObject {
@@ -141,7 +127,6 @@ interface LegacyReducers {
     notifications?: Reducer<NotificationsReduxObject>;
     header?: Reducer<HeaderSearchReduxObject>;
     sidebar?: Reducer<SidebarReduxObject>;
-    activity?: Reducer<ActivityReduxObject>;
 }
 
 /**
@@ -175,7 +160,6 @@ interface LegacyReduxObject {
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
-    activity: ActivityReduxObject;
     simpleSearch: SimpleSearchStateProps;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
@@ -187,10 +171,6 @@ declare global {
     export type ReduxObject =
         LegacyReduxObject;
 }
-
-export const initActivity = (): ActivityReduxObject => ({
-    loading: false
-});
 
 export const initNotifications = (): NotificationsReduxObject => ({
     items: [],
@@ -221,7 +201,6 @@ export function initObject(): ReduxObject {
         header: initHeader(),
         notifications: initNotifications(),
         sidebar: initSidebar(),
-        activity: initActivity(),
         simpleSearch: initSimpleSearch(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,

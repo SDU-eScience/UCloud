@@ -104,7 +104,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }));
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
-            filterTemplate: "Favorite",
+            filterTemplate: "favorite",
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
@@ -125,7 +125,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favoriteFiles={favoriteFiles}
                 onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
                     filterActive: true,
-                    filterTemplate: "Favorite",
+                    filterTemplate: "favorite",
                     itemsPerPage: 10
                 }))}
             />
