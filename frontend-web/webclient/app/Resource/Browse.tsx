@@ -25,7 +25,7 @@ import MainContainer from "MainContainer/MainContainer";
 import {StickyBox} from "ui-components/StickyBox";
 import {NamingField} from "UtilityComponents";
 import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
+import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {useSidebarPage} from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
@@ -39,7 +39,6 @@ import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-compon
 import {useAvatars} from "AvataaarLib/hook";
 import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {IconName} from "ui-components/Icon";
 import {Product, ProductType, productTypeToIcon} from "Accounting";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
@@ -286,7 +285,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         onInlineCreate, inlineInputRef, selectedProductWithSupport]);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
-        return <List childPadding={"8px"} bordered={false}>
+        return <List childPadding={"8px"} bordered={false} onContextMenu={preventDefault}>
             {!isCreating ? null :
                 <ItemRow
                     renderer={modifiedRenderer as ItemRenderer<unknown>}

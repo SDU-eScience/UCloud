@@ -209,8 +209,12 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Permissions",
                 icon: "share",
-                enabled: (selected, cb) => selected.length === 1 && selected[0].owner.project != null
-                    && cb.viewProperties != null,
+                enabled: (selected, cb) => {
+                    return selected.length === 1 &&
+                        selected[0].owner.project != null &&
+                        cb.viewProperties != null &&
+                        selected[0].permissions.myself.some(it => it === "ADMIN");
+                },
                 onClick: (selected, cb) => {
                     if (!cb.embedded) {
                         dialogStore.addDialog(
