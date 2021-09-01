@@ -62,6 +62,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     routingNamespace = "drives";
     title = "Drive";
     page = SidebarPages.Files;
+    productType = "STORAGE" as const;
 
     renderer: ItemRenderer<FileCollection> = {
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},

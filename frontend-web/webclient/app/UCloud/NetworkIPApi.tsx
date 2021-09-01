@@ -48,7 +48,7 @@ export interface NetworkIPFlags extends ResourceIncludeFlags {
     filterState?: string;
 }
 
-export interface NetworkIP extends Resource<NetworkIPUpdate, NetworkIPStatus, NetworkIPSpecification> {}
+export type NetworkIP = Resource<NetworkIPUpdate, NetworkIPStatus, NetworkIPSpecification>;
 
 export interface FirewallAndId {
     id: string;
@@ -60,16 +60,17 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
     routingNamespace = "public-ips";
     title = "Public IP";
     page = SidebarPages.Runs;
+    productType = "NETWORK_IP" as const;
 
     renderer: ItemRenderer<NetworkIP> = {
-        MainTitle: ({resource}) =>
-            !resource ? <>Public IP</> :
-            <>{resource.status.ipAddress ?? resource.id.toString()}</>,
-        Icon: ({size}) => <Icon name={"networkWiredSolid"} size={size}/>
+        MainTitle({resource}) {
+            return !resource ? <>Public IP</> :
+                <>{resource.status.ipAddress ?? resource.id.toString()}</>
+        },
+        Icon({size}) {return <Icon name={"networkWiredSolid"} size={size} />}
     };
 
     Properties = (props) => {
-        console.log(props);
         return <ResourceProperties
             api={this}
             {...props}

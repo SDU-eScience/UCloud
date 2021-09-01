@@ -40,7 +40,7 @@ import {useAvatars} from "AvataaarLib/hook";
 import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {IconName} from "ui-components/Icon";
-import {Product} from "Accounting";
+import {Product, ProductType, productTypeToIcon} from "Accounting";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -79,7 +79,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 ): ReactElement | null => {
 
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
-        {productsByProvider: {}})
+        {productsByProvider: {}});
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
@@ -274,7 +274,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
                         <div className="tooltip-content">
-                            <ProductBox resource={resource} icon="ftFileSystem" />
+                            <ProductBox resource={resource} productType={api.productType} />
                         </div>
                     </div>
                 }
@@ -399,13 +399,14 @@ function UserBox(props: {username: string}) {
 function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceSpecification>>(
     props: {
         resource: T;
-        icon: IconName
+        productType?: ProductType
     }
 ) {
     const {resource} = props;
     const {product} = resource.specification;
     return <div className="product-box">
-        <Icon size="36px" mr="4px" name={props.icon} /><span>{product.id} / {product.category}</span>
+        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
+        <span>{product.id} / {product.category}</span>
         <div><b>ID:</b> {product.id}</div>
         <div><b>Category:</b> {product.category}</div>
         <div><b>Provider:</b> {product.provider}</div>
