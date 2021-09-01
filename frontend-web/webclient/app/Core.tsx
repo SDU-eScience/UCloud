@@ -4,7 +4,6 @@ import * as React from "react";
 const Applications = React.lazy(() => import("Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("Applications/Overview"));
 const ApplicationView = React.lazy(() => import("Applications/View"));
-const Activity = React.lazy(() => import("Activity/Page"));
 const AdminOverview = React.lazy(() => import("Admin/Overview"));
 const App = React.lazy(() => import("Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
@@ -98,8 +97,6 @@ const Core = (): JSX.Element => (
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
                     <Route exact path="/shares" component={requireAuth(Shares)} />
-
-                    <Route exact path="/activity" component={requireAuth(Activity)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

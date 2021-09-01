@@ -13,7 +13,7 @@ import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "ui-components/Toggle";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Activity/Page";
+import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Utilities/DateUtilities";
 import {dateToStringNoTime} from "Utilities/DateUtilities";
 import {SortEntry} from "UCloud/ResourceApi";
 

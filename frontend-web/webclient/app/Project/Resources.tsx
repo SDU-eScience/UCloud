@@ -46,7 +46,7 @@ import {defaultModalStyle} from "Utilities/ModalUtilities";
 import ReactDatePicker from "react-datepicker";
 import {enGB} from "date-fns/locale";
 import {SlimDatePickerWrapper} from "ui-components/DatePicker";
-import {getStartOfDay} from "Activity/Page";
+import {getStartOfDay} from "Utilities/DateUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {deviceBreakpoint} from "ui-components/Hide";
 import {
