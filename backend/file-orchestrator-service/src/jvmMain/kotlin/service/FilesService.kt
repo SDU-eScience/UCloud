@@ -129,7 +129,6 @@ class FilesService(
         metadata: MetadataService.RetrieveWithHistory?
     ): UFile {
         val metadataHistory = if (metadata != null) {
-            println(metadata.metadataByFile)
             val inheritedMetadata = id.parents().asReversed().mapNotNull { parent ->
                 metadata.metadataByFile[parent.removeSuffix("/")]?.mapNotNull { (template, docs) ->
                     // Pick only the latest version and only if it is not a deletion
@@ -146,8 +145,6 @@ class FilesService(
                 }?.toMap()
             }
 
-            println(inheritedMetadata)
-
             val templates = metadata.templates
             val history = HashMap<String, List<FileMetadataOrDeleted>>()
             // NOTE(Dan): First we pre-fill the history with the inherited metadata. This metadata is sorted such that
@@ -159,13 +156,11 @@ class FilesService(
                     }
                 }
             }
-            println(history)
             // NOTE(Dan): And then we insert the local metadata, overriding any existing entry.
             val ownMetadata = metadata.metadataByFile[id] ?: emptyMap()
             ownMetadata.forEach { (template, docs) ->
                 history[template] = docs
             }
-            println(history)
 
             FileMetadataHistory(templates, history)
         } else {
