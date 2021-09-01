@@ -152,6 +152,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             title: "Size",
             helpText: "By size of the file"
         });
+        this.filterWidgets = [];
+        this.filterPills = [];
     }
 
     routingNamespace = "files";
