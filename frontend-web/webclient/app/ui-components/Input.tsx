@@ -5,7 +5,7 @@ import {
     width, WidthProps
 } from "styled-system";
 import Text from "./Text";
-import theme from "./theme";
+import theme, {ThemeColor} from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
     if (noBorder) return {"border-width": "0px"};
@@ -37,7 +37,7 @@ const left = ({leftLabel}: {leftLabel?: boolean}): string =>
 const right = ({rightLabel}: {rightLabel?: boolean}): string =>
     rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
-const Input = styled.input<InputProps>`
+const Input = styled.input<InputProps & {overrideDisabledColor?: string}>`
     display: block;
     font-family: inherit;
     ${fontSize}
@@ -62,7 +62,7 @@ const Input = styled.input<InputProps>`
     }
 
     &:disabled {
-        background-color: var(--lightGray, #f00);
+        background-color: ${p => p.overrideDisabledColor ?? "var(--lightGray, #f00)"};
     }
 
     ${space} ${borderRadius}
@@ -97,9 +97,9 @@ const independent = ({independent}: {independent?: boolean}) => independent ?
 
 
 export interface InputLabelProps extends WidthProps {
-  leftLabel?: boolean;
-  rightLabel?: boolean;
-  independent?: boolean;
+    leftLabel?: boolean;
+    rightLabel?: boolean;
+    independent?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`

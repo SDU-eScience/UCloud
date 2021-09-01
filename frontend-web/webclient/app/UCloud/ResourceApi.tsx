@@ -16,7 +16,7 @@ import * as H from "history";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "Resource/Properties";
 import {ItemRenderer} from "ui-components/Browse";
-import {Product} from "Accounting";
+import {Product, ProductType} from "Accounting";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -117,7 +117,8 @@ export abstract class ResourceApi<Res extends Resource,
     Support extends ProductSupport = ProductSupport> {
     protected namespace: string;
     protected baseContext: string;
-
+    
+    public abstract productType?: ProductType;
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;

@@ -196,10 +196,10 @@ function Header(props: HeaderProps): JSX.Element | null {
 }
 
 export const Refresh = ({
-                            onClick,
-                            spin,
-                            headerLoading
-                        }: { onClick?: () => void; spin: boolean; headerLoading?: boolean }): JSX.Element => !!onClick || headerLoading ? (
+    onClick,
+    spin,
+    headerLoading
+}: { onClick?: () => void; spin: boolean; headerLoading?: boolean }): JSX.Element => !!onClick || headerLoading ? (
     <RefreshIcon
         data-tag="refreshButton"
         name="refresh"
@@ -329,7 +329,9 @@ const _Search = (props: SearchProps): JSX.Element => {
                     pb="6px"
                     id="search_input"
                     type="text"
+                    overrideDisabledColor={ui.theme.colors.darkBlue}
                     value={props.search}
+                    disabled={!hasSearch}
                     placeholder={searchPlaceholder}
                     noBorder
                     onKeyDown={e => {
@@ -360,7 +362,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                     keepOpenOnClick
                     squareTop
                     trigger={(
-                        <ui.Absolute top={-12.5} right={12} bottom={0} left={-22}>
+                        <ui.Absolute hidden={!hasSearch} top={-12.5} right={12} bottom={0} left={-22}>
                             <ui.Icon cursor="pointer" name="chevronDown" size="12px"/>
                         </ui.Absolute>
                     )}
@@ -385,7 +387,7 @@ const _Search = (props: SearchProps): JSX.Element => {
         </ui.Relative>
     );
 
-    function fetchAll(itemsPerPage?: number): void {
+    function fetchAll(): void {
         history.push(searchPage(prioritizedSearch, props.search));
     }
 };

@@ -195,15 +195,17 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     routingNamespace = "jobs";
     title = "Run";
     page = SidebarPages.Runs;
+    productType = "COMPUTE" as const;
 
     renderer: ItemRenderer<Job> = {
-        MainTitle: ({resource}) => <>{resource?.specification?.name ?? resource?.id ?? ""}</>,
-        Icon: ({resource, size}) =>
-            <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}/>,
-        ImportantStats: ({resource}) => {
+        MainTitle({resource}) {return <>{resource?.specification?.name ?? resource?.id ?? ""}</>},
+        Icon({resource, size}) {
+            return <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
+        },
+        ImportantStats({resource}) {
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
-            return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"}/>
+            return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
                 <Box mt={"-3px"}>{stateToTitle(job.status.state)}</Box>
             </Flex>
         }
@@ -252,7 +254,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         };
     }
 
-    retrieveUtilization(request: { jobId: string }): APICallParameters<{jobId: string}, ComputeUtilization> {
+    retrieveUtilization(request: {jobId: string}): APICallParameters<{jobId: string}, ComputeUtilization> {
         return {
             context: "",
             method: "GET",

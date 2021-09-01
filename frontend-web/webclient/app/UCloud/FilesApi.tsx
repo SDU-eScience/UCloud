@@ -157,6 +157,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     routingNamespace = "files";
     title = "File";
     page = SidebarPages.Files;
+    productType = "STORAGE" as const
 
     idIsUriEncoded = true;
 
