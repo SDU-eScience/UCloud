@@ -15,10 +15,10 @@ insert into file_orchestrator.metadata_templates
     (title, namespace, uversion, schema, inheritable, require_approval, description, change_log, ui_schema,
     deprecated, created_at)
 select
-    'UCloud favorite',
+    'Favorite',
     ns.resource,
     '1.0.0',
-    '{"type": "object", "title": "favorite", "required": ["favorite"], "properties": {"isFavorite": {"type": "boolean", "title": "Favorite"}}, "description": "Favorite", "dependencies": {}}'::jsonb,
+    '{"type": "object", "title": "favorite", "required": ["favorite"], "properties": {"favorite": {"type": "boolean", "title": "Favorite"}}, "description": "Favorite", "dependencies": {}}'::jsonb,
     false,
     false,
     'favorite',
