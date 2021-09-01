@@ -119,15 +119,59 @@ class FilesService(
             val metadata = metadataJob.await()
 
             browse.mapItems {
-                val metadataForFile = metadata?.metadataByFile?.get(it.id) ?: emptyMap()
-                val templates = metadata?.templates ?: emptyMap()
-
-                it.toUFile(resolvedCollection, FileMetadataHistory(templates, metadataForFile))
+                it.toUFile(resolvedCollection, metadata)
             }
         }
     }
 
-    private fun PartialUFile.toUFile(resolvedCollection: FileCollection, metadata: FileMetadataHistory?): UFile {
+    private fun PartialUFile.toUFile(
+        resolvedCollection: FileCollection,
+        metadata: MetadataService.RetrieveWithHistory?
+    ): UFile {
+        val metadataHistory = if (metadata != null) {
+            println(metadata.metadataByFile)
+            val inheritedMetadata = id.parents().asReversed().mapNotNull { parent ->
+                metadata.metadataByFile[parent.removeSuffix("/")]?.mapNotNull { (template, docs) ->
+                    // Pick only the latest version and only if it is not a deletion
+                    // NOTE(Dan): If any has been approved, it will always be placed as the first element. This is also
+                    // why we need to check to see if any has been approved.
+                    val validDoc = docs[0]
+                    if (validDoc is FileMetadataDocument &&
+                        (validDoc.status.approval == FileMetadataDocument.ApprovalStatus.NotRequired ||
+                        validDoc.status.approval is FileMetadataDocument.ApprovalStatus.Approved)) {
+                        template to validDoc
+                    } else {
+                        null
+                    }
+                }?.toMap()
+            }
+
+            println(inheritedMetadata)
+
+            val templates = metadata.templates
+            val history = HashMap<String, List<FileMetadataOrDeleted>>()
+            // NOTE(Dan): First we pre-fill the history with the inherited metadata. This metadata is sorted such that
+            // the highest priority is listed first, which means we shouldn't override if an existing entry is present.
+            for (inherited in inheritedMetadata) {
+                inherited.forEach { (template, document) ->
+                    if (template !in history) {
+                        history[template] = listOf(document)
+                    }
+                }
+            }
+            println(history)
+            // NOTE(Dan): And then we insert the local metadata, overriding any existing entry.
+            val ownMetadata = metadata.metadataByFile[id] ?: emptyMap()
+            ownMetadata.forEach { (template, docs) ->
+                history[template] = docs
+            }
+            println(history)
+
+            FileMetadataHistory(templates, history)
+        } else {
+            null
+        }
+
         return UFile(
             id,
             UFileSpecification(
@@ -135,7 +179,7 @@ class FilesService(
                 resolvedCollection.specification.product
             ),
             createdAt,
-            status.copy(metadata = metadata),
+            status.copy(metadata = metadataHistory),
             owner ?: resolvedCollection.owner,
             permissions ?: resolvedCollection.permissions
         )
@@ -167,12 +211,11 @@ class FilesService(
 
             val metadataJob = async {
                 if (flags?.includeMetadata == true) {
-                    val r = metadataService.retrieveWithHistory(
+                    metadataService.retrieveWithHistory(
                         actorAndProject,
                         path.parent(),
                         listOf(path.fileName())
                     )
-                    FileMetadataHistory(r.templates, r.metadataByFile.values.singleOrNull() ?: emptyMap())
                 } else {
                     null
                 }
