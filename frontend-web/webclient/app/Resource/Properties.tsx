@@ -46,6 +46,11 @@ const Container = styled.div`
     margin-left: 0;
     margin-right: 0;
   }
+  
+  ${device("sm")} {
+    margin-left: 0;
+    margin-right: 0;
+  }
 
   & {
     display: flex;
