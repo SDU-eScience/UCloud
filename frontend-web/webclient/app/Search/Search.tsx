@@ -45,7 +45,7 @@ function Search(props: SearchProps): JSX.Element {
 
     const setPath = (text: string): void => history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
-    function fetchAll(itemsPerPage?: number): void {
+    function fetchAll(): void {
         history.push(searchPage(match.params.priority, props.search));
     }
 
