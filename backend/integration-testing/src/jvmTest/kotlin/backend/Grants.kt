@@ -606,6 +606,44 @@ class GrantTest : IntegrationTest() {
                     }
                 }
 
+                case("multiple comments and requirements") {
+                    val username = "user-${UUID.randomUUID()}"
+                    val organization = "ucloud.dk"
+                    input(
+                        In(
+                            ApplicationStatus.APPROVED,
+                            GrantRecipient.PersonalProject(username),
+                            listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    100.DKK
+                                ),
+                                ResourceRequest(
+                                    sampleStorage.category.name,
+                                    sampleStorage.category.provider,
+                                    100.DKK
+                                )
+                            ),
+                            comments = buildList<Comment> {
+                                addAll((0 until 2).map {
+                                    Comment(CommentPoster.Pi, "This is my comment $it")
+                                })
+                                addAll((0 until 2).map {
+                                    Comment(CommentPoster.User, "This is my user comment $it")
+                                })
+                            },
+                            username = username,
+                            allowList = listOf(UserCriteria.WayfOrganization(organization)),
+                            userOrganization = organization
+                        )
+                    )
+                    check {
+                        assertEquals(4, output.grantApplication.comments.size)
+                        assertEquals(2, output.grantApplication.application.requestedResources.size)
+                    }
+                }
+
                 case("organization requirement") {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
