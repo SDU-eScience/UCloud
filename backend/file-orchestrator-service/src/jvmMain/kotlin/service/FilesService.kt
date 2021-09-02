@@ -49,7 +49,7 @@ class FilesService(
     private fun verifyReadRequest(request: UFileIncludeFlags, support: FSSupport) {
         if (request.allowUnsupportedInclude != true) {
             // Request verification is needed
-            if (request.includePermissions == true && support.files.aclSupported != true) {
+            if (request.includePermissions == true) {
                 throw RPCException("Operation not supported by the provider", HttpStatusCode.BadRequest)
             }
 
@@ -233,7 +233,7 @@ class FilesService(
             { req, coll -> UpdatedAclWithResource(dummyResource(req.id, coll), req.added, req.deleted) },
             dontTolerateReadOnly = false,
             checkRequest = { _, fsSupport ->
-                if (!fsSupport.files.aclModifiable || !fsSupport.files.aclSupported) {
+                if (!fsSupport.files.aclModifiable) {
                     throw RPCException(
                         "You cannot change the ACL of this file. Try a different drive.",
                         HttpStatusCode.BadRequest,

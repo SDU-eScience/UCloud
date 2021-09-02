@@ -218,7 +218,7 @@ class MetadataService(
                                     parent_path = :parent_path and
                                     latest = true and
                                     workspace = :project and
-                                    is_workspace_project = false
+                                    is_workspace_project = true
                                 )
                             )
                         limit 10000

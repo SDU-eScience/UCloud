@@ -63,7 +63,6 @@ val productSupport = FSSupport(
     ),
 
     FSCollectionSupport(
-        aclSupported = true,
         aclModifiable = true,
         usersCanCreate = true,
         usersCanDelete = true,
@@ -72,7 +71,6 @@ val productSupport = FSSupport(
     ),
 
     FSFileSupport(
-        aclSupported = true,
         aclModifiable = true,
         trashSupported = true,
         isReadOnly = false
