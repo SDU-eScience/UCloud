@@ -900,6 +900,9 @@ class AccountingTest : IntegrationTest() {
             }
         }
 
+        /*testFilter = { title, subtitle ->
+            title == "Update allocations" && subtitle =="4-levels of project (updateIdx = 1)"
+        }    */
         run {
             class In(
                 val walletBelongsToProject: Boolean,
@@ -1005,7 +1008,7 @@ class AccountingTest : IntegrationTest() {
                     }
 
                     case("$name with over-charge") {
-                        input(In(isProject, 10.DKK, 1_000_000_000, expectedChargeResults = listOf(true)))
+                        input(In(isProject, 10.DKK, 1_000_000_000, expectedChargeResults = listOf(false)))
                         check {
                             assertThatInstance(output.newBalance) { it < 0 }
                         }
@@ -1223,7 +1226,7 @@ class AccountingTest : IntegrationTest() {
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
                             units = Int.MAX_VALUE.toLong() * 2,
-                            expectedChargeResults = listOf(true)
+                            expectedChargeResults = listOf(false)
                         )
                     )
 
@@ -1273,7 +1276,8 @@ class AccountingTest : IntegrationTest() {
                                 In(
                                     rootBalance = 1000.DKK,
                                     chainFromRoot = (0 until nlevels).map { Allocation(isProject, 1000.DKK) },
-                                    units = 1L
+                                    units = 1L,
+                                    expectedChargeResults = listOf(true)
                                 )
                             )
 
@@ -1288,7 +1292,8 @@ class AccountingTest : IntegrationTest() {
                             In(
                                 rootBalance = 1000.DKK,
                                 chainFromRoot = (0 until nlevels).map { Allocation(it % 2 == 0, 1000.DKK) },
-                                units = 1L
+                                units = 1L,
+                                expectedChargeResults = listOf(true)
                             )
                         )
 
@@ -1326,7 +1331,8 @@ class AccountingTest : IntegrationTest() {
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
-                            units = Int.MAX_VALUE.toLong() * 2
+                            units = Int.MAX_VALUE.toLong() * 2,
+                            expectedChargeResults = listOf(false)
                         )
                     )
 

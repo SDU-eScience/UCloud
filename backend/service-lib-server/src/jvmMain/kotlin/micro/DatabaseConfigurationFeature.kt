@@ -137,5 +137,5 @@ data class DatabaseConfig(
     val defaultSchema: String,
     val recreateSchema: Boolean,
     val usePool: Boolean = true,
-    val poolSize: Int? = 50
+    val poolSize: Int? = 100
 )
