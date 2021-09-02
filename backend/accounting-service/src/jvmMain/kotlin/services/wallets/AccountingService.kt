@@ -68,7 +68,7 @@ class AccountingService(
                     )
                     select accounting.charge(array_agg(req))
                     from requests;
-                """
+                """, debug = true
             ).rows.forEach { result[it.getInt(0)!!] = false }
         }
 
@@ -105,7 +105,8 @@ class AccountingService(
                         select accounting.credit_check(array_agg(req))
                         from requests;
                     """
-                ).rows.map { it.getBoolean(0)!! }
+                ).rows.map {
+                    it.getBoolean(0)!! }
             }
         )
     }
