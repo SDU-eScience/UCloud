@@ -48,12 +48,13 @@ class Server(
         val fileQueries = FileQueries(pathConverter, distributedStateFactory, nativeFs, trashService, cephStats)
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
+        val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())
             install(MoveTask())
             install(CreateFolderTask())
-            install(TrashTask(trashService))
+            install(TrashTask(memberFiles, trashService))
         }
         val fileCollectionService = FileCollectionsService(
             pathConverter,

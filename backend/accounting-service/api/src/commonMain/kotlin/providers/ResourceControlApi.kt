@@ -53,6 +53,8 @@ data class ResourceChargeCreditsResponse(
 data class ProviderRegisteredResource<Spec : ResourceSpecification>(
     val spec: Spec,
     val providerGeneratedId: String? = null,
+    val createdBy: String? = null,
+    val project: String? = null,
 )
 
 @OptIn(ExperimentalStdlibApi::class)

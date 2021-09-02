@@ -785,11 +785,13 @@ abstract class ResourceService<
                     {
                         setParameter("type", resourceType)
                         setParameter("provider", provider)
-                        setParameter("created_by", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("product_ids", request.items.map { it.spec.product.id })
-                        setParameter("product_categories", request.items.map { it.spec.product.category })
-                        setParameter("provider_generated_id", request.items.map { it.providerGeneratedId })
+                        request.items.split {
+                            into("product_ids") { it.spec.product.id }
+                            into("product_categories") { it.spec.product.category }
+                            into("provider_generated_ids") { it.providerGeneratedId }
+                            into("created_by") { it.createdBy ?: Actor.System.safeUsername() }
+                            into("projects") { it.project }
+                        }
                     },
                     """
                         with
@@ -797,12 +799,14 @@ abstract class ResourceService<
                                 select
                                     unnest(:product_ids::text[]) id, 
                                     unnest(:product_categories::text[]) cat,
-                                    unnest(:provider_generated_ids::text[]) provider_generated_id
+                                    unnest(:provider_generated_ids::text[]) provider_generated_id,
+                                    unnest(:created_by::text[]) created_by,
+                                    unnest(:projects::text[]) project
                             ),
                             created_resources as (
                                 insert into provider.resource
-                                    (type, provider, created_by, project, product, provider_generated_id) 
-                                select :type, :provider, :created_by, :project, p.id, t.provider_generated_id
+                                    (type, provider, created_by, project, product, provider_generated_id, confirmed_by_provider) 
+                                select :type, :provider, t.created_by, t.project, p.id, t.provider_generated_id, true
                                 from
                                     product_tuples t join 
                                     accounting.product_categories pc on 
