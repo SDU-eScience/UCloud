@@ -10,6 +10,8 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 interface PathLike<T> {
     val path: String
@@ -58,16 +60,23 @@ class PathConverter(
         }
     )
 
+    private val cachedProviderIdsMutex = Mutex()
+    private val cachedProviderIds = HashMap<String, String>()
+
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun ucloudToInternal(file: UCloudFile): InternalFile {
         val components = file.normalize().components()
         val collectionId = components[0]
         val withoutCollection = components.drop(1)
 
-        println(file)
-        println("collectionId = $collectionId")
         val collection = collectionCache.get(collectionId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val storedName = collection.providerGeneratedId ?: collection.id
+
+        if (collection.providerGeneratedId != null) {
+            cachedProviderIdsMutex.withLock {
+                cachedProviderIds[storedName] = collectionId
+            }
+        }
 
         if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
             return InternalFile(
@@ -77,8 +86,7 @@ class PathConverter(
                     append(HOME_DIRECTORY)
                     append('/')
                     append(storedName.removePrefix(COLLECTION_HOME_PREFIX))
-                    for ((idx, component) in withoutCollection.withIndex()) {
-                        if (idx == 0) continue
+                    for (component in withoutCollection) {
                         append('/')
                         append(component)
                     }
@@ -96,8 +104,26 @@ class PathConverter(
                     append(projectId)
                     append('/')
                     append(repository)
-                    for ((idx, component) in withoutCollection.withIndex()) {
-                        if (idx == 0) continue
+                    for (component in withoutCollection) {
+                        append('/')
+                        append(component)
+                    }
+                }
+            )
+        } else if (storedName.startsWith(COLLECTION_PROJECT_MEMBER_PREFIX)) {
+            val (projectId, member) = storedName.removePrefix(COLLECTION_PROJECT_MEMBER_PREFIX).split("/")
+            return InternalFile(
+                buildString {
+                    append(rootDirectory.path)
+                    append('/')
+                    append(PROJECT_DIRECTORY)
+                    append('/')
+                    append(projectId)
+                    append('/')
+                    append(PERSONAL_REPOSITORY)
+                    append('/')
+                    append(member)
+                    for (component in withoutCollection) {
                         append('/')
                         append(component)
                     }
@@ -111,7 +137,7 @@ class PathConverter(
                     append(COLLECTION_DIRECTORY)
                     append('/')
                     append(collectionId)
-                    for ((idx, component) in withoutCollection.withIndex()) {
+                    for (component in withoutCollection) {
                         append('/')
                         append(component)
                     }
@@ -132,20 +158,6 @@ class PathConverter(
         )
     }
 
-    fun projectRepositoryLocation(projectId: String, repository: String): InternalFile {
-        return InternalFile(
-            buildString {
-                append(rootDirectory.path)
-                append('/')
-                append(PROJECT_DIRECTORY)
-                append('/')
-                append(projectId)
-                append('/')
-                append(repository)
-            }
-        )
-    }
-
     fun internalToUCloud(file: InternalFile): UCloudFile {
         val components = file.path.removePrefix(rootDirectory.path).normalize().components()
         if (components.size <= 1) throw FSException.CriticalException("Not a valid UCloud file")
@@ -157,21 +169,30 @@ class PathConverter(
                 val startIdx: Int
                 when (components[0]) {
                     HOME_DIRECTORY -> {
-                        TODO()
-                        append(COLLECTION_HOME_PREFIX)
-                        append(components[1])
+                        val collectionId = cachedProviderIds["${COLLECTION_HOME_PREFIX}${components[1]}"]
+                            ?: error("Home collection should have been cached: $file")
+                        append(collectionId)
                         startIdx = 2
                     }
 
                     PROJECT_DIRECTORY -> {
-                        TODO()
-                        if (components.size <= 2) throw FSException.CriticalException("Not a valid UCloud file")
+                        if (components.size <= 3) throw FSException.CriticalException("Not a valid UCloud file")
+                        if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
+                            val collectionId = cachedProviderIds["$COLLECTION_PROJECT_MEMBER_PREFIX" +
+                                    "${components[1]}/${components[3]}"]
+                                ?: error("Member file should have been cached: $file")
+                            append(collectionId)
+                            startIdx = 4
+                        } else {
+                            if (components[2] == PERSONAL_REPOSITORY) {
+                                throw FSException.CriticalException("Not a valid UCloud file")
+                            }
 
-                        append(COLLECTION_PROJECT_PREFIX)
-                        append(components[1])
-                        append("_")
-                        append(components[2])
-                        startIdx = 3
+                            val collectionId = cachedProviderIds["${COLLECTION_PROJECT_PREFIX}${components[1]}/" +
+                                    "${components[2]}"] ?: error("Project repo should have been cached: $file")
+                            append(collectionId)
+                            startIdx = 3
+                        }
                     }
 
                     COLLECTION_DIRECTORY -> {
