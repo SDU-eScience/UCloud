@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
@@ -70,7 +71,8 @@ class MetadataService(
         actorAndProject: ActorAndProject,
         request: FileMetadataAddMetadataRequest,
         ctx: DBContext = this.db,
-    ) {
+    ): BulkResponse<FindByStringId> {
+        val result = ArrayList<FindByStringId>()
         ctx.withSession { session ->
             // NOTE(Dan): Confirm that the user, at least, has edit permissions for the collection. This doesn't
             // guarantee that the user can actually change the affected file but UCloud simply has no way of knowing
@@ -175,10 +177,12 @@ class MetadataService(
                                 now(),
                                 null
                             )
+                            returning id
                         """
-                    )
+                    ).rows.forEach { result.add(FindByStringId(it.getInt(0)!!.toString())) }
             }
         }
+        return BulkResponse(result)
     }
 
     suspend fun retrieveAll(

@@ -1,18 +1,27 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Loggable
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+@Serializable
+data class TrashRequestItem(
+    val username: String,
+    val path: String
+)
+
 class TrashTask(
+    private val memberFiles: MemberFiles,
     private val trashService: TrashService,
 ) : TaskHandler {
     override fun TaskContext.canHandle(name: String, request: JsonObject): Boolean {
         return name == Files.trash.fullName && runCatching {
-            defaultMapper.decodeFromJsonElement<FilesTrashRequest>(request)
+            defaultMapper.decodeFromJsonElement<BulkRequest<TrashRequestItem>>(request)
         }.isSuccess
     }
 
@@ -21,17 +30,14 @@ class TrashTask(
         request: JsonObject,
         maxTime: Long?,
     ): TaskRequirements {
-        val realRequest = defaultMapper.decodeFromJsonElement<FilesTrashRequest>(request)
-        for (reqItem in realRequest.items) {
-            // aclService.requirePermission(actor, UCloudFile.create(reqItem.path), FilePermission.WRITE)
-        }
+        val realRequest = defaultMapper.decodeFromJsonElement<BulkRequest<TrashRequestItem>>(request)
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
     override suspend fun TaskContext.execute(task: StorageTask) {
-        val realRequest = defaultMapper.decodeFromJsonElement<FilesTrashRequest>(task.rawRequest)
+        val realRequest = defaultMapper.decodeFromJsonElement<BulkRequest<TrashRequestItem>>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
         runWork(
@@ -40,10 +46,18 @@ class TrashTask(
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 try {
-                    val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
-                    val targetDirectory: InternalFile = TODO("trashService.findTrashDirectory(actor.safeUsername(), internalFile)")
+                    val file = UCloudFile.create(nextItem.path)
+                    val project = pathConverter.fetchProject(file)
+                    val internalFile = pathConverter.ucloudToInternal(file)
+                    val targetDirectory: InternalFile = trashService.findTrashDirectory(nextItem.username, internalFile)
                     val targetFile = InternalFile(targetDirectory.path + "/" + internalFile.fileName())
+                    if (project != null) {
+                        memberFiles.initializeMemberFiles(nextItem.username, project)
+                    }
 
+                    println("internal file is $internalFile")
+                    println("Target is $targetDirectory")
+                    println("target file is $targetFile")
                     try {
                         nativeFs.stat(targetDirectory)
                     } catch (ex: FSException.NotFound) {

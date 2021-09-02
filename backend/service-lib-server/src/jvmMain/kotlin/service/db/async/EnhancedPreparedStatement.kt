@@ -137,9 +137,17 @@ class EnhancedPreparedStatement(
 
     suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
         check(boundValues.size == parameterNamesToIndex.keys.size) {
-            "boundValues.size != parameters.size. " +
-                    "boundValues: ${boundValues}, " +
-                    "parameters: ${parameterNamesToIndex.keys}"
+            val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
+            val missingSqlParameters = boundValues.filter { it !in parameterNamesToIndex.keys }
+
+            buildString {
+                if (missingSetParameters.isNotEmpty()) {
+                    append("Keys missing from `setParameter`: $missingSetParameters")
+                }
+                if (missingSqlParameters.isNotEmpty()) {
+                    append("Keys missing from query: $missingSqlParameters")
+                }
+            }
         }
         return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
     }

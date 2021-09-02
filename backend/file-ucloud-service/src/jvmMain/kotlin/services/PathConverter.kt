@@ -7,7 +7,14 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
+import dk.sdu.cloud.file.orchestrator.api.components
+import dk.sdu.cloud.file.orchestrator.api.fileName
+import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.parent
+import dk.sdu.cloud.file.orchestrator.api.parents
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
 import kotlinx.coroutines.sync.Mutex
@@ -18,7 +25,8 @@ interface PathLike<T> {
     fun withNewPath(path: String): T
 }
 
-@JvmInline value class InternalFile(override val path: String) : PathLike<InternalFile> {
+@JvmInline
+value class InternalFile(override val path: String) : PathLike<InternalFile> {
     override fun withNewPath(path: String): InternalFile = InternalFile(path)
 }
 
@@ -27,11 +35,13 @@ interface PathLike<T> {
  *
  * This path will always start with '/'.
  */
-@JvmInline value class RelativeInternalFile(override val path: String) : PathLike<RelativeInternalFile> {
+@JvmInline
+value class RelativeInternalFile(override val path: String) : PathLike<RelativeInternalFile> {
     override fun withNewPath(path: String): RelativeInternalFile = RelativeInternalFile(path)
 }
 
-@JvmInline value class UCloudFile private constructor(override val path: String) : PathLike<UCloudFile> {
+@JvmInline
+value class UCloudFile private constructor(override val path: String) : PathLike<UCloudFile> {
     override fun withNewPath(path: String): UCloudFile = UCloudFile(path)
 
     companion object {
@@ -62,6 +72,14 @@ class PathConverter(
 
     private val cachedProviderIdsMutex = Mutex()
     private val cachedProviderIds = HashMap<String, String>()
+
+    suspend fun fetchProject(file: UCloudFile): String? {
+        val components = file.normalize().components()
+        val collectionId = components[0]
+        val owner = collectionCache.get(collectionId)?.owner
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return owner.project
+    }
 
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun ucloudToInternal(file: UCloudFile): InternalFile {

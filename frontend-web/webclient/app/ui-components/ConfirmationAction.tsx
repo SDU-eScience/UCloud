@@ -28,6 +28,8 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   -webkit-tap-highlight-color: transparent;
   min-width: 200px;
   background: var(--background, #f00);
+  font-size: ${p => p.asSquare ? "16px" : "large"};
+  font-weight: ${p => p.asSquare ? "400" : "700"};
   
   &:hover {
     ${p => p.asSquare ? ({

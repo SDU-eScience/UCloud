@@ -4,21 +4,47 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.FilesCreateUploadResponseItem
+import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
+import dk.sdu.cloud.file.orchestrator.api.UploadProtocol
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
-import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.file.ucloud.services.ChunkedUploadService
+import dk.sdu.cloud.file.ucloud.services.DownloadService
+import dk.sdu.cloud.file.ucloud.services.FSException
+import dk.sdu.cloud.file.ucloud.services.FileQueries
+import dk.sdu.cloud.file.ucloud.services.TaskSystem
+import dk.sdu.cloud.file.ucloud.services.UCloudFile
+import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
+import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+
+val CallHandler<*, *, *>.ucloudUsername: String?
+    get() {
+        var username: String? = null
+        withContext<HttpCall> {
+            username = ctx.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+        }
+
+        withContext<WSCall> {
+            username = ctx.session.underlyingSession.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+        }
+        return username
+    }
 
 class FilesController(
     private val fileQueries: FileQueries,
@@ -114,12 +140,15 @@ class FilesController(
         }
 
         implement(UCloudFiles.trash) {
+            val username = ucloudUsername ?: throw RPCException("No username supplied", HttpStatusCode.BadRequest)
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
                         taskSystem.submitTask(
                             Files.trash.fullName,
-                            defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
+                            defaultMapper.encodeToJsonElement(
+                                bulkRequestOf(TrashRequestItem(username, reqItem.id))
+                            ) as JsonObject
                         )
                     }
                 )
