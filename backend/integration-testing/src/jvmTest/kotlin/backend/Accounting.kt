@@ -158,6 +158,78 @@ suspend fun prepareProjectChain(
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
+        testFilter = { title, subtitle ->
+            title == "Single product test"
+        }
+
+        run {
+            class In (
+                val product: Product,
+                val expectedChargeResults: List<Boolean>
+            )
+
+            class Out(
+                val wallets: PageV2<Wallet>
+            )
+
+            test<In,Out>("Single product test") {
+                execute {
+                    createProvider("ucloud")
+                    Products.create.call(
+                        bulkRequestOf(input.product),
+                        serviceClient
+                    ).orThrow()
+                    val user1 = createUser("user1")
+                    val targetOwner = WalletOwner.User(user1.username)
+
+                    Accounting.rootDeposit.call(
+                        bulkRequestOf(
+                            RootDepositRequestItem(
+                                input.product.category,
+                                targetOwner,
+                                10000.DKK,
+                                "Initial deposit"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    val results = Accounting.charge.call(
+                        bulkRequestOf(ChargeWalletRequestItem(
+                            targetOwner,
+                            10L,
+                            1L,
+                            input.product.toReference(),
+                            user1.username,
+                            "test charging"
+                        )),
+                        serviceClient
+                    ).orThrow().responses
+
+                    assertThatInstance(input.expectedChargeResults, "Charge behaving correctly") {
+                        it == results
+                    }
+
+                    val wallets = Wallets.browse.call(
+                        WalletBrowseRequest(),
+                        user1.client
+                    ).orThrow()
+
+                    Out(wallets)
+                }
+
+                case("zero price per unit") {
+                    input(In(
+                        sampleCompute.copy(pricePerUnit = 0),
+                        expectedChargeResults = listOf(true)
+                    ))
+                    check {
+                        assertEquals(output.wallets.items.singleOrNull()?.allocations?.singleOrNull()?.localBalance, 10000.DKK)
+                    }
+                }
+            }
+        }
+
         run {
             class In (
                 val products: List<Product>,
@@ -900,9 +972,6 @@ class AccountingTest : IntegrationTest() {
             }
         }
 
-        /*testFilter = { title, subtitle ->
-            title == "Update allocations" && subtitle =="4-levels of project (updateIdx = 1)"
-        }    */
         run {
             class In(
                 val walletBelongsToProject: Boolean,

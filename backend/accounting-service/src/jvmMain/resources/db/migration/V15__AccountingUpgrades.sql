@@ -707,7 +707,7 @@ begin
                 where charge_type = 'ABSOLUTE'
             ) t
         where
-            (balance_available - balance < payment_required) or free_to_use = true;
+            (balance_available - balance < payment_required) or payment_required = 0 or free_to_use = true;
 
     create temporary table differential_leaves on commit drop as
         with
@@ -767,7 +767,7 @@ begin
                 from
                     allocation_selection
                 where
-                    balance_available - initial_balance < payment_required or free_to_use = true
+                    balance_available - initial_balance < payment_required or payment_required = 0 or free_to_use = true
             ),
             -- NOTE(Dan): see note above for explanation about additions CTE.
             additions as (
@@ -783,7 +783,7 @@ begin
                 from
                     allocation_selection
                 where
-                    balance_available - initial_balance >= payment_required or free_to_use = true
+                    balance_available - initial_balance >= payment_required or payment_required = 0 or free_to_use = true
             )
             -- NOTE(Dan): Select all rows from subtractions and additions combined.
             select * from subtractions
