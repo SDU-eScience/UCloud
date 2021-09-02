@@ -52,6 +52,10 @@ from per_unit_products
 WHERE id = per_unit_products.product_id and
         per_unit_products.unit = 'PER_UNIT'::accounting.product_price_unit;
 
+update accounting.products
+set description = name
+where description = '';
+
 create or replace function accounting.require_product_description() returns trigger language plpgsql as $$
 begin
     if (new.description = '' or new.description is null) then

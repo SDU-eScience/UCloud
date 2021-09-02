@@ -161,12 +161,11 @@ class GrantApplicationService(
                     insert into "grant".requested_resources
                         (application_id, credits_requested, product_category) 
                     with requests as (
-                        select :id application_id, unnest(:credits_requested::bigint[]) credits_requested,
-<<<<<<< HEAD
-=======
-                               0::bigint as quota_requested,
->>>>>>> fee3ce0836ae3839442f6b1c0d560aa97bd035fd
-                               unnest(:categories::text[]) category, unnest(:providers::text[]) provider_id
+                        select
+                            :id application_id,
+                            unnest(:credits_requested::bigint[]) credits_requested,
+                            unnest(:categories::text[]) category,
+                            unnest(:providers::text[]) provider_id
                     )
                     select
                         req.application_id, req.credits_requested, pc.id

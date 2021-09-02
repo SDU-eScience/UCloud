@@ -503,7 +503,6 @@ data class FSProductStatsSupport(
 @UCloudApiDoc("Declares which `FileCollection` operations are supported for a product")
 @Serializable
 data class FSCollectionSupport(
-    val aclSupported: Boolean? = null,
     val aclModifiable: Boolean? = null,
 
     val usersCanCreate: Boolean? = null,
@@ -516,7 +515,6 @@ data class FSCollectionSupport(
 @UCloudApiDoc("Declares which file-level operations a product supports")
 @Serializable
 data class FSFileSupport(
-    val aclSupported: Boolean = false,
     val aclModifiable: Boolean = false,
 
     // Nothing about metadata here because it is built-into UCloud as opposed to the file system

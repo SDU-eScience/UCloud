@@ -218,7 +218,7 @@ class MetadataService(
                                     parent_path = :parent_path and
                                     latest = true and
                                     workspace = :project and
-                                    is_workspace_project = false
+                                    is_workspace_project = true
                                 )
                             )
                         limit 10000
@@ -261,7 +261,7 @@ class MetadataService(
                 .sendPreparedStatement(
                     {
                         setParameter("paths", fileNames?.map { normalizedParentPath + it })
-                        setParameter("parent_path", parent)
+                        setParameter("parents", parent.parents() + parent)
                         setParameter("username", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
                     },
@@ -278,17 +278,15 @@ class MetadataService(
                         where
                             (
                                 :paths::text[] is null or 
-                                d.path in (select unnest(:paths::text[]))
+                                d.path = some(:paths::text[])
                             ) and
                             (
                                 (
-                                    d.parent_path = :parent_path and
                                     d.workspace = :username and
                                     d.is_workspace_project = false
                                 ) or
                                 (
                                     :project::text is not null and
-                                    d.parent_path = :parent_path and
                                     d.workspace = :project and
                                     d.is_workspace_project = true
                                 )
@@ -508,7 +506,9 @@ class MetadataService(
                     where
                         d.id = e.id and
                         d.approval_type = 'pending' and
-                        d.workspace = other_docs.workspace and d.template_id = other_docs.template_id
+                        d.workspace = other_docs.workspace and
+                        d.template_id = other_docs.template_id and
+                        d.path = other_docs.path
                     returning other_docs.path
                 """
             ).rows.map { it.getString(0)!! }.toSet()

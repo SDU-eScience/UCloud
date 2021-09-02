@@ -182,7 +182,7 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/login"},
             {icon: "projects", label: "Projects", to: "/login"},
             {icon: "apps", label: "Apps", to: "/login"}
-        ], predicate: (): boolean => !Client.isLoggedIn
+        ], predicate: () => !Client.isLoggedIn
     },
     general: {
         items: [
@@ -191,9 +191,9 @@ export const sideBarMenuElements: {
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/jobs"}
-        ], predicate: (): boolean => Client.isLoggedIn
+        ], predicate: () => Client.isLoggedIn
     },
-    auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
+    auditing: {items: [], predicate: () => Client.isLoggedIn},
     admin: {items: [{icon: "admin", label: "Admin", to: "/admin"}], predicate: () => Client.userIsAdmin}
 };
 
@@ -204,7 +204,7 @@ interface SidebarStateProps {
 }
 
 interface SidebarProps extends SidebarStateProps {
-    sideBarEntries?: any;
+    sideBarEntries?: typeof sideBarMenuElements;
 }
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {

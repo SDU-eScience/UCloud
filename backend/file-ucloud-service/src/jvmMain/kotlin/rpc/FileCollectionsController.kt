@@ -33,7 +33,7 @@ class FileCollectionsController(
         }
 
         implement(UCloudFileCollections.retrieveProducts) {
-            ok(bulkResponseOf(productSupport))
+            ok(BulkResponse(productSupport))
         }
 
         implement(UCloudFileCollections.verify) {

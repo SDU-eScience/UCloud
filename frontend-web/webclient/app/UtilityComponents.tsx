@@ -405,17 +405,17 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
     }
 }
 
-export function Sensitivity({sensitivity}: {sensitivity: "Private" | "Confidential" | "Sensitive"}): JSX.Element {
+export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"}): JSX.Element {
     switch (sensitivity) {
-        case "Confidential":
+        case "CONFIDENTIAL":
             return <SensitivityBadge bg={getCssVar("purple")}>
                 C
             </SensitivityBadge>
-        case "Sensitive":
+        case "SENSITIVE":
             return <SensitivityBadge bg={"#ff0004"}>
                 S
             </SensitivityBadge>
-        case "Private":
+        case "PRIVATE":
         default:
             return <SensitivityBadge bg={getCssVar("midGray")}>
                 P

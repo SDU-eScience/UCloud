@@ -10,7 +10,6 @@ import {useCallback, useEffect, useState} from "react";
 import * as Pagination from "Pagination";
 import {TextSpan} from "ui-components/Text";
 import {Link} from "react-router-dom";
-import {IconName} from "ui-components/Icon";
 import {
     AclEntity,
     Permission,
