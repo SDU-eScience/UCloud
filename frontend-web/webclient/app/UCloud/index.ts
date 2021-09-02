@@ -6867,7 +6867,7 @@ export interface RetrieveWalletsForProjectsRequest {
 export interface WalletsGrantProviderCreditsRequest {
     provider: string,
 }
-export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP
+export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP | ProductNS.Synchronization
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 export interface FindProductRequest {
     provider: string,
@@ -7299,6 +7299,21 @@ export interface NetworkIP {
      */
     balance?: number /* int64 */,
     type: ("network_ip"),
+}
+export interface Synchronization {
+    id: string,
+    pricePerUnit: number /* int64 */,
+    category: ProductCategoryId,
+    description: string,
+    hiddenInGrantApplications: boolean,
+    availability: ProductAvailability,
+    priority: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "SYNCHRONIZATION"),
+    /**
+     * Included only with certain endpoints which support `includeBalance`
+     */
+    balance?: number /* int64 */,
+    type: ("synchronization"),
 }
 }
 }

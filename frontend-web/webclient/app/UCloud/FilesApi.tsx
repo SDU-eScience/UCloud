@@ -33,6 +33,7 @@ import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
 import {Sensitivity} from "UtilityComponents";
 import {ProductStorage} from "Accounting";
+import { SynchronizationSettings } from "Files/Synchronization";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -418,6 +419,19 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload();
+                }
+            },
+            {
+                icon: "refresh",
+                text: "Synchronization",
+                enabled: (selected, cb) => selected.length === 1,
+                onClick: async (selected, cb) => {
+                    dialogStore.addDialog(
+                        <SynchronizationSettings file={selected[0]} />,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle
+                    );
                 }
             }
         ];

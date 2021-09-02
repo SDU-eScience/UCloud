@@ -23,6 +23,7 @@ export function productToArea(product: UCloud.accounting.Product): ProductArea {
         case "license": return "LICENSE";
         case "storage": return "STORAGE";
         case "network_ip": return "NETWORK_IP";
+        case "synchronization": return "SYNCHRONIZATION";
     }
 }
 
@@ -38,6 +39,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Application license";
         case "NETWORK_IP":
             return "Public IP";
+        case "SYNCHRONIZATION":
+            return "Synchronization";
     }
 }
 
@@ -208,8 +211,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
-export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "SYNCHRONIZATION";
+export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE", "SYNCHRONIZATION"];
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -254,12 +257,22 @@ export interface ProductLicense extends ProductBase {
     tags?: string[];
 }
 
+export interface ProductSyncFolder extends ProductBase {
+    type: "sync_folder";
+    productType: "SYNCHRONIZATION";
+}
+
+export interface ProductSyncDevice extends ProductBase {
+    type: "sync_device";
+    productType: "SYNCHRONIZATION";
+}
+
 export interface ProductNetworkIP extends ProductBase {
     type: "network_ip";
     productType: "NETWORK_IP";
 }
 
-export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductSyncFolder;
 
 export function productTypeToTitle(type: ProductType): string {
     switch (type) {
@@ -273,6 +286,8 @@ export function productTypeToTitle(type: ProductType): string {
             return "Public IP";
         case "LICENSE":
             return "Software License";
+        case "SYNCHRONIZATION":
+            return "Synchronization";
     }
 }
 
@@ -288,6 +303,8 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "networkWiredSolid";
         case "LICENSE":
             return "apps";
+        case "SYNCHRONIZATION":
+            return "refresh";
     }
 }
 
@@ -305,6 +322,9 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
                     return "GB";
                 case "COMPUTE":
                     return "Jobs";
+                case "SYNCHRONIZATION":
+                    return "Synchronization";
+
             }
         }
 
@@ -331,6 +351,8 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
                     return "Days of GB";
                 case "COMPUTE":
                     return "Core hours";
+                case "SYNCHRONIZATION":
+                    return "Days of synchronization";
             }
         }
     }
@@ -356,6 +378,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "GB";
                 case "COMPUTE":
                     return "Jobs";
+                case "SYNCHRONIZATION":
+                    return "Synchronization";
             }
         }
 
@@ -374,6 +398,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "DKK/day of one GB";
                 case "COMPUTE":
                     return "DKK/hour";
+                case "SYNCHRONIZATION":
+                    return "DKK/day";
             }
         }
 
@@ -394,6 +420,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "Days of GB";
                 case "COMPUTE":
                     return "Core hours";
+                case "SYNCHRONIZATION":
+                    return "Days of synchronization";
             }
         }
     }
@@ -447,6 +475,10 @@ export function normalizeBalanceForBackend(
                     const factor = HOUR / inputIs;
                     return Math.ceil(balance * factor);
                 }
+                case "SYNCHRONIZATION": {
+                    const factor = HOUR / inputIs;
+                    return Math.ceil(balance * factor);
+                }
             }
         }
     }
@@ -496,6 +528,10 @@ export function normalizeBalanceForFrontend(
                     const factor = HOUR / inputIs;
                     return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
+                case "SYNCHRONIZATION": {
+                    const factor = HOUR / inputIs;
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
+                }
             }
         }
 
@@ -523,6 +559,10 @@ export function normalizeBalanceForFrontend(
                     return Math.floor(balance * factor).toString();
                 }
                 case "COMPUTE": {
+                    const factor = HOUR / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "SYNCHRONIZATION": {
                     const factor = HOUR / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
