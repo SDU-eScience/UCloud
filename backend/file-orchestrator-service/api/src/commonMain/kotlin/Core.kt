@@ -451,7 +451,6 @@ data class FileCollection(
     @Serializable
     data class Spec(
         val title: String,
-        // TODO Define which type of product we are dealing with
         override val product: ProductReference,
     ) : ResourceSpecification {
         init {

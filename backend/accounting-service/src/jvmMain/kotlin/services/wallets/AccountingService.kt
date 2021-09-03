@@ -69,7 +69,12 @@ class AccountingService(
                     select accounting.charge(array_agg(req))
                     from requests;
                 """, debug = true
-            ).rows.forEach { result[it.getInt(0)!!] = false }
+            ).rows.forEach {
+                val res = it[0] as? Int
+                if (res != null) {
+                    result[res] = false
+                }
+            }
         }
 
         return BulkResponse(result)

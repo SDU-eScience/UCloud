@@ -103,7 +103,7 @@ class ShareService(
         request: SharesCreateRequest,
     ) {
         // NOTE(Dan): The shares feature is basically just a catalogue of items that some user believes they have
-        //   shared with another user. All of the updates to the ACL must be done by the client. This also means we
+        //   shared with another user. All the updates to the ACL must be done by the client. This also means we
         //   perform no checking here if the share is valid. We don't do this, simply because this communication must
         //   go directly to the updateAcl endpoint. This is required to enforce end-to-end signatures from the user,
         //   which some providers require.

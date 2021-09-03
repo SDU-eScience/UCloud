@@ -19,7 +19,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {stateToTitle} from "Applications/Jobs";
 import {Box, Flex, Icon} from "ui-components";
 import {IconName} from "ui-components/Icon";
-import View from "Applications/View";
+import View from "Applications/Jobs/View";
 import {ItemRenderer} from "ui-components/Browse";
 import {ProductCompute} from "Accounting";
 
