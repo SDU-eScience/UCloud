@@ -25,30 +25,35 @@ function Create(): JSX.Element | null {
     const [isHttps, setHttps] = React.useState(true);
 
     if (!Client.userIsAdmin) return null;
+    if (creator.isUnavailable()) return null;
 
     return <MainContainer
-        main={<Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
-            <Label>
-                ID
-                <Input error={idInput.hasError} ref={idInput.ref} placeholder="ID..."/>
-            </Label>
-            <Flex>
-                <Label width="80%">
-                    Domain
-                    <Input error={domainInput.hasError} ref={domainInput.ref} placeholder="Domain..."/>
+        main={<>
+            <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
+                <Label>
+                    ID
+                    <Input error={idInput.hasError} ref={idInput.ref} placeholder="ID..." />
                 </Label>
-                <Label ml="8px" width="20%">
-                    Port
-                    <Input type="number" min={0} max={65536} ref={portInput.ref} placeholder="Port..."/>
+                <Flex>
+                    <Label width="80%">
+                        Domain
+                        <Input error={domainInput.hasError} ref={domainInput.ref} placeholder="Domain..." />
+                    </Label>
+                    <Label ml="8px" width="20%">
+                        Port
+                        <Input type="number" min={0} max={65536} ref={portInput.ref} placeholder="Port..." />
+                    </Label>
+                </Flex>
+                <Label>
+                    <Checkbox onClick={() => setHttps(h => !h)} checked={isHttps} onChange={stopPropagation} />
+                    Uses HTTPS
                 </Label>
-            </Flex>
-            <Label>
-                <Checkbox onClick={() => setHttps(h => !h)} checked={isHttps} onChange={stopPropagation}/>
-                Uses HTTPS
-            </Label>
 
-            <Button my="12px" disabled={loading} onClick={submit}>Submit</Button>
-        </ Box>}
+                <Button my="12px" disabled={loading} onClick={submit}>Submit</Button>
+            </Box>
+            <div>DIVIDER</div>
+            <React.Fragment key="creation">{creator.render()}</React.Fragment>
+        </>}
     />;
 
     async function submit() {
@@ -95,5 +100,33 @@ function Create(): JSX.Element | null {
         }
     }
 }
+
+import ProductCreator, {FieldCreator} from "Products/CreateProduct";
+
+class ProviderCreator extends ProductCreator<any> {
+    title = "Provider";
+    isUnavailable = () => !Client.userIsAdmin;
+    fields = [
+        FieldCreator.makeTextField("ID...", "ID", true),
+        FieldCreator.makeGroup([
+            FieldCreator.makeTextField("Domain...", "Domain", true, {width: "80%"}),
+            FieldCreator.makeNumberField("Port...", "Port", true, 0, 2 ** 16, {ml: "8px", width: "20%"})
+        ]),
+        FieldCreator.makeCheckboxField("Uses HTTP", false)
+    ];
+
+    public createRequest() {
+        const fields = this.extractFieldsByLabel(this.fields);
+        return UCloud.provider.providers.create(bulkRequestOf({
+            id: fields["ID"] as string,
+            domain: fields["Domain"] as string,
+            https: fields["Uses HTTP"] as boolean,
+            port: isNaN(fields["Port"] as number) ? undefined : fields["Port"] as number,
+            product: placeholderProduct()
+        }));
+    }
+}
+
+const creator = new ProviderCreator();
 
 export default Create;

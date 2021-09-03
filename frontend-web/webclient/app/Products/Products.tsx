@@ -3,7 +3,6 @@ import {
     Product,
     ProductArea,
     ProductCompute,
-    ProductIngress,
     UCLOUD_PROVIDER
 } from "Accounting";
 import {useCloudAPI} from "Authentication/DataHook";
@@ -12,7 +11,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {List} from "Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "ui-components";
 import * as React from "react";
-import {capitalized, prettierString} from "UtilityFunctions";
+import {capitalized} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {Client} from "Authentication/HttpClientInstance";
@@ -22,7 +21,6 @@ import * as ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {Spacer} from "ui-components/Spacer";
 import CONF from "../../site.config.json";
-import {accounting} from "UCloud";
 
 function Products(): JSX.Element {
     const main = (
