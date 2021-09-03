@@ -59,7 +59,7 @@ data class SyncDeviceIncludeFlags(
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
-    Product.Synchronization, SyncDeviceSupport>("syncdevices") {
+    Product.Synchronization, SyncDeviceSupport>("sync.devices") {
     override val typeInfo = ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags,
         SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>()
 
@@ -69,14 +69,14 @@ object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
 }
 
 object SyncDeviceControl : ResourceControlApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags,
-    SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("syncdevices") {
+    SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices") {
     override val typeInfo =
         ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
             Product.Synchronization, SyncDeviceSupport>()
 }
 
 open class SyncDeviceProvider(provider: String) : ResourceProviderApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
-    SyncDeviceIncludeFlags, SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("syncdevices", provider) {
+    SyncDeviceIncludeFlags, SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices", provider) {
     override val typeInfo =
         ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
             Product.Synchronization, SyncDeviceSupport>()

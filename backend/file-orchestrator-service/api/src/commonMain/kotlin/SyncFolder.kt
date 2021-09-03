@@ -66,7 +66,7 @@ data class SyncFolderIncludeFlags(
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
-    Product.Synchronization, SyncFolderSupport>("syncfolders") {
+    Product.Synchronization, SyncFolderSupport>("sync_folders") {
     override val typeInfo = ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
         SyncFolder.Status, Product.Synchronization, SyncFolderSupport>()
 
@@ -76,14 +76,14 @@ object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
 }
 
 object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
-    SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("syncfolders") {
+    SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync_folders") {
     override val typeInfo =
         ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
             Product.Synchronization, SyncFolderSupport>()
 }
 
 open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
-    SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("syncfolders", provider) {
+    SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync_folders", provider) {
     override val typeInfo =
         ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
             Product.Synchronization, SyncFolderSupport>()
