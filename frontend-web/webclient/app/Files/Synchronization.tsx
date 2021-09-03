@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import { useState } from "react";
 import { UFile } from "UCloud/FilesApi";
 import { SupportByProvider } from "UCloud/ResourceApi";
-import SyncFolderApi, { SyncFolder } from "UCloud/SynchronizationApi"
+import SyncFolderApi, { SyncFolder } from "UCloud/SyncFolderApi"
 import { Box, Button, Checkbox, Flex, Icon, Input, Label, SelectableText, SelectableTextWrapper } from "ui-components";
 import {PageRenderer} from "Pagination/PaginationV2";
 import * as Pagination from "Pagination";

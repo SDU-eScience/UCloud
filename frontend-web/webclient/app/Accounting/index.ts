@@ -272,7 +272,7 @@ export interface ProductNetworkIP extends ProductBase {
     productType: "NETWORK_IP";
 }
 
-export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductSyncFolder;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductSyncFolder | ProductSyncDevice;
 
 export function productTypeToTitle(type: ProductType): string {
     switch (type) {

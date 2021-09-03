@@ -54,7 +54,7 @@ class SyncFolderApi extends ResourceApi<SyncFolder, ProductSyncFolder, SyncFolde
     };
 
     constructor() {
-        super("syncfolders");
+        super("sync.folders");
 
         this.registerFilter(EnumFilter(
             "radioEmpty",

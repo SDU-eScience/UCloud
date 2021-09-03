@@ -43,7 +43,7 @@ export interface SyncDevice extends Resource<SyncDeviceUpdate, SyncDeviceStatus,
 
 class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDeviceSpecification, SyncDeviceUpdate,
     SyncDeviceFlags, SyncDeviceStatus, SyncDeviceSupport> {
-    routingNamespace = "syncdevices";
+    routingNamespace = "sync_devices";
     title = "Sync Title";
     page = SidebarPages.Runs;
 
@@ -54,7 +54,7 @@ class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDevic
     };
 
     constructor() {
-        super("syncdevices");
+        super("sync.devices");
 
         this.registerFilter(EnumFilter(
             "radioEmpty",
