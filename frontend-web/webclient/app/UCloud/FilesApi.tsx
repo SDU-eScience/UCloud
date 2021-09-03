@@ -104,16 +104,15 @@ interface ExtraCallbacks {
     collection?: FileCollection;
 }
 
-// TODO Make version 1.0.0
-const FileSensitivityVersion = "0.2.0";
+const FileSensitivityVersion = "1.0.0";
 const FileSensitivityNamespace = "sensitivity";
-type SensitivityLevel = | "Private" | "Sensitive" | "Confidential";
+type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 function findSensitivity(file: UFile): SensitivityLevel {
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
-            return "Private";
+            return "PRIVATE";
         }
     }
 
@@ -121,7 +120,7 @@ function findSensitivity(file: UFile): SensitivityLevel {
     // TODO(Jonas): The type is not correct if this needs to be cast for this to work
     const sensitivity = (
         Object.values(file.status.metadata?.metadata[sensitivityTemplateId] ?? {})[0] as any
-    )?.specification.document.Sensitivity ?? "Private";
+    )?.specification.document.sensitivity ?? "PRIVATE";
     return sensitivity;
 }
 
@@ -141,7 +140,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         this.sortEntries.push({
             column: "PATH",
             icon: "id",
-            title: "Filename",
+            title: "Name",
             helpText: "By the file's name"
         }, {
             column: "MODIFIED_AT",
@@ -154,11 +153,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             title: "Size",
             helpText: "By size of the file"
         });
+        this.filterWidgets = [];
+        this.filterPills = [];
     }
 
     routingNamespace = "files";
     title = "File";
     page = SidebarPages.Files;
+    productType = "STORAGE" as const
 
     idIsUriEncoded = true;
 

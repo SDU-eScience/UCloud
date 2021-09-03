@@ -38,18 +38,20 @@ export interface LicenseFlags extends ResourceIncludeFlags {
     filterState?: string;
 }
 
-export interface License extends Resource<LicenseUpdate, LicenseStatus, LicenseSpecification> {}
+export type License = Resource<LicenseUpdate, LicenseStatus, LicenseSpecification>;
 
 class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecification, LicenseUpdate,
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";
     page = SidebarPages.Runs;
+    productType = "LICENSE" as const;
 
     renderer: ItemRenderer<License> = {
-        MainTitle: ({resource}) =>
-            resource ? <>{resource.specification.product.id} ({(resource as License).id})</> : <></>,
-        Icon: ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
+        MainTitle({resource}) {
+            return resource ? <>{resource.specification.product.id} ({(resource as License).id})</> : <></>
+        },
+        Icon({resource, size}) {return <Icon name={"fileSignatureSolid"} size={size} />}
     };
 
     constructor() {

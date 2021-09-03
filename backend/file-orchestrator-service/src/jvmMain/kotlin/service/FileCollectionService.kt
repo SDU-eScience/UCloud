@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.provider.api.UpdatedAcl
@@ -76,5 +77,35 @@ class FileCollectionService(
                     (:query::text is null or title ilike '%' || :query || '%')
             """
         )
+    }
+
+    override suspend fun verifyProviderSupportsCreate(
+        spec: FileCollection.Spec,
+        res: ProductRefOrResource<FileCollection>,
+        support: FSSupport
+    ) {
+        if (support.collection.usersCanCreate == false) {
+            throw RPCException("Not supported", HttpStatusCode.BadRequest, FEATURE_NOT_SUPPORTED_BY_PROVIDER)
+        }
+    }
+
+    override fun verifyProviderSupportsDelete(
+        id: FindByStringId,
+        res: ProductRefOrResource<FileCollection>,
+        support: FSSupport
+    ) {
+        if (support.collection.usersCanDelete == false) {
+            throw RPCException("Not supported", HttpStatusCode.BadRequest, FEATURE_NOT_SUPPORTED_BY_PROVIDER)
+        }
+    }
+
+    override fun verifyProviderSupportsUpdateAcl(
+        spec: UpdatedAcl,
+        res: ProductRefOrResource<FileCollection>,
+        support: FSSupport
+    ) {
+        if (support.collection.aclModifiable == false) {
+            throw RPCException("Not supported", HttpStatusCode.BadRequest, FEATURE_NOT_SUPPORTED_BY_PROVIDER)
+        }
     }
 }

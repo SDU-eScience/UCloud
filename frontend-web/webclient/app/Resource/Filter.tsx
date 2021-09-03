@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -13,7 +13,7 @@ import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "ui-components/Toggle";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Activity/Page";
+import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Utilities/DateUtilities";
 import {dateToStringNoTime} from "Utilities/DateUtilities";
 import {SortEntry} from "UCloud/ResourceApi";
 

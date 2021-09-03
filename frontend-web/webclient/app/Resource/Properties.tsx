@@ -46,6 +46,11 @@ const Container = styled.div`
     margin-left: 0;
     margin-right: 0;
   }
+  
+  ${device("sm")} {
+    margin-left: 0;
+    margin-right: 0;
+  }
 
   & {
     display: flex;
@@ -303,7 +308,7 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false ? null :
+                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
                         </HighlightedCard>

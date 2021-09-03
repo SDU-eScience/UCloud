@@ -347,20 +347,32 @@ abstract class ResourceService<
                                     setParameter("auto_confirm", provider == Provider.UCLOUD_CORE_PROVIDER)
                                 },
                                 """
-                                    with product_tuples as (
-                                        select unnest(:product_ids::text[]) id, unnest(:product_categories::text[]) cat,
-                                               unnest(:is_public_read::boolean[]) public_read
-                                    )
-                                    insert into provider.resource
-                                        (type, provider, created_by, project, product, public_read, 
-                                         confirmed_by_provider) 
-                                    select :type, :provider, :created_by, :project, p.id, t.public_read, :auto_confirm
-                                    from
-                                        product_tuples t left join 
-                                        accounting.product_categories pc on 
-                                            pc.category = t.cat and pc.provider = :provider left join
-                                        accounting.products p on pc.id = p.category and t.id = p.name
-                                    returning id
+                                    with
+                                        product_tuples as (
+                                            select
+                                                unnest(:product_ids::text[]) id,
+                                                unnest(:product_categories::text[]) cat,
+                                                unnest(:is_public_read::boolean[]) public_read
+                                        ),
+                                        created_resources as (
+                                            insert into provider.resource
+                                                (type, provider, created_by, project, product, public_read, 
+                                                 confirmed_by_provider) 
+                                            select :type, :provider, :created_by, :project, p.id, t.public_read, :auto_confirm
+                                            from
+                                                product_tuples t left join 
+                                                accounting.product_categories pc on 
+                                                    pc.category = t.cat and pc.provider = :provider left join
+                                                accounting.products p on pc.id = p.category and t.id = p.name
+                                            returning id, created_by
+                                        ),
+                                        acl_entries as (
+                                            insert into provider.resource_acl_entry (username, permission, resource_id) 
+                                            select created_by, unnest(array['READ', 'EDIT']), id
+                                            from created_resources
+                                            returning resource_id
+                                        )
+                                    select distinct resource_id from acl_entries;
                                 """,
                             )
                             .rows
@@ -773,33 +785,48 @@ abstract class ResourceService<
                     {
                         setParameter("type", resourceType)
                         setParameter("provider", provider)
-                        setParameter("created_by", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("product_ids", request.items.map { it.spec.product.id })
-                        setParameter("product_categories", request.items.map { it.spec.product.category })
-                        setParameter("provider_generated_id", request.items.map { it.providerGeneratedId })
+                        request.items.split {
+                            into("product_ids") { it.spec.product.id }
+                            into("product_categories") { it.spec.product.category }
+                            into("provider_generated_ids") { it.providerGeneratedId }
+                            into("created_by") { it.createdBy ?: Actor.System.safeUsername() }
+                            into("projects") { it.project }
+                        }
                     },
                     """
-                        with product_tuples as (
-                            select
-                                unnest(:product_ids::text[]) id, 
-                                unnest(:product_categories::text[]) cat,
-                                unnest(:provider_generated_ids::text[]) provider_generated_id
-                        )
-                        insert into provider.resource(type, provider, created_by, project, product, provider_generated_id) 
-                        select :type, :provider, :created_by, :project, p.id, t.provider_generated_id
-                        from
-                            product_tuples t join 
-                            accounting.product_categories pc on 
-                                pc.category = t.cat and pc.provider = :provider join
-                            accounting.products p on pc.id = p.category and t.id = p.name
-                        on conflict (provider_generated_id) do update set
-                            type = excluded.type,
-                            provider = excluded.provider,
-                            created_by = excluded.created_by,
-                            project = excluded.project,
-                            product = excluded.product
-                        returning id
+                        with
+                            product_tuples as (
+                                select
+                                    unnest(:product_ids::text[]) id, 
+                                    unnest(:product_categories::text[]) cat,
+                                    unnest(:provider_generated_ids::text[]) provider_generated_id,
+                                    unnest(:created_by::text[]) created_by,
+                                    unnest(:projects::text[]) project
+                            ),
+                            created_resources as (
+                                insert into provider.resource
+                                    (type, provider, created_by, project, product, provider_generated_id, confirmed_by_provider) 
+                                select :type, :provider, t.created_by, t.project, p.id, t.provider_generated_id, true
+                                from
+                                    product_tuples t join 
+                                    accounting.product_categories pc on 
+                                        pc.category = t.cat and pc.provider = :provider join
+                                    accounting.products p on pc.id = p.category and t.id = p.name
+                                on conflict (provider_generated_id) do update set
+                                    type = excluded.type,
+                                    provider = excluded.provider,
+                                    created_by = excluded.created_by,
+                                    project = excluded.project,
+                                    product = excluded.product
+                                returning id, created_by    
+                            ),
+                            acl_entries as (
+                                insert into provider.resource_acl_entry (username, permission, resource_id) 
+                                select created_by, unnest(array['READ', 'EDIT']), id
+                                from created_resources
+                                returning resource_id
+                            )
+                        select distinct resource_id from acl_entries;
                     """
                 ).rows.map { it.getLong(0)!! }
 
@@ -1011,17 +1038,23 @@ abstract class ResourceService<
                     """
                         where
                            (confirmed_by_provider = true or :include_unconfirmed) and
-                           (:project_filter = '' or :project_filter is not distinct from r.project) and
+                           (r.public_read or :project_filter = '' or :project_filter is not distinct from r.project) and
                            (:resource_id::bigint is null or r.id = :resource_id) and
                            r.type = :resource_type and
                            (
-                               (:username = '_ucloud') or
-                               (:username = '#P_' || r.provider) or
-                               (r.created_by = :username and r.project is null) or
-                               (acl.username = :username) or
-                               (pm.role = 'PI' or pm.role = 'ADMIN') or
-                               (gm.username is not null) or
-                               (r.public_read = true)
+                                (:username = '_ucloud') or
+                                (:username = '#P_' || r.provider) or
+                                (r.created_by = :username and r.project is null) or
+                                (
+                                    acl.username = :username and
+                                    (
+                                        r.project is null or
+                                        pm.username = :username
+                                    )
+                                ) or
+                                (pm.role = 'PI' or pm.role = 'ADMIN') or
+                                (gm.username is not null) or
+                                (r.public_read = true)
                           ) and
                           (:filter_created_by::text is null or :filter_created_by = r.created_by) and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
@@ -1032,10 +1065,6 @@ abstract class ResourceService<
                                         
                     """
                 )
-
-                if (includeOthers) {
-                    append(" and other_acl.username is distinct from :username ")
-                }
 
                 append(" group by r.*, the_product.name, p_cat.category, p_cat.provider ")
 
@@ -1109,6 +1138,7 @@ abstract class ResourceService<
                         order by
                             spec.$sortBy $sortDirection
                     """,
+                    debug = true,
                 )
             },
             mapper = { _, rows ->

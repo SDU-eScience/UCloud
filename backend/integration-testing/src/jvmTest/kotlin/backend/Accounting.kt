@@ -22,6 +22,8 @@ import io.ktor.http.*
 import java.util.*
 import kotlin.math.max
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 suspend fun findWallet(
     client: AuthenticatedClient,
@@ -155,55 +157,304 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
+
         testFilter = { title, subtitle ->
-            title == "Free to use products"
+            title == "Single product test"
         }
 
         run {
-            test<Unit, Unit>("Free to use products") {
+            class In (
+                val product: Product,
+                val expectedChargeResults: List<Boolean>
+            )
+
+            class Out(
+                val wallets: PageV2<Wallet>
+            )
+
+            test<In,Out>("Single product test") {
                 execute {
                     createProvider("ucloud")
+                    Products.create.call(
+                        bulkRequestOf(input.product),
+                        serviceClient
+                    ).orThrow()
+                    val user1 = createUser("user1")
+                    val targetOwner = WalletOwner.User(user1.username)
 
-                    val product = Product.Compute(
+                    Accounting.rootDeposit.call(
+                        bulkRequestOf(
+                            RootDepositRequestItem(
+                                input.product.category,
+                                targetOwner,
+                                10000.DKK,
+                                "Initial deposit"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    val results = Accounting.charge.call(
+                        bulkRequestOf(ChargeWalletRequestItem(
+                            targetOwner,
+                            10L,
+                            1L,
+                            input.product.toReference(),
+                            user1.username,
+                            "test charging"
+                        )),
+                        serviceClient
+                    ).orThrow().responses
+
+                    assertThatInstance(input.expectedChargeResults, "Charge behaving correctly") {
+                        it == results
+                    }
+
+                    val wallets = Wallets.browse.call(
+                        WalletBrowseRequest(),
+                        user1.client
+                    ).orThrow()
+
+                    Out(wallets)
+                }
+
+                case("zero price per unit") {
+                    input(In(
+                        sampleCompute.copy(pricePerUnit = 0),
+                        expectedChargeResults = listOf(true)
+                    ))
+                    check {
+                        assertEquals(output.wallets.items.singleOrNull()?.allocations?.singleOrNull()?.localBalance, 10000.DKK)
+                    }
+                }
+            }
+        }
+
+        run {
+            class In (
+                val products: List<Product>,
+                val providers: List<String>,
+                val user: String,
+                val productsToCharge: List<Product>,
+                val chargeAmount: Long = 10,
+                val walletAmount: Long = 10000.DKK,
+                val createWallet: Boolean = false
+            )
+            class Out (
+                val allocation: WalletAllocation?,
+                val chargeResults: List<Boolean>
+            )
+
+            test<In, Out>("Free to use products") {
+                execute {
+                    input.providers.forEach {
+                        createProvider(it)
+                    }
+                    createSampleProducts()
+
+                    Products.create.call(
+                        BulkRequest(input.products),
+                        serviceClient
+                    ).orThrow()
+
+                    val user1 = createUser(input.user)
+                    val targetOwner = WalletOwner.User(user1.username)
+
+                    if (input.createWallet) {
+                        Accounting.rootDeposit.call(
+                            bulkRequestOf(
+                                RootDepositRequestItem(
+                                    sampleCompute.category,
+                                    targetOwner,
+                                    input.walletAmount,
+                                    "Initial deposit"
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
+                    }
+
+                    val chargeRequests = mutableListOf<ChargeWalletRequestItem>()
+                    input.productsToCharge.forEach {
+                        chargeRequests.add(
+                            ChargeWalletRequestItem(
+                                targetOwner,
+                                input.chargeAmount,
+                                1L,
+                                it.toReference(),
+                                user1.username,
+                                "test charging"
+                            )
+                        )
+                    }
+
+                    Accounting.check.call(
+                        BulkRequest(chargeRequests),
+                        serviceClient
+                    ).orThrow()
+
+                    val chargeResults = Accounting.charge.call(
+                        BulkRequest(chargeRequests),
+                        serviceClient
+                    ).orThrow().responses
+
+                    val wallets = Wallets.browse.call(
+                        WalletBrowseRequest(),
+                        user1.client
+                    ).orThrow()
+
+                    val allocation = wallets.items.singleOrNull()?.allocations?.singleOrNull()
+                    Out(allocation, chargeResults)
+                }
+
+                case("charge free to use") {
+                    val freeCompute = Product.Compute(
                         "freeCompute",
                         20L,
                         ProductCategoryId("ucloud", "ucloud"),
                         "new description",
                         freeToUse = true
                     )
-
-                    Products.create.call(
-                        bulkRequestOf(
-                            product
-                        ),
-                        serviceClient
-                    ).orThrow()
-
-                    val user1 = createUser("user1")
-                    val targetOwner = WalletOwner.User(user1.username)
-
-                    Accounting.charge.call(
-                        bulkRequestOf(
-                            ChargeWalletRequestItem(
-                                targetOwner,
-                                200000L,
-                                40L,
-                                product.toReference(),
-                                user1.username,
-                                "test charging"
+                    input(
+                        In(
+                            products = listOf(
+                                freeCompute
+                            ),
+                            providers = listOf(
+                                "ucloud"
+                            ),
+                            user = "user1",
+                            productsToCharge = listOf(
+                               freeCompute
                             )
-                        ),
-                        serviceClient
+                        )
                     )
-                }
-
-                case("charge free to use") {
-                    input(Unit)
                     check {
+                        assertNull(output.allocation)
+                        assertEquals(listOf(true), output.chargeResults)
+                    }
+                }
+                case("charge free to use multiple items") {
+                    val freeCompute = Product.Compute(
+                        "freeCompute",
+                        20L,
+                        ProductCategoryId("ucloud", "ucloud"),
+                        "new description",
+                        freeToUse = true
+                    )
+                    val freeQuota = Product.Storage(
+                        "freeQuota",
+                        20L,
+                        ProductCategoryId("ceph-quota", "ucloud"),
+                        "new description",
+                        freeToUse = true
+                    )
+                    input(
+                        In(
+                            products = listOf(
+                                freeCompute,
+                                freeQuota
+                            ),
+                            providers = listOf(
+                                "ucloud"
+                            ),
+                            user = "user1",
+                            productsToCharge = listOf(
+                                freeCompute,
+                                freeQuota
+                            )
+                        )
+                    )
 
+                    check {
+                        assertNull(output.allocation)
+                        assertEquals(listOf(true, true), output.chargeResults)
                     }
                 }
 
+                case("charge mixed items (free and compute)") {
+                    val freeCompute = Product.Compute(
+                        "freeCompute",
+                        20L,
+                        ProductCategoryId("ucloud", "ucloud"),
+                        "new description",
+                        freeToUse = true
+                    )
+                    val freeQuota = Product.Storage(
+                        "freeQuota",
+                        20L,
+                        ProductCategoryId("ceph-quota", "ucloud"),
+                        "new description",
+                        freeToUse = true
+                    )
+                    input(
+                        In(
+                            products = listOf(
+                                freeCompute,
+                                freeQuota
+                            ),
+                            providers = listOf(
+                                "ucloud"
+                            ),
+                            user = "user1",
+                            productsToCharge = listOf(
+                                freeCompute,
+                                freeQuota,
+                                sampleCompute
+                            ),
+                            walletAmount = 100000.DKK,
+                            chargeAmount = 1,
+                            createWallet = true
+                        )
+                    )
+                    check {
+                        assertNotNull(output.allocation)
+                        assertEquals(output.allocation?.localBalance, input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ))
+                        assertEquals(listOf(true, true, true), output.chargeResults)
+                    }
+
+                    case("charge mixed items (not enough resources to charge)") {
+                        val freeCompute = Product.Compute(
+                            "freeCompute",
+                            20L,
+                            ProductCategoryId("ucloud", "ucloud"),
+                            "new description",
+                            freeToUse = true
+                        )
+                        val freeQuota = Product.Storage(
+                            "freeQuota",
+                            20L,
+                            ProductCategoryId("ceph-quota", "ucloud"),
+                            "new description",
+                            freeToUse = true
+                        )
+                        input(
+                            In(
+                                products = listOf(
+                                    freeCompute,
+                                    freeQuota
+                                ),
+                                providers = listOf(
+                                    "ucloud"
+                                ),
+                                user = "user1",
+                                productsToCharge = listOf(
+                                    freeCompute,
+                                    freeQuota,
+                                    sampleCompute
+                                ),
+                                walletAmount = 1000,
+                                chargeAmount = 10,
+                                createWallet = true
+                            )
+                        )
+                        check {
+                            assertNotNull(output.allocation)
+                            assertEquals(output.allocation?.localBalance, input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ))
+                            assertEquals(listOf(true, true, false), output.chargeResults)
+                        }
+                    }
+                }
             }
 
         }
@@ -727,7 +978,8 @@ class AccountingTest : IntegrationTest() {
                 val initialBalance: Long,
                 val units: Long,
                 val numberOfProducts: Long = 1,
-                val product: Product = sampleCompute
+                val product: Product = sampleCompute,
+                val expectedChargeResults: List<Boolean>? = emptyList()
             )
 
             class Out(
@@ -784,7 +1036,7 @@ class AccountingTest : IntegrationTest() {
                                 it.endDate == null
                     }
 
-                    Accounting.charge.call(
+                    val chargeResponse = Accounting.charge.call(
                         bulkRequestOf(
                             ChargeWalletRequestItem(
                                 owner,
@@ -796,7 +1048,11 @@ class AccountingTest : IntegrationTest() {
                             )
                         ),
                         serviceClient
-                    ).orThrow()
+                    ).orThrow().responses
+
+                    assertThatInstance(chargeResponse, "charges behaving as expected") {
+                        it == input.expectedChargeResults
+                    }
 
                     val walletsAfterCharge = Wallets.browse.call(WalletBrowseRequest(), client).orThrow().items
                     val newAllocation = walletsAfterCharge.singleOrNull()?.allocations?.singleOrNull()
@@ -816,12 +1072,12 @@ class AccountingTest : IntegrationTest() {
                     }
 
                     case("$name with enough credits") {
-                        input(In(isProject, 1000.DKK, 1))
+                        input(In(isProject, 1000.DKK, 1, expectedChargeResults = listOf(true)))
                         check { balanceWasDeducted(input, output) }
                     }
 
                     case("$name with over-charge") {
-                        input(In(isProject, 10.DKK, 1_000_000_000))
+                        input(In(isProject, 10.DKK, 1_000_000_000, expectedChargeResults = listOf(false)))
                         check {
                             assertThatInstance(output.newBalance) { it < 0 }
                         }
@@ -852,7 +1108,8 @@ class AccountingTest : IntegrationTest() {
                 val units: Long,
                 val numberOfProducts: Long = 1,
                 val product: Product = sampleCompute,
-                val skipCreationOfLeaf: Boolean = false
+                val skipCreationOfLeaf: Boolean = false,
+                val expectedChargeResults: List<Boolean>? = emptyList()
             )
 
             class ChargeOutput(
@@ -875,7 +1132,7 @@ class AccountingTest : IntegrationTest() {
                 execute {
                     val leaves = prepare(input)
 
-                    Accounting.charge.call(
+                   val chargeResults = Accounting.charge.call(
                         bulkRequestOf(
                             ChargeWalletRequestItem(
                                 leaves.last().owner,
@@ -887,7 +1144,11 @@ class AccountingTest : IntegrationTest() {
                             )
                         ),
                         serviceClient
-                    ).orThrow()
+                    ).orThrow().responses
+
+                    assertThatInstance(chargeResults, "charges behaving as expected") {
+                        it == input.expectedChargeResults
+                    }
 
                     ChargeOutput(
                         leaves.map {
@@ -978,7 +1239,8 @@ class AccountingTest : IntegrationTest() {
                                 In(
                                     rootBalance = 1000.DKK,
                                     chainFromRoot = (0 until nlevels).map { Allocation(isProject, 1000.DKK) },
-                                    units = 1L
+                                    units = 1L,
+                                    expectedChargeResults = listOf(true)
                                 )
                             )
 
@@ -993,7 +1255,8 @@ class AccountingTest : IntegrationTest() {
                             In(
                                 rootBalance = 1000.DKK,
                                 chainFromRoot = (0 until nlevels).map { Allocation(it % 2 == 0, 1000.DKK) },
-                                units = 1L
+                                units = 1L,
+                                expectedChargeResults = listOf(true)
                             )
                         )
 
@@ -1031,7 +1294,8 @@ class AccountingTest : IntegrationTest() {
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
-                            units = Int.MAX_VALUE.toLong() * 2
+                            units = Int.MAX_VALUE.toLong() * 2,
+                            expectedChargeResults = listOf(false)
                         )
                     )
 
@@ -1081,7 +1345,8 @@ class AccountingTest : IntegrationTest() {
                                 In(
                                     rootBalance = 1000.DKK,
                                     chainFromRoot = (0 until nlevels).map { Allocation(isProject, 1000.DKK) },
-                                    units = 1L
+                                    units = 1L,
+                                    expectedChargeResults = listOf(true)
                                 )
                             )
 
@@ -1096,7 +1361,8 @@ class AccountingTest : IntegrationTest() {
                             In(
                                 rootBalance = 1000.DKK,
                                 chainFromRoot = (0 until nlevels).map { Allocation(it % 2 == 0, 1000.DKK) },
-                                units = 1L
+                                units = 1L,
+                                expectedChargeResults = listOf(true)
                             )
                         )
 
@@ -1134,7 +1400,8 @@ class AccountingTest : IntegrationTest() {
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
-                            units = Int.MAX_VALUE.toLong() * 2
+                            units = Int.MAX_VALUE.toLong() * 2,
+                            expectedChargeResults = listOf(false)
                         )
                     )
 

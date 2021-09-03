@@ -30,11 +30,11 @@ class FileQueries(
 
     private fun findIcon(file: InternalFile): FileIconHint? {
         val components = pathConverter.internalToRelative(file).components()
-        return if (fileTrashService.isTrashFolder(null, file)) {
+        return if (fileTrashService.isTrashFolder(file)) {
             FileIconHint.DIRECTORY_TRASH
         } else if (
-            (components.size == 3 && components[0] == "home" && components[2] == "Jobs") ||
-            (components.size == 5 && components[0] == "projects" &&
+            (components.size == 3 && components[0] == PathConverter.HOME_DIRECTORY && components[2] == "Jobs") ||
+            (components.size == 5 && components[0] == PathConverter.PROJECT_DIRECTORY &&
                 components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
         ) {
             FileIconHint.DIRECTORY_JOBS

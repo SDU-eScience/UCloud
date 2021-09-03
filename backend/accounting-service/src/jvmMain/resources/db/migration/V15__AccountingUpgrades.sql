@@ -52,6 +52,10 @@ from per_unit_products
 WHERE id = per_unit_products.product_id and
         per_unit_products.unit = 'PER_UNIT'::accounting.product_price_unit;
 
+update accounting.products
+set description = name
+where description = '';
+
 create or replace function accounting.require_product_description() returns trigger language plpgsql as $$
 begin
     if (new.description = '' or new.description is null) then
@@ -604,14 +608,15 @@ begin
             pc.id product_category,
             pc.charge_type,
             request.units * request.number_of_products * p.price_per_unit as payment_required,
-            request.*
+            request.*,
+            p.free_to_use
         from
             requests request join
             accounting.products p on request.product_name = p.name join
             accounting.product_categories pc on
                 p.category = pc.id and
                 pc.category = request.product_cat_name and
-                pc.provider = request.product_provider 
+                pc.provider = request.product_provider
         where
             p.version = (
                 select max(version)
@@ -646,23 +651,25 @@ begin
                     p.charge_type = 'ABSOLUTE' and
                     (
                         (payer_is_project and wo.project_id = payer) or
-                        (not payer_is_project and wo.username = payer)
+                        (not payer_is_project and wo.username = payer) or
+                        (p.free_to_use = true)
                     ) and
                     now() >= alloc.start_date and
                     (alloc.end_date is null or now() <= alloc.end_date)
             ) allocations on true;
 
     delete from absolute_allocations alloc
-    where
-        balance is null or
-        (
-            balance <= 0 and
-            local_request_id in (
-                select local_request_id from absolute_allocations where balance > 0
-            )
-        );
+        where
+            (free_to_use != true and balance is null) or
+            (
+                free_to_use != true and
+                balance <= 0 and
+                local_request_id in (
+                    select alloc.local_request_id from absolute_allocations where balance > 0
+                )
+            );
 
-    create temporary table absolute_leaves on commit drop as
+        create temporary table absolute_leaves on commit drop as
         -- NOTE(Dan): leaf_charges determines which leaf allocations to charge and how much can be subtracted from
         -- each allocation.
         --
@@ -682,7 +689,8 @@ begin
             product_id,
             units, number_of_products, performed_by, description,
             payment_required, local_request_id,
-            balance_available
+            balance_available,
+            free_to_use
         from
             (
                 select
@@ -691,13 +699,15 @@ begin
                     alloc.balance,
                     alloc.allocation_path,
                     alloc.associated_wallet,
+                    alloc.free_to_use,
                     -- NOTE(Dan): It is very important that we do not have ambiguity in the sort order as this will
                     -- cause invalid results, hence we sort by the ID when we have identical end dates.
                     sum(greatest(0, alloc.balance)) over (partition by local_request_id order by alloc.end_date nulls last, alloc.id) as balance_available
                 from absolute_allocations alloc
+                where charge_type = 'ABSOLUTE'
             ) t
         where
-            balance_available - balance < payment_required;
+            (balance_available - balance < payment_required) or payment_required = 0 or free_to_use = true;
 
     create temporary table differential_leaves on commit drop as
         with
@@ -709,6 +719,7 @@ begin
                     product_and_price p,
                     lateral (
                         select
+                            distinct (p.product_id) distinctProductId,
                             alloc.id,
                             alloc.balance,
                             alloc.initial_balance,
@@ -722,13 +733,16 @@ begin
                             accounting.wallets w on
                                 alloc.associated_wallet = w.id and
                                 w.category = p.product_category join
-                            accounting.wallet_owner wo on w.owned_by = wo.id
+                            accounting.wallet_owner wo on w.owned_by = wo.id right join
+                            accounting.products p2 on p.product_id = p2.id
                         where
                             (
+
                                 (payer_is_project and wo.project_id = payer) or
-                                (not payer_is_project and wo.username = payer)
+                                (not payer_is_project and wo.username = payer) or
+                                (p.free_to_use = true)
                             ) and
-                            now() >= alloc.start_date and
+                            (now() >= alloc.start_date or p.free_to_use = true) and
                             (alloc.end_date is null or now() <= alloc.end_date)
                     ) allocations
                 where
@@ -749,11 +763,11 @@ begin
                     product_id,
                     units, number_of_products, performed_by, description,
                     payment_required, local_request_id,
-                    balance_available
+                    balance_available, free_to_use
                 from
                     allocation_selection
                 where
-                    balance_available - initial_balance < payment_required
+                    balance_available - initial_balance < payment_required or payment_required = 0 or free_to_use = true
             ),
             -- NOTE(Dan): see note above for explanation about additions CTE.
             additions as (
@@ -765,44 +779,38 @@ begin
                     product_id,
                     units, number_of_products, performed_by, description,
                     payment_required, local_request_id,
-                    balance_available
+                    balance_available, free_to_use
                 from
                     allocation_selection
                 where
-                    balance_available - initial_balance >= payment_required
+                    balance_available - initial_balance >= payment_required or payment_required = 0 or free_to_use = true
             )
             -- NOTE(Dan): Select all rows from subtractions and additions combined.
             select * from subtractions
             union
             select * from additions;
 
-    create temporary table all_leaves on commit drop as
-        select * from absolute_leaves
-        union
-        select * from differential_leaves;
-
-    -- NOTE(Dan): If we have not managed to charge everything, then we must charge the priority allocation the
-    -- remaining balance. In the future, this might attempt to balance the charge but for now it will simply pick the
-    -- priority allocation.
-
+        create temporary table all_leaves on commit drop as
+            select * from absolute_leaves
+            union
+            select * from differential_leaves;
     update all_leaves leaves
-    set subtracted = leaves.subtracted + greatest(0, l.payment_required - missing_payment.max_balance)
-    from
-        (
-            select a.*, row_number() over (partition by local_request_id) rn
-            from all_leaves a
-        ) l join
-        (
-            -- NOTE(Dan): Recall that balance_available is the rolling sum over multiple allocations. This is why we
-            -- are interested in the max, to determine how much has actually been charged.
-            select local_request_id, max(balance_available) as max_balance
-            from all_leaves
-            group by local_request_id
-        ) missing_payment on l.local_request_id = missing_payment.local_request_id
-    where
-        l.id = leaves.id and
-        l.rn = 1;
-
+        set subtracted = leaves.subtracted + greatest(0, l.payment_required - missing_payment.max_balance)
+        from
+            (
+                select a.*, row_number() over (partition by local_request_id) rn
+                from all_leaves a
+            ) l join
+            (
+                -- NOTE(Dan): Recall that balance_available is the rolling sum over multiple allocations. This is why we
+                -- are interested in the max, to determine how much has actually been charged.
+                select local_request_id, max(balance_available) as max_balance
+                from all_leaves
+                group by local_request_id
+            ) missing_payment on l.local_request_id = missing_payment.local_request_id
+        where
+            l.id = leaves.id and
+            l.rn = 1;
 
     -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge what we subtracted
     -- from the child allocation, in every ancestor.
@@ -817,14 +825,14 @@ begin
             ancestor_alloc.associated_wallet as local_wallet,
             product_id,
             units, number_of_products, performed_by, description,
-            payment_required, local_request_id
+            payment_required, local_request_id, free_to_use
         from
-            all_leaves leaves join
-            accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
+            all_leaves leaves left join
+            accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path or free_to_use = true;
 
     select count(distinct local_request_id) into charge_count from charge_result;
     if charge_count != cardinality(requests) then
-        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request. % %', charge_count, cardinality(requests);
     end if;
 end;
 $$;
@@ -860,7 +868,7 @@ begin
     from
         updates u join
         charge_result c on u.local_id = c.local_id
-    where u.new_balance < 0;
+    where u.new_balance < 0 and free_to_use != true;
 
     with
         combined_local_balance_subtractions as (
@@ -881,15 +889,16 @@ begin
     from
         updates u join
         charge_result c on u.local_id = c.local_id
-    where new_balance < 0;
+    where new_balance < 0 and free_to_use != true;
 
-    -- NOTE(Dan): Insert a record of every change we did in the transactions table
+    -- NOTE(Dan): Insert a record of every change we did in the transactions table except free to use items
     insert into accounting.transactions
             (type, created_at, affected_allocation_id, action_performed_by, change, description,
              source_allocation_id, product_id, number_of_products, units)
     select 'charge', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
            res.leaf_id, res.product_id, res.number_of_products, res.units
-    from charge_result res;
+    from charge_result res
+    where free_to_use != true;
 
     return query select distinct request_index - 1 from failed_charges;
 end;
@@ -904,7 +913,7 @@ begin
     return query(
         select bool_and(has_enough_credits)
         from (
-            select local_request_id, (current_balance - local_subtraction) >= 0 has_enough_credits
+            select local_request_id, ((current_balance - local_subtraction) >= 0 or free_to_use) has_enough_credits
             from charge_result
             order by local_request_id
         ) t

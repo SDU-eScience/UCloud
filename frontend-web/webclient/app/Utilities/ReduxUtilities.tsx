@@ -1,4 +1,3 @@
-import activity from "Activity/Redux/ActivityReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject} from "DefaultObjects";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
@@ -35,7 +34,6 @@ export const responsive = createResponsiveStateReducer(
 );
 
 export const store = configureStore(initObject(), {
-    activity,
     dashboard,
     header,
     status,

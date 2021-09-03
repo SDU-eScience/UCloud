@@ -19,7 +19,7 @@ data class FileMetadataAddRequestItem(
     val fileId: String,
     val metadata: FileMetadataDocument.Spec,
 )
-typealias FileMetadataAddMetadataResponse = Unit
+typealias FileMetadataAddMetadataResponse = BulkResponse<FindByStringId>
 
 typealias FileMetadataMoveRequest = BulkRequest<FileMetadataMoveRequestItem>
 

@@ -79,25 +79,31 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     routingNamespace = "metadata";
     title = "Metadata Template";
     page = SidebarPages.Files;
+    productType = undefined;
 
     renderer: ItemRenderer<FileMetadataTemplateNamespace> = {
-        Icon: ({resource, size}) => <Icon name={"docs"} size={size} />,
-        MainTitle: ({resource}) =>
-            <>{resource?.status?.latestTitle ?? resource?.specification?.name ?? ""}</>,
-        Stats: ({resource}) => !resource ? null : <>
-            <ListRowStat icon={"id"}>{resource.specification.name}</ListRowStat>
-        </>
+        Icon({resource, size}) {return <Icon name={"docs"} size={size} />},
+        MainTitle({resource}) {
+            return <>{resource?.status?.latestTitle ?? resource?.specification?.name ?? ""}</>
+        },
+        Stats({resource}) {
+            return !resource ? null : <>
+                <ListRowStat icon={"id"}>{resource.specification.name}</ListRowStat>
+            </>
+        }
     };
 
     templateRenderer: ItemRenderer<FileMetadataTemplate> = {
-        Icon: ({resource, size}) => <SvgFt width={size} height={size} type={"text"} ext={""}
-            color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-            hasExt={false} />,
-        MainTitle: ({resource}) => !resource ? null : <>{resource.title}</>,
-        Stats: ({resource}) => !resource ? null : <>
+        Icon({resource, size}) {
+            return <SvgFt width={size} height={size} type={"text"} ext={""}
+                color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+                hasExt={false} />
+        },
+        MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},
+        Stats({resource}) { return !resource ? null : <>
             <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt ?? 0)}</ListRowStat>
             <ListRowStat icon={"hashtag"}>{resource.version}</ListRowStat>
-        </>
+        </>}
     };
 
     private templateOps: Operation<FileMetadataTemplate, StandardCallbacks<FileMetadataTemplate> & TemplateCallbacks>[] = [

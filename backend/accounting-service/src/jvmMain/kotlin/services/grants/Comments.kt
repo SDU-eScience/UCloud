@@ -104,12 +104,12 @@ class GrantCommentService(
                             'application', 
                             "grant".application_to_json(
                                 app,
-                                array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
+                                array_remove(array_agg(distinct ("grant".resource_request_to_json(request, pc))), null),
                                 owner_project,
                                 existing_project,
                                 existing_project_pi.username
                             ),
-                            'comments', array_remove(array_agg("grant".comment_to_json(posted_comment)), null),
+                            'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
                             'approver', pm.username is not null
                         )
                     from
@@ -137,7 +137,7 @@ class GrantCommentService(
                             pm.username is not null
                         )
                     group by 
-                        app.*, existing_project.*, owner_project.*, existing_project_pi.username, pm.username
+                        app.id, app.*, existing_project.*, owner_project.*, existing_project_pi.username, pm.username
                 """
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
                 ?: throw RPCException("Unknown application, does it exist?", HttpStatusCode.NotFound)

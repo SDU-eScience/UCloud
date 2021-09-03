@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_PM_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
@@ -48,33 +49,61 @@ class FileCollectionsService(
     }
 }
 
-val productSupport = FSSupport(
-    PRODUCT_REFERENCE,
+val productSupport = listOf(
+    FSSupport(
+        PRODUCT_REFERENCE,
 
-    FSProductStatsSupport(
-        sizeInBytes = true,
-        sizeIncludingChildrenInBytes = false,
-        modifiedAt = true,
-        createdAt = false,
-        accessedAt = true,
-        unixPermissions = true,
-        unixOwner = true,
-        unixGroup = true
+        FSProductStatsSupport(
+            sizeInBytes = true,
+            sizeIncludingChildrenInBytes = false,
+            modifiedAt = true,
+            createdAt = false,
+            accessedAt = true,
+            unixPermissions = true,
+            unixOwner = true,
+            unixGroup = true
+        ),
+
+        FSCollectionSupport(
+            aclModifiable = true,
+            usersCanCreate = true,
+            usersCanDelete = true,
+            usersCanRename = true,
+            searchSupported = false,
+        ),
+
+        FSFileSupport(
+            aclModifiable = true,
+            trashSupported = true,
+            isReadOnly = false
+        )
     ),
+    FSSupport(
+        PRODUCT_PM_REFERENCE,
 
-    FSCollectionSupport(
-        aclSupported = true,
-        aclModifiable = true,
-        usersCanCreate = true,
-        usersCanDelete = true,
-        usersCanRename = true,
-        searchSupported = true
-    ),
+        FSProductStatsSupport(
+            sizeInBytes = true,
+            sizeIncludingChildrenInBytes = false,
+            modifiedAt = true,
+            createdAt = false,
+            accessedAt = true,
+            unixPermissions = true,
+            unixOwner = true,
+            unixGroup = true
+        ),
 
-    FSFileSupport(
-        aclSupported = true,
-        aclModifiable = true,
-        trashSupported = true,
-        isReadOnly = false
+        FSCollectionSupport(
+            aclModifiable = false,
+            usersCanCreate = false,
+            usersCanDelete = true,
+            usersCanRename = false,
+            searchSupported = false,
+        ),
+
+        FSFileSupport(
+            aclModifiable = false,
+            trashSupported = true,
+            isReadOnly = false
+        )
     )
 )
