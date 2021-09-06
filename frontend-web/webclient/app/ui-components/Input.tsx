@@ -5,7 +5,7 @@ import {
     width, WidthProps
 } from "styled-system";
 import Text from "./Text";
-import theme, {ThemeColor} from "./theme";
+import theme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
     if (noBorder) return {"border-width": "0px"};
@@ -29,7 +29,7 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
     color?: string;
     noBorder?: boolean;
     error?: boolean;
-    autocomplete?: "on" | "off";
+    autoComplete?: "on" | "off";
 }
 
 const left = ({leftLabel}: {leftLabel?: boolean}): string =>
@@ -47,9 +47,10 @@ const Input = styled.input<InputProps & {overrideDisabledColor?: string}>`
     margin: 0;
 
     ${borders} 
-    &:invalid {
+    &:invalid:not(:placeholder-shown) {
         border-color: var(--red, #f00);
     }
+
     ${p => p.error ? "border-color: var(--red, #f00);" : null}
 
     ::placeholder {
