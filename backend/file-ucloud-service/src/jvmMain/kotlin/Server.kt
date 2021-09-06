@@ -17,6 +17,7 @@ class Server(
     override val micro: Micro,
     private val configuration: Configuration,
     private val cephConfig: CephConfiguration,
+    private val syncConfig: SyncConfiguration
 ) : CommonServer {
     override val log = logger()
 
@@ -50,6 +51,11 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
+        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
+        val syncService =
+            SyncService(syncthingClient, fsRootFile.absolutePath, db, authenticatedClient, cephStats)
+
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())

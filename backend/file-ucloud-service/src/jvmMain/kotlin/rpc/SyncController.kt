@@ -1,24 +1,26 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.file.orchestrator.api.SyncFolderSupport
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncDevices
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFolders
+import dk.sdu.cloud.file.ucloud.services.SyncService
+import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.*
 
-class SyncController : Controller {
+class SyncController(
+    private val syncService: SyncService
+) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(UCloudSyncDevices.create) {
-            ok(BulkResponse(request.items.map { null }))
+            ok(syncService.addDevices(request))
         }
 
         implement(UCloudSyncDevices.delete) {
-            ok(BulkResponse(request.items.map { Unit }))
+            syncService.removeDevices(request)
+            ok(BulkResponse(request.items.map {}))
         }
 
         implement(UCloudSyncDevices.updateAcl) {
@@ -30,15 +32,16 @@ class SyncController : Controller {
         }
 
         implement(UCloudSyncDevices.retrieveProducts) {
-            ok(BulkResponse(products))
+            ok(BulkResponse(syncProducts))
         }
 
         implement(UCloudSyncFolders.create) {
-            ok(BulkResponse(request.items.map { null }))
+            ok(syncService.addFolders(request))
         }
 
         implement(UCloudSyncFolders.delete) {
-            ok(BulkResponse(request.items.map { Unit }))
+            syncService.removeFolders(request)
+            ok(BulkResponse(request.items.map {}))
         }
 
         implement(UCloudSyncFolders.updateAcl) {
@@ -50,11 +53,7 @@ class SyncController : Controller {
         }
 
         implement(UCloudSyncFolders.retrieveProducts) {
-            ok(BulkResponse(products))
+            ok(BulkResponse(syncProducts))
         }
     }
 }
-
-val products = listOf(
-    SyncFolderSupport(ProductReference("u1-sync", "u1-sync", UCLOUD_PROVIDER))
-)

@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
 
+@Serializable
 enum class SynchronizationType(val syncthingValue: String) {
     SEND_RECEIVE("sendreceive"),
     SEND_ONLY("sendonly")
@@ -66,7 +67,7 @@ data class SyncFolderIncludeFlags(
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
-    Product.Synchronization, SyncFolderSupport>("sync_folders") {
+    Product.Synchronization, SyncFolderSupport>("sync.folders") {
     override val typeInfo = ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
         SyncFolder.Status, Product.Synchronization, SyncFolderSupport>()
 
@@ -76,14 +77,14 @@ object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
 }
 
 object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
-    SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync_folders") {
+    SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders") {
     override val typeInfo =
         ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
             Product.Synchronization, SyncFolderSupport>()
 }
 
 open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
-    SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync_folders", provider) {
+    SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders", provider) {
     override val typeInfo =
         ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
             Product.Synchronization, SyncFolderSupport>()
