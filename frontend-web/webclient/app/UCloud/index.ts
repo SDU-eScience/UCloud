@@ -1587,8 +1587,8 @@ export interface ApplicationInvocationDescription {
     allowMultiNode: boolean,
     fileExtensions: string[],
     licenseServers: string[],
-    shouldAllowAdditionalMounts: boolean,
-    shouldAllowAdditionalPeers: boolean,
+    // shouldAllowAdditionalMounts: boolean,
+    // shouldAllowAdditionalPeers: boolean,
 }
 export interface ToolReference {
     name: string,

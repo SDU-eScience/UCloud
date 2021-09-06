@@ -206,6 +206,7 @@ data class JobBilling(
 @Serializable
 data class JobUpdate(
     val state: JobState? = null,
+    val outputFolder: String? = null,
     override val status: String? = null,
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,

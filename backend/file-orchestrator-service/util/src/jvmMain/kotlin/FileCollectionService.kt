@@ -3,22 +3,14 @@ package dk.sdu.cloud.file.orchestrator.service
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.providers.ResourceApi
-import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
-import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
 private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,

@@ -84,7 +84,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [filters, setFilters] = useState<Record<string, string>>({});
-    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("ascending");
+    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
     const history = useHistory();
     const location = useLocation();

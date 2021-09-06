@@ -178,7 +178,7 @@ class PathConverter(
 
     fun internalToUCloud(file: InternalFile): UCloudFile {
         val components = file.path.removePrefix(rootDirectory.path).normalize().components()
-        if (components.size <= 1) throw FSException.CriticalException("Not a valid UCloud file")
+        if (components.size <= 1) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
 
         return UCloudFile.createFromPreNormalizedString(
             buildString {
@@ -194,7 +194,7 @@ class PathConverter(
                     }
 
                     PROJECT_DIRECTORY -> {
-                        if (components.size <= 3) throw FSException.CriticalException("Not a valid UCloud file")
+                        if (components.size <= 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                         if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
                             val collectionId = cachedProviderIds["$COLLECTION_PROJECT_MEMBER_PREFIX" +
                                     "${components[1]}/${components[3]}"]
@@ -203,7 +203,7 @@ class PathConverter(
                             startIdx = 4
                         } else {
                             if (components[2] == PERSONAL_REPOSITORY) {
-                                throw FSException.CriticalException("Not a valid UCloud file")
+                                throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                             }
 
                             val collectionId = cachedProviderIds["${COLLECTION_PROJECT_PREFIX}${components[1]}/" +
@@ -218,7 +218,7 @@ class PathConverter(
                         startIdx = 2
                     }
 
-                    else -> throw FSException.CriticalException("Not a valid UCloud file")
+                    else -> throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                 }
 
                 for ((idx, component) in components.withIndex()) {
@@ -245,6 +245,7 @@ class PathConverter(
         const val HOME_DIRECTORY = "home"
         const val PROJECT_DIRECTORY = "projects"
         const val COLLECTION_DIRECTORY = "collections"
+        const val PERSONAL_REPOSITORY = "Members' Files"
 
         val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
         val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs_credits", UCLOUD_PROVIDER)

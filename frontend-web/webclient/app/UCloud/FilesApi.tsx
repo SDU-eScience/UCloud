@@ -33,6 +33,7 @@ import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
 import {Sensitivity} from "UtilityComponents";
 import {ProductStorage} from "Accounting";
+import {largeModalStyle} from "Utilities/ModalUtilities";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -495,15 +496,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         };
     }
 
-    private fileSelectorModalStyle = {
-        content: {
-            borderRadius: "6px",
-            top: "80px",
-            left: "25%",
-            right: "25%",
-            background: ""
-        }
-    };
+    fileSelectorModalStyle = largeModalStyle;
 }
 
 export default new FilesApi();

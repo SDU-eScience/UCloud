@@ -9,6 +9,8 @@ kotlin.sourceSets {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation(project(":app-orchestrator-service:api"))
+            implementation(project(":file-orchestrator-service:api"))
+            implementation(project(":file-ucloud-service:util"))
         }
     }
 }

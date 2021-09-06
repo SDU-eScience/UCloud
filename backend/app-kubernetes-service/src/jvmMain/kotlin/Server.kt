@@ -17,6 +17,8 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.ucloud.services.InternalFile
+import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
@@ -68,12 +70,13 @@ class Server(
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
+        val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         k8Dependencies = K8Dependencies(
             if (integrationTestingIsKubernetesReady) KubernetesClient()
             else KubernetesClient(KubernetesConfigurationSource.Placeholder),
 
             micro.backgroundScope,
-            authenticator.authenticateClient(OutgoingHttpCall),
+            serviceClient,
             nameAllocator,
             DockerImageSizeQuery()
         )
@@ -130,7 +133,7 @@ class Server(
                 configuration.useSmallReservation && micro.developmentModeEnabled
             ))
             register(ParameterPlugin(licenseService))
-            register(FileMountPlugin(cephConfig))
+            register(FileMountPlugin(PathConverter(InternalFile("/"), serviceClient), cephConfig))
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)
             register(ExpiryPlugin)

@@ -45,6 +45,7 @@ abstract class ResourceService<
     protected abstract val table: SqlObject.Table
     protected abstract val sortColumns: Map<String, SqlObject.Column>
     protected abstract val defaultSortColumn: SqlObject.Column
+    protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String by lazy {
         runBlocking {
@@ -1103,10 +1104,9 @@ abstract class ResourceService<
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
-        val sortDirection = when (sortFlags?.sortDirection) {
+        val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
-            null -> "asc"
         }
 
         val (resourceParams, resourceQuery) = accessibleResources(

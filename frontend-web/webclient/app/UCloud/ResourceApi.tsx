@@ -117,11 +117,12 @@ export abstract class ResourceApi<Res extends Resource,
     Support extends ProductSupport = ProductSupport> {
     protected namespace: string;
     protected baseContext: string;
-    
+
     public abstract productType?: ProductType;
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
+    public defaultSortDirection: "ascending" | "descending" = "ascending";
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
     public filterPills: React.FunctionComponent<PillProps>[] = [];

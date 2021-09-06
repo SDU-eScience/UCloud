@@ -2,7 +2,8 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -13,6 +14,10 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
+import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
+import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -58,14 +63,36 @@ class JobOrchestrator(
     private val appService: AppStoreCache,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
     Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
-    private val verificationService = JobVerificationService(appService, this)
+    private val storageProviders = Providers(serviceClient) {
+        StorageCommunication(
+            it.client,
+            it.client,
+            it.provider,
+            FilesProvider(it.provider.id),
+            FileCollectionsProvider(it.provider.id)
+        )
+    }
+
+    private val verificationService = JobVerificationService(
+        appService,
+        this,
+        FileCollectionService(
+            db,
+            storageProviders,
+            ProviderSupport(storageProviders, serviceClient) {
+                it.filesApi.retrieveProducts.call(Unit, it.client).orThrow().responses
+            },
+            serviceClient
+        )
+    )
+
     private val listeners = ArrayList<JobListener>()
 
     fun addListener(listener: JobListener) {
         listeners.add(listener)
     }
 
-    override val productArea: ProductArea = ProductArea.COMPUTE
+    override val productArea: ProductType = ProductType.COMPUTE
     override val serializer: KSerializer<Job> = serializer()
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
@@ -76,6 +103,7 @@ class JobOrchestrator(
     )
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
+    override val defaultSortDirection: SortDirection = SortDirection.descending
     override val updateSerializer: KSerializer<JobUpdate> = serializer()
 
     override fun controlApi() = JobsControl
@@ -128,7 +156,6 @@ class JobOrchestrator(
                 val applicationVersions = ArrayList<String>().also { setParameter("application_versions", it) }
                 val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
                 val names = ArrayList<String?>().also { setParameter("names", it) }
-                val outputFolders = ArrayList<String>().also { setParameter("output_folders", it) }
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
 
                 for ((id, spec) in idWithSpec) {
@@ -136,7 +163,6 @@ class JobOrchestrator(
                     applicationVersions.add(spec.application.version)
                     timeAllocationMillis.add(spec.timeAllocation?.toMillis())
                     names.add(spec.name)
-                    outputFolders.add("/TODO")
                     resources.add(id)
                 }
             },
@@ -144,12 +170,12 @@ class JobOrchestrator(
                 with bulk_data as (
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
-                           unnest(:output_folders::text[]) output, unnest(:resources::bigint[]) resource
+                           unnest(:resources::bigint[]) resource
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
                      output_folder, current_state, started_at, resource) 
-                select app_name, app_ver, time_alloc, n, output, 'IN_QUEUE', null, resource
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource
                 from bulk_data
             """
         )
@@ -209,27 +235,26 @@ class JobOrchestrator(
 
                 val newState = update.state
 
-                if (newState != null && !currentState.isFinal()) {
-                    @Suppress("SqlResolve")
-                    currentState = newState
-
-                    if (newState.isFinal()) {
+                if ((newState != null || update.outputFolder != null) && !currentState.isFinal()) {
+                    if (newState != null && newState.isFinal()) {
                         listeners.forEach { it.onTermination(session, job) }
                     }
 
                     session.sendPreparedStatement(
                         {
-                            setParameter("new_state", newState.name)
+                            setParameter("new_state", newState?.name)
+                            setParameter("output_folder", update.outputFolder)
                             setParameter("job_id", jobId)
                         },
                         """
                             update app_orchestrator.jobs
                             set
-                                current_state = :new_state,
+                                current_state = :new_state::text,
                                 started_at = case
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
-                                end
+                                end,
+                                output_folder = coalesce(:output_folder::text, output_folder)
                             where resource = :job_id
                         """
                     )

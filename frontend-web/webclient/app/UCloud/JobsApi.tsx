@@ -1,8 +1,9 @@
 import * as React from "react";
 import {
+    DELETE_TAG,
     ProductSupport,
     Resource,
-    ResourceApi,
+    ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification, ResourceStatus,
     ResourceUpdate
@@ -22,6 +23,8 @@ import {IconName} from "ui-components/Icon";
 import View from "Applications/Jobs/View";
 import {ItemRenderer} from "ui-components/Browse";
 import {ProductCompute} from "Accounting";
+import {Operation} from "ui-components/Operation";
+import {bulkRequestOf} from "DefaultObjects";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -196,6 +199,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     title = "Run";
     page = SidebarPages.Runs;
     productType = "COMPUTE" as const;
+    defaultSortDirection = "descending" as const;
 
     renderer: ItemRenderer<Job> = {
         MainTitle({resource}) {return <>{resource?.specification?.name ?? resource?.id ?? ""}</>},
@@ -242,6 +246,17 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             column: "state",
             helpText: "The current status of the job, e.g. 'Running'"
         });
+    }
+
+    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job>>[] {
+        const baseOperations = super.retrieveOperations();
+        const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
+        deleteOperation.text = "Stop";
+        deleteOperation.onClick = async (selected, cb) => {
+            await cb.invokeCommand(this.terminate(bulkRequestOf(...selected.map(it => ({id: it.id})))))
+            cb.reload();
+        };
+        return baseOperations;
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {

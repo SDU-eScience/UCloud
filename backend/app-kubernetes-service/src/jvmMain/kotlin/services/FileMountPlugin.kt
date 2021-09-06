@@ -3,21 +3,32 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.files
+import dk.sdu.cloud.file.orchestrator.api.fileName
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.ucloud.services.PathConverter
+import dk.sdu.cloud.file.ucloud.services.UCloudFile
+import dk.sdu.cloud.service.k8.Pod
+import dk.sdu.cloud.service.k8.Volume
 
 /**
  * A plugin which mounts user-input into the containers
  */
 class FileMountPlugin(
+    private val pathConverter: PathConverter,
     private val cephConfiguration: CephConfiguration = CephConfiguration(),
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        /*
         data class FileMount(val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
         }
 
         val fileMounts = run {
-            val allMounts = job.files.map { FileMount(it.path, it.readOnly) }
+            val allMounts = job.files.map {
+                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(it.path))
+                FileMount(internalFile.path, it.readOnly)
+            }
 
             allMounts.associateBy { it.path }.values
         }
@@ -48,6 +59,7 @@ class FileMountPlugin(
                         )
                     }
 
+                    /*
                     val outputFolder = job.output?.outputFolder
                     if (outputFolder != null) {
                         volumeMounts.add(
@@ -69,6 +81,8 @@ class FileMountPlugin(
                             )
                         )
                     }
+                    // TODO
+                     */
 
                     c.volumeMounts = volumeMounts
                 }
@@ -84,7 +98,6 @@ class FileMountPlugin(
                 pSpec.volumes = volumes
             }
         }
-         */
     }
 
     companion object {
