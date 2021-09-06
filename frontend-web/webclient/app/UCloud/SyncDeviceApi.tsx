@@ -43,9 +43,10 @@ export interface SyncDevice extends Resource<SyncDeviceUpdate, SyncDeviceStatus,
 
 class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDeviceSpecification, SyncDeviceUpdate,
     SyncDeviceFlags, SyncDeviceStatus, SyncDeviceSupport> {
-    routingNamespace = "sync_devices";
+    routingNamespace = "sync-devices";
     title = "Sync Title";
     page = SidebarPages.Runs;
+    productType = "SYNCHRONIZATION" as const;
 
     renderer: ItemRenderer<SyncDevice> = {
         MainTitle: ({resource}) =>

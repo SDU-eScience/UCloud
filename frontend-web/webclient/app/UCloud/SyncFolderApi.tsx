@@ -43,9 +43,10 @@ export interface SyncFolder extends Resource<SyncFolderUpdate, SyncFolderStatus,
 
 class SyncFolderApi extends ResourceApi<SyncFolder, ProductSyncFolder, SyncFolderSpecification, SyncFolderUpdate,
     SyncFolderFlags, SyncFolderStatus, SyncFolderSupport> {
-    routingNamespace = "syncfolders";
+    routingNamespace = "sync-folders";
     title = "Sync Title";
     page = SidebarPages.Runs;
+    productType = "SYNCHRONIZATION" as const;
 
     renderer: ItemRenderer<SyncFolder> = {
         MainTitle: ({resource}) =>

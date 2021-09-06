@@ -11,6 +11,7 @@ import * as Pagination from "Pagination";
 import { TextSpan } from "ui-components/Text";
 import { copyToClipboard } from "UtilityFunctions";
 import { useEffect } from "react";
+import SyncDeviceApi from "UCloud/SyncDeviceApi";
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText
@@ -33,21 +34,27 @@ export const SynchronizationSettings: React.FunctionComponent<{
         undefined
     );
 
-    const [products, fetchProducts] = useCloudAPI(
+    const [folderProducts, fetchFolderProducts] = useCloudAPI(
         SyncFolderApi.retrieveProducts(),
         undefined
     );
 
-    useEffect(() => {
-        console.log(products);
-    }, [products]);
+    const [deviceProducts, fetchDeviceProducts] = useCloudAPI(
+        SyncDeviceApi.retrieveProducts(),
+        undefined
+    );
+
+    const [devices, fetchDevices] = useCloudAPI(
+        SyncDeviceApi.browse({itemsPerPage: 25}),
+        undefined
+    );
 
     /*const [devices, fetchDevices] = useCloudAPI<PageV2<file.SynchronizationDevice>>(
         sync.browseDevices({ provider, itemsPerPage: 25, next: undefined }),
         emptyPageV2
     );*/
     const [synchronizedFolder, setSynchronizedFolder] = useState<undefined>(undefined);
-    const devices = emptyPageV2;
+    //const devices = emptyPageV2;
 
     /*const loadMore = useCallback(() => {
         if (devices.data.next) {

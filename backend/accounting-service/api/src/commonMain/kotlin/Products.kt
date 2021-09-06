@@ -291,10 +291,9 @@ sealed class Product {
         override val category: ProductCategoryId,
         override val description: String = "",
         override val priority: Int = 0,
-        val tags: List<String> = emptyList(),
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
-        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_DAY,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
