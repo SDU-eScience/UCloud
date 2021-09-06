@@ -1,16 +1,16 @@
+import {callAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Checkbox, Input, Label, Select} from "ui-components";
 import {LabelProps} from "ui-components/Label";
-import {stopPropagation, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "UtilityFunctions";
 
 interface DataType {
     required: string[];
     fields: Record<string, any>;
-    initialSubmit: boolean;
 }
-const DataContext = React.createContext<DataType>({required: [], fields: {}, initialSubmit: false});
+const DataContext = React.createContext<DataType>({required: [], fields: {}});
 
 export default abstract class ResourceForm<Request> extends React.Component<{
     createRequest: (d: DataType) => APICallParameters<Request>;
@@ -18,20 +18,22 @@ export default abstract class ResourceForm<Request> extends React.Component<{
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: any, d: DataType) => void;
 }> {
-    public data: DataType = {required: [], fields: {}, initialSubmit: false};
+    public data: DataType = {required: [], fields: {}};
 
     public resetData(): void {
-        this.data = {required: [], fields: {}, initialSubmit: false};
-    } 
+        this.data = {required: [], fields: {}};
+    }
 
     private async onSubmit(): Promise<void> {
         const validated = this.validate();
-        this.data.initialSubmit = true;
         if (validated) {
             const request = this.props.createRequest(this.data);
-            console.log(request);
-            const res = await Client.call(request as any);
-            this.props.onSubmitSucceded?.(res, this.data);
+            try {
+                const res = await callAPI(request);
+                this.props.onSubmitSucceded?.(res, this.data);
+            } catch (err) {
+                errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
+            }
         }
     }
 
