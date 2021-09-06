@@ -111,6 +111,7 @@ data class UFileIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,
@@ -406,6 +407,7 @@ data class FileCollectionIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this

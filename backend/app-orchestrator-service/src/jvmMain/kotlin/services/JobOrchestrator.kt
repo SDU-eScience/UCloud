@@ -249,7 +249,7 @@ class JobOrchestrator(
                         """
                             update app_orchestrator.jobs
                             set
-                                current_state = :new_state::text,
+                                current_state = coalesce(:new_state::text, current_state),
                                 started_at = case
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at

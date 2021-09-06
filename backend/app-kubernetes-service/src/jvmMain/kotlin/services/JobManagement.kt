@@ -31,6 +31,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlin.collections.ArrayList
 import kotlin.random.Random
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.minutes
@@ -245,7 +246,6 @@ class JobManagement(
         return true
     }
 
-
     @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
@@ -455,7 +455,7 @@ class JobManagement(
                         }
                     }
 
-                    if (duration >= 1.minutes) {
+                    if (duration >= Duration.minutes(1)) {
                         log.warn("Took too long to process events ($duration). We will probably lose master status.")
                     }
 

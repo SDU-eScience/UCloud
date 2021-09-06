@@ -975,6 +975,7 @@ abstract class ResourceService<
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
+                setParameter("filter_provider_id", flags?.filterProviderId ?: simpleFlags?.filterProviderId)
             },
             buildString {
                 append(
@@ -1062,7 +1063,8 @@ abstract class ResourceService<
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
-                          (:filter_product_category::text is null or p_cat.category = :filter_product_category)
+                          (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (:filter_provider_id::text is null or r.provider_generated_id = :filter_provider_id::text)
                                         
                     """
                 )
