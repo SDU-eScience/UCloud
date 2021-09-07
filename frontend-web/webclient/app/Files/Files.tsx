@@ -167,6 +167,8 @@ export const FilesBrowse: React.FunctionComponent<{
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
         viewPropertiesInline={viewPropertiesInline}
+        showCreatedBy={false}
+        showProduct={false}
     />;
 };
 

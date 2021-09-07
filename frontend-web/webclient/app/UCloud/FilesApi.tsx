@@ -5,7 +5,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate, UCLOUD_CORE
 } from "UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
 import {BulkRequest, BulkResponse} from "UCloud/index";
@@ -13,7 +13,13 @@ import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Box, Button, FtIcon, Link} from "ui-components";
 import * as React from "react";
-import {fileName, getParentPath, readableUnixMode, sizeToString} from "Utilities/FileUtilities";
+import {
+    fileName,
+    getParentPath,
+    readableUnixMode,
+    sizeToHumanReadableWithUnit,
+    sizeToString
+} from "Utilities/FileUtilities";
 import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
 import {Operation} from "ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
@@ -34,6 +40,7 @@ import {FilePreview} from "Files/Preview";
 import {Sensitivity} from "UtilityComponents";
 import {ProductStorage} from "Accounting";
 import {largeModalStyle} from "Utilities/ModalUtilities";
+import {ListRowStat} from "ui-components/List";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -183,6 +190,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = findSensitivity(resource);
             return <div><Sensitivity sensitivity={sensitivity} /></div>;
+        },
+        Stats({resource}) {
+            if (resource == null) return null;
+            const size = resource.status.sizeIncludingChildrenInBytes ?? resource.status.sizeInBytes;
+            return <>
+                {size === undefined ? null : <ListRowStat icon={"rulerSolid"}>{sizeToString(size)}</ListRowStat>}
+                {resource.status.unixMode === undefined ? null :
+                    <ListRowStat icon={"verified"}>{readableUnixMode(resource.status.unixMode)}</ListRowStat>}
+            </>;
         }
     };
 
