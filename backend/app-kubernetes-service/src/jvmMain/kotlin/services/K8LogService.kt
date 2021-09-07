@@ -21,11 +21,6 @@ import java.nio.file.Files
 class K8LogService(
     private val k8: K8Dependencies
 ) {
-    @Deprecated("Replaced with useLogWatch", ReplaceWith("useLogWatch(requestId)"))
-    fun retrieveLogs(requestId: String, startLine: Int, maxLines: Int): Pair<String, Int> {
-        return Pair("", 0)
-    }
-
     data class LogMessage(val rank: Int, val message: String)
 
     @OptIn(ExperimentalCoroutinesApi::class)

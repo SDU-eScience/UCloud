@@ -5,6 +5,9 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.components
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.service.k8.Pod
 import io.ktor.http.*
 import kotlinx.serialization.encodeToString
@@ -56,8 +59,6 @@ class ParameterPlugin(private val licenseService: LicenseService) : JobManagemen
 private class OurArgBuilder(private val licenseService: LicenseService) : ArgumentBuilder {
     override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
         return when (parameter) {
-            // TODO
-            /*
             is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
                 val file = (value as AppParameterValue.File)
                 val components = file.path.normalize().components()
@@ -66,8 +67,6 @@ private class OurArgBuilder(private val licenseService: LicenseService) : Argume
                 }
                 joinPath("/work", components[components.lastIndex])
             }
-
-             */
 
             is ApplicationParameter.LicenseServer -> {
                 val retrievedLicense =
