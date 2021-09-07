@@ -472,7 +472,6 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesCreateUploadRequest
     ): FilesCreateUploadResponse {
-        // TODO(Dan): This needs to remap the results to add provider info!
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -486,6 +485,14 @@ class FilesService(
                     req.supportedProtocols,
                     req.conflictPolicy
                 )
+            },
+            afterCall = { provider, _, response ->
+                response.responses.forEach { resp ->
+                    if (resp != null) {
+                        val providerSpec = providers.prepareCommunication(provider).provider
+                        resp.endpoint = providerSpec.addProviderInfoToRelativeUrl(resp.endpoint)
+                    }
+                }
             }
         )
     }
@@ -494,14 +501,21 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesCreateDownloadRequest
     ): FilesCreateDownloadResponse {
-        // TODO(Dan): This needs to remap the results to add provider info!
         return bulkProxyEdit(
             actorAndProject,
             request,
             Permission.Read,
             { it.filesApi.createDownload },
             { extractPathMetadata(it.id).collection },
-            { req, coll -> FilesProviderCreateDownloadRequestItem(coll, req.id) }
+            { req, coll -> FilesProviderCreateDownloadRequestItem(coll, req.id) },
+            afterCall = { provider, _, response ->
+                response.responses.forEach { resp ->
+                    if (resp != null) {
+                        val providerSpec = providers.prepareCommunication(provider).provider
+                        resp.endpoint = providerSpec.addProviderInfoToRelativeUrl(resp.endpoint)
+                    }
+                }
+            }
         )
     }
 
