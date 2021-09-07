@@ -163,7 +163,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         isCreating,
         invokeCommand,
         commandLoading,
-        reload: () => reloadRef.current(),
+        reload: () => {
+            toggleSet.uncheckAll();
+            reloadRef.current()
+        },
         embedded: props.embedded == true,
         onSelect,
         dispatch,
@@ -181,7 +184,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         viewProperties,
         ...props.extraCallbacks
     }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
-        viewProperties, props.inlineProduct, props.extraCallbacks]);
+        viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
