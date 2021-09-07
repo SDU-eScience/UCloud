@@ -81,8 +81,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
 
-    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
-        {productsByProvider: {}});
+    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
@@ -130,7 +132,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                ?.find(it => it.product.id === selectedProduct.name &&
+                ?.find(it => it.product.name === selectedProduct.name &&
                     it.product.category.name === selectedProduct.category.name) ?? null;
         }
         return null;
@@ -155,12 +157,9 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }, [props.inlineProduct]);
 
     const viewProperties = useCallback((res: Res) => {
-        console.log(props.embedded, props.viewPropertiesInline);
         if (props.embedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
-            console.log("Inlining!");
             setInlineInspecting(res);
         } else {
-            console.log("Not inlining");
             history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
     }, [setInlineInspecting, props.embedded, history, api, props.viewPropertiesInline]);
@@ -189,9 +188,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
             }
         },
         viewProperties,
-        ...props.extraCallbacks
+        ...props.extraCallbacks,
+        supportByProvider: productsWithSupport.data
     }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
-        viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet]);
+        viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet, productsWithSupport.data]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {

@@ -1,4 +1,5 @@
 import {
+    findSupport,
     ProductSupport,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
@@ -89,7 +90,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             {
                 text: "Rename",
                 icon: "rename",
-                enabled: (selected, cb) => selected.length === 1 && cb.startRenaming != null,
+                enabled: (selected, cb) => {
+                    const support = selected.length > 0 &&
+                        findSupport<FileCollectionSupport>(cb.supportByProvider, selected[0])?.support;
+
+                    return selected.length === 1 && cb.startRenaming != null && !!support &&
+                        support.collection.usersCanRename === true;
+                },
                 onClick: (selected, cb) => {
                     cb.startRenaming!(selected[0], selected[0].specification.title);
                 }
