@@ -56,12 +56,12 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     headerSize?: number;
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
-    navigateToChildren?: (history: H.History, resource: Res) => void;
+    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
     extraCallbacks?: any;
 
-    inspectValidator?: (res: Res) => boolean;
+    viewPropertiesInline?: (res: Res) => boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -151,12 +151,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }, [props.inlineProduct]);
 
     const viewProperties = useCallback((res: Res) => {
-        if (props.embedded) {
+        console.log(props.embedded, props.viewPropertiesInline);
+        if (props.embedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
+            console.log("Inlining!");
             setInlineInspecting(res);
         } else {
+            console.log("Not inlining");
             history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, props.embedded, history, api]);
+    }, [setInlineInspecting, props.embedded, history, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
@@ -306,10 +309,11 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ItemRow
                     key={it.id}
                     navigate={() => {
-                        if (props.inspectValidator?.(it)) {
-                            viewProperties(it);
-                        } else if (props.navigateToChildren) {
-                            props.navigateToChildren?.(history, it)
+                        if (props.navigateToChildren) {
+                            const result = props.navigateToChildren?.(history, it)
+                            if (result === "properties") {
+                                viewProperties(it);
+                            }
                         } else {
                             viewProperties(it);
                         }
