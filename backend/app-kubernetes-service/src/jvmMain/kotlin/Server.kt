@@ -151,6 +151,7 @@ class Server(
             register(ingressService)
             register(networkIpService)
             register(ProxyPlugin(broadcastingStream, ingressService))
+            register(OutputLogPlugin(pathConverter, fs, cephConfig, logService))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
             // related to our infrastructure setup

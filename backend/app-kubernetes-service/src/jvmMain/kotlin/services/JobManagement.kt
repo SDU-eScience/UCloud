@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
@@ -16,6 +17,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.ucloud.services.NativeFS
+import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -488,25 +492,6 @@ class JobManagement(
                     onJobComplete(jobId, job)
                 }
             }
-        }
-
-        val dir = logService.downloadLogsToDirectory(jobId)
-        try {
-            dir?.listFiles()?.forEach { file ->
-                JobsControl.submitFile.call(
-                    JobsControlSubmitFileRequest(
-                        jobId,
-                        file.name
-                    ),
-                    k8.serviceClient.withHttpBody(
-                        ContentType.Application.OctetStream,
-                        file.length(),
-                        file.readChannel()
-                    )
-                )
-            }
-        } finally {
-            dir?.deleteRecursively()
         }
 
         with(k8) {
