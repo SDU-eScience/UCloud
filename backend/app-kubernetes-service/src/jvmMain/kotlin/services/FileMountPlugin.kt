@@ -10,6 +10,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.file.orchestrator.api.normalize
@@ -21,10 +23,13 @@ import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PERSONAL_REPOSI
 import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.file.ucloud.services.UCloudFile
 import dk.sdu.cloud.file.ucloud.services.normalize
+import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.k8.Pod
 import dk.sdu.cloud.service.k8.Volume
 import io.ktor.http.*
+import kotlinx.serialization.encodeToString
 
 /**
  * A plugin which mounts user-input into the containers
@@ -71,6 +76,25 @@ class FileMountPlugin(
         }
 
         fs.createDirectories(file)
+
+        val jobParameterJson = job.status.jobParametersJson
+        if (jobParameterJson != null) {
+            val jobParamsFile = InternalFile(
+                joinPath(
+                    file.path.removeSuffix("/"),
+                    "JobParameters.json"
+                ).removeSuffix("/")
+            )
+            try {
+                fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    it.write(prettyMapper.encodeToString(jobParameterJson))
+                }
+            } catch (ex: Throwable) {
+                log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")
+            }
+        }
+
         return file
     }
 
@@ -165,9 +189,11 @@ class FileMountPlugin(
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val CEPHFS = "cephfs"
         const val VOL_NAME = "data"
         const val JOBS_FOLDER = "Jobs"
+
+        override val log = logger()
     }
 }
