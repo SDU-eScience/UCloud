@@ -157,11 +157,6 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-
-        testFilter = { title, subtitle ->
-            title == "Single product test"
-        }
-
         run {
             class In (
                 val product: Product,

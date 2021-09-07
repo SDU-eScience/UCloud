@@ -87,7 +87,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
         val jdbcUrl = config.jdbcUrl ?: throw IllegalArgumentException("Missing connection string")
 
         PostgreSQLConnectionBuilder.createConnectionPool(jdbcUrl) {
-            this.maxActiveConnections = config.poolSize ?: 100
+            this.maxActiveConnections = config.poolSize ?: 50
             this.maxIdleTime = 30_000
             this.username = username
             this.password = password
