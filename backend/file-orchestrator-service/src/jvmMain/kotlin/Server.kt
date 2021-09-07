@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
@@ -51,7 +52,7 @@ class Server(override val micro: Micro) : CommonServer {
         configureControllers(
             FileMetadataController(metadataService),
             FileController(filesService),
-            fileCollections.asController(),
+            FileCollectionController(fileCollections),
             FileMetadataTemplateController(metadataTemplateNamespaces),
             ShareController(shares)
         )

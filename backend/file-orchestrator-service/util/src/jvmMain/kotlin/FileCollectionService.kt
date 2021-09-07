@@ -8,6 +8,8 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -99,5 +101,84 @@ class FileCollectionService(
         if (support.collection.aclModifiable == false) {
             throw RPCException("Not supported", HttpStatusCode.BadRequest, FEATURE_NOT_SUPPORTED_BY_PROVIDER)
         }
+    }
+
+    suspend fun rename(
+        actorAndProject: ActorAndProject,
+        request: FileCollectionsRenameRequest
+    ) {
+        proxy.bulkProxy(
+            actorAndProject,
+            request,
+            object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection,
+                FileCollectionsRenameRequestItem, FileCollectionsProviderRenameRequest,
+                Unit>() {
+                override val isUserRequest: Boolean = true
+                override fun retrieveCall(comms: StorageCommunication) = comms.fileCollectionsApi.rename
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<FileCollectionsRenameRequestItem>
+                ): List<RequestWithRefOrResource<FileCollectionsRenameRequestItem, FileCollection>> {
+                    val ids = request.items.map { it.id }.toSet()
+                    val collections = retrieveBulk(
+                        actorAndProject,
+                        ids,
+                        listOf(Permission.Edit),
+                        simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+                    ).associateBy { it.id }
+                    return request.items.map { it to ProductRefOrResource.SomeResource(collections.getValue(it.id)) }
+                }
+
+                override suspend fun verifyRequest(
+                    request: FileCollectionsRenameRequestItem,
+                    res: ProductRefOrResource<FileCollection>,
+                    support: FSSupport
+                ) {
+                    if (support.collection.usersCanRename != true) {
+                        throw RPCException(
+                            "Your provider does not allow you to rename this drive",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+                }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FileCollectionsRenameRequestItem, FileCollection>>
+                ): FileCollectionsProviderRenameRequest {
+                    return BulkRequest(resources.map { (request) ->
+                        FileCollectionsProviderRenameRequestItem(request.id, request.newTitle)
+                    })
+                }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<FileCollectionsRenameRequestItem, FileCollection>>,
+                    response: BulkResponse<Unit?>
+                ) {
+                    db.withSession { session ->
+                        session.sendPreparedStatement(
+                            {
+                                resources.split {
+                                    into("ids") { it.first.id.toLong() }
+                                    into("new_titles") { it.first.newTitle }
+                                }
+                            },
+                            """
+                                with requests as (
+                                    select unnest(:ids::bigint[]) id, unnest(:new_titles::text[]) new_title
+                                )
+                                update file_orchestrator.file_collections coll
+                                set title = req.new_title
+                                from requests req
+                                where coll.resource = req.id
+                            """
+                        )
+                    }
+                }
+            }
+        )
     }
 }
