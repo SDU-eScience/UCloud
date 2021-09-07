@@ -45,7 +45,9 @@ sealed class SqlObject {
                     throw IllegalStateException("$capturedValue is not valid for use!")
                 }
 
-                return if (useReturnedValue) success[0] else capturedValue
+                val returnValue = if (useReturnedValue) success[0] else capturedValue
+                ref.set(returnValue)
+                return returnValue
             } finally {
                 close(sess)
             }
