@@ -1,6 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.isRunning
 import dk.sdu.cloud.service.startServices
@@ -64,6 +65,7 @@ class ServiceRegistry(
             install(ServerFeature)
             install(HealthCheckFeature)
             install(BackgroundScopeFeature)
+            install(DebugSystem)
             //install(DatabaseConfigurationFeature)
             //install(FlywayFeature)
         }

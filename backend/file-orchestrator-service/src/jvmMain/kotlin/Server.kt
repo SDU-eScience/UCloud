@@ -25,7 +25,7 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val providers = StorageProviders(serviceClient) { comms ->
             StorageCommunication(

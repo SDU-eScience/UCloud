@@ -2,7 +2,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, joinToString, useFrameHidden} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -245,6 +245,22 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {inDevEnvironment() || onDevSite() ? <>
+                <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
+                    <Box
+                        cursor={"pointer"}
+                        onClick={() => {
+                            window.open(
+                                "/debugger?hide-frame",
+                                undefined,
+                                "width=1000,height=1000,status=no"
+                            );
+                        }}
+                    >
+                        Open debugger
+                    </Box>
+                </SidebarTextLabel>
+            </>: null}
             {!projectId ? null : <>
                 <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
                                   title={projectPath}>

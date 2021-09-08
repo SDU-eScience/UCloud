@@ -51,7 +51,7 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticHighLevelClient = micro.elasticHighLevelClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         startServices(wait = false)
 

@@ -70,7 +70,7 @@ class Server(
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val nameAllocator = NameAllocator()
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         k8Dependencies = K8Dependencies(

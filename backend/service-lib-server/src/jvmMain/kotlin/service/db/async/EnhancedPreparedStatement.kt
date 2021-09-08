@@ -1,9 +1,14 @@
 package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.service.Loggable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.intellij.lang.annotations.Language
 import org.joda.time.LocalDateTime
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KProperty
 
 /**
@@ -136,6 +141,21 @@ class EnhancedPreparedStatement(
     }
 
     suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
+        val context = DebugContext.Job(
+            session.context.id + "-" + queryCounter.getAndIncrement(),
+            session.context.id
+        )
+
+        session.debug?.sendMessage(
+            DebugMessage.DatabaseQuery(
+                context,
+                rawStatement,
+                JsonObject(
+                    rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
+                )
+            )
+        )
+
         check(boundValues.size == parameterNamesToIndex.keys.size) {
             val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
             val missingSqlParameters = boundValues.filter { it !in parameterNamesToIndex.keys }
@@ -149,7 +169,9 @@ class EnhancedPreparedStatement(
                 }
             }
         }
-        return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+        val response = session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+        session.debug?.sendMessage(DebugMessage.DatabaseResponse(context))
+        return response
     }
 
     inline fun <T> splitCollection(collection: Collection<T>, builder: SplitBuilder<T>.() -> Unit) {
@@ -176,6 +198,7 @@ class EnhancedPreparedStatement(
     companion object : Loggable {
         override val log = logger()
         private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")
+        private val queryCounter = AtomicInteger(0)
     }
 }
 
@@ -197,6 +220,7 @@ fun String.convertCamelToSnake(): String = replace(camelToSnakeRegex, "$1_$2").l
 
 fun <T> EnhancedPreparedStatement.parameterList(): SqlBoundDelegate<ArrayList<T>> =
     SqlBoundDelegate(this, ArrayList<T>())
+
 fun <T> EnhancedPreparedStatement.parameter(): SqlBoundDelegate<T> = SqlBoundDelegate(this, null)
 
 class SqlBoundDelegate<T>(

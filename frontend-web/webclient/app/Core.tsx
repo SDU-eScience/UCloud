@@ -71,6 +71,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Client} from "Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
 import JobRouter from "Applications/Jobs/NewApi";
+import {Debugger} from "Debug/Debugger";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -92,6 +93,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/login/wayf" component={Wayf} />
                     <Route exact path="/" component={requireAuth(Dashboard)} />
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
+                    <Route exact path={"/debugger"} component={Debugger} />
 
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>

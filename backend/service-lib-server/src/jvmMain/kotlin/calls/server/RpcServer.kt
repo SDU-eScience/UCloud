@@ -6,7 +6,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.microWhichIsConfiguringCalls
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlin.random.Random
@@ -374,7 +374,7 @@ class RpcServer {
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
-            val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000)
+            val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000).toString()
 
             log.info("Incoming call [$jobIdForDebug]: ${call.fullName} ($request)")
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
@@ -395,8 +395,8 @@ class RpcServer {
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
             val isEarlyClose = ex is ClosedSendChannelException ||
-                ex.javaClass.simpleName == "JobCancellationException" ||
-                ex.javaClass.simpleName == "CancellationException"
+                    ex.javaClass.simpleName == "JobCancellationException" ||
+                    ex.javaClass.simpleName == "CancellationException"
 
             if (ex !is RPCException && !isEarlyClose) {
                 if (ex is NullPointerException && ex.message?.contains("Parameter specified as non-null") == true) {
@@ -408,20 +408,21 @@ class RpcServer {
             }
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
-            val callResult = if (call.errorType.descriptor.serialName.endsWith("CommonErrorMessage") && ex is RPCException) {
-                val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
-                    CommonErrorMessage(ex.why, ex.errorCode)
-                } else {
-                    CommonErrorMessage("Internal Server Error", ex.errorCode)
-                }
+            val callResult =
+                if (call.errorType.descriptor.serialName.endsWith("CommonErrorMessage") && ex is RPCException) {
+                    val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
+                        CommonErrorMessage(ex.why, ex.errorCode)
+                    } else {
+                        CommonErrorMessage("Internal Server Error", ex.errorCode)
+                    }
 
-                @Suppress("UNCHECKED_CAST")
-                OutgoingCallResponse.Error(errorMessage as E, statusCode)
-            } else if (isEarlyClose) {
-                OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(499, "Connection closed early by client"))
-            } else {
-                OutgoingCallResponse.Error<S, E>(null, statusCode)
-            }
+                    @Suppress("UNCHECKED_CAST")
+                    OutgoingCallResponse.Error(errorMessage as E, statusCode)
+                } else if (isEarlyClose) {
+                    OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(499, "Connection closed early by client"))
+                } else {
+                    OutgoingCallResponse.Error<S, E>(null, statusCode)
+                }
             log.debug("   Responding [${ctx.jobIdOrNull?.take(4)}]: ${call.fullName} ($callResult)")
 
             if (!isEarlyClose) {

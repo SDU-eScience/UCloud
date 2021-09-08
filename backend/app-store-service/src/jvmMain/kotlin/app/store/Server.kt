@@ -65,7 +65,7 @@ class Server(override val micro: Micro) : CommonServer {
         val searchDAO = ApplicationSearchAsyncDao(applicationDAO)
         val favoriteDAO = FavoriteAsyncDao(publicDAO, aclDao)
 
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(
             db,

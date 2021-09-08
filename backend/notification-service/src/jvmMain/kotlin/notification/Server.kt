@@ -23,7 +23,7 @@ class Server(override val micro: Micro) : CommonServer {
     private lateinit var notificationService: NotificationService
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val notificationDao = NotificationDao()
         val localhost = run {
             val ip = micro.serviceInstance.ipAddress

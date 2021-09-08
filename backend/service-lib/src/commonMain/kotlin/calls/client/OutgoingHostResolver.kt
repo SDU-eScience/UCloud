@@ -8,7 +8,22 @@ data class HostInfo(
     val host: String,
     val scheme: String? = null,
     val port: Int? = null
-)
+) {
+    override fun toString(): String {
+        return buildString {
+            if (scheme == null) {
+                append("http://")
+            } else {
+                append("$scheme://")
+            }
+            append(host)
+            if (port != null) {
+                append(':')
+                append(port)
+            }
+        }
+    }
+}
 
 class FixedOutgoingHostResolver(private val host: HostInfo) : OutgoingHostResolver {
     override fun resolveEndpoint(callDescription: CallDescription<*, *, *>): HostInfo {
@@ -25,7 +40,7 @@ class OutgoingHostResolverInterceptor(
 ) : OutgoingCallFilter.BeforeCall() {
     override fun canUseContext(ctx: OutgoingCall): Boolean = true
 
-    override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>) {
+    override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?) {
         context.attributes.outgoingTargetHost = resolver.resolveEndpoint(callDescription)
     }
 
