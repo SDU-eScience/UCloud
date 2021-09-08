@@ -12,13 +12,24 @@ object AccountingService : Service {
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("accounting") ?:
-            Configuration(notificationLimit =  5000000)
+            Configuration(
+                computeCreditsNotificationLimit = 50_000_000,
+                computeUnitsNotificationLimit = 50 ,
+                storageCreditsNotificationLimitInGB = 50_000_000 ,
+                storageQuotaNotificationLimitInGB = 100,
+                storageUnitsNotificationLimitInGB = 100
+            )
         return Server(micro, config)
     }
 }
 
 data class Configuration(
-    val notificationLimit: Long,
+    val computeCreditsNotificationLimit: Long,
+    val computeUnitsNotificationLimit: Long,
+    val storageCreditsNotificationLimitInGB: Long,
+    val storageQuotaNotificationLimitInGB: Long,
+    val storageUnitsNotificationLimitInGB: Long,
+
     val defaultTemplate: String = "Please describe the reason for applying for resources"
 )
 

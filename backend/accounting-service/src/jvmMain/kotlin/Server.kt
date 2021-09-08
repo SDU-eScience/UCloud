@@ -23,6 +23,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
+import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.ProviderComms
@@ -44,6 +45,8 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
@@ -84,17 +87,16 @@ class Server(
         )
 
         if (micro.commandLineArguments.contains("--low-funds-check")) {
-            TODO()
-            /*
             val jobs = LowFundsJob(db, client, config)
             try {
-                jobs.notifyLowFundsWallets()
+                runBlocking {
+                    jobs.checkWallets()
+                }
                 exitProcess(0)
             } catch (ex: Throwable) {
                 log.warn(ex.stackTraceToString())
                 exitProcess(1)
             }
-             */
         }
 
         with(micro.server) {
