@@ -50,18 +50,22 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineCreationMode?: "TEXT" | "NONE";
     inlineProduct?: Product;
 
-    withDefaultStats?: boolean;
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
-    navigateToChildren?: (history: H.History, resource: Res) => void;
+    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
     extraCallbacks?: any;
 
-    inspectValidator?: (res: Res) => boolean;
+    viewPropertiesInline?: (res: Res) => boolean;
+
+    withDefaultStats?: boolean;
+    showCreatedAt?: boolean;
+    showCreatedBy?: boolean;
+    showProduct?: boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -77,8 +81,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
 
-    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
-        {productsByProvider: {}});
+    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
@@ -126,7 +132,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
             return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                ?.find(it => it.product.id === selectedProduct.name &&
+                ?.find(it => it.product.name === selectedProduct.name &&
                     it.product.category.name === selectedProduct.category.name) ?? null;
         }
         return null;
@@ -151,19 +157,22 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }, [props.inlineProduct]);
 
     const viewProperties = useCallback((res: Res) => {
-        if (props.embedded) {
+        if (props.embedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
             history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, props.embedded, history, api]);
+    }, [setInlineInspecting, props.embedded, history, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
         invokeCommand,
         commandLoading,
-        reload: () => reloadRef.current(),
+        reload: () => {
+            toggleSet.uncheckAll();
+            reloadRef.current()
+        },
         embedded: props.embedded == true,
         onSelect,
         dispatch,
@@ -179,9 +188,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
             }
         },
         viewProperties,
-        ...props.extraCallbacks
+        ...props.extraCallbacks,
+        supportByProvider: productsWithSupport.data
     }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
-        viewProperties, props.inlineProduct, props.extraCallbacks]);
+        viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet, productsWithSupport.data]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
@@ -254,20 +264,22 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
-                <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
-                <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
-                {!selectedProduct ? null : <>
+                {props.showCreatedAt === false ? null : <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>}
+                {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
+                {props.showProduct === false || !selectedProduct ? null : <>
                     <ListRowStat icon={"cubeSolid"}>{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
                 </>}
             </> : <>
-                <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>
-                <div className="tooltip">
-                    <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
-                    <div className="tooltip-content centered">
-                        <UserBox username={resource.owner.createdBy} />
+                {props.showCreatedAt === false ? null : <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
+                {props.showCreatedBy === false ? null :
+                    <div className="tooltip">
+                        <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
+                        <div className="tooltip-content centered">
+                            <UserBox username={resource.owner.createdBy}/>
+                        </div>
                     </div>
-                </div>
-                {resource.specification.product.provider === UCLOUD_CORE ? null :
+                }
+                {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
                     <div className="tooltip">
                         <ListRowStat icon={"cubeSolid"}>
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
@@ -282,7 +294,8 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
-        onInlineCreate, inlineInputRef, selectedProductWithSupport]);
+        onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
+        props.showProduct]);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false} onContextMenu={preventDefault}>
@@ -303,10 +316,11 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ItemRow
                     key={it.id}
                     navigate={() => {
-                        if (props.inspectValidator?.(it)) {
-                            viewProperties(it);
-                        } else if (props.navigateToChildren) {
-                            props.navigateToChildren?.(history, it)
+                        if (props.navigateToChildren) {
+                            const result = props.navigateToChildren?.(history, it)
+                            if (result === "properties") {
+                                viewProperties(it);
+                            }
                         } else {
                             viewProperties(it);
                         }

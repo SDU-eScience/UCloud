@@ -3,22 +3,101 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.app.orchestrator.api.files
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.ucloud.services.InternalFile
+import dk.sdu.cloud.file.ucloud.services.MemberFiles
+import dk.sdu.cloud.file.ucloud.services.NativeFS
 import dk.sdu.cloud.file.ucloud.services.PathConverter
+import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PERSONAL_REPOSITORY
+import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.file.ucloud.services.UCloudFile
+import dk.sdu.cloud.file.ucloud.services.normalize
+import dk.sdu.cloud.prettyMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.k8.Pod
 import dk.sdu.cloud.service.k8.Volume
+import io.ktor.http.*
+import kotlinx.serialization.encodeToString
 
 /**
  * A plugin which mounts user-input into the containers
  */
 class FileMountPlugin(
+    private val fs: NativeFS,
+    private val memberFiles: MemberFiles,
     private val pathConverter: PathConverter,
     private val cephConfiguration: CephConfiguration = CephConfiguration(),
 ) : JobManagementPlugin {
+    private suspend fun JobManagement.findJobFolder(job: Job): InternalFile {
+        val username = job.owner.createdBy
+        val project = job.owner.project
+
+        val jobResources = resources.findResources(job)
+        memberFiles.initializeMemberFiles(username, project)
+
+        val file = if (project != null) {
+            pathConverter.relativeToInternal(
+                RelativeInternalFile(
+                    joinPath(
+                        PathConverter.PROJECT_DIRECTORY,
+                        project,
+                        PERSONAL_REPOSITORY,
+                        username,
+                        JOBS_FOLDER,
+                        jobResources.application.metadata.title,
+                        if (job.specification.name != null) "${job.specification.name} (${job.id})" else job.id
+                    ).removeSuffix("/")
+                )
+            )
+        } else {
+            pathConverter.relativeToInternal(
+                RelativeInternalFile(
+                    joinPath(
+                        PathConverter.HOME_DIRECTORY,
+                        username,
+                        JOBS_FOLDER,
+                        jobResources.application.metadata.title,
+                        if (job.specification.name != null) "${job.specification.name} (${job.id})" else job.id
+                    )
+                )
+            )
+        }
+
+        fs.createDirectories(file)
+
+        val jobParameterJson = job.status.jobParametersJson
+        if (jobParameterJson != null) {
+            val jobParamsFile = InternalFile(
+                joinPath(
+                    file.path.removeSuffix("/"),
+                    "JobParameters.json"
+                ).removeSuffix("/")
+            )
+            try {
+                fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    it.write(prettyMapper.encodeToString(jobParameterJson))
+                }
+            } catch (ex: Throwable) {
+                log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")
+            }
+        }
+
+        return file
+    }
+
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         data class FileMount(val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
@@ -32,6 +111,22 @@ class FileMountPlugin(
 
             allMounts.associateBy { it.path }.values
         }
+
+        val jobFolder = findJobFolder(job)
+        val relativeJobFolder = pathConverter.internalToRelative(jobFolder)
+        val ucloudJobFolder = pathConverter.internalToUCloud(jobFolder)
+
+        JobsControl.update.call(
+            bulkRequestOf(
+                ResourceUpdateAndId(
+                    job.id,
+                    JobUpdate(
+                        outputFolder = ucloudJobFolder.path
+                    )
+                )
+            ),
+            k8.serviceClient
+        ).orRethrowAs { throw RPCException("Internal error - Could not add output folder", HttpStatusCode.BadGateway) }
 
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         tasks.forEach { task ->
@@ -59,30 +154,24 @@ class FileMountPlugin(
                         )
                     }
 
-                    /*
-                    val outputFolder = job.output?.outputFolder
-                    if (outputFolder != null) {
-                        volumeMounts.add(
-                            Pod.Container.VolumeMount(
-                                name = VOL_NAME,
-                                mountPath = "/work",
-                                readOnly = false,
-                                subPath = buildString {
-                                    if (cephConfiguration.subfolder.isNotEmpty()) {
-                                        append(
-                                            cephConfiguration.subfolder
-                                                .removePrefix("/")
-                                                .removeSuffix("/")
-                                        )
-                                        append("/")
-                                    }
-                                    append(outputFolder.normalize().removePrefix("/"))
+                    volumeMounts.add(
+                        Pod.Container.VolumeMount(
+                            name = VOL_NAME,
+                            mountPath = "/work",
+                            readOnly = false,
+                            subPath = buildString {
+                                if (cephConfiguration.subfolder.isNotEmpty()) {
+                                    append(
+                                        cephConfiguration.subfolder
+                                            .removePrefix("/")
+                                            .removeSuffix("/")
+                                    )
+                                    append("/")
                                 }
-                            )
+                                append(relativeJobFolder.normalize().path.removePrefix("/"))
+                            }
                         )
-                    }
-                    // TODO
-                     */
+                    )
 
                     c.volumeMounts = volumeMounts
                 }
@@ -100,8 +189,11 @@ class FileMountPlugin(
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val CEPHFS = "cephfs"
         const val VOL_NAME = "data"
+        const val JOBS_FOLDER = "Jobs"
+
+        override val log = logger()
     }
 }

@@ -256,6 +256,16 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             await cb.invokeCommand(this.terminate(bulkRequestOf(...selected.map(it => ({id: it.id})))))
             cb.reload();
         };
+        const originalEnabled = deleteOperation.enabled;
+        deleteOperation.enabled = (selected, cb) => {
+            const orig = originalEnabled(selected, cb);
+            if (orig !== true) return orig;
+            if (selected.every(it => isJobStateFinal(it.status.state))) {
+                if (selected.length === 1) return false;
+                return "All jobs have already terminated";
+            }
+            return true;
+        };
         return baseOperations;
     }
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.isRunning
-import dk.sdu.cloud.service.db.async.PaginationV2Cache
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
 import java.util.concurrent.atomic.AtomicBoolean
@@ -68,9 +67,6 @@ class ServiceRegistry(
             //install(DatabaseConfigurationFeature)
             //install(FlywayFeature)
         }
-
-        // TODO Move it somewhere else
-        PaginationV2Cache.init(rootMicro.backgroundScope)
     }
 
     fun register(service: Service) {

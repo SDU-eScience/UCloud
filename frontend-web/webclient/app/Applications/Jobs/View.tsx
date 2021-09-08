@@ -35,6 +35,7 @@ import {
     ProductCompute,
     usageExplainer
 } from "Accounting";
+import {FilesBrowse} from "Files/Files";
 
 const enterAnimation = keyframes`
   from {
@@ -1107,19 +1108,9 @@ const OutputFilesWrapper = styled.div`
 `;
 
 const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+    const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <Heading.h3>Files</Heading.h3>
-        {/*
-        TODO
-        <VirtualFileTable
-            embedded
-            disableNavigationButtons
-            previewEnabled
-            permissionAlertEnabled={false}
-            onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage(files)}
-        />
-        */}
+        <FilesBrowse embedded={true} pathRef={pathRef} forceNavigationToPage={true} />
     </OutputFilesWrapper>;
 };
 

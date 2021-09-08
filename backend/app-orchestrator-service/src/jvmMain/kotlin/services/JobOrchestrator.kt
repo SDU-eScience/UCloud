@@ -61,6 +61,7 @@ class JobOrchestrator(
     support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
     serviceClient: AuthenticatedClient,
     private val appService: AppStoreCache,
+    private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
     Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
     private val storageProviders = Providers(serviceClient) {
@@ -143,6 +144,10 @@ class JobOrchestrator(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+        val exports = idWithSpec.map { (_, spec) ->
+            exporter.exportParameters(spec)
+        }
+
         idWithSpec.forEach { (id, spec) ->
             verificationService.verifyOrThrow(actorAndProject, spec)
 
@@ -157,6 +162,7 @@ class JobOrchestrator(
                 val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
                 val names = ArrayList<String?>().also { setParameter("names", it) }
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
+                setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
                     applicationNames.add(spec.application.name)
@@ -170,12 +176,12 @@ class JobOrchestrator(
                 with bulk_data as (
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
-                           unnest(:resources::bigint[]) resource
+                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
-                     output_folder, current_state, started_at, resource) 
-                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource
+                     output_folder, current_state, started_at, resource, job_parameters) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export
                 from bulk_data
             """
         )
@@ -249,7 +255,7 @@ class JobOrchestrator(
                         """
                             update app_orchestrator.jobs
                             set
-                                current_state = :new_state::text,
+                                current_state = coalesce(:new_state::text, current_state),
                                 started_at = case
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at

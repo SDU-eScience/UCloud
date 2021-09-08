@@ -11,8 +11,39 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+
+@Serializable
+data class ExportedParametersRequest(
+    val application: NameAndVersion,
+    val product: ProductReference,
+    val name: String?,
+    val replicas: Int,
+    @Contextual
+    val parameters: JsonObject,
+    val resources: List<@Contextual JsonObject>,
+    val timeAllocation: SimpleDuration?,
+    @Contextual
+    val resolvedProduct: JsonObject? = null,
+    @Contextual
+    val resolvedApplication: JsonObject? = null,
+    @Contextual
+    val resolvedSupport: JsonObject? = null,
+    val allowDuplicateJob: Boolean = true,
+)
+
+@Serializable
+data class ExportedParameters(
+    val siteVersion: Int,
+    val request: ExportedParametersRequest,
+
+    // Backwards compatible information
+    @Contextual
+    val machineType: JsonObject,
+)
 
 @Serializable
 enum class JobState {
@@ -164,6 +195,8 @@ data class JobStatus(
     )
     val state: JobState,
 
+    val jobParametersJson: ExportedParameters? = null,
+
     @UCloudApiDoc(
         "Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.\n\n" +
             "For `Job`s which suspend this might occur multiple times. This will always point to the latest point" +
@@ -294,7 +327,7 @@ typealias ComputeProductReference = ProductReference
 
 @Serializable
 data class JobOutput(
-    val outputFolder: String,
+    val outputFolder: String? = null,
 )
 
 @Serializable
@@ -321,6 +354,7 @@ data class JobIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

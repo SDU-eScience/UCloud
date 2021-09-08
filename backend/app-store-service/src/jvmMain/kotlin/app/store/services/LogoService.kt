@@ -89,7 +89,7 @@ class LogoService(
 
     suspend fun resizeAll() {
         run {
-            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.REQUIRE, null)
+            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.PREFER, null)
             while (true) {
                 val nextPage = appDao.browseAll(db, req)
                 nextPage.items.forEach { (tool, logoBytes) ->
@@ -102,7 +102,7 @@ class LogoService(
         }
 
         run {
-            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.REQUIRE, null)
+            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.PREFER, null)
             while (true) {
                 val nextPage = toolDao.browseAllLogos(db, req)
                 nextPage.items.forEach { (tool, logoBytes) ->

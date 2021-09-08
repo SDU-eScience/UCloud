@@ -54,6 +54,10 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
             }
 
             if (controlApi != null) {
+                implement(controlApi.browse) {
+                    ok(browse(actorAndProject, request, useProject = false))
+                }
+
                 implement(controlApi.retrieve) {
                     ok(retrieve(actorAndProject, request.id, request.flags, asProvider = true))
                 }

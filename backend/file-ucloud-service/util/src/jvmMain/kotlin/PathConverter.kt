@@ -2,10 +2,12 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
@@ -17,6 +19,7 @@ import dk.sdu.cloud.file.orchestrator.api.parent
 import dk.sdu.cloud.file.orchestrator.api.parents
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -176,6 +179,31 @@ class PathConverter(
         )
     }
 
+    private fun lookupCollectionFromInternalId(internalId: String): String {
+        val cached = cachedProviderIds[internalId]
+        if (cached != null) {
+            return cached
+        }
+
+        return runBlocking {
+            val collection = FileCollectionsControl.browse.call(
+                ResourceBrowseRequest(
+                    FileCollectionIncludeFlags(filterProviderId = internalId)
+                ),
+                serviceClient
+            ).orRethrowAs {
+                throw RPCException("Could not fetch data about our collections", HttpStatusCode.BadGateway)
+            }.items.singleOrNull()
+                ?: throw RPCException("Collection does not exist: $internalId", HttpStatusCode.InternalServerError)
+
+            cachedProviderIdsMutex.withLock {
+                cachedProviderIds[internalId] = collection.id
+            }
+
+            collection.id
+        }
+    }
+
     fun internalToUCloud(file: InternalFile): UCloudFile {
         val components = file.path.removePrefix(rootDirectory.path).normalize().components()
         if (components.size <= 1) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
@@ -187,8 +215,7 @@ class PathConverter(
                 val startIdx: Int
                 when (components[0]) {
                     HOME_DIRECTORY -> {
-                        val collectionId = cachedProviderIds["${COLLECTION_HOME_PREFIX}${components[1]}"]
-                            ?: error("Home collection should have been cached: $file")
+                        val collectionId = lookupCollectionFromInternalId("${COLLECTION_HOME_PREFIX}${components[1]}")
                         append(collectionId)
                         startIdx = 2
                     }
@@ -196,9 +223,8 @@ class PathConverter(
                     PROJECT_DIRECTORY -> {
                         if (components.size <= 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                         if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
-                            val collectionId = cachedProviderIds["$COLLECTION_PROJECT_MEMBER_PREFIX" +
-                                    "${components[1]}/${components[3]}"]
-                                ?: error("Member file should have been cached: $file")
+                            val collectionId = lookupCollectionFromInternalId("$COLLECTION_PROJECT_MEMBER_PREFIX" +
+                                    "${components[1]}/${components[3]}")
                             append(collectionId)
                             startIdx = 4
                         } else {
@@ -206,8 +232,9 @@ class PathConverter(
                                 throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                             }
 
-                            val collectionId = cachedProviderIds["${COLLECTION_PROJECT_PREFIX}${components[1]}/" +
-                                    "${components[2]}"] ?: error("Project repo should have been cached: $file")
+                            val collectionId = lookupCollectionFromInternalId(
+                                "${COLLECTION_PROJECT_PREFIX}${components[1]}/${components[2]}"
+                            )
                             append(collectionId)
                             startIdx = 3
                         }

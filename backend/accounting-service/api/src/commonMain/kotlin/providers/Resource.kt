@@ -22,6 +22,7 @@ interface ResourceIncludeFlags {
     val filterProvider: String?
     val filterProductId: String?
     val filterProductCategory: String?
+    val filterProviderId: String?
 }
 
 @Serializable
@@ -36,6 +37,7 @@ data class SimpleResourceIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiDoc(

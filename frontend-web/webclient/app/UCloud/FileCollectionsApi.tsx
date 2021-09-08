@@ -1,7 +1,8 @@
 import {
+    findSupport,
     ProductSupport,
     Resource,
-    ResourceApi,
+    ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
@@ -14,6 +15,9 @@ import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ItemRenderer} from "ui-components/Browse";
 import {ProductStorage} from "Accounting";
+import {BulkRequest} from "UCloud/index";
+import {apiUpdate} from "Authentication/DataHook";
+import {Operation} from "ui-components/Operation";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -80,8 +84,33 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         });
     }
 
+    retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {
+        const baseOperations = super.retrieveOperations();
+        return [
+            {
+                text: "Rename",
+                icon: "rename",
+                enabled: (selected, cb) => {
+                    const support = selected.length > 0 &&
+                        findSupport<FileCollectionSupport>(cb.supportByProvider, selected[0])?.support;
+
+                    return selected.length === 1 && cb.startRenaming != null && !!support &&
+                        support.collection.usersCanRename === true;
+                },
+                onClick: (selected, cb) => {
+                    cb.startRenaming!(selected[0], selected[0].specification.title);
+                }
+            },
+            ...baseOperations
+        ]
+    }
+
     navigateToChildren(history: H.History, resource: FileCollection) {
         history.push(buildQueryString("/files", {path: `/${resource.id}`}))
+    }
+
+    rename(request: BulkRequest<{id: string; newTitle: String;}>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "rename");
     }
 }
 
