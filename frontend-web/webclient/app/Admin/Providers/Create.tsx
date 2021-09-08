@@ -1,28 +1,16 @@
-import {useInput} from "Admin/LicenseServers";
-import {useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import MainContainer from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as UCloud from "UCloud";
-import {Box, Button, Checkbox, Flex, Input, Label} from "ui-components";
-import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
+import {Flex} from "ui-components";
 import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {useHistory} from "react-router";
-import {useProjectId} from "Project";
+import RS from "Products/CreateProduct";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 function Create(): JSX.Element | null {
-    const [loading, invokeCommand] = useCloudCommand();
-
-    useTitle("Create Provider");
-
-    const projectId = useProjectId();
     const history = useHistory();
-    const idInput = useInput();
-    const domainInput = useInput();
-    const portInput = useInput();
-    const [isHttps, setHttps] = React.useState(true);
+    useTitle("Create Provider");
 
     if (!Client.userIsAdmin) return null;
 
@@ -30,7 +18,7 @@ function Create(): JSX.Element | null {
         main={<>
             <RS
                 title="Providers"
-                createRequest={({fields}) =>
+                createRequest={async ({fields}) =>
                     UCloud.provider.providers.create(bulkRequestOf({
                         id: fields.ID,
                         domain: fields.DOMAIN,
@@ -54,52 +42,6 @@ function Create(): JSX.Element | null {
             </RS>
         </>}
     />;
-
-    async function submit() {
-        if (projectId == null) {
-            snackbarStore.addFailure("Please select a valid project before creating a provider", false);
-            return;
-        }
-
-        const domain = domainInput.ref.current?.value ?? "";
-        const id = idInput.ref.current?.value ?? "";
-        const port = parseInt(portInput.ref.current?.value ?? "", 10);
-
-        let error = false;
-
-        if (!domain) {
-            error = true;
-            domainInput.setHasError(true);
-        }
-
-        if (!id) {
-            error = true;
-            idInput.setHasError(true);
-        }
-
-        if (error) return;
-
-        try {
-            const res = await invokeCommand(
-                UCloud.provider.providers.create(bulkRequestOf({
-                    id,
-                    domain,
-                    https: isHttps,
-                    port: isNaN(port) ? undefined : port,
-                    product: placeholderProduct()
-                })),
-                {defaultErrorHandler: false}
-            );
-
-            if (res) {
-                history.push(`/admin/providers/view/${encodeURI(id)}`);
-            }
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to create provider"), false);
-        }
-    }
 }
-
-import RS from "Products/CreateProduct";
 
 export default Create;

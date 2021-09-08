@@ -7012,11 +7012,11 @@ export function updateProduct(
     };
 }
 export function createProduct(
-    request: Product
-): APICallParameters<Product, any /* unknown */> {
+    request: BulkRequest<Product>
+): APICallParameters<BulkRequest<Product>, any /* unknown */> {
     return {
         context: "",
-        method: "PUT",
+        method: "POST",
         path: "/api/products",
         parameters: request,
         reloadId: Math.random(),

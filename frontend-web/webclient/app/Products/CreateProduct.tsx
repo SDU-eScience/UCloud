@@ -1,8 +1,8 @@
 import {callAPI} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Checkbox, Input, Label, Select} from "ui-components";
+import {Button, Checkbox, Input, Label, Select, TextArea} from "ui-components";
+import {InputLabel} from "ui-components/Input";
 import {LabelProps} from "ui-components/Label";
 import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "UtilityFunctions";
 
@@ -13,7 +13,7 @@ interface DataType {
 const DataContext = React.createContext<DataType>({required: [], fields: {}});
 
 export default abstract class ResourceForm<Request> extends React.Component<{
-    createRequest: (d: DataType) => APICallParameters<Request>;
+    createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: any, d: DataType) => void;
@@ -27,9 +27,9 @@ export default abstract class ResourceForm<Request> extends React.Component<{
     private async onSubmit(): Promise<void> {
         const validated = this.validate();
         if (validated) {
-            const request = this.props.createRequest(this.data);
+            const request = await this.props.createRequest(this.data);
             try {
-                const res = await callAPI(request);
+                const res = await callAPI<Request>(request);
                 this.props.onSubmitSucceded?.(res, this.data);
             } catch (err) {
                 errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
@@ -62,8 +62,12 @@ export default abstract class ResourceForm<Request> extends React.Component<{
             const type = typeof value;
 
             switch (type) {
+                case "number":
+                    if (isNaN(value)) missingFields.push(field);
+                    break;
                 case "string":
                     if (value === "") missingFields.push(field);
+                    break;
             }
         }
 
@@ -79,8 +83,8 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         return missingFields.length === 0;
     }
 
-    public static Number({id, label, styling, ...props}: {id: string; step?: string; label: string; required?: boolean; placeholder?: string; min?: number; max?: number; styling: LabelProps}): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required})
+    public static Number({id, label, styling, leftLabel, rightLabel, ...props}: {id: string; step?: string; label: string; required?: boolean; placeholder?: string; min?: number; max?: number; styling: LabelProps; rightLabel?: string; leftLabel?: string;}): JSX.Element {
+        const ctx = useResourceFormField({id, required: props.required});
 
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = styling;
@@ -89,12 +93,20 @@ export default abstract class ResourceForm<Request> extends React.Component<{
 
         return <Label {...remainingStyle}>
             {label}
-            <Input type="number" onChange={e => {ctx.fields[id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}} {...props} />
+            <div style={{display: "flex"}}>
+                {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
+                <Input type="number" onChange={e => {ctx.fields[id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}} leftLabel={!!leftLabel} rightLabel={!!rightLabel} {...props} />
+                {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
+            </div>
         </Label>
     }
 
     public static Select({id, label, options, styling, ...props}: {id: string; label: string; required?: boolean; options: {value: string, text: string}[], styling: LabelProps}): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
+
+        React.useEffect(() => {
+            if (props.required) ctx.fields[id] = options[0].value;
+        }, []);
 
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = styling;
@@ -119,7 +131,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         </Label>;
     }
 
-    public static Text({id, label, styling, ...props}: {id: string; label: string; required?: boolean; placeholder?: string; styling: LabelProps;}): JSX.Element {
+    public static Text({id, label, styling, leftLabel, rightLabel, ...props}: {id: string; label: string; required?: boolean; placeholder?: string; styling: LabelProps; rightLabel?: string; leftLabel?: string;}): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
 
         /* Why in the world is color not allowed? */
@@ -127,7 +139,25 @@ export default abstract class ResourceForm<Request> extends React.Component<{
 
         return <Label {...remainingStyle}>
             {label}
-            <Input type="text" onChange={e => ctx.fields[id] = e.target.value} {...props} />
+            <div style={{display: "flex"}}>
+                {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
+                <Input type="text" onChange={e => ctx.fields[id] = e.target.value} {...props} leftLabel={!!leftLabel} rightLabel={!!rightLabel} />
+                {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
+            </div>
+        </Label>
+    }
+
+    public static TextArea({id, label, styling, ...props}: {id: string; label: string; required?: boolean; rows?: number; placeholder?: string; styling: LabelProps;}): JSX.Element {
+        const ctx = useResourceFormField({id, required: props.required})
+
+        /* Why in the world is color not allowed? */
+        const {color, ...remainingStyle} = styling;
+
+        return <Label {...remainingStyle}>
+            {label}
+            <div>
+                <TextArea width="100%" onChange={e => ctx.fields[id] = e.target.value} {...props} />
+            </div>
         </Label>
     }
 }
