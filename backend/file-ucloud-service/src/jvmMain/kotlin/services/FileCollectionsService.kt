@@ -69,7 +69,6 @@ val productSupport = listOf(
             usersCanCreate = true,
             usersCanDelete = true,
             usersCanRename = true,
-            searchSupported = false,
         ),
 
         FSFileSupport(
@@ -97,7 +96,6 @@ val productSupport = listOf(
             usersCanCreate = false,
             usersCanDelete = true,
             usersCanRename = false,
-            searchSupported = false,
         ),
 
         FSFileSupport(

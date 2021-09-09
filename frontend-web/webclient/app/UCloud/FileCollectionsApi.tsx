@@ -1,5 +1,6 @@
 import {
-    findSupport,
+    CREATE_TAG, DELETE_TAG,
+    findSupport, PERMISSIONS_TAG,
     ProductSupport,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
@@ -86,6 +87,34 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
 
     retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {
         const baseOperations = super.retrieveOperations();
+        const permissions = baseOperations.find(it => it.tag === PERMISSIONS_TAG);
+        if (permissions) {
+            const enabled = permissions.enabled;
+            permissions.enabled = (selected, cb, all) => {
+                const isEnabled = enabled(selected, cb, all);
+                if (isEnabled !== true) return isEnabled;
+                const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
+                if (!support) return false;
+                if (support.collection.aclModifiable !== true) {
+                    return false;
+                }
+                return true;
+            };
+        }
+        const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG);
+        if (deleteOperation) {
+            const enabled = deleteOperation.enabled;
+            deleteOperation.enabled = (selected, cb, all) => {
+                const isEnabled = enabled(selected, cb, all);
+                if (isEnabled !== true) return isEnabled;
+                const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
+                if (!support) return false;
+                if (support.collection.usersCanDelete !== true) {
+                    return "The provider does not allow you to delete this drive";
+                }
+                return true;
+            };
+        }
         return [
             {
                 text: "Rename",
