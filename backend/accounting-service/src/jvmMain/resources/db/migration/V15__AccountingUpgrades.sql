@@ -1058,6 +1058,11 @@ begin
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
+
+    update accounting.wallets
+    set low_funds_notifications_send = false
+    from deposit_result r
+    where r.target_wallet = id;
 end;
 $$;
 

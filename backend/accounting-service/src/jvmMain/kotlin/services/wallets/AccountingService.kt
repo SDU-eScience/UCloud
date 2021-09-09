@@ -197,7 +197,7 @@ class AccountingService(
                     )
                     select accounting.deposit(array_agg(req))
                     from requests
-                """
+                """, debug = true
             )
 
             session.sendPreparedStatement(
@@ -292,7 +292,9 @@ class AccountingService(
                         accounting.wallet_owner wo on
                             req.username = wo.username or
                             req.project_id = wo.project_id
-                    on conflict do nothing
+                    on conflict (category, owned_by) do update 
+                    set low_funds_notifications_send = false
+                    where wallets.category = excluded.category and wallets.owned_by = excluded.owned_by
                 """
             ).rowsAffected
             val rowsAffected = session.sendPreparedStatement(
@@ -339,7 +341,7 @@ class AccountingService(
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
-                """, debug = true
+                """
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {

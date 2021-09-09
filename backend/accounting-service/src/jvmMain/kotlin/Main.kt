@@ -15,7 +15,7 @@ object AccountingService : Service {
             Configuration(
                 computeCreditsNotificationLimit = 50_000_000,
                 computeUnitsNotificationLimit = 50 ,
-                storageCreditsNotificationLimitInGB = 50_000_000 ,
+                storageCreditsNotificationLimit = 50_000_000 ,
                 storageQuotaNotificationLimitInGB = 100,
                 storageUnitsNotificationLimitInGB = 100
             )
@@ -26,7 +26,7 @@ object AccountingService : Service {
 data class Configuration(
     val computeCreditsNotificationLimit: Long,
     val computeUnitsNotificationLimit: Long,
-    val storageCreditsNotificationLimitInGB: Long,
+    val storageCreditsNotificationLimit: Long,
     val storageQuotaNotificationLimitInGB: Long,
     val storageUnitsNotificationLimitInGB: Long,
 
