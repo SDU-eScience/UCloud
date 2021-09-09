@@ -1,10 +1,11 @@
 package dk.sdu.cloud.file.orchestrator.api
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
 
@@ -24,7 +25,7 @@ data class SyncFolder(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Synchronization, SyncFolderSupport> {
-    override val billing: ResourceBilling = ResourceBilling.Free
+    override val billing = ResourceBilling.Free
     override val acl: List<ResourceAclEntry>? = null
 
     @Serializable
@@ -63,6 +64,7 @@ data class SyncFolderIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    val filterByPath: FindByPath? = null
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

@@ -23,7 +23,7 @@ class SyncDeviceService(
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to defaultSortColumn)
     override val serializer = serializer<SyncDevice>()
     override val updateSerializer = serializer<SyncDevice.Update>()
-    override val productArea = ProductType.COMPUTE
+    override val productArea = ProductType.SYNCHRONIZATION
 
     override fun userApi() = SyncDevices
     override fun controlApi() = SyncDeviceControl
@@ -47,7 +47,7 @@ class SyncDeviceService(
                 },
                 """
                     insert into file_orchestrator.sync_devices (resource, device_id)
-                    select unnest(:ids::bigint[], :device_ids::text[])
+                    select unnest(:ids::bigint[]), unnest(:device_ids::text[])
                     on conflict (resource) do nothing
                 """
             )

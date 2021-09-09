@@ -19,7 +19,7 @@ data class SyncDevice(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Synchronization, SyncDeviceSupport> {
-    override val billing: ResourceBilling = ResourceBilling.Free
+    override val billing = ResourceBilling.Free
     override val acl: List<ResourceAclEntry>? = null
 
     @Serializable

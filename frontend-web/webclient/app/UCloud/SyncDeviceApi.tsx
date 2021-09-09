@@ -9,8 +9,6 @@ import {
 } from "UCloud/ResourceApi";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
-import {EnumFilter} from "Resource/Filter";
-import {JobBinding} from "UCloud/JobsApi";
 import {ItemRenderer} from "ui-components/Browse";
 import {ProductSyncDevice} from "Accounting";
 
@@ -18,33 +16,16 @@ export interface SyncDeviceSpecification extends ResourceSpecification {
     deviceId: string;
 }
 
-export type SyncDeviceState = "READY" | "PREPARING" | "UNAVAILABLE";
-
-export interface SyncDeviceStatus extends ResourceStatus {
-    boundTo: string[];
-    state: SyncDeviceState;
-}
-
-export interface SyncDeviceSupport extends ProductSupport {
-    binding?: JobBinding;
-}
-
-export interface SyncDeviceUpdate extends ResourceUpdate {
-    state?: SyncDeviceState;
-    didBind: boolean;
-    newBinding?: string;
-}
-
-export interface SyncDeviceFlags extends ResourceIncludeFlags {
-    filterState?: string;
-}
-
+export type SyncDeviceUpdate = ResourceUpdate;
+export type SyncDeviceStatus = ResourceStatus;
+export type SyncDeviceSupport = ProductSupport;
+export type SyncDeviceFlags = ResourceIncludeFlags;
 export interface SyncDevice extends Resource<SyncDeviceUpdate, SyncDeviceStatus, SyncDeviceSpecification> {};
 
 class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDeviceSpecification, SyncDeviceUpdate,
     SyncDeviceFlags, SyncDeviceStatus, SyncDeviceSupport> {
     routingNamespace = "sync-devices";
-    title = "Sync Title";
+    title = "Synchronization Device";
     page = SidebarPages.Runs;
     productType = "SYNCHRONIZATION" as const;
 
@@ -56,29 +37,6 @@ class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDevic
 
     constructor() {
         super("sync.devices");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {
-                    title: "Preparing",
-                    value: "PREPARING",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Ready",
-                    value: "READY",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Unavailable",
-                    value: "UNAVAILABLE",
-                    icon: "hashtag"
-                }
-            ]
-        ));
     }
 }
 

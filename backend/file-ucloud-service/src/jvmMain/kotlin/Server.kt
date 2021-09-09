@@ -54,7 +54,7 @@ class Server(
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
         val syncService =
-            SyncService(syncthingClient, fsRootFile.absolutePath, db, authenticatedClient, cephStats)
+            SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
@@ -75,7 +75,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
-            SyncController()
+            SyncController(syncService)
         )
 
         startServices()

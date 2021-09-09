@@ -15,14 +15,27 @@ import io.ktor.http.*
 import java.io.File
 import java.util.*
 
+object SynchronizedFoldersTable : SQLTable("synchronized_folders") {
+    val resource = int("resource", notNull = true)
+    val device = varchar("device_id", 64, notNull = true)
+    val path = text("path", notNull = true)
+    val accessType = varchar("access_type", 20, notNull = true)
+    val user = text("user_id", notNull = true)
+}
+
+object UserDevicesTable : SQLTable("user_devices") {
+    val resource = int("resource", notNull = true)
+    val device = varchar("device_id", 64, notNull = true)
+    val user = text("user_id", notNull = true)
+}
 
 
 class SyncService(
     private val syncthing: SyncthingClient,
-    private val fsPath: String,
     private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
-    private val cephStats: CephFsFastDirectoryStats
+    private val cephStats: CephFsFastDirectoryStats,
+    private val pathConverter: PathConverter
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
         db.withSession { session ->
@@ -37,7 +50,9 @@ class SyncService(
                         where device_id = :device
                     """
                 ).rows.sumOf {
-                    cephStats.getRecursiveSize(File(fsPath, it.getField(SynchronizedFoldersTable.path)))
+                    cephStats.getRecursiveSize(
+                        pathConverter.ucloudToInternal(UCloudFile.create(it.getField(SynchronizedFoldersTable.path)))
+                    )
                 }
             }
         }
@@ -49,6 +64,8 @@ class SyncService(
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
+
+        println("Adding folder $request")
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val ids: MutableList<String> = mutableListOf()
         val syncTypes: MutableList<SynchronizationType> = mutableListOf()
@@ -56,18 +73,18 @@ class SyncService(
 
         val affectedRows: Long = db.withSession { session ->
             request.items.forEach { folder ->
-                val internalFile = File(fsPath, folder.path)
-                if (!internalFile.exists() || !internalFile.isDirectory) {
+                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(folder.specification.path))
+                /*if (!internalFile.exists() || !internalFile.isDirectory) {
                     throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                }
+                }*/
 
-                val syncType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
+                /*val syncType = if (aclService.hasPermission(folder.path, actor.username, AccessRight.WRITE)) {
                     SynchronizationType.SEND_RECEIVE
                 } else if (aclService.hasPermission(folder.path, actor.username, AccessRight.READ)) {
                     SynchronizationType.SEND_ONLY
                 } else {
                     throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                }
+                }*/
 
                 if (cephStats.getRecursiveFileCount(internalFile) > 1_000_000) {
                     throw RPCException(
@@ -80,62 +97,62 @@ class SyncService(
                 val device = chooseFolderDevice(session)
                 affectedDevices.add(device)
 
-                Mounts.mount.call(
+                /*Mounts.mount.call(
                     MountRequest(
                         listOf(MountFolder(id, folder.path))
                     ),
                     authenticatedClient.withMounterInfo(device)
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
-                }
+                }*/
 
                 ids.add(id)
                 devices.add(device)
-                syncTypes.add(syncType)
+                //syncTypes.add(syncType)
             }
 
-            session.sendPreparedStatement(
+            /*session.sendPreparedStatement(
                 {
                     setParameter("ids", ids)
                     setParameter("devices", devices.map { it.id })
-                    setParameter("paths", request.items.map { folder -> folder.path.normalize() })
-                    setParameter("users", ids.map { actor.username })
+                    setParameter("paths", request.items.map { folder -> folder.specification.path.normalize() })
+                    //setParameter("users", ids.map { actor.username })
                     setParameter("access", syncTypes.map { it.name })
                 },
                 """
                     insert into file_orchestrator.sync_folders(
-                        id, 
+                        resource, 
                         device_id, 
-                        path,
-                        user_id,
-                        access_type
+                        path
                     ) values (
                         unnest(:ids::text[]),
                         unnest(:devices::text[]),
                         unnest(:paths::text[]),
-                        unnest(:users::text[]),
                         unnest(:access::text[])
                     )
             """
-            ).rowsAffected
+            ).rowsAffected*/
+            0L
         }
 
         affectedDevices.forEach { device ->
-            val mounter = Mounts.ready.call(Unit, authenticatedClient.withMounterInfo(device))
+            //val mounter = Mounts.ready.call(Unit, authenticatedClient.withMounterInfo(device))
 
             // Mounter is ready when all folders added to syncthing on that device is mounted.
             // Syncthing is ready when it's accessible.
-            if (mounter.statusCode != HttpStatusCode.OK || !mounter.orThrow().ready || !syncthing.isReady(device)) {
+            /*if (mounter.statusCode != HttpStatusCode.OK || !mounter.orThrow().ready || !syncthing.isReady(device)) {
                 throw RPCException(
                     "The synchronization feature is offline at the moment. Your folders will be synchronized when it returns online.",
                     HttpStatusCode.ServiceUnavailable
                 )
-            }
+            }*/
         }
 
         if (affectedRows > 0) {
             syncthing.writeConfig(affectedDevices.toList())
         }
+
+        return BulkResponse(emptyList())
     }
 
     suspend fun removeFolders(request: BulkRequest<SyncFolder>) {
@@ -143,12 +160,12 @@ class SyncService(
             val devices = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
-                    setParameter("user", actor.username)
+                    //setParameter("user", actor.username)
                 },
                 """
                     delete from file_orchestrator.sync_folders
-                    where id in (select unnest(:ids::text[])) and user_id = :user
-                    returning id, device_id
+                    where resource in (select unnest(:ids::text[]))
+                    returning resource, device_id
                 """
             ).rows.mapNotNull {
                 val id = it.getString(0)!!
@@ -160,7 +177,7 @@ class SyncService(
                     null
                 }
             }
-            val grouped = devices.groupBy { it.second.id }
+            /*val grouped = devices.groupBy { it.second.id }
             grouped.forEach { (_, requests) ->
                 Mounts.unmount.call(
                     UnmountRequest(
@@ -170,7 +187,7 @@ class SyncService(
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
-            }
+            }*/
 
             devices.size
         }
@@ -189,7 +206,7 @@ class SyncService(
                 """
                     delete from file_orchestrator.sync_folders
                     where path like :path || '/%' or path = :path
-                    returning id, device_id
+                    returning resource, device_id
                 """
             ).rows.mapNotNull {
                 val id = it.getString(0)!!
@@ -202,7 +219,7 @@ class SyncService(
                 }
             }
 
-            val grouped = devices.groupBy { it.second.id }
+            /*val grouped = devices.groupBy { it.second.id }
             grouped.forEach { (_, requests) ->
                 Mounts.unmount.call(
                     UnmountRequest(
@@ -212,7 +229,7 @@ class SyncService(
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
-            }
+            }*/
 
             devices.size
         }
@@ -255,15 +272,13 @@ class SyncService(
                 session.sendPreparedStatement(
                     {
                         setParameter("device", item.id)
-                        setParameter("user", actor.username)
+                        //setParameter("user", actor.username)
                     },
                     """
                         insert into file_orchestrator.sync_devices(
-                            device_id,
-                            user_id
+                            device_id
                         ) values (
-                            :device,
-                            :user
+                            :device
                         )
                     """
                 ).rowsAffected
@@ -273,6 +288,8 @@ class SyncService(
         if (affectedRows > 0) {
             syncthing.writeConfig()
         }
+
+        return BulkResponse(emptyList())
     }
 
     suspend fun removeDevices(request: BulkRequest<SyncDevice>) {
@@ -281,11 +298,11 @@ class SyncService(
                 session.sendPreparedStatement(
                     {
                         setParameter("id", item.id)
-                        setParameter("user", actor.username)
+                        //setParameter("user", actor.username)
                     },
                     """
                         delete from file_orchestrator.sync_devices
-                        where device_id = :id and user_id = :user
+                        where device_id = :id
                     """
                 ).rowsAffected
             }
@@ -318,7 +335,7 @@ class SyncService(
         )
     }*/
 
-    /*suspend fun retrieveFolder(actor: Actor, path: String): SynchronizedFolder {
+    /*suspend fun retrieveFolder(actor: Actor, path: String): SyncFolder {
         return db.withSession { session ->
             val folder = session.sendPreparedStatement(
                 {
@@ -326,9 +343,9 @@ class SyncService(
                     setParameter("path", path)
                 },
                 """
-                        select id, path, device_id
+                        select resource, path, device_id
                         from file_orchestrator.sync_folders
-                        where user_id = :user and path = :path
+                        where path = :path
                     """
             ).rows.singleOrNull()
 
@@ -336,15 +353,14 @@ class SyncService(
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
 
-            SynchronizedFolder(
-                id = folder.getField(SynchronizedFoldersTable.id),
-                path = path,
-                device = folder.getField(SynchronizedFoldersTable.device)
+            SyncFolder(
+                id = folder.getField(SynchronizedFoldersTable.resource).toString(),
+
+                //path = path,
+                //device = folder.getField(SynchronizedFoldersTable.device)
             )
         }
     }*/
-
-
 }
 
 val syncProducts = listOf(

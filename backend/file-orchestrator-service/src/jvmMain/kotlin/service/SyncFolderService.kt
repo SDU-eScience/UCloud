@@ -26,7 +26,7 @@ class SyncFolderService(
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to defaultSortColumn)
     override val serializer = serializer<SyncFolder>()
     override val updateSerializer = serializer<SyncFolder.Update>()
-    override val productArea = ProductType.COMPUTE
+    override val productArea = ProductType.SYNCHRONIZATION
 
     override fun userApi() = SyncFolders
     override fun controlApi() = SyncFolderControl
@@ -54,24 +54,42 @@ class SyncFolderService(
                     idWithSpec.split {
                         into("ids") { it.first }
                         into("paths") { it.second.path }
-                        into("permissions") { (id, spec) ->
+                        into("permissions") { (_, spec) ->
                             val permissions = fileCollections.find {
                                 it.id == extractPathMetadata(spec.path).collection
                             }!!.permissions!!.myself
+
 
                             if (permissions.contains(Permission.Edit) || permissions.contains(Permission.Admin)) {
                                 SynchronizationType.SEND_RECEIVE.name
                             } else {
                                 SynchronizationType.SEND_ONLY.name
                             }
+
                         }
                     }
                 },
                 """
-                    insert into file_orchestrator.sync_folders (resource, path, sync_type)
-                    select unnest(:ids::bigint[], :paths::text[], :permissions::text[])
+                    insert into file_orchestrator.sync_folders (resource, device_id, path, sync_type)
+                    select unnest(:ids::bigint[]), 'UCLOUD_DEVICE', unnest(:paths::text[]), unnest(:permissions::text[])
                     on conflict (resource) do nothing
                 """
             )
+    }
+
+    override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("filter_path", flags?.filterByPath?.id)
+            },
+            """
+                select *
+                from file_orchestrator.sync_folders
+                where
+                    (:query::text is null or path ilike ('%' || :query || '%')) and
+                    (:filter_path::text is null or :filter_path = path)
+            """
+        )
     }
 }

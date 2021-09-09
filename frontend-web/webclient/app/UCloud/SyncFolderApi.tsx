@@ -9,34 +9,32 @@ import {
 } from "UCloud/ResourceApi";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Icon} from "ui-components";
-import {EnumFilter} from "Resource/Filter";
-import {JobBinding} from "UCloud/JobsApi";
 import {ItemRenderer} from "ui-components/Browse";
 import {ProductSyncFolder} from "Accounting";
+
+enum SynchronizationType {
+    SEND_RECEIVE = "SEND_RECEIVE",
+    SEND_ONLY = "SEND_ONLY"
+} 
 
 export interface SyncFolderSpecification extends ResourceSpecification {
     path: string;
 }
 
-export type SyncFolderState = "READY" | "PREPARING" | "UNAVAILABLE";
-
 export interface SyncFolderStatus extends ResourceStatus {
-    boundTo: string[];
-    state: SyncFolderState;
+    deviceId: string;
+    syncType: SynchronizationType;
 }
 
-export interface SyncFolderSupport extends ProductSupport {
-    binding?: JobBinding;
-}
+export interface SyncFolderSupport extends ProductSupport {}
 
 export interface SyncFolderUpdate extends ResourceUpdate {
-    state?: SyncFolderState;
-    didBind: boolean;
-    newBinding?: string;
+    timestamp: number;
+    status: string;
 }
 
 export interface SyncFolderFlags extends ResourceIncludeFlags {
-    filterState?: string;
+    filterByPath?: string;
 }
 
 export interface SyncFolder extends Resource<SyncFolderUpdate, SyncFolderStatus, SyncFolderSpecification> {};
@@ -44,8 +42,8 @@ export interface SyncFolder extends Resource<SyncFolderUpdate, SyncFolderStatus,
 class SyncFolderApi extends ResourceApi<SyncFolder, ProductSyncFolder, SyncFolderSpecification, SyncFolderUpdate,
     SyncFolderFlags, SyncFolderStatus, SyncFolderSupport> {
     routingNamespace = "sync-folders";
-    title = "Sync Title";
-    page = SidebarPages.Runs;
+    title = "Synchronization Folder";
+    page = SidebarPages.Files;
     productType = "SYNCHRONIZATION" as const;
 
     renderer: ItemRenderer<SyncFolder> = {
@@ -56,29 +54,6 @@ class SyncFolderApi extends ResourceApi<SyncFolder, ProductSyncFolder, SyncFolde
 
     constructor() {
         super("sync.folders");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {
-                    title: "Preparing",
-                    value: "PREPARING",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Ready",
-                    value: "READY",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Unavailable",
-                    value: "UNAVAILABLE",
-                    icon: "hashtag"
-                }
-            ]
-        ));
     }
 }
 

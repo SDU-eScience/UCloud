@@ -28,6 +28,7 @@ class SyncController(
         }
 
         implement(UCloudSyncDevices.verify) {
+            println("devices verify called")
             ok(Unit)
         }
 
@@ -36,10 +37,18 @@ class SyncController(
         }
 
         implement(UCloudSyncFolders.create) {
+            println("folder create called")
             ok(syncService.addFolders(request))
         }
 
+        /*implement(UCloudSyncFolders.retrieve) {
+            println("folder retrieve called")
+            ok(syncService.(request))
+        }*/
+
+
         implement(UCloudSyncFolders.delete) {
+            println("folder remove called")
             syncService.removeFolders(request)
             ok(BulkResponse(request.items.map {}))
         }
@@ -49,6 +58,7 @@ class SyncController(
         }
 
         implement(UCloudSyncFolders.verify) {
+            println("folders verify called")
             ok(Unit)
         }
 

@@ -247,10 +247,10 @@ class SyncthingClient(
                             setParameter("devices", devices.map { it.id })
                         },
                         """
-                               select id, path, access_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                               select resource, path, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
                                from
-                                  file_orchestrator.sync_folders join
-                                  storage.user_devices d on f.user_id = d.user_id
+                                  file_orchestrator.sync_folders f join
+                                  file_orchestrator.sync_devices d on f.user_id = d.user_id
                                where
                                   f.device_id in (select unnest(:devices::text[]))
                             """
@@ -274,16 +274,16 @@ class SyncthingClient(
                             .filter {
                                 it.getString("local_device_id") == device.id
                             }
-                            .distinctBy { it.getField(SynchronizedFoldersTable.id) }
+                            .distinctBy { it.getField(SynchronizedFoldersTable.resource) }
                             .map { row ->
                                 SyncthingFolder(
-                                    id = row.getField(SynchronizedFoldersTable.id),
+                                    id = row.getField(SynchronizedFoldersTable.resource).toString(),
                                     label = row.getField(SynchronizedFoldersTable.path).substringAfterLast("/"),
                                     devices = result
                                         .filter {
                                             it.getString("local_device_id") == device.id &&
-                                                it.getField(SynchronizedFoldersTable.id) == row.getField(
-                                                SynchronizedFoldersTable.id
+                                                it.getField(SynchronizedFoldersTable.resource) == row.getField(
+                                                SynchronizedFoldersTable.resource
                                             ) &&
                                                 it.getField(UserDevicesTable.user) == row.getField(
                                                 SynchronizedFoldersTable.user
@@ -291,7 +291,7 @@ class SyncthingClient(
                                         }.map {
                                             SyncthingFolderDevice(it.getField(UserDevicesTable.device))
                                         },
-                                    path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.id)).absolutePath,
+                                    path = File("/mnt/sync", row.getField(SynchronizedFoldersTable.resource).toString()).absolutePath,
                                     type = SynchronizationType.valueOf(row.getField(SynchronizedFoldersTable.accessType)).syncthingValue,
                                     rescanIntervalS = device.rescanIntervalSeconds
                                 )
