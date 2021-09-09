@@ -30,7 +30,7 @@ class OutgoingAuthFilter : OutgoingCallFilter.BeforeCall() {
         return ctx is OutgoingHttpCall
     }
 
-    override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>) {
+    override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?) {
         context as OutgoingHttpCall
         val token = context.attributes.outgoingAuthToken
         if (token != null) {

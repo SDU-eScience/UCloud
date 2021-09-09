@@ -34,7 +34,7 @@ class Server(
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = validation as TokenValidation<Any>
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }

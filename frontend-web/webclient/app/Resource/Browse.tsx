@@ -49,6 +49,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
     inlineCreationMode?: "TEXT" | "NONE";
     inlineProduct?: Product;
+    productFilterForCreate?: (product: ResolvedSupport) => boolean;
 
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
@@ -123,11 +124,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         const allProducts: Product[] = [];
         for (const provider of Object.keys(productsWithSupport.data.productsByProvider)) {
             for (const productWithSupport of productsWithSupport.data.productsByProvider[provider]) {
+                if (props.productFilterForCreate !== undefined && !props.productFilterForCreate(productWithSupport)) {
+                    continue;
+                }
+
                 allProducts.push(productWithSupport.product as unknown as Product);
             }
         }
         return allProducts;
-    }, [productsWithSupport]);
+    }, [productsWithSupport, props.productFilterForCreate]);
 
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {

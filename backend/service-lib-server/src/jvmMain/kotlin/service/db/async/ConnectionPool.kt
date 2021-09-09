@@ -15,7 +15,6 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
@@ -76,8 +75,8 @@ suspend fun <R> DBContext.withSession(
 
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
-    val id: String,
-    private val debug: DebugSystem? = null,
+    val context: DebugContext,
+    internal val debug: DebugSystem? = null,
 ) : DBContext(), SuspendingConnection by conn
 
 /**
@@ -117,19 +116,20 @@ class AsyncDBSessionFactory(
 
         debug?.sendMessage(
             DebugMessage.DatabaseConnection(
-                DebugContext.Job(
-                    session.id,
-                    rpcContext()?.call?.jobIdOrNull
-                ),
-                Time.now(),
-                null,
-                MessageImportance.THIS_IS_NORMAL
+                session.context,
+                isOpen = false
             )
         )
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
         session.sendQuery("commit")
+        debug?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                session.context,
+                DebugMessage.DBTransactionEvent.COMMIT
+            )
+        )
     }
 
     override suspend fun flush(session: AsyncDBConnection) {
@@ -137,18 +137,16 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        val id = baseId + sessionId.getAndIncrement()
+        val context = DebugContext.Job(baseId + sessionId.getAndIncrement(), rpcContext()?.call?.jobIdOrNull)
         val result = AsyncDBConnection(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
-            id,
+            context,
             debug,
         )
 
         debug?.sendMessage(DebugMessage.DatabaseConnection(
-            DebugContext.Job(id, rpcContext()?.call?.jobIdOrNull),
-            Time.now(),
-            null,
-            MessageImportance.THIS_IS_NORMAL
+            context,
+            isOpen = true
         ))
 
         return result
@@ -156,9 +154,22 @@ class AsyncDBSessionFactory(
 
     override suspend fun rollback(session: AsyncDBConnection) {
         session.sendQuery("rollback")
+        debug?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                session.context,
+                DebugMessage.DBTransactionEvent.ROLLBACK
+            )
+        )
     }
 
     override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
+        debug?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                session.context,
+                DebugMessage.DBTransactionEvent.OPEN
+            )
+        )
+
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
         session.sendQuery("set jit = off")
@@ -173,7 +184,7 @@ class AsyncDBSessionFactory(
     companion object : Loggable {
         override val log = logger()
 
-        val baseId = "DB-${java.util.UUID.randomUUID()}-"
+        val baseId = "DB-"
         private val sessionId = AtomicInteger(0)
     }
 }

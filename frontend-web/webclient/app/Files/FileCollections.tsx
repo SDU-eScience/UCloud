@@ -1,9 +1,9 @@
 import * as React from "react";
-import {default as FileCollectionsApi, FileCollection} from "UCloud/FileCollectionsApi";
+import {default as FileCollectionsApi, FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
 import {ResourceBrowse} from "Resource/Browse";
 import {ResourceRouter} from "Resource/Router";
 import {useCallback, useMemo} from "react";
-import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
+import {ResolvedSupport, ResourceBrowseCallbacks} from "UCloud/ResourceApi";
 import {bulkRequestOf} from "DefaultObjects";
 
 export const FileCollectionBrowse: React.FunctionComponent<{
@@ -18,6 +18,14 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         })));
     }, []);
 
+    const productFilterForCreate = useCallback((product: ResolvedSupport) => {
+        const support = product.support as FileCollectionSupport;
+        if (support.collection.usersCanCreate !== true) {
+            return false;
+        }
+        return true;
+    }, []);
+
     return <ResourceBrowse
         api={FileCollectionsApi}
         onSelect={props.onSelect}
@@ -28,6 +36,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
                 title: text
             })
         )}
+        productFilterForCreate={productFilterForCreate}
         navigateToChildren={FileCollectionsApi.navigateToChildren}
         isSearch={props.isSearch}
     />;

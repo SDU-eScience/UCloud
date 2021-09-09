@@ -298,7 +298,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "upload",
                 primary: true,
                 canAppearInLocation: location => location === "SIDEBAR",
-                enabled: (selected, cb) => selected.length === 0 && cb.onSelect === undefined,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return selected.length === 0 && cb.onSelect === undefined;
+                },
                 onClick: (_, cb) => {
                     cb.dispatch({
                         type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
@@ -315,6 +322,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
@@ -337,7 +349,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Rename",
                 icon: "rename",
-                enabled: (selected) => selected.length === 1,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return selected.length === 1;
+                },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
                 }
@@ -395,10 +414,16 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 icon: "move",
                 text: "Move to...",
-                enabled: (selected, cb) =>
-                    cb.embedded !== true &&
-                    selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return cb.embedded !== true &&
+                        selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                },
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
@@ -429,9 +454,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Move to trash",
                 confirm: true,
                 color: "red",
-                enabled: (selected, cb) =>
-                    selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))

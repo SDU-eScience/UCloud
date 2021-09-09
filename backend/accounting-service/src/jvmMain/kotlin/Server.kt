@@ -55,7 +55,7 @@ class Server(
     override val log = logger()
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val productService = ProductService(db)
 

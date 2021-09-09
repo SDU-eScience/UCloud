@@ -473,11 +473,6 @@ data class FileCollection(
     ) : ResourceStatus<Product.Storage, FSSupport>
 }
 
-data class FSSupportResolved(
-    val product: Product.Storage,
-    val support: FSSupport,
-)
-
 @Serializable
 data class FSSupport(
     override val product: ProductReference,
@@ -509,8 +504,6 @@ data class FSCollectionSupport(
     val usersCanCreate: Boolean? = null,
     val usersCanDelete: Boolean? = null,
     val usersCanRename: Boolean? = null,
-
-    val searchSupported: Boolean? = null,
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")

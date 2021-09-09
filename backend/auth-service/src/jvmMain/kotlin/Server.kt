@@ -36,7 +36,7 @@ class Server(
     private lateinit var userIterator: UserIterationService
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         @Suppress("UNCHECKED_CAST") val tokenValidation = micro.tokenValidation as TokenValidation<DecodedJWT>
         val streams = micro.eventStreamService
 

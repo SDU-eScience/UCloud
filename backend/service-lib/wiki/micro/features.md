@@ -114,7 +114,7 @@ data class Credentials(val username: String, val password: String)
 __Example:__ Creating a database connection
 
 ```kotlin
-val db = AsyncDBSessionFactory(micro.databaseConfig)
+val db = AsyncDBSessionFactory(micro)
 ```
 
 ## DeinitFeature
