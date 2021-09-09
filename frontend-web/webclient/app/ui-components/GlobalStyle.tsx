@@ -3,10 +3,10 @@ import {device} from "ui-components/Hide";
 
 const useInter = localStorage.getItem("inter") !== null;
 
-const fontLight = require("Assets/IBMPlexSans-Light.ttf");
-const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
-const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
-const inter = require("Assets/Inter.ttf");
+import fontLight from "Assets/IBMPlexSans-Light.ttf";
+import fontRegular from "Assets/IBMPlexSans-Regular.ttf";
+import monoFont from "Assets/JetBrainsMono-Regular.woff2";
+import inter from "Assets/Inter.ttf";
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");

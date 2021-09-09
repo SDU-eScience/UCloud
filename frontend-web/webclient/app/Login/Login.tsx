@@ -14,10 +14,10 @@ import CONF from "../../site.config.json";
 import {BG1} from "./BG1";
 import * as Heading from "ui-components/Heading";
 
-const bg2 = require("Assets/Images/bg2.svg");
-const wayfLogo = require("Assets/Images/WAYFLogo.svg");
-const aarhusu_logo = require("Assets/Images/aarhusu_logo.png")
-const aalborgu_logo = require("Assets/Images/aalborgu_logo.png")
+import bg2 from "Assets/Images/bg2.svg"
+import wayfLogo from "Assets/Images/WAYFLogo.svg"
+import aarhusu_logo from "Assets/Images/aarhusu_logo.png"
+import aalborgu_logo from "Assets/Images/aalborgu_logo.png"
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;

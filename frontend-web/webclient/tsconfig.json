@@ -15,7 +15,7 @@
             "es2018",
             "dom"
         ],
-        "target": "es2015",
+        "target": "es2020",
         "jsx": "react",
         "pretty": true,
         "allowJs": true,
