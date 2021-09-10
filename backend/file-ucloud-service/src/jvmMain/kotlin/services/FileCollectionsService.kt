@@ -7,6 +7,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_PM_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
+import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_SHARE_REFERENCE
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.serialization.json.JsonObject
@@ -79,6 +80,33 @@ val productSupport = listOf(
     ),
     FSSupport(
         PRODUCT_PM_REFERENCE,
+
+        FSProductStatsSupport(
+            sizeInBytes = true,
+            sizeIncludingChildrenInBytes = false,
+            modifiedAt = true,
+            createdAt = false,
+            accessedAt = true,
+            unixPermissions = true,
+            unixOwner = true,
+            unixGroup = true
+        ),
+
+        FSCollectionSupport(
+            aclModifiable = false,
+            usersCanCreate = false,
+            usersCanDelete = true,
+            usersCanRename = false,
+        ),
+
+        FSFileSupport(
+            aclModifiable = false,
+            trashSupported = true,
+            isReadOnly = false
+        )
+    ),
+    FSSupport(
+        PRODUCT_SHARE_REFERENCE,
 
         FSProductStatsSupport(
             sizeInBytes = true,

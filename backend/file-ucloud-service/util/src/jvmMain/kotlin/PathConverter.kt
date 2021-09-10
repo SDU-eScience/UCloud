@@ -9,14 +9,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
-import dk.sdu.cloud.file.orchestrator.api.components
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.normalize
-import dk.sdu.cloud.file.orchestrator.api.parent
-import dk.sdu.cloud.file.orchestrator.api.parents
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
@@ -73,6 +66,18 @@ class PathConverter(
         }
     )
 
+    private val shareCache = SimpleCache<String, UCloudFile>(
+        maxAge = 60_000,
+        lookup = { collectionId ->
+            UCloudFile.create(
+                SharesControl.retrieve.call(
+                    ResourceRetrieveRequest(ShareFlags(), collectionId.removePrefix(COLLECTION_SHARE_PREFIX)),
+                    serviceClient
+                ).orThrow().specification.sourceFilePath
+            )
+        }
+    )
+
     private val cachedProviderIdsMutex = Mutex()
     private val cachedProviderIds = HashMap<String, String>()
 
@@ -99,7 +104,10 @@ class PathConverter(
             }
         }
 
-        if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
+        if (storedName.startsWith(COLLECTION_SHARE_PREFIX)) {
+            return ucloudToInternal(shareCache.get(storedName)
+                ?: throw RPCException("Unknown file", HttpStatusCode.NotFound))
+        } else if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
             return InternalFile(
                 buildString {
                     append(rootDirectory.path)

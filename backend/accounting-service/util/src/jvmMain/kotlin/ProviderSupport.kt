@@ -22,7 +22,11 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
         maxAge = 60_000 * 15,
         lookup = { ref ->
             val productResp = Products.retrieve.call(
-                ProductsRetrieveRequest(filterProvider = ref.provider, filterCategory = ref.category, filterName = ref.id),
+                ProductsRetrieveRequest(
+                    filterProvider = ref.provider,
+                    filterCategory = ref.category,
+                    filterName = ref.id
+                ),
                 serviceClient
             )
 
@@ -72,7 +76,12 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
                 it.product.name == product.id &&
                     it.product.category.name == product.category &&
                     it.product.category.provider == product.provider
-            } ?: throw RPCException("Unknown product requested $product", HttpStatusCode.InternalServerError)
+            }
+            ?: throw RPCException(
+                "UCloud has received a bad reply from the provider. Try again later or contact support. " +
+                    "We received no information about '${product.id}/${product.category}/${product.provider}'",
+                HttpStatusCode.BadGateway
+            )
     }
 
     suspend fun retrieveProviderSupport(provider: String): List<ResolvedSupport<P, Support>> {
