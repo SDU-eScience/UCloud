@@ -328,14 +328,14 @@ export const View: React.FunctionComponent = () => {
         let t1: number | undefined;
         let t2: number | undefined;
         if (job) {
-            t1 = setTimeout(() => {
+            t1 = window.setTimeout(() => {
                 setDataAnimationAllowed(true);
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
             }, delayInitialAnim ? 3000 : 400);
 
-            t2 = setTimeout(() => {
+            t2 = window.setTimeout(() => {
                 setLogoAnimationAllowed(true);
             }, delayInitialAnim ? 2200 : 0);
         }

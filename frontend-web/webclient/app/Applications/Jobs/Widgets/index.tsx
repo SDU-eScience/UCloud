@@ -210,7 +210,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
         if (term === "") {
             setResults(pool);
         } else {
-            currentTimeout.current = setTimeout(() => {
+            currentTimeout.current = window.setTimeout(() => {
                 const newResults = fuse.search(term);
                 setResults(newResults.map(it => it.item));
             }, delay);

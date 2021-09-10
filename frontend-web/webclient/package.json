@@ -4,14 +4,14 @@
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
+        "start": "vite",
+        "build": "node scripts/update-version-file.js && vite build",
+        "serve": "vite preview --port 9000 --https",
+        "compose": "echo TODO",
         "test": "jest --runInBand",
         "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
         "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components && rm -f components/index.tsx",
-        "icons-index": "node scripts/create-icons-index.js",
-        "vite:dev": "vite",
-        "vite:build": "node scripts/update-version-file.js && tsc && vite build",
-        "vite:serve": "vite preview",
-        "vite:compose": "echo TODO"
+        "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {
         "@ginkgo-bioworks/react-json-schema-form-builder": "^2.6.0",
@@ -30,22 +30,21 @@
         "react-json-view": "^1.21.3",
         "react-markdown": "^5.0.3",
         "react-modal": "^3.14.3",
-        "react-redux": "^7.2.4",
-        "react-router": "5.2.0",
-        "react-router-dom": "5.2.0",
+        "react-redux": "^7.2.5",
+        "react-router": "5.2.1",
+        "react-router-dom": "5.3.0",
         "react-syntax-highlighter": "^15.4.4",
         "react-transition-group": "^4.4.2",
         "recharts": "^2.0.10",
-        "redux": "4.1.0",
+        "redux": "4.1.1",
         "redux-responsive": "^4.3.8",
-        "styled-components": "^5.3.0",
+        "styled-components": "^5.3.1",
         "styled-system": "^5.1.5",
         "svgi": "^1.1.0",
         "ua-parser-js": "^0.7.28",
         "xterm": "^4.13.0",
         "xterm-addon-fit": "^0.5.0",
-
-        "vfile": "5.0.1"
+        "vfile": "5.1.0"
     },
     "devDependencies": {
         "@testing-library/dom": "^8.1.0",

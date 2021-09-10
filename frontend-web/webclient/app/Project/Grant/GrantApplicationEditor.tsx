@@ -658,12 +658,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 return;
                             } else {
                                 attempts++;
-                                timeout = setTimeout(work, 500);
+                                timeout = window.setTimeout(work, 500);
                             }
                         }
                     };
 
-                    timeout = setTimeout(work, 0);
+                    timeout = window.setTimeout(work, 0);
                 }
             }
             return () => {

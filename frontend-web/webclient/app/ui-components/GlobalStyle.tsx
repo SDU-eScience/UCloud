@@ -17,22 +17,13 @@ export function injectFonts(): void {
             src: url('${fontLight}');
             font-display: swap;
         }
-
-        ${useInter ?
-            `@font-face {
-                font-family: 'Inter';
-                src: url('${inter}');
-                font-display: swap;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }`
-            :
-            `@font-face {
-                font-family: 'IBM Plex Sans';
-                src: url('${fontRegular}');
-                font-weight: 400;
-                font-display: swap;
-            }`
+        
+        @font-face {
+            font-family: 'Inter';
+            src: url('${inter}');
+            font-display: swap;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         @font-face {
