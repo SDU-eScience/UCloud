@@ -12,7 +12,6 @@ const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const FilesRouter = React.lazy(() => import("Files/Files"));
 const FileCollectionsRouter = React.lazy(() => import("Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("Files/Metadata/Templates/Namespaces"));
-const Shares = React.lazy(() => import("Files/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
@@ -52,6 +51,7 @@ const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("Applications/NetworkIP/Router"));
+const ShareRouter = React.lazy(() => import("Files/Share2"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -98,7 +98,7 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
-                    <Route exact path="/shares" component={requireAuth(Shares)} />
+                    <Route path={"/shares"}><ShareRouter /></Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

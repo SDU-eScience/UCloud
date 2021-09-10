@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
+import dk.sdu.cloud.file.ucloud.rpc.ShareController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
@@ -49,6 +50,7 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
+        val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())
@@ -68,6 +70,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
+            ShareController(shareService)
         )
 
         startServices()

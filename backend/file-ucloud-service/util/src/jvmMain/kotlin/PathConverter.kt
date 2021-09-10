@@ -269,6 +269,7 @@ class PathConverter(
         const val COLLECTION_HOME_PREFIX = "h-"
         const val COLLECTION_PROJECT_PREFIX = "p-"
         const val COLLECTION_PROJECT_MEMBER_PREFIX = "pm-"
+        const val COLLECTION_SHARE_PREFIX = "s-"
         const val HOME_DIRECTORY = "home"
         const val PROJECT_DIRECTORY = "projects"
         const val COLLECTION_DIRECTORY = "collections"
@@ -276,6 +277,7 @@ class PathConverter(
 
         val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
         val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs_credits", UCLOUD_PROVIDER)
+        val PRODUCT_SHARE_REFERENCE = ProductReference("share", "u1-cephfs_credits", UCLOUD_PROVIDER)
     }
 }
 

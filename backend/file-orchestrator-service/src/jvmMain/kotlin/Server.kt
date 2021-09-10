@@ -11,6 +11,9 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.api.ShareSupport
+import dk.sdu.cloud.file.orchestrator.api.ShareType
+import dk.sdu.cloud.file.orchestrator.api.SharesProvider
 import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
@@ -45,7 +48,16 @@ class Server(override val micro: Micro) : CommonServer {
         val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(fileCollections, providers, providerSupport, metadataService, serviceClient, db)
-        val shares = ShareService(db, serviceClient, micro.backgroundScope)
+        val shares = ShareService(
+            db,
+            providers,
+            ProviderSupport(providers, serviceClient) { comms ->
+                SharesProvider(comms.provider.id).retrieveProducts.call(Unit, comms.client).orThrow().responses
+            },
+            serviceClient,
+            filesService,
+            fileCollections
+        )
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)
 
