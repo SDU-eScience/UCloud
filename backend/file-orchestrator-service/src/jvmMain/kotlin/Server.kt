@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -24,7 +23,7 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val providers = StorageProviders(serviceClient) { comms ->
             StorageCommunication(
@@ -44,7 +43,17 @@ class Server(override val micro: Micro) : CommonServer {
         val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(fileCollections, providers, providerSupport, metadataService, serviceClient, db)
-        val shares = ShareService(db, serviceClient, micro.backgroundScope)
+
+        val shares = ShareService(
+            db,
+            providers,
+            ProviderSupport(providers, serviceClient) { comms ->
+                SharesProvider(comms.provider.id).retrieveProducts.call(Unit, comms.client).orThrow().responses
+            },
+            serviceClient,
+            filesService,
+            fileCollections
+        )
 
         val syncProviders = Providers(serviceClient) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val syncSupport = ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncDeviceSupport>(
@@ -63,7 +72,7 @@ class Server(override val micro: Micro) : CommonServer {
         configureControllers(
             FileMetadataController(metadataService),
             FileController(filesService),
-            fileCollections.asController(),
+            FileCollectionController(fileCollections),
             FileMetadataTemplateController(metadataTemplateNamespaces),
             ShareController(shares),
             syncDeviceService.asController(),

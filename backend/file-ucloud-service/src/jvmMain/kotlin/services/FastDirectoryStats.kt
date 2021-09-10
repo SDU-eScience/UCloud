@@ -5,11 +5,11 @@ import dk.sdu.cloud.service.Loggable
 class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
     override val log = logger()
 
-    fun getRecursiveSize(file: InternalFile): Long {
+    fun getRecursiveSize(file: InternalFile): Long? {
         return try {
             nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
-            return -1
+            return null
         }
     }
 

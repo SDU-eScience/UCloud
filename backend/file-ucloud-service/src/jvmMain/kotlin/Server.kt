@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.SyncController
+import dk.sdu.cloud.file.ucloud.rpc.ShareController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
@@ -36,7 +37,7 @@ class Server(
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = validation as TokenValidation<Any>
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
@@ -56,6 +57,7 @@ class Server(
         val syncService =
             SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
+        val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
             install(CopyTask())
             install(DeleteTask())
@@ -75,7 +77,8 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
-            SyncController(syncService)
+            SyncController(syncService),
+            ShareController(shareService)
         )
 
         startServices()

@@ -35,6 +35,7 @@ import {
     ProductCompute,
     usageExplainer
 } from "Accounting";
+import {FilesBrowse} from "Files/Files";
 
 const enterAnimation = keyframes`
   from {
@@ -506,8 +507,11 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
-    }, [status]);
+        const support = job.status.resolvedSupport?.support as ComputeSupport;
+        if (support.docker.utilization === true || support.virtualMachine.utilization === true) {
+            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+        }
+    }, [job]);
 
     return <>
         <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
@@ -1107,19 +1111,9 @@ const OutputFilesWrapper = styled.div`
 `;
 
 const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+    const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <Heading.h3>Files</Heading.h3>
-        {/*
-        TODO
-        <VirtualFileTable
-            embedded
-            disableNavigationButtons
-            previewEnabled
-            permissionAlertEnabled={false}
-            onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage(files)}
-        />
-        */}
+        <FilesBrowse embedded={true} pathRef={pathRef} forceNavigationToPage={true} />
     </OutputFilesWrapper>;
 };
 

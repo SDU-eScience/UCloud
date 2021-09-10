@@ -35,7 +35,7 @@ export interface NetworkIPStatus extends ResourceStatus {
 }
 
 export interface NetworkIPSupport extends ProductSupport {
-    binding?: JobBinding;
+    firewall?: {enabled?: boolean | null} | null;
 }
 
 export interface NetworkIPUpdate extends ResourceUpdate {
@@ -74,9 +74,13 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
         return <ResourceProperties
             api={this}
             {...props}
-            ContentChildren={(p) => (
-                <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload} />
-            )}
+            ContentChildren={(p) => {
+                const support = (p.resource as NetworkIP).status.resolvedSupport
+                    ?.support as NetworkIPSupport | undefined;
+
+                if (support?.firewall?.enabled !== true) return null;
+                return <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload}/>;
+            }}
         />;
     };
 

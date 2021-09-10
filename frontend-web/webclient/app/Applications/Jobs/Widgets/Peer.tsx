@@ -4,7 +4,7 @@ import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
-import {useState} from "react";
+import {useCallback, useState} from "react";
 import Box from "ui-components/Box";
 import styled from "styled-components";
 import Input from "ui-components/Input";
@@ -12,6 +12,9 @@ import Label from "ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {emptyPage} from "DefaultObjects";
 import {useCloudAPI} from "Authentication/DataHook";
+import ReactModal from "react-modal";
+import {largeModalStyle} from "Utilities/ModalUtilities";
+import {JobBrowse} from "Applications/Jobs/NewApi";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -91,6 +94,13 @@ interface JobSelectorProps {
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
+    const [open, setOpen] = useState(false);
+    const doOpen = useCallback(() => {
+        setOpen(true);
+    }, [setOpen]);
+    const doClose = useCallback(() => {
+        setOpen(false)
+    }, [setOpen]);
 
     const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
         props.suggestedApplication ?
@@ -107,32 +117,34 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
-    return null;
-    /*
-    return (
-        <ControlledJobSelector
-            hasSelectedJob={selectedPeer != null}
-            suggestedApplication={suggestedApplication ? {
-                name: suggestedApplication.specification.application.name,
-                version: suggestedApplication.specification.application.version
-            } : undefined}
-            allowAutoConfigure={allowAutoConfigure}
-            onSelect={job => {
-                setSelectedPeer(job.id);
-                setAllowAutoConfigure(false);
-            }}
-            trigger={
-                <Input
-                    id={widgetId(props.parameter) + "job"}
-                    style={{height: "39px"}}
-                    value={selectedPeer}
-                    placeholder="No selected job"
-                    readOnly
-                />
-            }
+    return (<Flex>
+        <PointerInput
+            id={widgetId(props.parameter) + "job"}
+            placeholder={"No selected run"}
+            onClick={doOpen}
+            value={selectedPeer}
+            style={{height: "39px"}}
+            readOnly
         />
-    );
-    */
+        <input type="hidden" id={widgetId(props.parameter)}/>
+        <ReactModal
+            isOpen={open}
+            ariaHideApp={false}
+            style={largeModalStyle}
+            shouldCloseOnEsc
+            shouldCloseOnOverlayClick
+            onRequestClose={doClose}
+        >
+            <JobBrowse
+                onSelect={job => {
+                    setSelectedPeer(job.id);
+                    setAllowAutoConfigure(false);
+                    doClose();
+                }}
+                embedded={true}
+            />
+        </ReactModal>
+    </Flex>);
 };
 
 export const PointerInput = styled(Input)`

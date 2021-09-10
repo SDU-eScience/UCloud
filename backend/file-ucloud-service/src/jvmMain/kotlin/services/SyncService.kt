@@ -52,7 +52,7 @@ class SyncService(
                 ).rows.sumOf {
                     cephStats.getRecursiveSize(
                         pathConverter.ucloudToInternal(UCloudFile.create(it.getField(SynchronizedFoldersTable.path)))
-                    )
+                    ) ?: 0
                 }
             }
         }

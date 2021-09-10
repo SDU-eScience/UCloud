@@ -454,7 +454,7 @@ export function useFrameHidden(): boolean {
     const legacyHide =
         ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
         window.location.search === "?dav=true" ||
-        window.location.search === "?hide-frame";
+        window.location.search.indexOf("?hide-frame") === 0;
     return legacyHide || frameHidden;
 }
 

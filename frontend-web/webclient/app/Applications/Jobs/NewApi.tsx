@@ -5,7 +5,7 @@ import {ResourceRouter} from "Resource/Router";
 import Create from "Applications/Jobs/Create";
 import {useHistory} from "react-router";
 
-const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job>> = props => {
+export const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job>> = props => {
     const history = useHistory();
     return <ResourceBrowse api={JobApi} {...props} extraCallbacks={{
         startCreation() {history.push("/applications/overview")}

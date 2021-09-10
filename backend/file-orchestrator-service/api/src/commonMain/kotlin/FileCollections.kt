@@ -59,7 +59,7 @@ open class FileCollectionsProvider(
     override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
         FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
 
-    val rename = call<FileCollectionsProviderRenameRequest, FileCollectionsProviderRenameResponse,
+    val rename = call<FileCollectionsProviderRenameRequest, BulkResponse<Unit?>,
         CommonErrorMessage>("rename") {
         httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
     }

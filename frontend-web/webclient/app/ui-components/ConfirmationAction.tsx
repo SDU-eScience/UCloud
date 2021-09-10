@@ -26,7 +26,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   backface-visibility: hidden;
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
-  min-width: 200px;
+  min-width: ${p => p.asSquare ? "200px" : "250px"};
   background: var(--background, #f00);
   font-size: ${p => p.asSquare ? "16px" : "large"};
   font-weight: ${p => p.asSquare ? "400" : "700"};

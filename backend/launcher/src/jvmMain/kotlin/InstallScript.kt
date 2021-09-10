@@ -272,7 +272,7 @@ fun runInstaller(configDir: File) {
 
                             micro.databaseConfig.migrateAll()
 
-                            val db = AsyncDBSessionFactory(micro.databaseConfig)
+                            val db = AsyncDBSessionFactory(micro)
                             runBlocking {
                                 try {
                                     db.withTransaction { session ->

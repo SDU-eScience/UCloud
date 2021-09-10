@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.api.SyncDeviceProvider
 import dk.sdu.cloud.file.orchestrator.api.SyncFolderProvider
+import dk.sdu.cloud.file.orchestrator.api.SharesProvider
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
@@ -16,6 +17,7 @@ import kotlinx.serialization.Serializable
 object UCloudFiles : FilesProvider(UCLOUD_PROVIDER)
 @TSNamespace("file.ucloud.filecollections")
 object UCloudFileCollections : FileCollectionsProvider(UCLOUD_PROVIDER)
+object UCloudShares : SharesProvider(UCLOUD_PROVIDER)
 
 object UCloudSyncDevices : SyncDeviceProvider(UCLOUD_PROVIDER)
 object UCloudSyncFolders : SyncFolderProvider(UCLOUD_PROVIDER)

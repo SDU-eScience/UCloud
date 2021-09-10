@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.rpc
 
+import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.Shares
 import dk.sdu.cloud.file.orchestrator.service.ShareService
@@ -10,24 +11,14 @@ class ShareController(
     private val shares: ShareService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Shares.retrieve) {
-            ok(shares.retrieve(actorAndProject.actor, request.path))
-        }
-
-        implement(Shares.browse) {
-            ok(shares.browse(actorAndProject.actor, request.sharedByMe, request.filterPath, request.normalize()))
-        }
-
-        implement(Shares.create) {
-            ok(shares.create(actorAndProject.actor, request))
-        }
+        shares.asController().configure(rpcServer)
 
         implement(Shares.approve) {
-            ok(shares.approve(actorAndProject.actor, request))
+            ok(shares.approve(actorAndProject, request))
         }
 
-        implement(Shares.delete) {
-            ok(shares.delete(actorAndProject.actor, request))
+        implement(Shares.reject) {
+            ok(shares.reject(actorAndProject, request))
         }
 
         return@with

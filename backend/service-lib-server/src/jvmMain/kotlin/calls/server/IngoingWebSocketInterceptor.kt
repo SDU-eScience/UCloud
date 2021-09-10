@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.server
 
+import calls.server.RpcCoroutineContext
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
@@ -203,12 +204,13 @@ class IngoingWebSocketInterceptor(
                                     continue
                                 }
 
-                                launch {
+                                val ctx = WSCall(session, parsedMessage, streamId)
+                                launch(RpcCoroutineContext(ctx)) {
                                     log.trace("Handling call...")
                                     rpcServer.handleIncomingCall(
                                         this@IngoingWebSocketInterceptor,
                                         call,
-                                        WSCall(session, parsedMessage, streamId)
+                                        ctx
                                     )
                                     log.trace("Call has been handled")
                                 }

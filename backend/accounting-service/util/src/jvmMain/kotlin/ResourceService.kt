@@ -45,6 +45,7 @@ abstract class ResourceService<
     protected abstract val table: SqlObject.Table
     protected abstract val sortColumns: Map<String, SqlObject.Column>
     protected abstract val defaultSortColumn: SqlObject.Column
+    protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String by lazy {
         runBlocking {
@@ -974,6 +975,7 @@ abstract class ResourceService<
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
+                setParameter("filter_provider_id", flags?.filterProviderId ?: simpleFlags?.filterProviderId)
             },
             buildString {
                 append(
@@ -1061,7 +1063,8 @@ abstract class ResourceService<
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
-                          (:filter_product_category::text is null or p_cat.category = :filter_product_category)
+                          (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (:filter_provider_id::text is null or r.provider_generated_id = :filter_provider_id::text)
                                         
                     """
                 )
@@ -1103,10 +1106,9 @@ abstract class ResourceService<
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
-        val sortDirection = when (sortFlags?.sortDirection) {
+        val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
-            null -> "asc"
         }
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -1136,7 +1138,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            spec.$sortBy $sortDirection
+                            resc.category, resc.name, spec.$sortBy $sortDirection
                     """,
                     debug = true,
                 )

@@ -55,6 +55,7 @@ data class SyncDeviceIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

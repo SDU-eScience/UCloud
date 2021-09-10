@@ -111,6 +111,7 @@ data class UFileIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,
@@ -406,6 +407,7 @@ data class FileCollectionIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
@@ -451,7 +453,6 @@ data class FileCollection(
     @Serializable
     data class Spec(
         val title: String,
-        // TODO Define which type of product we are dealing with
         override val product: ProductReference,
     ) : ResourceSpecification {
         init {
@@ -471,11 +472,6 @@ data class FileCollection(
         override var resolvedProduct: Product.Storage? = null,
     ) : ResourceStatus<Product.Storage, FSSupport>
 }
-
-data class FSSupportResolved(
-    val product: Product.Storage,
-    val support: FSSupport,
-)
 
 @Serializable
 data class FSSupport(
@@ -508,8 +504,6 @@ data class FSCollectionSupport(
     val usersCanCreate: Boolean? = null,
     val usersCanDelete: Boolean? = null,
     val usersCanRename: Boolean? = null,
-
-    val searchSupported: Boolean? = null,
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")

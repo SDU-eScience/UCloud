@@ -12,7 +12,9 @@ import kotlinx.serialization.Serializable
 data class SendRequest(
     val receiver: String,
     val mail: Mail,
-    val mandatory: Boolean = false
+    val mandatory: Boolean = false,
+    val receivingEmail: String? = null,
+    val testMail: Boolean? = null
 )
 
 @Serializable

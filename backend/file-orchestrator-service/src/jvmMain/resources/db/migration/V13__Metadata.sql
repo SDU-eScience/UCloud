@@ -1,3 +1,8 @@
+delete from file_orchestrator.metadata_documents where true;
+delete from file_orchestrator.metadata_templates where true;
+delete from file_orchestrator.metadata_template_namespaces where true;
+delete from provider.resource where type = 'metadata_template_namespace';
+
 with
     resource as (
         insert into provider.resource

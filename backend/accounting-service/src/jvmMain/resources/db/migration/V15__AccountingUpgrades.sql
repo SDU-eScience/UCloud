@@ -1058,6 +1058,11 @@ begin
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
+
+    update accounting.wallets
+    set low_funds_notifications_send = false
+    from deposit_result r
+    where r.target_wallet = id;
 end;
 $$;
 
@@ -2112,6 +2117,143 @@ begin
         res.application_id = application_id_in and
         target_wallet.id is null;
 end;
-$$
+$$;
+
+
+create or replace function accounting.low_funds_wallets(
+    name text,
+    computeCreditsLimit bigint,
+    storageCreditsLimit bigint,
+    computeUnitsLimit bigint,
+    storageQuotaLimit bigint,
+    storageUnitsLimit bigint
+) returns void language plpgsql as $$
+declare
+    query text;
+begin
+    create temporary table project_wallets on commit drop as
+        select
+            distinct (wa.id),
+            prin.id username,
+            wo.project_id,
+            pr.title project_title,
+            pc.provider,
+            pc.category,
+            pc.product_type,
+            pc.charge_type,
+            pc.unit_of_price,
+            p.free_to_use,
+            w.low_funds_notifications_send,
+            w.id wallet_id,
+            wa.local_balance,
+            prin.email
+        from
+            accounting.product_categories pc join
+            accounting.products p on pc.id = p.category join
+            accounting.wallets w on pc.id = w.category join
+            accounting.wallet_allocations wa on w.id = wa.associated_wallet join
+            accounting.wallet_owner wo on w.owned_by = wo.id join
+            project.projects pr on wo.project_id = pr.id join
+            project.project_members pm on pr.id = pm.project_id and (pm.role = 'ADMIN' or pm.role = 'PI') join
+            auth.principals prin on prin.id = pm.username
+        where wa.start_date <= now()
+            and (wa.end_date is null or wa.end_date >= now())
+            and w.low_funds_notifications_send = false
+            and pc.unit_of_price != 'PER_UNIT'
+        order by w.id;
+
+    create temporary table user_wallets on commit drop as
+        select
+            distinct (wa.id),
+            prin.id username,
+            wo.project_id,
+            null project_title,
+            pc.provider,
+            pc.category,
+            pc.product_type,
+            pc.charge_type,
+            pc.unit_of_price,
+            p.free_to_use,
+            w.low_funds_notifications_send,
+            w.id wallet_id,
+            wa.local_balance,
+            prin.email
+        from
+            accounting.product_categories pc join
+            accounting.products p on pc.id = p.category join
+            accounting.wallets w on pc.id = w.category join
+            accounting.wallet_allocations wa on w.id = wa.associated_wallet join
+            accounting.wallet_owner wo on w.owned_by = wo.id join
+            auth.principals prin on prin.id = wo.username
+        where wa.start_date <= now()
+            and (wa.end_date is null or wa.end_date >= now())
+            and w.low_funds_notifications_send = false
+            and pc.unit_of_price != 'PER_UNIT'
+        order by w.id;
+
+    create temporary table all_wallets on commit drop as
+        select * from project_wallets
+        union
+        select * from user_wallets;
+
+    create temporary table sum_wallets on commit drop as
+        select
+            wallet_id,
+            username,
+            project_id,
+            project_title,
+            email,
+            provider,
+            category,
+            product_type,
+            charge_type,
+            unit_of_price,
+            free_to_use,
+            low_funds_notifications_send,
+            sum(local_balance)::bigint total_local_balance
+        from all_wallets
+        group by username, project_id, project_title, wallet_id, provider, category, product_type, charge_type, unit_of_price, free_to_use, low_funds_notifications_send, email;
+
+
+    create temporary table low_fund_wallets on commit drop as
+        SELECT *
+        FROM sum_wallets
+        where
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'CREDITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < storageCreditsLimit
+            ) or
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < storageUnitsLimit
+            ) or
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'DIFFERENTIAL_QUOTA'
+                and total_local_balance < storageQuotaLimit
+            ) or
+            (
+                product_type = 'COMPUTE'
+                and (unit_of_price = 'CREDITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < computeCreditsLimit
+            ) or
+            (
+                product_type = 'COMPUTE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < computeUnitsLimit
+            );
+
+    query = 'SELECT * FROM low_fund_wallets';
+    EXECUTE 'DECLARE ' || quote_ident(name) || ' CURSOR WITH HOLD FOR ' || query;
+
+end;
+$$;
 
 ---- /Grants ----

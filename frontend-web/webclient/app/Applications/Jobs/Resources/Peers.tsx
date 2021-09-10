@@ -14,7 +14,7 @@ export const PeerResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return !application.invocation.shouldAllowAdditionalPeers ||
+    return !application.invocation.allowAdditionalPeers ||
         application.invocation.tool.tool!.description.backend === "VIRTUAL_MACHINE" ? null : (
         <Box>
             <Flex alignItems={"center"}>

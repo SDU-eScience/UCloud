@@ -64,6 +64,7 @@ data class SyncFolderIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderId: String? = null,
     val filterByPath: FindByPath? = null
 ) : ResourceIncludeFlags
 

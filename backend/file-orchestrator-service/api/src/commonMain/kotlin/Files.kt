@@ -101,7 +101,7 @@ typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem
 
 @Serializable
 data class FilesCreateUploadResponseItem(
-    val endpoint: String,
+    var endpoint: String,
     val protocol: UploadProtocol,
     val token: String,
 )
@@ -117,7 +117,7 @@ data class FilesCreateDownloadRequestItem(override val id: String) : WithPath
 typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem?>
 
 @Serializable
-data class FilesCreateDownloadResponseItem(val endpoint: String)
+data class FilesCreateDownloadResponseItem(var endpoint: String)
 
 // ---
 

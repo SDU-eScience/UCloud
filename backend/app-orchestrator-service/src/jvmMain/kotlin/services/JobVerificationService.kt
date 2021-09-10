@@ -1,15 +1,18 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.orchestrator.api.JobSpecification
+import dk.sdu.cloud.app.store.api.AppParameterValue
+import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.util.*
 
 class JobException {
     class VerificationError(message: String) : RPCException(message, HttpStatusCode.BadRequest)
@@ -18,6 +21,7 @@ class JobException {
 class JobVerificationService(
     private val appService: AppStoreCache,
     private val orchestrator: JobOrchestrator,
+    private val fileCollections: FileCollectionService,
 ) {
     suspend fun verifyOrThrow(
         actorAndProject: ActorAndProject,
@@ -60,6 +64,25 @@ class JobVerificationService(
             }
 
             orchestrator.retrieveBulk(actorAndProject, allPeers.map { it.jobId }, listOf(Permission.Edit))
+        }
+
+        // Check files
+        run {
+            val files = resources.filterIsInstance<AppParameterValue.File>()
+            val requiredCollections = files.map { extractPathMetadata(it.path).collection }.toSet()
+            val retrievedCollections = try {
+                fileCollections
+                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.Read))
+                    .associateBy { it.id }
+            } catch (ex: RPCException) {
+                throw JobException.VerificationError("You are not allowed to use one or more of your files")
+            }
+
+            for (file in files) {
+                val perms = retrievedCollections[extractPathMetadata(file.path).collection]!!.permissions!!.myself
+                val allowWrite = perms.any { it == Permission.Edit || it == Permission.Admin }
+                file.readOnly = !allowWrite
+            }
         }
     }
 

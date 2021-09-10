@@ -4,6 +4,7 @@ import {format} from "date-fns/esm";
 export const dateToStringNoTime = (date: number): string => format(date, "dd/MM/yyyy");
 export const dateToString = (date: number): string => format(date, "HH:mm dd/MM/yyyy");
 export const dateToTimeOfDayString = (date: number): string => format(date, "HH:mm");
+export const dateToTimeOfDayStringDetailed = (date: number): string => format(date, "HH:mm:ss.SSS");
 
 export const getEndOfDay = (d: Date): Date => {
     const copy = new Date(d);
