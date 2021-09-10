@@ -305,7 +305,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 0 && cb.onSelect === undefined;
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
                 },
                 onClick: (_, cb) => {
                     cb.dispatch({
@@ -327,6 +334,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
                     }
                     return true;
                 },

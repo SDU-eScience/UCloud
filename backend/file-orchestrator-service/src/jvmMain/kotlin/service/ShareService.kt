@@ -265,7 +265,7 @@ class ShareService(
                             returning
                                 s.shared_with, 
                                 s.permissions, 
-                                regexp_split_to_array(s.available_at, '/')[2]::bigint collection
+                                (regexp_split_to_array(s.available_at, '/'))[2]::bigint collection
                         )
                     insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
                     select null, shared_with, unnest(permissions), collection
@@ -309,7 +309,7 @@ class ShareService(
                                 s.permissions, 
                                 case
                                     when s.available_at is null then null
-                                    else regexp_split_to_array(s.available_at, '/')[2]::bigint
+                                    else (regexp_split_to_array(s.available_at, '/'))[2]::bigint
                                 end as collection
                         )
                     delete from provider.resource_acl_entry entry

@@ -72,6 +72,12 @@ interface DebugMessageServerResponse extends DebugMessageBase {
     responseCode: number;
 }
 
+interface DebugMessageLog extends DebugMessageBase {
+    type: "log";
+    message: string;
+    extra?: Record<string, any> | null;
+}
+
 interface DebugMessageDatabaseTransaction extends DebugMessageBase {
     type: "database_transaction";
     event: "OPEN" | "COMMIT" | "ROLLBACK";
@@ -94,7 +100,7 @@ interface DebugMessageDatabaseConnection extends DebugMessageBase {
 
 type DebugMessage = DebugMessageDatabaseTransaction | DebugMessageDatabaseQuery | DebugMessageDatabaseResponse |
     DebugMessageDatabaseConnection | DebugMessageServerRequest | DebugMessageServerResponse |
-    DebugMessageClientRequest | DebugMessageClientResponse;
+    DebugMessageClientRequest | DebugMessageClientResponse | DebugMessageLog;
 
 interface DebugSystemListenResponseAppend {
     type: "append";
@@ -149,6 +155,7 @@ export const Debugger: React.FunctionComponent = () => {
 
     const doClear = useCallback(() => {
         const conn = connRef.current;
+        history.push("/debugger?hide-frame");
         if (conn) {
             conn.call({
                 call: "debug.listen",
@@ -160,12 +167,14 @@ export const Debugger: React.FunctionComponent = () => {
     const [overviewShowServer, overviewToggleShowServer] = useToggle(true);
     const [overviewShowClient, overviewToggleShowClient] = useToggle(false);
     const [overviewShowDatabase, overviewToggleShowDatabase] = useToggle(false);
+    const [overviewShowLogs, overviewToggleShowLogs] = useToggle(false);
     const [overviewQuery, overviewOnQueryUpdate] = useInput("");
     const [overviewLogLevel, overviewOnLogLevelUpdate] = useInput("THIS_IS_NORMAL");
 
     const [inspectingShowServer, inspectingToggleShowServer] = useToggle(true);
     const [inspectingShowClient, inspectingToggleShowClient] = useToggle(true);
     const [inspectingShowDatabase, inspectingToggleShowDatabase] = useToggle(true);
+    const [inspectingShowLogs, inspectingToggleShowLogs] = useToggle(true);
     const [inspectingQuery, inspectingOnQueryUpdate] = useInput("");
     const [inspectingLogLevel, inspectingOnLogLevelUpdate] = useInput("IMPLEMENTATION_DETAIL");
 
@@ -175,6 +184,8 @@ export const Debugger: React.FunctionComponent = () => {
         [inspectingShowClient, inspectingToggleShowClient] : [overviewShowClient, overviewToggleShowClient];
     const [showDatabase, toggleShowDatabase] = inspectingId ?
         [inspectingShowDatabase, inspectingToggleShowDatabase] : [overviewShowDatabase, overviewToggleShowDatabase];
+    const [showLogs, toggleShowLogs] = inspectingId ?
+        [inspectingShowLogs, inspectingToggleShowLogs] : [overviewShowLogs, overviewToggleShowLogs];
     const [query, onQueryUpdate] = inspectingId ?
         [inspectingQuery, inspectingOnQueryUpdate] : [overviewQuery, overviewOnQueryUpdate];
     const [logLevel, onLogLevelUpdate] = inspectingId ?
@@ -187,6 +198,7 @@ export const Debugger: React.FunctionComponent = () => {
         if (showServer) types.push("SERVER");
         if (showClient) types.push("CLIENT");
         if (showDatabase) types.push("DATABASE");
+        if (showLogs) types.push("LOG")
 
         const ids = inspectingId ? [inspectingId] : null;
 
@@ -259,6 +271,11 @@ export const Debugger: React.FunctionComponent = () => {
                 <Toggle onChange={toggleShowDatabase} checked={showDatabase}/>
             </div>
 
+            <div>
+                <b onClick={toggleShowLogs}>Logs:</b><br/>
+                <Toggle onChange={toggleShowLogs} checked={showLogs}/>
+            </div>
+
             <Label>
                 Search<br/>
                 <Input value={query} onChange={onQueryUpdate} />
@@ -290,7 +307,7 @@ export const Debugger: React.FunctionComponent = () => {
 
         {inspecting == null ? null :
             <div className="inspecting">
-                <ReactJsonView src={inspecting} name={false} collapseStringsAfterLength={360} displayDataTypes={false} />
+                <ReactJsonView src={inspecting} name={false} collapseStringsAfterLength={360} displayDataTypes={false} groupArraysAfterLength={10} />
                 {inspecting.type !== "database_query" ? null : <>
                     <pre><code>{inspecting.query}</code></pre>
                 </>}
@@ -376,13 +393,15 @@ const MessageRow: React.FunctionComponent<{
             {message.type !== "server_response" ? null : "Server Response"}
             {message.type !== "client_request" ? null : "Client Request"}
             {message.type !== "client_response" ? null : "Client Response"}
+            {message.type !== "log" ? null : "Log"}
         </div>
         <div className={"timestamp"}>
             {dateToTimeOfDayStringDetailed(message.timestamp)}
         </div>
         {"call" in message && !!message["call"] ? <div>{message["call"]}</div> : null}
+        <div>{message.importance}</div>
+        {message.type === "log" ? message.message : null}
         {message.type === "server_response" || message.type === "client_response" ?
             <div>{message.responseCode}</div> : null}
-        <div>{message.importance}</div>
     </div>;
 }

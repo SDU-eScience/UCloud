@@ -99,11 +99,11 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
             Product.Storage, ShareSupport>()
 
     val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
-        httpUpdate(SharesControl.baseContext, "approve")
+        httpUpdate(baseContext, "approve")
     }
 
     val reject = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("reject") {
-        httpUpdate(SharesControl.baseContext, "reject")
+        httpUpdate(baseContext, "reject")
     }
 
     override val create get() = super.create!!

@@ -105,8 +105,15 @@ class PathConverter(
         }
 
         if (storedName.startsWith(COLLECTION_SHARE_PREFIX)) {
-            return ucloudToInternal(shareCache.get(storedName)
+            val shareEntryPoint = (shareCache.get(storedName)
                 ?: throw RPCException("Unknown file", HttpStatusCode.NotFound))
+
+            println(shareEntryPoint)
+            println(withoutCollection)
+
+            return ucloudToInternal(
+                UCloudFile.create(joinPath(*(shareEntryPoint.components() + withoutCollection).toTypedArray()))
+            )
         } else if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
             return InternalFile(
                 buildString {
