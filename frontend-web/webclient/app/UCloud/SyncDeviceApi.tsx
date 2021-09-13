@@ -31,8 +31,8 @@ class SyncDeviceApi extends ResourceApi<SyncDevice, ProductSyncDevice, SyncDevic
 
     renderer: ItemRenderer<SyncDevice> = {
         MainTitle: ({resource}) =>
-            resource ? <>{resource.specification.product.id} ({(resource as SyncDevice).id})</> : <></>,
-        Icon: ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
+            resource ? <>{resource.specification.deviceId}</> : <></>,
+        Icon: ({resource, size}) => <Icon name={"hdd"} size={size}/>
     };
 
     constructor() {

@@ -49,7 +49,7 @@ class SyncFolderApi extends ResourceApi<SyncFolder, ProductSyncFolder, SyncFolde
     renderer: ItemRenderer<SyncFolder> = {
         MainTitle: ({resource}) =>
             resource ? <>{resource.specification.product.id} ({(resource as SyncFolder).id})</> : <></>,
-        Icon: ({resource, size}) => <Icon name={"fileSignatureSolid"} size={size}/>
+        Icon: ({resource, size}) => <Icon name={"ftFolder"} size={size}/>
     };
 
     constructor() {
