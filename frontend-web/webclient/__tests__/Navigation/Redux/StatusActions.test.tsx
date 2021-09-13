@@ -1,5 +1,5 @@
-import * as StatusActions from "Navigation/Redux/StatusActions";
-import {store} from "Utilities/ReduxUtilities";
+import * as StatusActions from "@/Navigation/Redux/StatusActions";
+import {store} from "@/Utilities/ReduxUtilities";
 
 describe("Status", () => {
     test("Update page title", () => {

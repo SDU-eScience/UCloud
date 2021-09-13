@@ -1,20 +1,20 @@
 import * as React from "react";
-import {Operation} from "ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {ListRowStat} from "ui-components/List";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {ListRowStat} from "@/ui-components/List";
 import {History as MetadataHistory} from "./History";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "UCloud/MetadataDocumentApi";
-import {FileMetadataTemplate} from "UCloud/MetadataNamespaceApi";
-import {MetadataNamespacesBrowse} from "Files/Metadata/Templates/Namespaces";
-import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
-import {SvgFt} from "ui-components/FtIcon";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {noopCall} from "Authentication/DataHook";
-import {useTraceUpdate} from "UtilityComponents";
-import {UFile} from "UCloud/FilesApi";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
+import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
+import {MetadataNamespacesBrowse} from "@/Files/Metadata/Templates/Namespaces";
+import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
+import {SvgFt} from "@/ui-components/FtIcon";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {noopCall} from "@/Authentication/DataHook";
+import {useTraceUpdate} from "@/UtilityComponents";
+import {UFile} from "@/UCloud/FilesApi";
 
 export const entityName = "Metadata";
 

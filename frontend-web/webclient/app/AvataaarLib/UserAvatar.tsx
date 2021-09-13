@@ -1,11 +1,11 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {Avatar} from "AvataaarLib";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Avatar} from "@/AvataaarLib";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
-import Flex from "ui-components/Flex";
-import {AvatarType} from "UserSettings/Avataaar";
+import Flex from "@/ui-components/Flex";
+import {AvatarType} from "@/UserSettings/Avataaar";
 
 const ClippedBox = styled(Flex)`
     overflow: hidden;

@@ -1,15 +1,15 @@
 import * as React from "react";
-import {inDevEnvironment, onDevSite} from "UtilityFunctions";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {WSFactory} from "Authentication/HttpClientInstance";
-import {WebSocketConnection} from "Authentication/ws";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {WebSocketConnection} from "@/Authentication/ws";
 import styled from "styled-components";
-import {dateToTimeOfDayStringDetailed} from "Utilities/DateUtilities";
+import {dateToTimeOfDayStringDetailed} from "@/Utilities/DateUtilities";
 import {default as ReactJsonView} from "react-json-view";
 import {useHistory, useLocation} from "react-router";
-import {getQueryParam} from "Utilities/URIUtilities";
-import {Toggle} from "ui-components/Toggle";
-import {Icon, Input, Label, Select} from "ui-components";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {Toggle} from "@/ui-components/Toggle";
+import {Icon, Input, Label, Select} from "@/ui-components";
 import {formatDistance, formatDuration} from "date-fns";
 
 type MessageImportance = "TELL_ME_EVERYTHING" | "IMPLEMENTATION_DETAIL" | "THIS_IS_NORMAL" | "THIS_IS_ODD" |

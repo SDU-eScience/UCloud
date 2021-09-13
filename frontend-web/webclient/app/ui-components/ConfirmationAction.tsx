@@ -1,13 +1,13 @@
 import styled from "styled-components";
 import * as React from "react";
-import {Button} from "ui-components/index";
+import {Button} from "@/ui-components/index";
 import {useCallback, useLayoutEffect, useRef, useState} from "react";
-import {ButtonProps} from "ui-components/Button";
-import Icon, {IconName} from "ui-components/Icon";
-import {shakeAnimation} from "UtilityComponents";
-import {doNothing} from "UtilityFunctions";
+import {ButtonProps} from "@/ui-components/Button";
+import Icon, {IconName} from "@/ui-components/Icon";
+import {shakeAnimation} from "@/UtilityComponents";
+import {doNothing} from "@/UtilityFunctions";
 import {fontSize, FontSizeProps} from "styled-system";
-import {selectHoverColor, ThemeColor} from "ui-components/theme";
+import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 
 const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string } & FontSizeProps>`
   --progress-border: var(--background, #f00);

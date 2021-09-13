@@ -1,5 +1,5 @@
-import {AppToolLogo} from "Applications/AppToolLogo";
-import {MainContainer} from "MainContainer/MainContainer";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import styled from "styled-components";
 import {
@@ -10,24 +10,24 @@ import {
     Markdown,
     OutlineButton,
     VerticalButtonGroup
-} from "ui-components";
-import ContainerForText from "ui-components/ContainerForText";
-import * as Heading from "ui-components/Heading";
-import {EllipsedText, TextSpan} from "ui-components/Text";
-import {dateToString} from "Utilities/DateUtilities";
-import {capitalized} from "UtilityFunctions";
+} from "@/ui-components";
+import ContainerForText from "@/ui-components/ContainerForText";
+import * as Heading from "@/ui-components/Heading";
+import {EllipsedText, TextSpan} from "@/ui-components/Text";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {capitalized} from "@/UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {useRouteMatch} from "react-router";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import * as UCloud from "UCloud";
-import {FavoriteToggle} from "Applications/FavoriteToggle";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import * as UCloud from "@/UCloud";
+import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {useEffect} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import HexSpin from "LoadingIcon/LoadingIcon";
-import {compute} from "UCloud";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {compute} from "@/UCloud";
 import Application = compute.Application;
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 const View: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;

@@ -1,16 +1,16 @@
 import * as React from "react";
-import {BulkRequest, provider} from "UCloud";
+import {BulkRequest, provider} from "@/UCloud";
 import ResourceDoc = provider.ResourceDoc;
-import {IconName} from "ui-components/Icon";
-import Flex from "ui-components/Flex";
-import * as Heading from "ui-components/Heading";
-import {ResourcePermissionEditor} from "ui-components/ResourcePermissionEditor";
-import Table, {TableCell, TableRow} from "ui-components/Table";
-import {dateToString} from "Utilities/DateUtilities";
-import {prettierString, shortUUID} from "UtilityFunctions";
-import {TextSpan} from "ui-components/Text";
-import {Section} from "ui-components/Section";
-import Grid from "ui-components/Grid";
+import {IconName} from "@/ui-components/Icon";
+import Flex from "@/ui-components/Flex";
+import * as Heading from "@/ui-components/Heading";
+import {ResourcePermissionEditor} from "@/ui-components/ResourcePermissionEditor";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {prettierString, shortUUID} from "@/UtilityFunctions";
+import {TextSpan} from "@/ui-components/Text";
+import {Section} from "@/ui-components/Section";
+import Grid from "@/ui-components/Grid";
 
 interface ResourcePageProps<T extends ResourceDoc> {
     entityName: string;

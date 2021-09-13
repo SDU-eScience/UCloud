@@ -1,10 +1,10 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {PropsWithChildren, useEffect, useState} from "react";
-import HexSpin from "LoadingIcon/LoadingIcon";
-import * as Heading from "ui-components/Heading";
-import {Box, Button} from "ui-components";
-import {useEffectSkipMount} from "UtilityFunctions";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
+import * as Heading from "@/ui-components/Heading";
+import {Box, Button} from "@/ui-components";
+import {useEffectSkipMount} from "@/UtilityFunctions";
 
 export type PageRenderer<T> = (page: T[]) => React.ReactNode;
 

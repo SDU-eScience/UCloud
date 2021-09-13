@@ -1,17 +1,17 @@
 import * as React from "react";
-import * as Pagination from "Pagination";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {file, PageV2, provider} from "UCloud";
+import * as Pagination from "@/Pagination";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {file, PageV2, provider} from "@/UCloud";
 import Share = file.orchestrator.Share;
 import sharesApi = file.orchestrator.shares;
 import filesApi = file.orchestrator.files;
-import {useProjectId} from "Project";
+import {useProjectId} from "@/Project";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import HexSpin from "LoadingIcon/LoadingIcon";
-import MainContainer from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
+import MainContainer from "@/MainContainer/MainContainer";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {
     Box,
     Card,
@@ -22,27 +22,27 @@ import {
     RadioTilesContainer,
     SelectableText,
     SelectableTextWrapper, Text
-} from "ui-components";
-import Warning from "ui-components/Warning";
-import {PageRenderer} from "Pagination/PaginationV2";
+} from "@/ui-components";
+import Warning from "@/ui-components/Warning";
+import {PageRenderer} from "@/Pagination/PaginationV2";
 import styled from "styled-components";
-import * as Heading from "ui-components/Heading";
-import {getFilenameFromPath} from "Utilities/FileUtilities";
+import * as Heading from "@/ui-components/Heading";
+import {getFilenameFromPath} from "@/Utilities/FileUtilities";
 import {FilePermission} from "./";
 import Input from "../ui-components/Input";
 import Button from "../ui-components/Button";
-import {defaultErrorHandler, extensionFromPath, preventDefault, useDidMount} from "UtilityFunctions";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {useAvatars} from "AvataaarLib/hook";
-import {groupBy} from "Utilities/CollectionUtilities";
-import {bulkRequestOf} from "DefaultObjects";
+import {defaultErrorHandler, extensionFromPath, preventDefault, useDidMount} from "@/UtilityFunctions";
+import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {groupBy} from "@/Utilities/CollectionUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
 import UFile = file.orchestrator.UFile;
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import ResourceAclEntry = provider.ResourceAclEntry;
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText

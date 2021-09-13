@@ -23,9 +23,11 @@
         "resolveJsonModule": true,
         "sourceMap": true,
         "baseUrl": ".",
-        "types": ["vite/client"],
+        "types": [
+            "vite/client"
+        ],
         "paths": {
-            "*": [
+            "@/*": [
                 "./app/*"
             ]
         }

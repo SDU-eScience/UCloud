@@ -1,26 +1,26 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {HeaderSearchType, KeyCode} from "DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
 import {HeaderStateToProps} from "Navigation";
-import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
-import Notification from "Notifications";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
+import Notification from "@/Notifications";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import * as SearchActions from "Search/Redux/SearchActions";
+import * as SearchActions from "@/Search/Redux/SearchActions";
 import styled from "styled-components";
-import * as ui from "ui-components";
-import {DevelopmentBadgeBase} from "ui-components/Badge";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Dropdown} from "ui-components/Dropdown";
-import Link from "ui-components/Link";
-import {TextSpan} from "ui-components/Text";
-import {ThemeToggler} from "ui-components/ThemeToggle";
-import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import * as ui from "@/ui-components";
+import {DevelopmentBadgeBase} from "@/ui-components/Badge";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Dropdown} from "@/ui-components/Dropdown";
+import Link from "@/ui-components/Link";
+import {TextSpan} from "@/ui-components/Text";
+import {ThemeToggler} from "@/ui-components/ThemeToggle";
+import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {searchPage} from "@/Utilities/SearchUtilities";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {
     displayErrorMessageOrDefault,
     inDevEnvironment,
@@ -28,15 +28,15 @@ import {
     prettierString,
     useFrameHidden,
     stopPropagationAndPreventDefault, doNothing
-} from "UtilityFunctions";
+} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
-import {ContextSwitcher} from "Project/ContextSwitcher";
-import {NewsPost} from "Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
-import {VersionManager} from "VersionManager/VersionManager";
-import * as Applications from "Applications"
-import {useGlobal} from "Utilities/ReduxHooks";
-import BackgroundTasks from "BackgroundTasks/BackgroundTask";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
+import {VersionManager} from "@/VersionManager/VersionManager";
+import * as Applications from "@/Applications"
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;

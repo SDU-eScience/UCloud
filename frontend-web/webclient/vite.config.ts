@@ -1,6 +1,6 @@
 import {defineConfig, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
-import tsconfigPaths from "vite-tsconfig-paths";
+import path from "path";
 import CONF from "./site.config.json";
 
 // https://vitejs.dev/config/
@@ -20,12 +20,17 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
     }
 
     return defineConfig({
-        clearScreen: true,
+        clearScreen: false,
         define: {
             DEVELOPMENT_ENV: mode !== "production",
         },
         assetsInclude: "./app/Assets/",
-        plugins: [tsconfigPaths(), reactRefresh()],
+        plugins: [reactRefresh()],
+        resolve: {
+            alias: {
+                "@": path.resolve(__dirname, "./app")
+            }
+        },
         server: mode === "production" ? {port: 9000} : {
             port: 9000,
             cors: {

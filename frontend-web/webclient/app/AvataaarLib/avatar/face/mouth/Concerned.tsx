@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {generateId as uniqueId} from 'UtilityFunctions';
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 export default class Concerned extends React.Component {
   static optionValue = 'Concerned';

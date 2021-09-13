@@ -1,15 +1,15 @@
 import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Heading from "ui-components/Heading";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {Button, Input, Label, Markdown} from "ui-components";
-import * as UCloud from "UCloud";
-import {compute} from "UCloud";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Heading from "@/ui-components/Heading";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Button, Input, Label, Markdown} from "@/ui-components";
+import * as UCloud from "@/UCloud";
+import {compute} from "@/UCloud";
 import Job = compute.Job;
 import {useRef} from "react";
-import {JobState} from "Applications/Jobs";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {bulkRequestOf} from "DefaultObjects";
+import {JobState} from "@/Applications/Jobs";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AppAauAdmin: React.FunctionComponent = props => {

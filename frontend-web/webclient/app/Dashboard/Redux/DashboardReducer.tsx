@@ -1,5 +1,5 @@
-import {DashboardStateProps} from "Dashboard";
-import {initDashboard} from "DefaultObjects";
+import {DashboardStateProps} from "@/Dashboard";
+import {initDashboard} from "@/DefaultObjects";
 import {DashboardActions} from "./DashboardActions";
 
 export const SET_ALL_LOADING = "SET_ALL_LOADING";

@@ -1,4 +1,4 @@
-import {dialogStore, Dialog as IDialog} from "Dialog/DialogStore";
+import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";

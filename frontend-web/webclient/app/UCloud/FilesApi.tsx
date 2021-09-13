@@ -6,12 +6,12 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate, UCLOUD_CORE
-} from "UCloud/ResourceApi";
+} from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "Files";
-import {BulkRequest, BulkResponse} from "UCloud/index";
-import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Box, Button, FtIcon, Link} from "ui-components";
+import {BulkRequest, BulkResponse} from "@/UCloud/index";
+import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Box, Button, FtIcon, Link} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -19,28 +19,28 @@ import {
     readableUnixMode,
     sizeToHumanReadableWithUnit,
     sizeToString
-} from "Utilities/FileUtilities";
-import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
-import {Operation} from "ui-components/Operation";
-import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
-import {bulkRequestOf} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
-import {FilesBrowse} from "Files/Files";
-import {ResourceProperties} from "Resource/Properties";
-import {ItemRenderer} from "ui-components/Browse";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {MetadataBrowse} from "Files/Metadata/Documents/Browse";
-import {FileMetadataHistory} from "UCloud/MetadataDocumentApi";
-import {FileFavoriteToggle} from "Files/FavoriteToggle";
-import {PrettyFilePath} from "Files/FilePath";
-import {dateToString} from "Utilities/DateUtilities";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {OpenWith} from "Applications/OpenWith";
-import {FilePreview} from "Files/Preview";
-import {Sensitivity} from "UtilityComponents";
-import {ProductStorage} from "Accounting";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {ListRowStat} from "ui-components/List";
+} from "@/Utilities/FileUtilities";
+import {doNothing, extensionFromPath, removeTrailingSlash} from "@/UtilityFunctions";
+import {Operation} from "@/ui-components/Operation";
+import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {ResourceProperties} from "@/Resource/Properties";
+import {ItemRenderer} from "@/ui-components/Browse";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {MetadataBrowse} from "@/Files/Metadata/Documents/Browse";
+import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
+import {FileFavoriteToggle} from "@/Files/FavoriteToggle";
+import {PrettyFilePath} from "@/Files/FilePath";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {OpenWith} from "@/Applications/OpenWith";
+import {FilePreview} from "@/Files/Preview";
+import {Sensitivity} from "@/UtilityComponents";
+import {ProductStorage} from "@/Accounting";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {ListRowStat} from "@/ui-components/List";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 

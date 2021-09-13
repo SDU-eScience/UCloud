@@ -1,10 +1,10 @@
 import * as React from "react";
-import {default as FileCollectionsApi, FileCollection} from "UCloud/FileCollectionsApi";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
+import {default as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
 import {useCallback, useMemo} from "react";
-import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
-import {bulkRequestOf} from "DefaultObjects";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export const FileCollectionBrowse: React.FunctionComponent<{
     onSelect?: (selection: FileCollection) => void;

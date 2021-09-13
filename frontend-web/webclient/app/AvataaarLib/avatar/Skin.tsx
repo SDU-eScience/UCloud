@@ -1,5 +1,5 @@
 import * as React from "react";
-import {SkinColors} from "UserSettings/AvatarOptions";
+import {SkinColors} from "@/UserSettings/AvatarOptions";
 
 export interface Props {
   maskID: string;

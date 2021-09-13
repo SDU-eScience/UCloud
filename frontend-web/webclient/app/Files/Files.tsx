@@ -1,22 +1,22 @@
 import * as React from "react";
-import {default as FilesApi, UFile} from "UCloud/FilesApi";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
+import {default as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {getParentPath, pathComponents} from "Utilities/FileUtilities";
-import {joinToString, removeTrailingSlash} from "UtilityFunctions";
-import FileCollectionsApi, {FileCollection} from "UCloud/FileCollectionsApi";
-import {useCloudAPI} from "Authentication/DataHook";
-import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
+import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
+import FileCollectionsApi, {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
-import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
-import {Flex, Icon, theme} from "ui-components";
-import {PageV2} from "UCloud";
-import {ListV2} from "Pagination";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {Flex, Icon, theme} from "@/ui-components";
+import {PageV2} from "@/UCloud";
+import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 
 export const FilesBrowse: React.FunctionComponent<{

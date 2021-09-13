@@ -1,4 +1,4 @@
-import {initStatus, StatusReduxObject} from "DefaultObjects";
+import {initStatus, StatusReduxObject} from "@/DefaultObjects";
 import {PRODUCT_NAME} from "../../../site.config.json";
 import {StatusActions} from "./StatusActions";
 

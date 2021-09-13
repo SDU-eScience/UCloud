@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Flex, Relative} from "ui-components";
+import {Flex, Relative} from "@/ui-components";
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
 

@@ -1,22 +1,22 @@
 import * as React from "react";
-import {BoolParameter, BoolSetter, BoolValidator} from "Applications/Jobs/Widgets/Bool";
-import * as UCloud from "UCloud";
-import * as Heading from "ui-components/Heading";
-import {compute} from "UCloud";
+import {BoolParameter, BoolSetter, BoolValidator} from "@/Applications/Jobs/Widgets/Bool";
+import * as UCloud from "@/UCloud";
+import * as Heading from "@/ui-components/Heading";
+import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import ApplicationParameter = compute.ApplicationParameter;
-import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import styled from "styled-components";
-import {EllipsedText, TextP, TextSpan} from "ui-components/Text";
+import {EllipsedText, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
-import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
-import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
-import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
-import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
-import {IngressParameter, IngressSetter, IngressValidator} from "Applications/Jobs/Widgets/Ingress";
-import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "Applications/Jobs/Widgets/NetworkIP";
+import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "@/Applications/Jobs/Widgets/GenericText";
+import {EnumParameter, EnumSetter, EnumValidator} from "@/Applications/Jobs/Widgets/Enum";
+import {PeerParameter, PeerSetter, PeerValidator} from "@/Applications/Jobs/Widgets/Peer";
+import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/Jobs/Widgets/License";
+import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
+import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;

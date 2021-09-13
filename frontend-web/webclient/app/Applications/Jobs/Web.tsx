@@ -1,15 +1,15 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {useCloudAPI} from "Authentication/DataHook";
-import {isAbsoluteUrl, useNoFrame} from "UtilityFunctions";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {isAbsoluteUrl, useNoFrame} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useParams} from "react-router";
 import { useEffect } from "react";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export const Web: React.FunctionComponent = () => {
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();

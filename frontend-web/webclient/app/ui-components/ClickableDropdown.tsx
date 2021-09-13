@@ -1,8 +1,8 @@
-import {KeyCode} from "DefaultObjects";
+import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import {Icon} from "ui-components";
-import * as Text from "ui-components/Text";
+import {Icon} from "@/ui-components";
+import * as Text from "@/ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";

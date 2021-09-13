@@ -1,16 +1,16 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
-import Flex from "ui-components/Flex";
+import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {LicenseBrowse} from "Applications/Licenses";
-import {License} from "UCloud/LicenseApi";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {LicenseBrowse} from "@/Applications/Licenses";
+import {License} from "@/UCloud/LicenseApi";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;

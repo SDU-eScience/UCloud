@@ -1,8 +1,8 @@
 import * as React from "react";
 import styled, {keyframes} from "styled-components";
-import {Box} from "ui-components";
-import {addStandardDialog} from "UtilityComponents";
-import {inDevEnvironment} from "UtilityFunctions";
+import {Box} from "@/ui-components";
+import {addStandardDialog} from "@/UtilityComponents";
+import {inDevEnvironment} from "@/UtilityFunctions";
 
 const TIMEOUT_DURATION = 180_000;
 

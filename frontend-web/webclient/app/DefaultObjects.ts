@@ -1,29 +1,29 @@
-import {DashboardStateProps} from "Dashboard";
-import {Notification} from "Notifications";
-import * as ProjectRedux from "Project/Redux";
+import {DashboardStateProps} from "@/Dashboard";
+import {Notification} from "@/Notifications";
+import * as ProjectRedux from "@/Project/Redux";
 import {Reducer} from "redux";
-import {SimpleSearchStateProps} from "Search";
+import {SimpleSearchStateProps} from "@/Search";
 import {SidebarOption} from "Types";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Upload} from "Files/Upload";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {ProjectCache} from "Project/cache";
-import {APICallStateWithParams} from "Authentication/DataHook";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Upload} from "@/Files/Upload";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {ProjectCache} from "@/Project/cache";
+import {APICallStateWithParams} from "@/Authentication/DataHook";
 import {
     ListGroupMembersRequestProps,
     ListOutgoingInvitesRequest,
     OutgoingInvite,
     ProjectMember,
     UserInProject
-} from "Project";
-import {GroupWithSummary} from "Project/GroupList";
-import {Product} from "Accounting";
-import * as UCloud from "UCloud";
-import {BulkRequest, BulkResponse, PageV2} from "UCloud";
+} from "@/Project";
+import {GroupWithSummary} from "@/Project/GroupList";
+import {Product} from "@/Accounting";
+import * as UCloud from "@/UCloud";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
 import {useEffect} from "react";
-import {useGlobal} from "Utilities/ReduxHooks";
-import {doNothing} from "UtilityFunctions";
-import {UCLOUD_CORE} from "UCloud/ResourceApi";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {doNothing} from "@/UtilityFunctions";
+import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 
 export enum KeyCode {
     ENTER = 13,

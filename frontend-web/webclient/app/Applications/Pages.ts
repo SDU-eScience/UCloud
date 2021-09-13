@@ -1,5 +1,5 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import {compute} from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {compute} from "@/UCloud";
 import NameAndVersion = compute.NameAndVersion;
 
 export const view = (name: string, version: string): string =>

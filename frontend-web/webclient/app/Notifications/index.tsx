@@ -1,28 +1,28 @@
-import {WSFactory} from "Authentication/HttpClientInstance";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject} from "DefaultObjects";
+import {NotificationsReduxObject} from "@/DefaultObjects";
 import * as React from "react";
 import {connect, useSelector} from "react-redux";
 import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
-import {Snack} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Snack} from "@/Snackbar/Snackbars";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {IconName} from "ui-components/Icon";
-import {TextSpan} from "ui-components/Text";
-import theme, {Theme, ThemeColor} from "ui-components/theme";
-import * as UF from "UtilityFunctions";
+import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {IconName} from "@/ui-components/Icon";
+import {TextSpan} from "@/ui-components/Text";
+import theme, {Theme, ThemeColor} from "@/ui-components/theme";
+import * as UF from "@/UtilityFunctions";
 import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
     receiveSingleNotification
 } from "./Redux/NotificationsActions";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {getProjectNames} from "Utilities/ProjectUtilities";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {useProjectStatus} from "@/Project/cache";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
 
 interface NotificationProps {
     items: Notification[];

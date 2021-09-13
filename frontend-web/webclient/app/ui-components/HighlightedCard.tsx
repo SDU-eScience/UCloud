@@ -1,11 +1,11 @@
 import * as React from "react";
-import Box from "ui-components/Box";
-import Flex from "ui-components/Flex";
-import Card from "ui-components/Card";
-import * as Heading from "ui-components/Heading";
+import Box from "@/ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import Card from "@/ui-components/Card";
+import * as Heading from "@/ui-components/Heading";
 import Icon, {IconName} from "./Icon";
 import theme, {ThemeColor} from "./theme";
-import Spinner from "LoadingIcon/LoadingIcon";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 
 const HighlightedCard: React.FunctionComponent<{
     title?: React.ReactNode;

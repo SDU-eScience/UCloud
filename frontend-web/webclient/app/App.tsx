@@ -1,4 +1,4 @@
-import MainApp from "Core";
+import MainApp from "@/Core";
 import * as React from "react";
 import ReactDOM from "react-dom";
 

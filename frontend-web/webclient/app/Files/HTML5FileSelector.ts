@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 // The code has since been, quite heavily, modified to improve performance.
 
-import {doNothing} from "UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 
 interface FileSystemEntry {
     readonly filesystem: unknown,

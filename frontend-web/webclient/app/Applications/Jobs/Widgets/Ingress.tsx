@@ -1,17 +1,17 @@
 import * as React from "react";
-import {Flex} from "ui-components";
+import {Flex} from "@/ui-components";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import * as UCloud from "UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications/Jobs/Widgets/index";
-import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import * as UCloud from "@/UCloud";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "Authentication/DataHook";
-import IngressBrowse from "Applications/Ingresses/Browse";
-import IngressApi, {Ingress} from "UCloud/IngressApi";
+import {callAPI} from "@/Authentication/DataHook";
+import IngressBrowse from "@/Applications/Ingresses/Browse";
+import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;

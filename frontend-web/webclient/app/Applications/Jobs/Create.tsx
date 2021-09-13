@@ -1,38 +1,38 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import * as UCloud from "UCloud";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import * as UCloud from "@/UCloud";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useHistory} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import {AppHeader} from "Applications/View";
-import {Box, Button, ContainerForText, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
-import Link from "ui-components/Link";
-import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
-import * as Heading from "ui-components/Heading";
-import {FolderResource} from "Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource} from "Applications/Jobs/Resources/Ingress";
-import {PeerResource} from "Applications/Jobs/Resources/Peers";
-import {createSpaceForLoadedResources, injectResources, useResource} from "Applications/Jobs/Resources";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {AppHeader} from "@/Applications/View";
+import {Box, Button, ContainerForText, Grid, Icon, OutlineButton, VerticalButtonGroup} from "@/ui-components";
+import Link from "@/ui-components/Link";
+import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import * as Heading from "@/ui-components/Heading";
+import {FolderResource} from "@/Applications/Jobs/Resources/Folders";
+import {getProviderField, IngressResource} from "@/Applications/Jobs/Resources/Ingress";
+import {PeerResource} from "@/Applications/Jobs/Resources/Peers";
+import {createSpaceForLoadedResources, injectResources, useResource} from "@/Applications/Jobs/Resources";
 import {
     ReservationErrors,
     ReservationParameter,
     setReservation,
     validateReservation
-} from "Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
-import {addStandardDialog, WalletWarning} from "UtilityComponents";
-import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {FavoriteToggle} from "Applications/FavoriteToggle";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "DefaultObjects";
-import {getQueryParam} from "Utilities/URIUtilities";
-import {default as JobsApi, JobSpecification} from "UCloud/JobsApi";
-import {BulkResponse, FindByStringId} from "UCloud";
-import {explainUsage, Product, usageExplainer} from "Accounting";
+} from "@/Applications/Jobs/Widgets/Reservation";
+import {displayErrorMessageOrDefault, extractErrorCode} from "@/UtilityFunctions";
+import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
+import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
+import LoadingIcon from "@/LoadingIcon/LoadingIcon";
+import {FavoriteToggle} from "@/Applications/FavoriteToggle";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {NetworkIPResource} from "@/Applications/Jobs/Resources/NetworkIPs";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
+import {BulkResponse, FindByStringId} from "@/UCloud";
+import {explainUsage, Product, usageExplainer} from "@/Accounting";
 
 interface InsufficientFunds {
     why?: string;
