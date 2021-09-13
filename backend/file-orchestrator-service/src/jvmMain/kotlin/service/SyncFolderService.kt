@@ -47,6 +47,8 @@ class SyncFolderService(
             listOf(Permission.Read)
         )
 
+        println(fileCollections)
+
         session
             .sendPreparedStatement(
                 {
@@ -66,21 +68,27 @@ class SyncFolderService(
                             }
 
                         }
+                        into("devices") {
+                            "UCLOUD_DEVICE_ID"
+                        }
                     }
+                    println(idWithSpec.first().second.path)
                 },
                 """
                     insert into file_orchestrator.sync_folders (resource, device_id, path, sync_type)
-                    select unnest(:ids::bigint[]), 'UCLOUD_DEVICE', unnest(:paths::text[]), unnest(:permissions::text[])
+                    select unnest(:ids::bigint[]), unnest(:devices::text[]), unnest(:paths::text[]), unnest(:permissions::text[])
                     on conflict (resource) do nothing
                 """
             )
     }
 
     override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
+        println("Browsing syncfolders")
+        println("query: $query, filter_path: ${flags?.filterByPath}")
         return PartialQuery(
             {
                 setParameter("query", query)
-                setParameter("filter_path", flags?.filterByPath?.id)
+                setParameter("filter_path", flags?.filterByPath)
             },
             """
                 select *

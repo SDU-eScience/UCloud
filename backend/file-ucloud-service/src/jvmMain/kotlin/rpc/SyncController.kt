@@ -49,8 +49,8 @@ class SyncController(
 
         implement(UCloudSyncFolders.delete) {
             println("folder remove called")
-            syncService.removeFolders(request)
-            ok(BulkResponse(request.items.map {}))
+            //syncService.removeFolders(request)
+            ok(BulkResponse(request.items.map { }))
         }
 
         implement(UCloudSyncFolders.updateAcl) {

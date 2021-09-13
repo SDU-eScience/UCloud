@@ -1,7 +1,5 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
@@ -36,8 +34,8 @@ data class SyncFolder(
 
     @Serializable
     data class Status(
-        val deviceId: String?,
-        val syncType: SynchronizationType,
+        val deviceId: String? = null,
+        val syncType: SynchronizationType? = null,
         override var resolvedSupport: ResolvedSupport<Product.Synchronization, SyncFolderSupport>? = null,
         override var resolvedProduct: Product.Synchronization? = null
     ) : ResourceStatus<Product.Synchronization, SyncFolderSupport>
@@ -65,7 +63,7 @@ data class SyncFolderIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderId: String? = null,
-    val filterByPath: FindByPath? = null
+    val filterByPath: String? = null
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

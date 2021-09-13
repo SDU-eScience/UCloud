@@ -13,9 +13,9 @@ import { copyToClipboard } from "UtilityFunctions";
 import { useEffect } from "react";
 import SyncDeviceApi from "UCloud/SyncDeviceApi";
 import { Product, ProductSyncFolder } from "Accounting";
-import { accounting } from "UCloud";
 import { snackbarStore } from "Snackbar/SnackbarStore";
 import { ListRow } from "ui-components/List";
+import { BulkResponse, PageV2 } from "UCloud";
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText
@@ -34,8 +34,8 @@ export const SynchronizationSettings: React.FunctionComponent<{
 }> = ({file}) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [devicePage, setDevicePage] = useState(0);
-    const [folder, fetchFolder] = useCloudAPI<SyncFolder | undefined>(
-        SyncFolderApi.browse({itemsPerPage: 25}),
+    const [folder, fetchFolder] = useCloudAPI<PageV2<SyncFolder> | undefined>(
+        SyncFolderApi.browse({itemsPerPage: 1, filterByPath: file.id }),
         undefined
     );
 
@@ -54,23 +54,17 @@ export const SynchronizationSettings: React.FunctionComponent<{
         emptyPageV2
     );
 
-    /*const [devices, fetchDevices] = useCloudAPI<PageV2<file.SynchronizationDevice>>(
-        sync.browseDevices({ provider, itemsPerPage: 25, next: undefined }),
-        emptyPageV2
-    );*/
-    const [synchronizedFolder, setSynchronizedFolder] = useState<undefined>(undefined);
-    //const devices = emptyPageV2;
+    const [syncFolder, setSyncFolder] = useState<SyncFolder|undefined>(undefined);
 
     const loadMore = useCallback(() => {
         if (devices.data?.next) {
-            fetchDevices(SyncDeviceApi.browse({itemsPerPage: 25, next: devices.data.next}));
+            fetchDevices(SyncDeviceApi.browse({ itemsPerPage: 25, next: devices.data.next }));
         }
     }, [devices.data?.next]);
 
 
     const deviceIdRef = useRef<HTMLInputElement>(null);
     const [loading, invokeCommand] = useCloudCommand();
-    //const [synchronizedFolder, setSynchronizedFolder] = useState<file.SynchronizedFolder|undefined>(undefined);
     const [ucloudDeviceId, setUcloudDeviceId] = useState<string|undefined>(undefined);
     const addDevice = async e => {
         e.preventDefault();
@@ -85,59 +79,57 @@ export const SynchronizationSettings: React.FunctionComponent<{
                 ), {defaultErrorHandler: false});
             }
             SyncDeviceApi
-            //await invokeCommand(sync.addDevice(bulkRequestOf({ id: deviceIdRef.current.value, provider })));
-            //fetchDevices(sync.browseDevices({ provider, itemsPerPage: 25, next: undefined}), true);
-            //deviceIdRef.current.value = "";
+            fetchDevices(SyncDeviceApi.browse({ itemsPerPage: 25, next: undefined}));
+            deviceIdRef.current.value = "";
             snackbarStore.addSuccess("Added device", false);
         } else {
             snackbarStore.addFailure("Device ID cannot be empty", false);
         }
     };
 
-    /*const removeDevice = async (id: string) => {
-        await invokeCommand(sync.removeDevice(bulkRequestOf({ id, provider })));
-        fetchDevices(sync.browseDevices({ provider, itemsPerPage: 25, next: undefined }), true);
+    const removeDevice = async (id: string) => {
+        await invokeCommand(SyncDeviceApi.remove(bulkRequestOf({  id })));
+        fetchDevices(SyncDeviceApi.browse({ itemsPerPage: 25, next: undefined}));
         snackbarStore.addSuccess("Removed device", false);
-    };*/
+    };
 
-    /*
     useEffect(() => {
-        if (synchronizedFolder) {
-            setUcloudDeviceId(synchronizedFolder.device);
+        if (syncFolder && syncFolder.status) {
+            setUcloudDeviceId(syncFolder.status.deviceId);
         }
-    }, [synchronizedFolder]);
+    }, [syncFolder]);
 
     useEffect(() => {
-        if (folder.data) {
-            setSynchronizedFolder(folder.data);
+        if (folder.data && folder.data.items.length == 1) {
+            setSyncFolder(folder.data.items[0]);
         }
     }, [folder]);
 
-    */
-
     const toggleSynchronizeFolder = async () => {
-        if (!synchronizedFolder) {
+        if (!syncFolder) {
             if (folderProducts.data?.productsByProvider["ucloud"][0].support) {
                 await invokeCommand(
                     SyncFolderApi.create(
                         bulkRequestOf({ path: file.id, product: folderProducts.data.productsByProvider["ucloud"][0].support.product})
-                    ), {defaultErrorHandler: false});
-                //fetchFolder(SyncFolderApi.browse());
+                    ), {defaultErrorHandler: false}
+                );
+                fetchFolder(SyncFolderApi.browse({ itemsPerPage: 1, filterByPath: file.id }));
 
             } else {
-
                 await invokeCommand(
                     SyncFolderApi.create(
                         bulkRequestOf({ path: file.id, product: placeholderProduct()})
-                    ), {defaultErrorHandler: false});
-                //fetchFolder(SyncFolderApi.retrieve({ id: "1002" }));
+                    ), {defaultErrorHandler: false}
+                );
+                fetchFolder(SyncFolderApi.browse({ itemsPerPage: 1, filterByPath: file.id}));
             }
 
         } else {
-            if (folder.data) {
-                await invokeCommand(SyncFolderApi.remove(bulkRequestOf({ id: folder.data.id })));
+            if (syncFolder) {
+                console.log(syncFolder.id);
+                await invokeCommand(SyncFolderApi.remove(bulkRequestOf({ id: syncFolder.id })));
                 setUcloudDeviceId(undefined);
-                setSynchronizedFolder(undefined);
+                setSyncFolder(undefined);
             }
         }
     };
@@ -168,14 +160,12 @@ export const SynchronizationSettings: React.FunctionComponent<{
                                         key={d.id}
                                         left={
                                             <>
-                                                {d.id}
+                                                {d.specification.deviceId}
                                             </>
                                         } 
                                         right={
                                             <>
-                                                <Button color="red">
-                                                    {// onClick={() => removeDevice(d.id)}>
-                                                    }
+                                                <Button color="red" onClick={() => removeDevice(d.id)}>
                                                     <Icon name="trash" size="16px"/>
                                                 </Button>
                                             </>
@@ -193,7 +183,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                 <Box mt="30px" mb="30px">
                     <Label>
                         <Checkbox
-                            checked={synchronizedFolder !== undefined}
+                            checked={syncFolder !== undefined}
                             onChange={() => toggleSynchronizeFolder()}
                         />
                         <TextSpan fontSize={2}>Add {file.id} to synchronization</TextSpan>

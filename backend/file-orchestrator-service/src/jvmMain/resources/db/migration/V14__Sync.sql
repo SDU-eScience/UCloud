@@ -25,10 +25,10 @@ create or replace function file_orchestrator.sync_folder_to_json(
 ) returns jsonb language sql as $$
 select jsonb_build_object(
     'specification', jsonb_build_object(
-        'deviceId', folder_in.device_id
+        'path', folder_in.path
     ),
     'status', jsonb_build_object(
-        'path', folder_in.path,
+        'deviceId', folder_in.device_id,
         'syncType', folder_in.sync_type
     )
 );

@@ -59,8 +59,9 @@ class SyncService(
     }
 
     private suspend fun chooseFolderDevice(session: AsyncDBConnection): LocalSyncthingDevice {
-        return folderDeviceCache.get(Unit)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
+        //return folderDeviceCache.get(Unit)
+        //    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
+        return LocalSyncthingDevice("UCloud", id = "UCLOUD_DEVICE_ID")
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
@@ -148,9 +149,9 @@ class SyncService(
             }*/
         }
 
-        if (affectedRows > 0) {
+        /*if (affectedRows > 0) {
             syncthing.writeConfig(affectedDevices.toList())
-        }
+        }*/
 
         return BulkResponse(emptyList())
     }
@@ -263,7 +264,8 @@ class SyncService(
     }*/
 
     suspend fun addDevices(request: BulkRequest<SyncDevice>): BulkResponse<FindByStringId?> {
-        val affectedRows = db.withSession { session ->
+        println("addDevice called")
+        /*val affectedRows = db.withSession { session ->
             request.items.sumOf { item ->
                 if (syncthing.config.devices.any { it.id == item.id }) {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -283,11 +285,11 @@ class SyncService(
                     """
                 ).rowsAffected
             }
-        }
+        }*/
 
-        if (affectedRows > 0) {
-            syncthing.writeConfig()
-        }
+        //if (affectedRows > 0) {
+        //    syncthing.writeConfig()
+        //}
 
         return BulkResponse(emptyList())
     }
