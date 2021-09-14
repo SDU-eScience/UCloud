@@ -9,6 +9,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
+import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
+import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseResponse
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -16,10 +18,10 @@ import java.io.File
 import java.util.*
 
 object SynchronizedFoldersTable : SQLTable("synchronized_folders") {
-    val resource = int("resource", notNull = true)
+    val resource = long("resource", notNull = true)
     val device = varchar("device_id", 64, notNull = true)
     val path = text("path", notNull = true)
-    val accessType = varchar("access_type", 20, notNull = true)
+    val syncType = varchar("sync_type", 20, notNull = true)
     val user = text("user_id", notNull = true)
 }
 
@@ -239,28 +241,28 @@ class SyncService(
         }
     }
 
-    /*suspend fun browseFolders(
-        request: SynchronizationBrowseFoldersRequest
-    ): List<SynchronizedFolderBrowseItem> {
+    suspend fun browseFolders(
+        device: String
+    ): List<SyncFolderBrowseItem> {
         return db.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("device", request.device)
+                    setParameter("device", device)
                 },
                 """
-                    select id, path, access_type
+                    select resource, path, sync_type
                     from file_orchestrator.sync_folders
                     where device_id = :device
                 """
             ).rows.map { folder ->
-                SynchronizedFolderBrowseItem(
-                    folder.getField(SynchronizedFoldersTable.id),
+                SyncFolderBrowseItem(
+                    folder.getField(SynchronizedFoldersTable.resource),
                     folder.getField(SynchronizedFoldersTable.path),
-                    SynchronizationType.valueOf(folder.getField(SynchronizedFoldersTable.accessType))
+                    SynchronizationType.valueOf(folder.getField(SynchronizedFoldersTable.syncType))
                 )
             }
         }
-    }*/
+    }
 
     suspend fun addDevices(request: BulkRequest<SyncDevice>): BulkResponse<FindByStringId?> {
         println("addDevice called")

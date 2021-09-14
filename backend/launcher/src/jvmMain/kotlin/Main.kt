@@ -33,6 +33,7 @@ import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
+import dk.sdu.cloud.sync.mounter.SyncMounterService
 import dk.sdu.cloud.task.TaskService
 import io.ktor.application.*
 import io.ktor.http.*

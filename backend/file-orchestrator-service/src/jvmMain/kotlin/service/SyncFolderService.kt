@@ -72,7 +72,6 @@ class SyncFolderService(
                             "UCLOUD_DEVICE_ID"
                         }
                     }
-                    println(idWithSpec.first().second.path)
                 },
                 """
                     insert into file_orchestrator.sync_folders (resource, device_id, path, sync_type)
@@ -84,18 +83,21 @@ class SyncFolderService(
 
     override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
         println("Browsing syncfolders")
-        println("query: $query, filter_path: ${flags?.filterByPath}")
+        println("query: $query, filter_path: ${flags?.filterByPath}, filter_device: ${flags?.filterDeviceId}")
         return PartialQuery(
             {
                 setParameter("query", query)
                 setParameter("filter_path", flags?.filterByPath)
+                setParameter("filter_devices", flags?.filterDeviceId)
             },
             """
                 select *
                 from file_orchestrator.sync_folders
                 where
                     (:query::text is null or path ilike ('%' || :query || '%')) and
-                    (:filter_path::text is null or :filter_path = path)
+                    (:filter_path::text is null or :filter_path = path) and
+                    (:filter_devices::text[] is null or
+                        array_length(:filter_devices::text[], 1) < 1 or device_id in :filter_devices::text[])
             """
         )
     }

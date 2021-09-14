@@ -1,17 +1,14 @@
 package dk.sdu.cloud.sync.mounter.services
 
-import com.sun.jna.Native
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
 import io.ktor.http.*
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
-import kotlin.io.path.readSymbolicLink
 
 class MountService(
     val config: SyncMounterConfiguration,
@@ -34,13 +31,13 @@ class MountService(
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 
-            val target = File(joinPath(config.syncBaseMount, item.id))
+            val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
             }
 
             if (target.exists()) {
-                unmount(UnmountRequest(listOf(MountFolderId(item.id))))
+                unmount(UnmountRequest(listOf(MountFolderId(item.id.toString()))))
             }
 
             if (!target.mkdir()) {

@@ -4,17 +4,13 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.ucloud.api.UCloudSyncFolders
-import dk.sdu.cloud.file.ucloud.api.SynchronizationType
+import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.sync.mounter.api.MountFolder
-import dk.sdu.cloud.sync.mounter.api.MountFolderId
-import dk.sdu.cloud.sync.mounter.api.MountRequest
-import dk.sdu.cloud.sync.mounter.api.UnmountRequest
+import dk.sdu.cloud.sync.mounter.api.*
 import dk.sdu.cloud.sync.mounter.http.MountController
 import dk.sdu.cloud.sync.mounter.services.MountService
 import kotlinx.coroutines.runBlocking
@@ -57,7 +53,7 @@ class Server(
     }
 
     override fun onKtorReady() {
-        /*runBlocking {
+        runBlocking {
             val readyFile = File(joinPath(config.syncBaseMount, "ready"))
             readyFile.deleteOnExit()
 
@@ -70,8 +66,8 @@ class Server(
                 val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
                 val mountService = MountService(config, ready)
 
-                val folders = FileSynchronization.browseFolders.call(
-                    SynchronizationBrowseFoldersRequest(config.deviceId),
+                val folders = UCloudBrowseSyncFolders.browse.call(
+                    UCloudSyncFoldersBrowseRequest(config.deviceId),
                     client
                 ).orThrow()
 
@@ -83,12 +79,12 @@ class Server(
                     )
                 )
             } catch (ex: Throwable) {
-                log.warn("Caught exception while initializing mounter (is storage down?)")
+                log.warn("Caught exception while initializing mounter (is file-ucloud down?)")
                 log.warn(ex.stackTraceToString())
             }
 
             readyFile.createNewFile()
             ready.set(true)
-        }*/
+        }
     }
 }

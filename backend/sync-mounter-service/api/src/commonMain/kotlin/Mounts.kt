@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MountFolder(
-    val id: String,
+    val id: Long,
     val path: String
 )
 

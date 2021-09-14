@@ -53,7 +53,7 @@ class Server(
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
-        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
+        val syncthingClient = SyncthingClient(syncConfig, db, authenticatedClient, distributedLocks)
         val syncService =
             SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 

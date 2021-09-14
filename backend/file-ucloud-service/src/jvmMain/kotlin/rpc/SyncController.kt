@@ -3,8 +3,7 @@ package dk.sdu.cloud.file.ucloud.rpc
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.file.ucloud.api.UCloudSyncDevices
-import dk.sdu.cloud.file.ucloud.api.UCloudSyncFolders
+import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.file.ucloud.services.SyncService
 import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
@@ -58,6 +57,11 @@ class SyncController(
 
         implement(UCloudSyncFolders.retrieveProducts) {
             ok(BulkResponse(syncProducts))
+        }
+
+        implement(UCloudBrowseSyncFolders.browse) {
+            println("Browsing folders")
+            ok(syncService.browseFolders(request.device))
         }
     }
 }
