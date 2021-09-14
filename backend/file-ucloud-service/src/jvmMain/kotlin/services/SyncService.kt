@@ -65,7 +65,6 @@ class SyncService(
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
-
         println("Adding folder $request")
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val ids: MutableList<String> = mutableListOf()

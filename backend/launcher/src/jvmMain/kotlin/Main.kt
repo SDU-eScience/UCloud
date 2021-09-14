@@ -52,6 +52,7 @@ object Launcher : Loggable {
 }
 
 val services = setOf<Service>(
+    SyncMounterService,
     AccountingService,
     ActivityService,
     AppOrchestratorService,

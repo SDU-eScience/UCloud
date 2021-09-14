@@ -13,6 +13,12 @@ import dk.sdu.cloud.file.orchestrator.api.SharesProvider
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
+@Serializable
+enum class SynchronizationType(val syncthingValue: String) {
+    SEND_RECEIVE("sendreceive"),
+    SEND_ONLY("sendonly")
+}
+
 @TSNamespace("file.ucloud.files")
 object UCloudFiles : FilesProvider(UCLOUD_PROVIDER)
 @TSNamespace("file.ucloud.filecollections")

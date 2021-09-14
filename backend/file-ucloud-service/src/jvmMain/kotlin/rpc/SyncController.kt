@@ -41,12 +41,6 @@ class SyncController(
             ok(syncService.addFolders(request))
         }
 
-        /*implement(UCloudSyncFolders.retrieve) {
-            println("folder retrieve called")
-            ok(syncService.(request))
-        }*/
-
-
         implement(UCloudSyncFolders.delete) {
             println("folder remove called")
             //syncService.removeFolders(request)
