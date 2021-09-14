@@ -6,7 +6,7 @@ import CONF from "./site.config.json";
 // https://vitejs.dev/config/
 export default ({mode, ...rest}: {mode: "development" | "local-dev" | "production"}): UserConfigExport => {
 
-    const target = mode === "local-dev" ? "http://localhost:8080" : `https://${CONF.DEV_SITE}`;
+    const target = "https://cloud.sdu.dk";
 
     const sharedProxySetting = {
         target,
@@ -24,6 +24,10 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
         define: {
             DEVELOPMENT_ENV: mode !== "production",
         },
+        mode,
+        build: {
+            minify: false,
+        },
         assetsInclude: "./app/Assets/",
         plugins: [reactRefresh()],
         resolve: {
@@ -31,14 +35,14 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
                 "@": path.resolve(__dirname, "./app")
             }
         },
-        server: mode === "production" ? {port: 9000} : {
+        server: {
             port: 9000,
             cors: {
                 origin: "*",
                 methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
                 allowedHeaders: ["X-Requested-With", "content-type", "Authorization"]
             },
-            /* Use regex instead? These all match. */
+            // Use regex instead? These all match.
             proxy: {
                 "/auth/": sharedProxySetting,
                 "/api/": sharedProxySetting,
@@ -46,4 +50,4 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
             }
         }
     });
-}
+};

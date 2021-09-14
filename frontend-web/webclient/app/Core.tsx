@@ -54,11 +54,11 @@ import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplic
 import Sidebar from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
-import Dialog from "@/Dialog/Dialog";
+import {Dialog} from "@/Dialog/Dialog";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "@/UtilityFunctions";
-import {History} from "@/history";
+import {History} from "history";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";

@@ -7,7 +7,7 @@ import Icon, {IconName} from "./Icon";
 import theme, {ThemeColor} from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 
-const HighlightedCard: React.FunctionComponent<{
+export const HighlightedCard: React.FunctionComponent<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
     color: ThemeColor;

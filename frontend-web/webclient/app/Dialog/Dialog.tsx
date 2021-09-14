@@ -1,20 +1,20 @@
-import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
+// import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import * as React from "react";
-import {useEffect, useState} from "react";
+// import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 
-const Dialog: React.FunctionComponent = () => {
-    const [dialogs, setDialogs] = useState<IDialog[]>([]);
-
-    useEffect(() => {
-        const subscription = (dialogs: IDialog[]): void => setDialogs(dialogs);
-
-        dialogStore.subscribe(subscription);
-        return () => dialogStore.unsubscribe(subscription);
-    }, []);
-
-    const current = dialogs.length > 0 ? dialogs[0] : null;
-    return (
+export const Dialog: React.FunctionComponent = () => {
+    //const [dialogs, setDialogs] = useState<IDialog[]>([]);
+//
+    //useEffect(() => {
+    //    const subscription = (dialogs: IDialog[]): void => setDialogs(dialogs);
+//
+    //    dialogStore.subscribe(subscription);
+    //    return () => dialogStore.unsubscribe(subscription);
+    //}, []);
+//
+    //const current = dialogs.length > 0 ? dialogs[0] : null;
+    return null/* (
         <ReactModal
             isOpen={!!current}
             shouldCloseOnEsc
@@ -36,7 +36,7 @@ const Dialog: React.FunctionComponent = () => {
         >
             {current?.element}
         </ReactModal>
-    );
+    ); */
 };
 
 export default Dialog;
