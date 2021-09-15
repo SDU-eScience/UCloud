@@ -135,7 +135,7 @@ const Content: React.FunctionComponent<{
         <AppSection>
             <Markdown
                 unwrapDisallowed
-                disallowedTypes={[
+                disallowedElements={[
                     "image",
                     "heading"
                 ]}

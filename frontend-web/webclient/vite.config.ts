@@ -12,7 +12,7 @@ function targetFromConfig(mode: Mode): string {
         case "development":
             return `https://${DEV_SITE}`;
         case "compose":
-                return "http://backend:8080";
+            return "http://backend:8080";
         case "local-dev":
         case "production":
         default:
@@ -35,6 +35,11 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
     return defineConfig({
         clearScreen: false,
         define: {
+            /*  
+                Note(Jonas): Added because of React-Markdown using the `assert` function.
+                Which is why the assert package is installed 
+            */
+            "process.env": {},
             DEVELOPMENT_ENV: mode !== "production",
         },
         mode,

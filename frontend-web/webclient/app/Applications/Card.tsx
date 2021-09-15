@@ -84,7 +84,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
                 <Markdown
-                    disallowedTypes={[
+                    disallowedElements={[
                         "break",
                         "paragraph",
                         "emphasis",
