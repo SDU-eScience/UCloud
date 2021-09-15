@@ -1,24 +1,26 @@
-import {defineConfig, UserConfigExport} from "vite";
+import {defineConfig, ProxyOptions, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
 import path from "path";
 import {DEV_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
 
-type Mode = "development" | "local-dev" | "production";
+type Mode = "development" | "local-dev" | "production" | "compose";
 
 function targetFromConfig(mode: Mode): string {
     switch (mode) {
         case "development":
             return `https://${DEV_SITE}`;
+        case "compose":
+                return "http://backend:8080";
         case "local-dev":
         case "production":
         default:
-            return `localhost:8080`
+            return "localhost:8080";
     }
 }
 
-export default ({mode, ...rest}: {mode: Mode}): UserConfigExport => {
+export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExport => {
     const sharedProxySetting = {
         target: targetFromConfig(mode),
         ws: true,
@@ -36,7 +38,7 @@ export default ({mode, ...rest}: {mode: Mode}): UserConfigExport => {
             DEVELOPMENT_ENV: mode !== "production",
         },
         mode,
-        assetsInclude: "./app/Assets/",
+        /* assetsInclude: "./app/Assets/", */
         plugins: [reactRefresh()],
         resolve: {
             alias: {
@@ -45,6 +47,7 @@ export default ({mode, ...rest}: {mode: Mode}): UserConfigExport => {
         },
         server: {
             port: 9000,
+            host: "0.0.0.0",
             cors: {
                 origin: "*",
                 methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],

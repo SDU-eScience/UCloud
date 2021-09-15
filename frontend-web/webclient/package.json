@@ -5,6 +5,8 @@
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
         "start": "vite",
+        "start:local": "vite --mode local-dev",
+        "start:compose": "vite --mode compose",
         "build": "node scripts/update-version-file.js && vite build",
         "serve": "vite preview",
         "compose": "echo TODO",
