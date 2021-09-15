@@ -1,9 +1,11 @@
 ---
 application: v1
 name: dtu-slurm-poc
-version: 1.3
+version: 1.6
 
 applicationType: BATCH
+
+allowMultiNode: true
 
 title: Slurm Poc Hello
 description: Sample app to run SLURM batch job
@@ -11,7 +13,7 @@ authors: ["DTU AIT"]
 
 tool:
   name: dtu-slurm-poc-tool
-  version: 1
+  version: 4
 
 parameters:
   file_content:

@@ -56,8 +56,6 @@ data class SlurmJob(
 )
 
 
-
-
 val compute : List<ProductReferenceWithoutProvider>?  by lazy {
 
         val plugins = Json.decodeFromString<IMConfiguration.Plugins>(
@@ -70,8 +68,67 @@ val compute : List<ProductReferenceWithoutProvider>?  by lazy {
 }
 
 
-class SampleComputePlugin : ComputePlugin {
+fun manageHeader(job:Job):String { 
+ 
+        val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
+        val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
+        val request_product = job.specification?.product as ProductReference
 
+        val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        val job_partition = "normal" //product!!.id 
+        val job_nodes = job.specification!!.replicas
+        val product_cpu = product!!.cpu
+        val product_mem = product!!.mem
+        val product_gpu = product!!.gpu
+
+    //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
+    // remove whitespaces
+    var fileBody = job_content.value.lines().map{it.trim()}.toMutableList()
+
+    //TODO: add --hold once interactive job is running 
+    val headerSuffix = 
+                        """
+                            #
+                            # POSTFIX START
+                            #
+                            #SBATCH --chdir /data/${job.id} 
+                            #SBATCH --cpus-per-task ${product_cpu} 
+                            #SBATCH --mem ${product_mem} 
+                            #SBATCH --gpus-per-node ${product_gpu} 
+                            #SBATCH --time ${job_timelimit} 
+                            #SBATCH --nodes ${job_nodes} 
+                            #SBATCH --job-name ${job.id} 
+                            #SBATCH --partition ${job_partition} 
+                            #SBATCH --parsable
+                            #SBATCH --output=std.out 
+                            #SBATCH --error=std.err
+                            #
+                            # POSTFIX END
+                            #
+                        """.trimIndent().lines()
+
+    //find first nonwhitespace non comment line
+    var headerEnd: Int = 0
+        run loop@ {
+            fileBody.forEachIndexed { idx, line -> 
+                //println(line)
+                    if( !line.trim().startsWith("#") ) { 
+                        headerEnd = idx
+                        return@loop
+                    }
+            }
+        }
+
+    // append header lines starting with headerEnd
+    fileBody.addAll(headerEnd, headerSuffix)
+    
+    // append shebang
+    return fileBody.joinToString(prefix="#!/usr/bin/bash \n", separator="\n", postfix="\n#EOF\n")
+
+}
+
+
+class SampleComputePlugin : ComputePlugin {
 
 
 fun PluginContext.getStatus(id: String) : JobState {
@@ -116,11 +173,7 @@ fun PluginContext.getStatus(id: String) : JobState {
                 enabled = true,
                 logs = true,
                 timeExtension = true,
-            ),
-            ComputeSupport.VirtualMachine(
-                enabled = false,
-                logs = true,
-                suspension = true
+                terminal = true
             )
         )
     }
@@ -135,6 +188,10 @@ fun PluginContext.getStatus(id: String) : JobState {
                 val req = runCatching {
                     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
                 }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+
+                println(req)
+
+
 
                 (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
 
@@ -166,8 +223,6 @@ fun PluginContext.getStatus(id: String) : JobState {
                 var slurmJob:SlurmJob? = null
                 var stringResult:String? = null
 
-                println(req)
-
                 (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
 
                         connection.prepareStatement(
@@ -195,21 +250,24 @@ fun PluginContext.getStatus(id: String) : JobState {
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
  
-        val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-        val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
-        val request_product = job.specification?.product as ProductReference
-
-        val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
-        val job_partition = "normal" //product!!.id 
-        val product_cpu = product!!.cpu
-        val product_mem = product!!.mem
-        val product_gpu = product!!.gpu
-
+        //val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
+        // val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
+        // val request_product = job.specification?.product as ProductReference
+        // val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        // val job_partition = "normal" //product!!.id 
+        // val product_cpu = product!!.cpu
+        // val product_mem = product!!.mem
+        // val product_gpu = product!!.gpu
 
         mkdir("/data/${job.id}", "0770".toUInt(8) )
-        NativeFile.open(path="/data/${job.id}/job.sbatch", readOnly = false).writeText(job_content.value)
+        val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
+        val sbatch_content = manageHeader(job)
 
-       runBlocking {
+        
+        NativeFile.open(path="/data/${job.id}/job.req", readOnly = false).writeText(job_content.value)
+        NativeFile.open(path="/data/${job.id}/job.sbatch", readOnly = false).writeText(sbatch_content)
+
+        runBlocking {
 
     //    val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch")
     //                                 .addArg("--chdir", "/data/${job.id}")
@@ -228,8 +286,8 @@ fun PluginContext.getStatus(id: String) : JobState {
 
     //     println("PLUGINDATA: $code  $stdout  $stderr")
 
-
-        val mString = popen("SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch --chdir /data/${job.id} --cpus-per-task ${product_cpu} --mem ${product_mem} --gpus-per-node ${product_gpu} --time ${job_timelimit} --job-name ${job.id} --partition ${job_partition} --parsable --output=std.out --error=std.err  job.sbatch", "r")
+        //TODO: solve formatting errors
+        val mString = popen("SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch /data/${job.id}/job.sbatch", "r")
 
         val slurmId = buildString {
             val buffer = ByteArray(4096)
@@ -243,15 +301,19 @@ fun PluginContext.getStatus(id: String) : JobState {
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
+        val request_product = job.specification?.product as ProductReference
+        val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
+        val job_partition = "normal" //product!!.id 
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(SlurmJob(job.id, slurmId.trim(), job_partition )) as JsonObject ) ).orThrow<Unit>()
         sleep(2)
 
+        //TODO: check status
         JobsControl.update.call(
             bulkRequestOf(
                 JobsControlUpdateRequestItem(
                     job.id,
                     JobState.IN_QUEUE,
-                    "The job has been queued!"
+                    "The job has been queued. Log into url.dtu.dk and approve request."
                 )
             ), client
         ).orThrow()    
@@ -262,7 +324,7 @@ fun PluginContext.getStatus(id: String) : JobState {
                 JobsControlUpdateRequestItem(
                     job.id,
                     JobState.RUNNING,
-                    "We are now running!"
+                    "The job is RUNNING"
                 )
             ), client
         ).orThrow()    
@@ -280,16 +342,22 @@ fun PluginContext.getStatus(id: String) : JobState {
         val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
         val job_partition = "normal" //product!!.id 
 
+
+        val ipcClient = ipcClient ?: error("No ipc client")
+        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "get.job", defaultMapper.encodeToJsonElement( SlurmJob(job.id, "someid", "somepartition" ) ) as JsonObject ) ).orThrow<SlurmJob>()
+
+
         // Sends SIGKILL or custom with -s INTEGER
+        //DONE: replace --name with --job
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/scancel")
                 .addArg("--partition", "normal")    // ${job_partition}
                 .addArg("--full")
-                .addArg("--name", "${job.id}")
+                .addArg("${slurmJob.slurmId}")
                 .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
                 .execute()
 
         println("CANCEL $code - $stdout - $stderr")
-
+        //check process status and change to SUCCESS
         sleep(2)
         runBlocking {
             JobsControl.update.call(
@@ -303,8 +371,6 @@ fun PluginContext.getStatus(id: String) : JobState {
                 client
             ).orThrow()
         }
-
-
     }
 
 
@@ -320,29 +386,59 @@ fun PluginContext.getStatus(id: String) : JobState {
 
 
     override fun ComputePlugin.FollowLogsContext.followLogs(job: Job) {
+            val client = rpcClient ?: error("No client")
 
             sleep(2)
             println("follow logs")
+
+            fun getTime():String{
+
+                    val mString = popen("/usr/bin/date +\"%Y/%m/%d %H:%M:%S:%N\" ", "r")
+
+                    val stdout = buildString {
+                        val buffer = ByteArray(4096)
+                        while (true) {
+                            val input = fgets(buffer.refTo(0), buffer.size, mString) ?: break
+                            append(input.toKString())
+                        }
+                    }
+                    pclose(mString)
+
+                    return stdout.replace("\r", "").replace("\n", "").trim()
+            }
+
             
             val stdOut = NativeFile.open(path="/data/${job.id}/std.out", readOnly = true)
             val stdErr = NativeFile.open(path="/data/${job.id}/std.err", readOnly = true)
 
     thisLoop@ while ( isActive() ) {
-                when( getStatus(job.id) ) {
+                val mState = getStatus(job.id)
+                when ( mState ) {
 
-                    JobState.RUNNING -> {
+                        JobState.RUNNING -> {
+                            val line = stdOut.readText(autoClose = false)
+                            if ( !line.isNullOrEmpty() ) emitStdout(0, "[${ getTime() }] OUT: ${ line.trim() } \n")
 
-                        val line = stdOut.readText(autoClose = false)
-                        if ( !line.isNullOrEmpty() ) emitStdout(0, "STDOUT: ${ line } \n")
+                            val err = stdOut.readText(autoClose = false)
+                            if ( !err.isNullOrEmpty() ) emitStdout(0, "[${ getTime() }] ERR: ${ err.trim() } \n")
 
-                        val err = stdOut.readText(autoClose = false)
-                        if ( !err.isNullOrEmpty() ) emitStdout(0, "STDERR: ${ line } \n")
+                        }
 
-                    }
-
-                    else ->  break@thisLoop
-
-
+                        else -> {  
+                                        runBlocking {
+                                            JobsControl.update.call(
+                                                bulkRequestOf(
+                                                    JobsControlUpdateRequestItem(
+                                                        job.id,
+                                                        mState,
+                                                        "The job has finished!"
+                                                    )
+                                                ),
+                                                client
+                                            ).orThrow()
+                                        }
+                                        break@thisLoop
+                        }
                 }
 
                 sleep(5)

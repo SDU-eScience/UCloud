@@ -28,7 +28,7 @@ repositories {
 				(~/.gradle/gradle.properties):
 				
 				gpr.user=YOUR_GITHUB_USERNAME
-				gpr.token=YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
+				gpr.key=YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
 				
 				
 				
