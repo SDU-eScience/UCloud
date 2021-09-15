@@ -208,7 +208,7 @@ abstract class ResourceService<
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
                     if (permissionOneOf.singleOrNull() == Permission.Provider) {
-                        // Admin isn't enough if we looking for Provider
+                        // Admin isn't enough if we are looking for Provider
                         if (Permission.Provider !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
                         }

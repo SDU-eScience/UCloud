@@ -19,6 +19,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -175,6 +176,20 @@ sealed class DebugMessage {
         override val id = idGenerator.getAndIncrement()
     }
 
+    @SerialName("log")
+    @Serializable
+    data class Log(
+        override val context: DebugContext,
+        val message: String,
+        val extras: JsonObject? = null,
+        override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
+        override val timestamp: Long = Time.now(),
+        override val principal: SecurityPrincipal? = null,
+    ) : DebugMessage() {
+        override val messageType = MessageType.LOG
+        override val id = idGenerator.getAndIncrement()
+    }
+
     companion object {
         val idGenerator = AtomicInteger(0)
     }
@@ -268,7 +283,8 @@ object DebugApi : CallDescriptionContainer("debug") {
 enum class MessageType {
     SERVER,
     DATABASE,
-    CLIENT
+    CLIENT,
+    LOG
 }
 
 class DebugSystem : MicroFeature {
@@ -550,3 +566,42 @@ class DebugSystem : MicroFeature {
 }
 
 suspend inline fun rpcContext(): RpcCoroutineContext? = coroutineContext[RpcCoroutineContext]
+
+private val logIdGenerator = AtomicInteger(0)
+suspend fun DebugSystem.log(message: String, structured: JsonObject?, level: MessageImportance) {
+    sendMessage(
+        DebugMessage.Log(
+            DebugContext.Job(
+                logIdGenerator.getAndIncrement().toString(),
+                rpcContext()?.call?.jobIdOrNull
+            ),
+            message,
+            structured,
+            level
+        )
+    )
+}
+
+suspend fun DebugSystem.tellMeEverything(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.TELL_ME_EVERYTHING)
+}
+
+suspend fun DebugSystem.implementationDetail(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.IMPLEMENTATION_DETAIL)
+}
+
+suspend fun DebugSystem.normal(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.THIS_IS_NORMAL)
+}
+
+suspend fun DebugSystem.odd(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.THIS_IS_ODD)
+}
+
+suspend fun DebugSystem.wrong(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.THIS_IS_WRONG)
+}
+
+suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = null) {
+    log(message, structured, MessageImportance.THIS_IS_DANGEROUS)
+}

@@ -3,8 +3,10 @@ package dk.sdu.cloud.file.ucloud
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
+import dk.sdu.cloud.file.ucloud.rpc.ShareController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
@@ -41,7 +43,7 @@ class Server(
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), authenticatedClient)
-        val nativeFs = NativeFS(pathConverter)
+        val nativeFs = NativeFS(pathConverter, micro)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
         val trashService = TrashService(pathConverter)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
@@ -49,7 +51,9 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
-        val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
+        val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
+        val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient,
+            micro.feature(DebugSystem)).apply {
             install(CopyTask())
             install(DeleteTask())
             install(MoveTask())
@@ -68,6 +72,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
             FileCollectionsController(fileCollectionService),
+            ShareController(shareService)
         )
 
         startServices()

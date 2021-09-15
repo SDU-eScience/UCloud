@@ -23,7 +23,7 @@ import {
 import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
 import {Operation} from "ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
-import {bulkRequestOf} from "DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {FilesBrowse} from "Files/Files";
 import {ResourceProperties} from "Resource/Properties";
@@ -37,10 +37,11 @@ import {dateToString} from "Utilities/DateUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {OpenWith} from "Applications/OpenWith";
 import {FilePreview} from "Files/Preview";
-import {Sensitivity} from "UtilityComponents";
+import {addStandardInputDialog, Sensitivity} from "UtilityComponents";
 import {ProductStorage} from "Accounting";
 import {largeModalStyle} from "Utilities/ModalUtilities";
 import {ListRowStat} from "ui-components/List";
+import SharesApi from "UCloud/SharesApi";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -304,7 +305,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 0 && cb.onSelect === undefined;
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
                 },
                 onClick: (_, cb) => {
                     cb.dispatch({
@@ -326,6 +334,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
                     }
                     return true;
                 },
@@ -446,6 +457,36 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
+                    );
+                }
+            },
+            {
+                icon: "share",
+                text: "Share",
+                enabled: (selected, cb) => {
+                    return selected.length > 0 && selected.every(it => {
+                        return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
+                    });
+                },
+                onClick: async (selected, cb) => {
+                    const username = await addStandardInputDialog({
+                        title: "Share",
+                        help: <>The username of the user you wish to share this file with</>,
+                        addToFront: true,
+                        confirmText: "Share",
+                    });
+
+                    await cb.invokeCommand(
+                        SharesApi.create(
+                            bulkRequestOf(
+                                ...selected.map(file => ({
+                                    sharedWith: username.result,
+                                    sourceFilePath: file.id,
+                                    permissions: ["READ" as const],
+                                    product: file.specification.product
+                                }))
+                            )
+                        )
                     );
                 }
             },

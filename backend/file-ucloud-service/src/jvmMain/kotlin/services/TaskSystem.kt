@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilesControl
 import dk.sdu.cloud.file.orchestrator.api.FilesControlAddUpdateRequestItem
@@ -47,8 +48,9 @@ class TaskSystem(
     private val nativeFs: NativeFS,
     private val backgroundScope: BackgroundScope,
     private val client: AuthenticatedClient,
+    private val debug: DebugSystem
 ) {
-    private val taskContext = TaskContext(pathConverter, nativeFs, backgroundScope)
+    private val taskContext = TaskContext(pathConverter, nativeFs, backgroundScope, debug)
     private val handlers = ArrayList<TaskHandler>()
 
     fun install(handler: TaskHandler) {
@@ -241,7 +243,8 @@ class TaskSystem(
 data class TaskContext(
     val pathConverter: PathConverter,
     val nativeFs: NativeFS,
-    val backgroundScope: BackgroundScope
+    val backgroundScope: BackgroundScope,
+    val debug: DebugSystem
 )
 
 interface TaskHandler {
