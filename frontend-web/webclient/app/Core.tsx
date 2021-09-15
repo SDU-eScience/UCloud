@@ -72,6 +72,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
 import JobRouter from "Applications/Jobs/NewApi";
 import {Debugger} from "Debug/Debugger";
+import {SharesOutgoing} from "Files/SharesOutgoing";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -98,7 +99,10 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
-                    <Route path={"/shares"}><ShareRouter /></Route>
+                    <Route path={"/shares"}>
+                        <ShareRouter />
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
+                    </Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

@@ -15,7 +15,7 @@ import * as React from "react";
 import * as H from "history";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ItemRenderer} from "ui-components/Browse";
-import {ProductStorage} from "Accounting";
+import {ProductStorage, UCLOUD_PROVIDER} from "Accounting";
 import {BulkRequest} from "UCloud/index";
 import {apiUpdate} from "Authentication/DataHook";
 import {Operation} from "ui-components/Operation";
@@ -71,7 +71,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
 
     renderer: ItemRenderer<FileCollection> = {
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
-        Icon({resource, size}) {return <Icon name={"ftFileSystem"} size={size} />}
+        Icon({resource, size}) {
+            if (resource && resource.specification.product.id === "share" &&
+                resource.specification.product.provider === UCLOUD_PROVIDER) {
+                return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
+            }
+            return <Icon name={"ftFileSystem"} size={size} />
+        }
     };
 
     constructor() {

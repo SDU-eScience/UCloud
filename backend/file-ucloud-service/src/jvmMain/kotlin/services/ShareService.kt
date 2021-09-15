@@ -45,8 +45,8 @@ class ShareService(
                             PathConverter.PRODUCT_SHARE_REFERENCE
                         ),
                         PathConverter.COLLECTION_SHARE_PREFIX + share.id,
-                        createdBy = share.owner.createdBy,
-                        project = share.owner.project
+                        createdBy = "_ucloud",
+                        project = null,
                     )
                 }
             ),
