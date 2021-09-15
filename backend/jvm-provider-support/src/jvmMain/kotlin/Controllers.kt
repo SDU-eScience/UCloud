@@ -182,9 +182,9 @@ abstract class JobsController(
      *
      * An API for retrieving the products and the support from a provider.
      */
-    abstract fun retrieveProducts(
-        request: kotlin.Unit,
-    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
+//    abstract fun retrieveProducts(
+//        request: kotlin.Unit,
+//    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
     
     
     @Suppress("UNCHECKED_CAST")
@@ -202,7 +202,7 @@ abstract class JobsController(
             "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
             "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
             "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
-            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+//            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
             else -> error("Unhandled call")
         }
     }
