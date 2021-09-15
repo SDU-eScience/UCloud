@@ -36,18 +36,20 @@ const AppAauAdmin: React.FunctionComponent = props => {
                 }}>
                     <Label>
                         Job ID
-                        <Input type={"text"} ref={retrieveIdRef}/>
+                        <Input type={"text"} ref={retrieveIdRef} />
                     </Label>
 
-                    <br/>
+                    <br />
 
-                    <Markdown source={jobSource}/>
+                    <Markdown>
+                        {jobSource}
+                    </Markdown>
 
                     <Button type={"submit"} disabled={job.loading}>Retrieve status</Button>
                 </form>
 
-                <br/>
-                <br/>
+                <br />
+                <br />
 
                 <Heading.h3>Update Job Status</Heading.h3>
                 <form onSubmit={async e => {
@@ -68,14 +70,14 @@ const AppAauAdmin: React.FunctionComponent = props => {
                 }}>
                     <Label>
                         Job ID
-                        <Input type={"text"} ref={statusUpdateIdRef}/>
+                        <Input type={"text"} ref={statusUpdateIdRef} />
                     </Label>
 
-                    <br/>
+                    <br />
 
                     <Label>
                         New state
-                        <br/>
+                        <br />
                         <select ref={statusUpdateStateRef}>
                             <option value={"NO_CHANGE"}>No change</option>
                             <option value={"RUNNING"}>Running</option>
@@ -85,12 +87,12 @@ const AppAauAdmin: React.FunctionComponent = props => {
                         </select>
                     </Label>
 
-                    <br/>
+                    <br />
 
                     <Label>
                         Status update
-                        <br/>
-                        <textarea name="statusupdate" id="statusupdate" cols={120} rows={10} ref={statusUpdateRef}/>
+                        <br />
+                        <textarea name="statusupdate" id="statusupdate" cols={120} rows={10} ref={statusUpdateRef} />
                     </Label>
 
                     <Button type={"submit"} disabled={commandLoading}>Update job status</Button>

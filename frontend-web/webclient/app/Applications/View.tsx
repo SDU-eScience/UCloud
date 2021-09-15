@@ -90,18 +90,18 @@ export const AppHeader: React.FunctionComponent<{application: UCloud.compute.App
             {/* minWidth=0 is required for the ellipsed text children to work */}
             <Flex flexDirection={"column"} minWidth={0}>
                 {isSlim ? (
-                        <>
-                            <Heading.h3>{props.application.metadata.title}</Heading.h3>
-                            <TextSpan>v{props.application.metadata.version}</TextSpan>
-                        </>
-                    ) : (
-                        <>
-                            <Heading.h2>{props.application.metadata.title}</Heading.h2>
-                            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-                            <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
-                            <Tags tags={props.application.tags} />
-                        </>
-                    )}
+                    <>
+                        <Heading.h3>{props.application.metadata.title}</Heading.h3>
+                        <TextSpan>v{props.application.metadata.version}</TextSpan>
+                    </>
+                ) : (
+                    <>
+                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                        <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
+                        <Tags tags={props.application.tags} />
+                    </>
+                )}
             </Flex>
         </Flex>
     );
@@ -135,18 +135,19 @@ const Content: React.FunctionComponent<{
         <AppSection>
             <Markdown
                 unwrapDisallowed
-                source={props.application.metadata.description}
                 disallowedTypes={[
                     "image",
                     "heading"
                 ]}
-            />
+            >
+                {props.application.metadata.description}
+            </Markdown>
         </AppSection>
 
         <AppSection>
             <Information application={props.application} />
         </AppSection>
-        
+
         <AppSection>
             {!props.previous ? null :
                 (!props.previous.length ? null : (

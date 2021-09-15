@@ -499,10 +499,9 @@ function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): J
                         />
 
                         <Box maxHeight={300} overflow={"auto"}>
-                            {/* <Markdown
-                                source={post.body}
-                                unwrapDisallowed
-                            /> */}
+                            <Markdown unwrapDisallowed>
+                                {post.body}
+                            </Markdown>
                         </Box>
                     </Box>
                 ))}

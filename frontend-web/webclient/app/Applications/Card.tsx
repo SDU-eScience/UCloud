@@ -84,7 +84,6 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
                 <Markdown
-                    source={metadata.description}
                     disallowedTypes={[
                         "break",
                         "paragraph",
@@ -108,7 +107,9 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "code",
                         "html"]}
                     unwrapDisallowed
-                />
+                >
+                    {metadata.description}
+                </Markdown>
             </EllipsedText>
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
         </AppCardBase>

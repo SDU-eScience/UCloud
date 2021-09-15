@@ -71,10 +71,9 @@ export const DetailedNews: React.FC = () => {
                             />
                         </Link>
                     </Box>
-                    <Markdown
-                        source={newsPost.data.body}
-                        unwrapDisallowed
-                    />
+                    <Markdown unwrapDisallowed>
+                        {newsPost.data.body}
+                    </Markdown>
                 </Box>
             }
         />
@@ -202,10 +201,8 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                         <SelectableText onClick={() => setPreview(false)} selected={preview === false}>Edit</SelectableText>
                         <SelectableText ml="1em" onClick={() => setPreview(true)} selected={preview}> Preview</SelectableText>
                     </SelectableTextWrapper>
-                    {preview ? <Markdown
-                        source={body}
-                        unwrapDisallowed
-                    /> : <TextArea style={{marginTop: "6px", marginBottom: "6px"}} width={1} value={body} onChange={e => setBody(e.target.value)} />}
+                    {preview ? <Markdown unwrapDisallowed>{body}</Markdown> :
+                        <TextArea style={{marginTop: "6px", marginBottom: "6px"}} width={1} value={body} onChange={e => setBody(e.target.value)} />}
                     <Box mt="auto" />
                     <Button fullWidth>Update post</Button>
                 </Box>

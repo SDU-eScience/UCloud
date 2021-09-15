@@ -142,7 +142,9 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 </Label>
                 <WidgetBody {...props} />
                 {error ? <TextP color={"red"}>{error}</TextP> : null}
-                <Markdown source={parameter.description} />
+                <Markdown>
+                    {parameter.description}
+                </Markdown>
             </Box>
         </>;
     } else {
@@ -151,7 +153,9 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 <strong>{parameter.title}</strong>
                 {!open ? (
                     <EllipsedText width="200px">
-                        <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]} />
+                        <Markdown allowedTypes={["text", "paragraph"]}>
+                            {parameter.description}
+                        </Markdown>
                     </EllipsedText>
                 ) : <Box flexGrow={1} />}
 
@@ -166,7 +170,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     Use
                 </Button>
             </InactiveWidget>
-            {open ? <Markdown source={parameter.description} /> : null}
+            {open ? <Markdown>{parameter.description}</Markdown> : null}
         </Box>;
     }
 };
