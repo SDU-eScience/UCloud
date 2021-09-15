@@ -12,6 +12,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.db
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import java.util.*
 
 class VisualizationTest : IntegrationTest() {
     override fun defineTests() {
@@ -50,7 +51,8 @@ class VisualizationTest : IntegrationTest() {
                                         1L,
                                         product.toReference(),
                                         leaves[it.idx].username,
-                                        "Charge"
+                                        "Charge",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 }),
                                 serviceClient

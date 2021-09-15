@@ -18,6 +18,7 @@ import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
 import org.elasticsearch.client.Requests.bulkRequest
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -27,7 +28,7 @@ const val OTHER_PROVIDER = "NewProvider"
 
 val sampleIngress = Product.Ingress(
     "u1-ingress",
-    0,
+    1,
     ProductCategoryId("ingress", UCLOUD_PROVIDER),
     description = "product description"
 )
@@ -318,7 +319,8 @@ class ProductTest : IntegrationTest() {
                                         sampleStorage.category,
                                         owner,
                                         1000000,
-                                        "Initial deposit"
+                                        "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient
@@ -605,7 +607,8 @@ class ProductTest : IntegrationTest() {
                                         sampleStorage.category,
                                         owner,
                                         1000000,
-                                        "Initial deposit"
+                                        "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient
@@ -806,7 +809,8 @@ class ProductTest : IntegrationTest() {
                                         sampleStorage.category,
                                         owner,
                                         1000000,
-                                        "Initial deposit"
+                                        "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient

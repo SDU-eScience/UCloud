@@ -16,6 +16,7 @@ import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import java.util.*
 import kotlin.test.assertEquals
 
 class LowFundsJobTest : IntegrationTest() {
@@ -52,7 +53,8 @@ class LowFundsJobTest : IntegrationTest() {
                                 sampleCompute.category,
                                 WalletOwner.User(user1.username),
                                 input.computeCredits,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -64,7 +66,8 @@ class LowFundsJobTest : IntegrationTest() {
                                 sampleStorage.category,
                                 WalletOwner.User(user2.username),
                                 input.storageCredits,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -76,7 +79,8 @@ class LowFundsJobTest : IntegrationTest() {
                                 sampleNetworkIp.category,
                                 WalletOwner.User(user3.username),
                                 input.networkUnits,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -96,7 +100,8 @@ class LowFundsJobTest : IntegrationTest() {
                                 sampleCompute.category,
                                 WalletOwner.Project(projectId),
                                 input.projectCredits1,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -107,7 +112,8 @@ class LowFundsJobTest : IntegrationTest() {
                                 sampleCompute.category,
                                 WalletOwner.Project(projectId),
                                 input.projectCredits2,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -137,7 +143,8 @@ class LowFundsJobTest : IntegrationTest() {
                                         sampleCompute.category,
                                         WalletOwner.Project(projectId),
                                         input.refillAmount,
-                                        "Initial deposit"
+                                        "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient
@@ -160,6 +167,7 @@ class LowFundsJobTest : IntegrationTest() {
                                         WalletOwner.Project(root),
                                         100000000.DKK,
                                         "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient
@@ -176,7 +184,8 @@ class LowFundsJobTest : IntegrationTest() {
                                         WalletOwner.Project(projectId),
                                         allocationId,
                                         input.refillAmount,
-                                        "deposit"
+                                        "deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 sourceUser.client

@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.*
+import java.util.*
 
 data class Payment(
     val chargeId: String,
@@ -41,7 +42,9 @@ class PaymentService(
                     it.numberOfProducts,
                     it.product,
                     it.performedBy,
-                    it.description ?: "Payment"
+                    it.description ?: "Payment",
+                   // TODO(CREATE A BETTER WAY FOR ID OF TRANSACTION)
+                    "${it.product.provider}-${UUID.randomUUID()}"
                 )
             }),
             serviceClient
@@ -63,7 +66,9 @@ class PaymentService(
                         1L, 1L,
                         product,
                         "_ucloud",
-                        "Credit check"
+                        "Credit check",
+                        // TODO(CREATE A BETTER WAY FOR ID OF TRANSACTION)
+                        "${product.provider}-${UUID.randomUUID()}"
                     )
                 }
             ),

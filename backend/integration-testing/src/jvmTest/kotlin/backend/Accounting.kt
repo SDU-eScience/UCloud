@@ -10,20 +10,24 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher.adminClient
+import dk.sdu.cloud.integration.UCloudLauncher.db
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import io.ktor.http.*
+import kotlinx.serialization.decodeFromString
 import java.util.*
 import kotlin.math.max
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import kotlin.test.*
 
 suspend fun findWallet(
     client: AuthenticatedClient,
@@ -128,9 +132,10 @@ suspend fun prepareProjectChain(
                         leaf.owner,
                         previousAllocation,
                         leaf.balance / breadth,
-                        "Transfer",
+                        "Deposit",
                         chainFromRoot[index].startDate,
-                        chainFromRoot[index].endDate
+                        chainFromRoot[index].endDate,
+                        transactionId = UUID.randomUUID().toString()
                     )
                 )
                 Accounting.deposit.call(request, previousPi).orThrow()
@@ -157,6 +162,170 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
+        
+        run {
+            class In(
+                val useProjectChain: Boolean,
+                val transactionId: String,
+                val useSingleProject: Boolean,
+                val singleProjectMultipleAllocations: Boolean = false
+            )
+            class Out(
+                val transactions: List<Transaction>
+            )
+            test<In,Out>("Transaction tests") {
+                execute {
+                    createSampleProducts()
+                    if (input.useProjectChain) {
+                        val projectAllocations = prepareProjectChain(
+                            10000.DKK,
+                            listOf(
+                                Allocation(true, 5000.DKK),
+                                Allocation(true, 2000.DKK),
+                                Allocation(true, 1000.DKK)
+                            ),
+                            sampleCompute.category
+                        )
+
+                        val walletOwner = projectAllocations.last().owner
+                        val user = projectAllocations.last().username
+                        Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    walletOwner,
+                                    5,
+                                    1,
+                                    sampleCompute.toReference(),
+                                    user,
+                                    "Charge for job",
+                                    input.transactionId
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
+
+                        projectAllocations.last().client
+                    }
+                    if (input.useSingleProject) {
+                        val user1 = createUser("user1")
+                        val projectId = initializeRootProject(
+                            user1.username,
+                            true,
+                            1000.DKK
+                        )
+
+                        val walletOwner = WalletOwner.Project(projectId)
+
+                        if (input.singleProjectMultipleAllocations) {
+                            Accounting.rootDeposit.call(
+                                bulkRequestOf(
+                                    RootDepositRequestItem(
+                                        sampleCompute.category,
+                                        walletOwner,
+                                        1000.DKK,
+                                        "deposit",
+                                        transactionId = "extraDeposit"
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
+
+                        Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    walletOwner,
+                                    15000,
+                                    1,
+                                    sampleCompute.toReference(),
+                                    user1.username,
+                                    "charging for job",
+                                    input.transactionId
+                                )
+                            ),
+                            serviceClient
+                        )
+                    }
+
+                    val transactions = db.withSession { session ->
+                        session.sendQuery(
+                            """
+                                select accounting.transaction_to_json(t, p, pc)
+                                from
+                                    accounting.transactions t join
+                                    accounting.wallet_allocations alloc on t.affected_allocation_id = alloc.id join
+                                    accounting.wallets w on alloc.associated_wallet = w.id join
+                                    accounting.product_categories pc on w.category = pc.id join
+                                    accounting.wallet_owner wo on w.owned_by = wo.id left join
+                                    project.project_members pm on wo.project_id = pm.project_id left join
+                                    accounting.products p on pc.id = p.category and t.product_id = p.id 
+                            """
+                        ).rows.map { defaultMapper.decodeFromString<Transaction>(it.getString(0)!!) }
+                    }
+
+                    Out(transactions = transactions)
+                }
+                case("single allocation") {
+                    input(
+                        In(
+                            useProjectChain = false,
+                            transactionId = "123456",
+                            useSingleProject = true
+                        )
+                    )
+                    check {
+                        val charges = output.transactions.filter { it is Transaction.Charge }
+                        println(charges)
+                        assertEquals(1, charges.size)
+                        charges.forEach { charge ->
+                            assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)
+                            assertEquals(charge.transactionId.substringAfterLast('-'), input.transactionId)
+                        }
+                    }
+                }
+
+                case("multiple allocation same depth") {
+                    input(
+                        In(
+                            useProjectChain = false,
+                            transactionId = "123456",
+                            useSingleProject = true,
+                            singleProjectMultipleAllocations = true
+                        )
+                    )
+                    check {
+                        val charges = output.transactions.filter { it is Transaction.Charge }
+                        println(charges)
+                        assertEquals(2, charges.size)
+                        charges.forEach { charge ->
+                            assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)
+                            assertEquals(charge.transactionId.substringAfterLast('-'), input.transactionId)
+                        }
+                    }
+                }
+
+                case("single allocation with parents") {
+                    input(
+                        In(
+                            useProjectChain = true,
+                            transactionId = "123456",
+                            useSingleProject = false
+                        )
+                    )
+                    check {
+                        val charges = output.transactions.filter { it is Transaction.Charge }
+                        println(charges)
+                        assertEquals(4, charges.size)
+                        charges.forEach { charge ->
+                            assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)
+                            assertTrue { charges.filter { charge.transactionId == it.transactionId }.size == 1 }
+                        }
+
+                    }
+                }
+            }
+        }
+
         run {
             class In (
                 val product: Product,
@@ -183,7 +352,8 @@ class AccountingTest : IntegrationTest() {
                                 input.product.category,
                                 targetOwner,
                                 10000.DKK,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -196,7 +366,8 @@ class AccountingTest : IntegrationTest() {
                             1L,
                             input.product.toReference(),
                             user1.username,
-                            "test charging"
+                            "test charging",
+                            transactionId = UUID.randomUUID().toString()
                         )),
                         serviceClient
                     ).orThrow().responses
@@ -262,7 +433,8 @@ class AccountingTest : IntegrationTest() {
                                     sampleCompute.category,
                                     targetOwner,
                                     input.walletAmount,
-                                    "Initial deposit"
+                                    "Initial deposit",
+                                    transactionId = UUID.randomUUID().toString()
                                 )
                             ),
                             serviceClient
@@ -278,7 +450,8 @@ class AccountingTest : IntegrationTest() {
                                 1L,
                                 it.toReference(),
                                 user1.username,
-                                "test charging"
+                                "test charging",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         )
                     }
@@ -530,7 +703,8 @@ class AccountingTest : IntegrationTest() {
                                 sampleStorage.category,
                                 targetOwner,
                                 10000.DKK,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -564,6 +738,7 @@ class AccountingTest : IntegrationTest() {
                                             chosenTarget,
                                             source,
                                             amount,
+                                            transactionId = UUID.randomUUID().toString()
                                         )
                                     )
                                 },
@@ -601,7 +776,8 @@ class AccountingTest : IntegrationTest() {
                                         sampleCompute.category,
                                         sourceOwner,
                                         1000.DKK,
-                                        "Initial deposit"
+                                        "Initial deposit",
+                                        transactionId = UUID.randomUUID().toString()
                                     )
                                 ),
                                 serviceClient
@@ -943,7 +1119,13 @@ class AccountingTest : IntegrationTest() {
 
                     Accounting.rootDeposit.call(
                         bulkRequestOf(
-                            RootDepositRequestItem(sampleCompute.category, input.owner, 100.DKK, "Initial balance")
+                            RootDepositRequestItem(
+                                sampleCompute.category,
+                                input.owner,
+                                100.DKK,
+                                "Initial balance",
+                                transactionId = UUID.randomUUID().toString()
+                            )
                         ),
                         serviceClient
                     ).orThrow()
@@ -1012,7 +1194,8 @@ class AccountingTest : IntegrationTest() {
                                 input.product.category,
                                 owner,
                                 input.initialBalance,
-                                "Initial deposit"
+                                "Initial deposit",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -1039,7 +1222,8 @@ class AccountingTest : IntegrationTest() {
                                 input.numberOfProducts,
                                 input.product.toReference(),
                                 createdUser.username,
-                                "Test charge"
+                                "Test charge",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -1135,7 +1319,8 @@ class AccountingTest : IntegrationTest() {
                                 input.numberOfProducts,
                                 input.product.toReference(),
                                 leaves.last().username,
-                                "Test charge"
+                                "Test charge",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         ),
                         serviceClient
@@ -1323,7 +1508,8 @@ class AccountingTest : IntegrationTest() {
                                     input.numberOfProducts,
                                     input.product.toReference(),
                                     leaves.last().username,
-                                    "Test charge"
+                                    "Test charge",
+                                    transactionId = UUID.randomUUID().toString()
                                 )
                             ),
                             serviceClient
@@ -1468,7 +1654,8 @@ class AccountingTest : IntegrationTest() {
                                     numberOfProducts = 1L,
                                     product = input.product.toReference(),
                                     performedBy = leaf.username,
-                                    description = "Charge"
+                                    description = "Charge",
+                                    transactionId = UUID.randomUUID().toString()
                                 )
                             ),
                             serviceClient
@@ -1481,7 +1668,8 @@ class AccountingTest : IntegrationTest() {
                             input.newBalance,
                             input.newStartDate,
                             input.newEndDate,
-                            "Change"
+                            "Change",
+                            transactionId = UUID.randomUUID().toString()
                         )
                     )
                     Accounting.updateAllocation.call(request, leaves[max(0, input.updateIndex - 1)].client).orThrow()
@@ -1665,7 +1853,8 @@ class AccountingTest : IntegrationTest() {
                                 1,
                                 sampleStorageDifferential.toReference(),
                                 leaf.username,
-                                "Charging..."
+                                "Charging...",
+                                transactionId = UUID.randomUUID().toString()
                             )
                         }
 
