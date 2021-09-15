@@ -1,15 +1,26 @@
 import {defineConfig, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
 import path from "path";
-import CONF from "./site.config.json";
+import {DEV_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
-export default ({mode, ...rest}: {mode: "development" | "local-dev" | "production"}): UserConfigExport => {
 
-    const target = "https://cloud.sdu.dk";
+type Mode = "development" | "local-dev" | "production";
 
+function targetFromConfig(mode: Mode): string {
+    switch (mode) {
+        case "development":
+            return `https://${DEV_SITE}`;
+        case "local-dev":
+        case "production":
+        default:
+            return `localhost:8080`
+    }
+}
+
+export default ({mode, ...rest}: {mode: Mode}): UserConfigExport => {
     const sharedProxySetting = {
-        target,
+        target: targetFromConfig(mode),
         ws: true,
         changeOrigin: true,
         headers: {
@@ -25,9 +36,6 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
             DEVELOPMENT_ENV: mode !== "production",
         },
         mode,
-        build: {
-            minify: false,
-        },
         assetsInclude: "./app/Assets/",
         plugins: [reactRefresh()],
         resolve: {
@@ -46,7 +54,8 @@ export default ({mode, ...rest}: {mode: "development" | "local-dev" | "productio
             proxy: {
                 "/auth/": sharedProxySetting,
                 "/api/": sharedProxySetting,
-                "/ucloud/": sharedProxySetting
+                "/ucloud/": sharedProxySetting,
+                "/assets/Assets/AppVersion.txt": sharedProxySetting
             }
         }
     });
