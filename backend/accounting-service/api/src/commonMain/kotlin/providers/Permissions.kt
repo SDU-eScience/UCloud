@@ -24,9 +24,6 @@ of a resource. This permission is required for most `update*` endpoints.
 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
 any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
 the permissions attached to a resource.
-
-Apart from the standard permissions, a resource may define additional permissions. These are documented along with
-the resource and related operations.
 """)
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 sealed class Permission(val name: String) {

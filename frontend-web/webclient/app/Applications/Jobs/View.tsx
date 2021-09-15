@@ -507,8 +507,11 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
-    }, [status]);
+        const support = job.status.resolvedSupport?.support as ComputeSupport;
+        if (support.docker.utilization === true || support.virtualMachine.utilization === true) {
+            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+        }
+    }, [job]);
 
     return <>
         <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>

@@ -9,14 +9,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
-import dk.sdu.cloud.file.orchestrator.api.components
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.normalize
-import dk.sdu.cloud.file.orchestrator.api.parent
-import dk.sdu.cloud.file.orchestrator.api.parents
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
@@ -73,6 +66,18 @@ class PathConverter(
         }
     )
 
+    private val shareCache = SimpleCache<String, UCloudFile>(
+        maxAge = 60_000,
+        lookup = { collectionId ->
+            UCloudFile.create(
+                SharesControl.retrieve.call(
+                    ResourceRetrieveRequest(ShareFlags(), collectionId.removePrefix(COLLECTION_SHARE_PREFIX)),
+                    serviceClient
+                ).orThrow().specification.sourceFilePath
+            )
+        }
+    )
+
     private val cachedProviderIdsMutex = Mutex()
     private val cachedProviderIds = HashMap<String, String>()
 
@@ -99,7 +104,17 @@ class PathConverter(
             }
         }
 
-        if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
+        if (storedName.startsWith(COLLECTION_SHARE_PREFIX)) {
+            val shareEntryPoint = (shareCache.get(storedName)
+                ?: throw RPCException("Unknown file", HttpStatusCode.NotFound))
+
+            println(shareEntryPoint)
+            println(withoutCollection)
+
+            return ucloudToInternal(
+                UCloudFile.create(joinPath(*(shareEntryPoint.components() + withoutCollection).toTypedArray()))
+            )
+        } else if (storedName.startsWith(COLLECTION_HOME_PREFIX)) {
             return InternalFile(
                 buildString {
                     append(rootDirectory.path)
@@ -269,6 +284,7 @@ class PathConverter(
         const val COLLECTION_HOME_PREFIX = "h-"
         const val COLLECTION_PROJECT_PREFIX = "p-"
         const val COLLECTION_PROJECT_MEMBER_PREFIX = "pm-"
+        const val COLLECTION_SHARE_PREFIX = "s-"
         const val HOME_DIRECTORY = "home"
         const val PROJECT_DIRECTORY = "projects"
         const val COLLECTION_DIRECTORY = "collections"
@@ -276,6 +292,7 @@ class PathConverter(
 
         val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
         val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs_credits", UCLOUD_PROVIDER)
+        val PRODUCT_SHARE_REFERENCE = ProductReference("share", "u1-cephfs_credits", UCLOUD_PROVIDER)
     }
 }
 

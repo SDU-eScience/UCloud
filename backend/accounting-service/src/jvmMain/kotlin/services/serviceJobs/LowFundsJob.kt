@@ -25,7 +25,7 @@ class LowFundsJob(
             session.sendPreparedStatement(
                 {
                     setParameter("computeCreditsLimit", config.computeCreditsNotificationLimit)
-                    setParameter("storageCreditsLimit", config.storageCreditsNotificationLimitInGB)
+                    setParameter("storageCreditsLimit", config.storageCreditsNotificationLimit)
                     setParameter("computeUnitsLimit", config.computeUnitsNotificationLimit)
                     setParameter("storageQuotaLimit", config.storageQuotaNotificationLimitInGB)
                     setParameter("storageUnitsLimit", config.storageUnitsNotificationLimitInGB)

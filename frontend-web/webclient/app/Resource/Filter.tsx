@@ -26,6 +26,7 @@ export interface FilterWidgetProps {
 }
 
 export interface PillProps {
+    canRemove?: boolean;
     properties: Record<string, string>;
     onDelete: (keys: string[]) => void;
 }
@@ -53,6 +54,7 @@ export const ResourceFilter: React.FunctionComponent<{
     filterWidgets: React.FunctionComponent<FilterWidgetProps>[];
     sortEntries: SortEntry[];
     properties: Record<string, string>;
+    readOnlyProperties?: Record<string, string>;
     setProperties: (props: Record<string, string>) => void;
     sortDirection: "ascending" | "descending";
     sortColumn?: string;
@@ -63,6 +65,10 @@ export const ResourceFilter: React.FunctionComponent<{
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
     const [isDirty, setIsDirty] = useState(false);
+    const combinedProperties = useMemo(
+        () => ({...(props.readOnlyProperties ?? {}), ...properties}),
+        [props.readOnlyProperties, properties]
+    );
 
     useEffectSkipMount(() => {
         setIsDirty(true)
@@ -148,7 +154,7 @@ export const ResourceFilter: React.FunctionComponent<{
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                     icon={"properties"} title={"Sort by"} options={sortOptions} />
                 {props.pills.map((Pill, idx) =>
-                    <Pill key={Pill.displayName + "_" + idx} properties={properties} onDelete={onPillDeleted} />
+                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} />
                 )}
             </WidgetWrapper>
             {!isDirty ? null :
@@ -200,8 +206,11 @@ function WidgetWrapper({children, embedded, gridGap}: React.PropsWithChildren<{e
 export const FilterPill: React.FunctionComponent<{
     icon: IconName;
     onRemove: () => void;
-}> = ({icon, onRemove, children}) => {
-    return <Stamp fullWidth onClick={onRemove} icon={icon} color={"lightBlue"}>{children}</Stamp>;
+    canRemove?: boolean;
+}> = ({icon, onRemove, canRemove, children}) => {
+    return <Stamp fullWidth onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+        {children}
+    </Stamp>;
 };
 
 interface BaseFilterWidgetProps {
@@ -279,7 +288,7 @@ export const TextPill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
         {props.title}: {value}
     </FilterPill>;
 };
@@ -325,7 +334,7 @@ export const DateRangePill: React.FunctionComponent<{
     const before = props.properties[props.beforeProperty];
 
     return <>
-        <FilterPill icon={props.icon} onRemove={onRemove}>
+        <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
             {before ?
                 <>
                     {props.title} between: {dateToStringNoTime(parseInt(after))} - {dateToStringNoTime(parseInt(before))}
@@ -467,6 +476,7 @@ export const ValuePill: React.FunctionComponent<{
     propertyName: string;
     showValue: boolean;
     secondaryProperties?: string[];
+    valueToString?: (value: string) => string;
 } & PillProps & BaseFilterWidgetProps> = (props) => {
     const onRemove = useCallback(() => {
         const allProperties = [...(props.secondaryProperties ?? [])];
@@ -477,8 +487,11 @@ export const ValuePill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
-        {props.title}{!props.showValue ? null : <>: {value}</>}
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
+        {props.title}
+        {props.title.length > 0 && (props.showValue || props.children) ? ": " : null}
+        {!props.showValue ? null : props.valueToString ? props.valueToString(value) : value}
+        {props.children}
     </FilterPill>;
 };
 
@@ -503,7 +516,7 @@ export const EnumPill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
         {props.title}: {props.options.find(it => it.value === value)?.title ?? value}
     </FilterPill>;
 };
@@ -567,7 +580,7 @@ export const CheckboxPill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
         {props.title}: {value === "true" ? "Yes" : "No"}
     </FilterPill>;
 };

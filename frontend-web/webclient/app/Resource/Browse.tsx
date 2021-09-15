@@ -49,6 +49,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
     inlineCreationMode?: "TEXT" | "NONE";
     inlineProduct?: Product;
+    productFilterForCreate?: (product: ResolvedSupport) => boolean;
 
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
@@ -66,6 +67,8 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
+
+    onResourcesLoaded?: (newItems: Res[]) => void;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -123,11 +126,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         const allProducts: Product[] = [];
         for (const provider of Object.keys(productsWithSupport.data.productsByProvider)) {
             for (const productWithSupport of productsWithSupport.data.productsByProvider[provider]) {
+                if (props.productFilterForCreate !== undefined && !props.productFilterForCreate(productWithSupport)) {
+                    continue;
+                }
+
                 allProducts.push(productWithSupport.product as unknown as Product);
             }
         }
         return allProducts;
-    }, [productsWithSupport]);
+    }, [productsWithSupport, props.productFilterForCreate]);
 
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
@@ -343,7 +350,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 
     const main = !inlineInspecting ? <>
         <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={props.embedded != true} />
+            setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
@@ -364,7 +371,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} />
+                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
                     </>
                 }
             </StickyBox>
@@ -385,7 +392,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} />
+                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
                     </>
             }
         />
@@ -394,7 +401,6 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 
 function UserBox(props: {username: string}) {
     const avatars = useAvatars();
-    avatars.updateCache([props.username]);
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
         <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />

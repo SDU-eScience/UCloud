@@ -179,16 +179,22 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-function ExpandableRow({
-                           trigger,
-                           ...props
-                       }: React.PropsWithChildren<{ trigger: JSX.Element; width: string; height: string; }>): JSX.Element | null {
+function ExpandableRow(
+    {
+        trigger,
+        ...props
+    }: React.PropsWithChildren<{ trigger: JSX.Element; width: string; height: string; }>
+): JSX.Element | null {
     const [isOpen, setOpen] = useState(false);
     return <div>
-        <div style={{display: "flex", cursor: "pointer"}} onClick={() => setOpen(open => !open)}><Icon size="12px"
-                                                                                                       mr="3px"
-                                                                                                       mt="15px"
-                                                                                                       name="chevronDownLight"/>{trigger}
+        <div style={{display: "flex", cursor: "pointer"}} onClick={() => setOpen(open => !open)}>
+            <Icon
+                size="12px"
+                mr="3px"
+                mt="15px"
+                name="chevronDownLight"
+            />
+            {trigger}
         </div>
         <ContentWrapper isOpen={isOpen} {...props} >
             {props.children}

@@ -191,7 +191,9 @@ data class ChargeWalletRequestItem(
     @UCloudApiDoc("The username of the user who generated this request")
     val performedBy: String,
     @UCloudApiDoc("A description of the charge this is used purely for presentation purposes")
-    val description: String
+    val description: String,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String
 ) {
     init {
         checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
@@ -230,6 +232,8 @@ data class DepositToWalletRequestItem(
     """
     )
     val endDate: Long? = null,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String
 )
 
 typealias DepositToWalletResponse = Unit
@@ -263,6 +267,8 @@ data class TransferToWalletRequestItem(
     """
     )
     val endDate: Long? = null,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String
 )
 
 typealias TransferToWalletResponse = Unit
@@ -274,6 +280,8 @@ data class UpdateAllocationRequestItem(
     val startDate: Long,
     val endDate: Long?,
     val reason: String,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String
 )
 
 typealias UpdateAllocationResponse = Unit
@@ -287,7 +295,8 @@ data class RootDepositRequestItem(
     val amount: Long,
     val description: String,
     val startDate: Long? = null,
-    val endDate: Long? = null
+    val endDate: Long? = null,
+    var transactionId: String
 )
 
 object Accounting : CallDescriptionContainer("accounting") {

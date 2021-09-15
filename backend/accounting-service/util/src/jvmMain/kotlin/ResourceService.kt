@@ -208,7 +208,7 @@ abstract class ResourceService<
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
                     if (permissionOneOf.singleOrNull() == Permission.Provider) {
-                        // Admin isn't enough if we looking for Provider
+                        // Admin isn't enough if we are looking for Provider
                         if (Permission.Provider !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
                         }
@@ -440,7 +440,7 @@ abstract class ResourceService<
                 ) {
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
-                            deleteInternal(
+                            deleteFromDatabaseSkipProvider(
                                 mappedRequestIfAny.items.map { it.id.toLong() },
                                 mappedRequestIfAny.items,
                                 session
@@ -619,7 +619,7 @@ abstract class ResourceService<
             )
     }
 
-    private suspend fun deleteInternal(ids: List<Long>, resources: List<Res>, session: AsyncDBConnection) {
+    suspend fun deleteFromDatabaseSkipProvider(ids: List<Long>, resources: List<Res>, session: AsyncDBConnection) {
         val block: EnhancedPreparedStatement.() -> Unit = { setParameter("ids", ids) }
 
         deleteSpecification(ids, resources, session)
@@ -685,7 +685,7 @@ abstract class ResourceService<
                         val mappedResources = resources.map {
                             ((it.second) as ProductRefOrResource.SomeResource<Res>).resource
                         }
-                        deleteInternal(ids, mappedResources, session)
+                        deleteFromDatabaseSkipProvider(ids, mappedResources, session)
 
                         return BulkRequest(mappedResources)
                     }

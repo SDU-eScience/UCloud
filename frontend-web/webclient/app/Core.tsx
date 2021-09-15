@@ -11,7 +11,7 @@ import DetailedNews from "@/NewsPost/DetailedNews";
 import FilesRouter from "@/Files/Files";
 import FileCollectionsRouter from "@/Files/FileCollections";
 import MetadataNamespacesRouter from "@/Files/Metadata/Templates/Namespaces";
-import Shares from "@/Files/Shares";
+import ShareRouter from "@/Files/Shares";
 import IngoingApplications from "@/Project/Grant/IngoingApplications";
 import JobShell from "@/Applications/Jobs/Shell";
 import JobWeb from "@/Applications/Jobs/Web";
@@ -76,6 +76,7 @@ import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
+import {SharesOutgoing} from "@/Files/SharesOutgoing";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -102,7 +103,10 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
-                    <Route exact path="/shares" component={requireAuth(Shares)} />
+                    <Route path={"/shares"}>
+                        <ShareRouter />
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
+                    </Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

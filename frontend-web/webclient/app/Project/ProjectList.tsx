@@ -17,8 +17,8 @@ import {
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Operation} from "Types";
-import {Button, Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "@/ui-components";
+import {Operation} from "@/Types";
+import {Button, Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip, Card} from "@/ui-components";
 import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "@/Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -44,7 +44,33 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
-import {ShareCardBase} from "@/Files/Shares";
+import styled from "styled-components";
+
+const BorderedFlex = styled(Flex)`
+  border-radius: 6px 6px 0 0;
+`;
+
+const ShareCardBase: React.FunctionComponent<{
+    title?: JSX.Element | string | null;
+    body?: JSX.Element | null;
+    bottom?: JSX.Element | null;
+}> = props => (
+    <Card overflow={"hidden"} height={"auto"} width={1} boxShadow={"sm"} borderWidth={1} borderRadius={6} mb={12}>
+        <BorderedFlex
+            bg="lightGray"
+            color="darkGray"
+            px={3}
+            py={2}
+            alignItems="center"
+        >
+            {props.title}
+        </BorderedFlex>
+        <Box px={3} pt={3}>
+            {props.body}
+        </Box>
+        {props.bottom}
+    </Card>
+);
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {

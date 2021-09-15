@@ -5,9 +5,9 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate, UCLOUD_CORE
+    ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {FileIconHint, FileType} from "Files";
+import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
@@ -17,7 +17,6 @@ import {
     fileName,
     getParentPath,
     readableUnixMode,
-    sizeToHumanReadableWithUnit,
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {doNothing, extensionFromPath, removeTrailingSlash} from "@/UtilityFunctions";
@@ -37,10 +36,11 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
-import {Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
+import {addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
+import SharesApi from "@/UCloud/SharesApi";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -298,7 +298,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "upload",
                 primary: true,
                 canAppearInLocation: location => location === "SIDEBAR",
-                enabled: (selected, cb) => selected.length === 0 && cb.onSelect === undefined,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
+                },
                 onClick: (_, cb) => {
                     cb.dispatch({
                         type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
@@ -315,6 +329,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
@@ -337,7 +359,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Rename",
                 icon: "rename",
-                enabled: (selected) => selected.length === 1,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return selected.length === 1;
+                },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
                 }
@@ -395,10 +424,16 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 icon: "move",
                 text: "Move to...",
-                enabled: (selected, cb) =>
-                    cb.embedded !== true &&
-                    selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return cb.embedded !== true &&
+                        selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                },
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
@@ -425,13 +460,49 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
+                icon: "share",
+                text: "Share",
+                enabled: (selected, cb) => {
+                    return selected.length > 0 && selected.every(it => {
+                        return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
+                    });
+                },
+                onClick: async (selected, cb) => {
+                    const username = await addStandardInputDialog({
+                        title: "Share",
+                        help: <>The username of the user you wish to share this file with</>,
+                        addToFront: true,
+                        confirmText: "Share",
+                    });
+
+                    await cb.invokeCommand(
+                        SharesApi.create(
+                            bulkRequestOf(
+                                ...selected.map(file => ({
+                                    sharedWith: username.result,
+                                    sourceFilePath: file.id,
+                                    permissions: ["READ" as const],
+                                    product: file.specification.product
+                                }))
+                            )
+                        )
+                    );
+                }
+            },
+            {
                 icon: "trash",
                 text: "Move to trash",
                 confirm: true,
                 color: "red",
-                enabled: (selected, cb) =>
-                    selected.length > 0 &&
-                    selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN")),
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    return selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
