@@ -51,7 +51,7 @@ const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("Applications/NetworkIP/Router"));
-const ShareRouter = React.lazy(() => import("Files/Share2"));
+const ShareRouter = React.lazy(() => import("Files/Shares"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
