@@ -572,6 +572,7 @@ export function EnumFilter(
 
 export const CheckboxPill: React.FunctionComponent<{
     propertyName: string;
+    invert?: boolean;
 } & PillProps & BaseFilterWidgetProps> = props => {
     const onRemove = useCallback(() => {
         props.onDelete([props.propertyName]);
@@ -579,22 +580,28 @@ export const CheckboxPill: React.FunctionComponent<{
 
     const value = props.properties[props.propertyName];
     if (!value) return null;
+    let isChecked = value === "true";
+    if (props.invert === true) {
+        isChecked = !isChecked;
+    }
 
     return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
-        {props.title}: {value === "true" ? "Yes" : "No"}
+        {props.title}: {isChecked ? "Yes" : "No"}
     </FilterPill>;
 };
 
 export const CheckboxFilterWidget: React.FunctionComponent<{
-    propertyName: string
+    propertyName: string;
+    invert?: boolean;
 } & BaseFilterWidgetProps & FilterWidgetProps> = props => {
-    const isChecked = props.properties[props.propertyName] === "true";
+    const isTrue = props.properties[props.propertyName] === "true";
+    const isChecked = props.invert === true ? !isTrue : isTrue;
 
     const onChange = useCallback(() => {
         const properties: Record<string, string | undefined> = {};
-        properties[props.propertyName] = (!isChecked).toString();
+        properties[props.propertyName] = (!isTrue).toString();
         props.onPropertiesUpdated(properties);
-    }, [isChecked, props.onPropertiesUpdated, props.propertyName]);
+    }, [isTrue, props.onPropertiesUpdated, props.propertyName]);
 
     return <FilterWidget
         icon={props.icon}
@@ -611,9 +618,10 @@ export function CheckboxFilter(
     icon: IconName,
     propertyName: string,
     title: string,
+    invert?: boolean
 ): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
     return [
-        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title} {...props} />,
-        (props) => <CheckboxPill propertyName={propertyName} icon={icon} title={title} {...props} />
+        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />,
+        (props) => <CheckboxPill propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />
     ];
 }

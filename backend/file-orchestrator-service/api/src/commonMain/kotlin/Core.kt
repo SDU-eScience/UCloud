@@ -119,6 +119,8 @@ data class UFileIncludeFlags(
     @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
 This value is `true` by default """)
     val allowUnsupportedInclude: Boolean? = null,
+    @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
+    val filterHiddenFiles: Boolean = false,
 ) : ResourceIncludeFlags
 
 @Serializable

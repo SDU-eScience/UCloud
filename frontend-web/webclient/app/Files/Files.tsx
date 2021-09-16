@@ -14,10 +14,11 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
-import {Flex, Icon, theme} from "ui-components";
+import {Flex, Icon, theme, List} from "ui-components";
 import {PageV2} from "UCloud";
 import {ListV2} from "Pagination";
 import styled from "styled-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -27,9 +28,7 @@ export const FilesBrowse: React.FunctionComponent<{
     forceNavigationToPage?: boolean;
 }> = props => {
     const [, setUploadPath] = useGlobal("uploadPath", "/");
-    const location = useLocation();
-    const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
-    const [pathFromState, setPathFromState] = useState(props.embedded !== true ? pathFromQuery : props.pathRef?.current ?? pathFromQuery);
+    const location = useLocation(); const pathFromQuery = getQueryParamOrElse(location.search, "path", "/"); const [pathFromState, setPathFromState] = useState(props.embedded !== true ? pathFromQuery : props.pathRef?.current ?? pathFromQuery);
     const path = props.embedded === true ? pathFromState : pathFromQuery;
     const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
@@ -92,31 +91,34 @@ export const FilesBrowse: React.FunctionComponent<{
         }
 
         return <Flex>
-            {!props.embedded ? null : (<>
-                <ExpandableRow trigger={<Icon mt="8px" mr="6px" name="hdd" size="24px"/>} width="150px" height="auto">
-                    <ListV2
-                        loading={drives.loading}
-                        onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
-                            itemsPerPage: drives.data.itemsPerPage,
-                            next: drives.data.next
-                        }))}
-                        page={drives.data}
-                        pageRenderer={items => {
-                            const filteredItems = items.filter((c) => c.specification?.title !== collection.data?.specification.title)
-                            return (
-                                filteredItems.map(drive => (
-                                    <div
-                                        key={drive.id}
-                                        className="expandable-row-child"
-                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
-                                    >
-                                        {drive.specification?.title}
-                                    </div>
-                                )));
-                        }}
-                    />
-                </ExpandableRow>
-            </>)}
+            <DriveDropdown>
+                <ListV2
+                    loading={drives.loading}
+                    onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
+                        itemsPerPage: drives.data.itemsPerPage,
+                        next: drives.data.next
+                    }))}
+                    page={drives.data}
+                    pageRenderer={items => {
+                        const filteredItems = items.filter((c) => c.specification?.title !== collection.data?.specification.title)
+                        return (
+                            <>
+                                <List childPadding={"8px"} bordered={false}>
+                                    {filteredItems.map(drive => (
+                                        <div
+                                            key={drive.id}
+                                            className="expandable-row-child"
+                                            onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                        >
+                                            {drive.specification?.title}
+                                        </div>
+                                    ))}
+                                </List>
+                            </>
+                        );
+                    }}
+                />
+            </DriveDropdown>
             <BreadCrumbsBase embedded={props.embedded ?? false}>
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it}
@@ -179,27 +181,23 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-function ExpandableRow(
-    {
-        trigger,
-        ...props
-    }: React.PropsWithChildren<{ trigger: JSX.Element; width: string; height: string; }>
-): JSX.Element | null {
-    const [isOpen, setOpen] = useState(false);
-    return <div>
-        <div style={{display: "flex", cursor: "pointer"}} onClick={() => setOpen(open => !open)}>
-            <Icon
-                size="12px"
-                mr="3px"
-                mt="15px"
-                name="chevronDownLight"
-            />
-            {trigger}
-        </div>
-        <ContentWrapper isOpen={isOpen} {...props} >
+const DriveDropdown: React.FunctionComponent = props => {
+    return (
+        <ClickableDropdown 
+            colorOnHover={false} 
+            trigger={<div style={{display: "flex"}}>
+                <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
+                <Icon
+                    size="12px"
+                    mr="8px"
+                    mt="15px"
+                    name="chevronDownLight"
+                />
+            </div>}
+        >
             {props.children}
-        </ContentWrapper>
-    </div>;
+        </ClickableDropdown>
+    );
 }
 
 const ContentWrapper = styled.div<{ isOpen: boolean; width: string; height: string; }>`

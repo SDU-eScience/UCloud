@@ -2,6 +2,7 @@ package dk.sdu.cloud.debug
 
 import calls.server.RpcCoroutineContext
 import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
@@ -439,64 +440,68 @@ class DebugSystem : MicroFeature {
     private fun configure(server: RpcServer) {
         if (!developmentMode) return
 
-        val key = AttributeKey<DebugSession>("debug-session")
-        server.implement(DebugApi.listen) {
-            withContext<WSCall> {
-                when (request) {
-                    DebugListenRequest.Init -> {
-                        val debugSession = DebugSession(ctx.streamId, ctx.session)
-                        ctx.session.attributes[key] = debugSession
-                        sessions.add(debugSession)
+        try {
+            val key = AttributeKey<DebugSession>("debug-session")
+            server.implement(DebugApi.listen) {
+                withContext<WSCall> {
+                    when (request) {
+                        DebugListenRequest.Init -> {
+                            val debugSession = DebugSession(ctx.streamId, ctx.session)
+                            ctx.session.attributes[key] = debugSession
+                            sessions.add(debugSession)
 
-                        ctx.session.addOnCloseHandler {
-                            mutex.withLock {
-                                val idx = sessions.indexOfFirst { it.session == ctx.session }
-                                if (idx != -1) {
-                                    sessions.removeAt(idx)
+                            ctx.session.addOnCloseHandler {
+                                mutex.withLock {
+                                    val idx = sessions.indexOfFirst { it.session == ctx.session }
+                                    if (idx != -1) {
+                                        sessions.removeAt(idx)
+                                    }
                                 }
                             }
+
+                            while (coroutineContext.isActive) {
+                                delay(500)
+                            }
+
+                            okContentAlreadyDelivered()
                         }
 
-                        while (coroutineContext.isActive) {
-                            delay(500)
+                        is DebugListenRequest.SetContextFilter -> {
+                            val debugSession = ctx.session.attributes[key]
+                            debugSession.interestedIn = request.ids
+                            if (request.minimumLevel != null) debugSession.minimumLevel = request.minimumLevel
+                            if (request.types != null) debugSession.filterTypes = request.types
+                            if (request.query != null) debugSession.query = request.query
+
+                            mutex.withLock {
+                                debugSession.session.sendMessage(debugSession.streamId, DebugSystemListenResponse.Clear,
+                                    DebugSystemListenResponse.serializer())
+
+                                debugSession.session.sendMessage(debugSession.streamId, DebugSystemListenResponse.Append(
+                                    messages.filter { shouldSendMessage(debugSession, it) }
+                                ), DebugSystemListenResponse.serializer())
+                            }
+
+                            ok(DebugSystemListenResponse.Acknowledge)
                         }
 
-                        okContentAlreadyDelivered()
-                    }
+                        DebugListenRequest.Clear -> {
+                            val debugSession = ctx.session.attributes[key]
+                            mutex.withLock {
+                                messages.clear()
+                                debugSession.session.sendMessage(
+                                    debugSession.streamId, DebugSystemListenResponse.Clear,
+                                    DebugSystemListenResponse.serializer()
+                                )
 
-                    is DebugListenRequest.SetContextFilter -> {
-                        val debugSession = ctx.session.attributes[key]
-                        debugSession.interestedIn = request.ids
-                        if (request.minimumLevel != null) debugSession.minimumLevel = request.minimumLevel
-                        if (request.types != null) debugSession.filterTypes = request.types
-                        if (request.query != null) debugSession.query = request.query
-
-                        mutex.withLock {
-                            debugSession.session.sendMessage(debugSession.streamId, DebugSystemListenResponse.Clear,
-                                DebugSystemListenResponse.serializer())
-
-                            debugSession.session.sendMessage(debugSession.streamId, DebugSystemListenResponse.Append(
-                                messages.filter { shouldSendMessage(debugSession, it) }
-                            ), DebugSystemListenResponse.serializer())
+                            }
+                            ok(DebugSystemListenResponse.Acknowledge)
                         }
-
-                        ok(DebugSystemListenResponse.Acknowledge)
-                    }
-
-                    DebugListenRequest.Clear -> {
-                        val debugSession = ctx.session.attributes[key]
-                        mutex.withLock {
-                            messages.clear()
-                            debugSession.session.sendMessage(
-                                debugSession.streamId, DebugSystemListenResponse.Clear,
-                                DebugSystemListenResponse.serializer()
-                            )
-
-                        }
-                        ok(DebugSystemListenResponse.Acknowledge)
                     }
                 }
             }
+        } catch (ex: Throwable) {
+            log.warn("Failed to start DebugSystem: ${ex.stackTraceToString()}")
         }
     }
 
@@ -559,7 +564,8 @@ class DebugSystem : MicroFeature {
         }
     }
 
-    companion object : MicroFeatureFactory<DebugSystem, Unit> {
+    companion object : MicroFeatureFactory<DebugSystem, Unit>, Loggable {
+        override val log = logger()
         override fun create(config: Unit): DebugSystem = DebugSystem()
         override val key = MicroAttributeKey<DebugSystem>("debug-system")
     }
