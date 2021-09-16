@@ -162,20 +162,27 @@ suspend fun prepareProjectChain(
 
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
-        
+
         run {
             class In(
                 val useProjectChain: Boolean,
                 val transactionId: String,
                 val useSingleProject: Boolean,
-                val singleProjectMultipleAllocations: Boolean = false
+                val singleProjectMultipleAllocations: Boolean = false,
+                val duplicateCharge: Boolean = false
             )
             class Out(
-                val transactions: List<Transaction>
+                val transactions: List<Transaction>,
+                val firstChargeResults: List<Boolean>,
+                val secondChargeResults: List<Boolean>
             )
             test<In,Out>("Transaction tests") {
                 execute {
+                    var firstChargeResults = emptyList<Boolean>()
+                    var secondChargeResults = emptyList<Boolean>()
+
                     createSampleProducts()
+
                     if (input.useProjectChain) {
                         val projectAllocations = prepareProjectChain(
                             10000.DKK,
@@ -189,7 +196,7 @@ class AccountingTest : IntegrationTest() {
 
                         val walletOwner = projectAllocations.last().owner
                         val user = projectAllocations.last().username
-                        Accounting.charge.call(
+                        firstChargeResults = Accounting.charge.call(
                             bulkRequestOf(
                                 ChargeWalletRequestItem(
                                     walletOwner,
@@ -202,7 +209,7 @@ class AccountingTest : IntegrationTest() {
                                 )
                             ),
                             serviceClient
-                        ).orThrow()
+                        ).orThrow().responses
 
                         projectAllocations.last().client
                     }
@@ -231,11 +238,11 @@ class AccountingTest : IntegrationTest() {
                             ).orThrow()
                         }
 
-                        Accounting.charge.call(
+                        firstChargeResults = Accounting.charge.call(
                             bulkRequestOf(
                                 ChargeWalletRequestItem(
                                     walletOwner,
-                                    15000,
+                                    if (input.singleProjectMultipleAllocations) 15000 else 5000,
                                     1,
                                     sampleCompute.toReference(),
                                     user1.username,
@@ -244,7 +251,23 @@ class AccountingTest : IntegrationTest() {
                                 )
                             ),
                             serviceClient
-                        )
+                        ).orThrow().responses
+                        if (input.duplicateCharge) {
+                            secondChargeResults =  Accounting.charge.call(
+                                bulkRequestOf(
+                                    ChargeWalletRequestItem(
+                                        walletOwner,
+                                        2000,
+                                        1,
+                                        sampleCompute.toReference(),
+                                        user1.username,
+                                        "I can do this again?",
+                                        input.transactionId
+                                    )
+                                ),
+                                serviceClient
+                            ).orThrow().responses
+                        }
                     }
 
                     val transactions = db.withSession { session ->
@@ -263,7 +286,11 @@ class AccountingTest : IntegrationTest() {
                         ).rows.map { defaultMapper.decodeFromString<Transaction>(it.getString(0)!!) }
                     }
 
-                    Out(transactions = transactions)
+                    Out(
+                        transactions = transactions,
+                        firstChargeResults = firstChargeResults,
+                        secondChargeResults = secondChargeResults
+                    )
                 }
                 case("single allocation") {
                     input(
@@ -321,6 +348,25 @@ class AccountingTest : IntegrationTest() {
                             assertTrue { charges.filter { charge.transactionId == it.transactionId }.size == 1 }
                         }
 
+                    }
+                }
+
+                case("same transactionId") {
+                    input(
+                        In(
+                            useProjectChain = false,
+                            transactionId = "123456",
+                            useSingleProject = true,
+                            duplicateCharge = true
+                        )
+                    )
+                    check {
+                        val firstCharge = output.firstChargeResults.firstOrNull()
+                        assertNotNull(firstCharge)
+                        assertTrue(firstCharge!!)
+                        val secondCharge = output.secondChargeResults.firstOrNull()
+                        assertNotNull(secondCharge)
+                        assertFalse(secondCharge!!)
                     }
                 }
             }
@@ -577,7 +623,7 @@ class AccountingTest : IntegrationTest() {
                     )
                     check {
                         assertNotNull(output.allocation)
-                        assertEquals(output.allocation?.localBalance, input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ))
+                        assertEquals(input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ), output.allocation?.localBalance)
                         assertEquals(listOf(true, true, true), output.chargeResults)
                     }
 
@@ -618,8 +664,8 @@ class AccountingTest : IntegrationTest() {
                         )
                         check {
                             assertNotNull(output.allocation)
-                            assertEquals(output.allocation?.localBalance, input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ))
                             assertEquals(listOf(true, true, false), output.chargeResults)
+                            assertEquals(input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ), output.allocation?.localBalance)
                         }
                     }
                 }
