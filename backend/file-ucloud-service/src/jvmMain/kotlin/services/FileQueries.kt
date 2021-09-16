@@ -97,9 +97,15 @@ class FileQueries(
 
         if (foundFiles == null) {
             val internalFile = pathConverter.ucloudToInternal(file)
-            foundFiles = nativeFs.listFiles(internalFile).map {
-                InternalFile(internalFile.path + "/" + it)
-            }
+            foundFiles = nativeFs.listFiles(internalFile)
+                .mapNotNull {
+                    val result = InternalFile(internalFile.path + "/" + it)
+                    if (flags.filterHiddenFiles && it.startsWith(".")) {
+                        return@mapNotNull null
+                    } else {
+                        result
+                    }
+                }
         }
 
         // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
