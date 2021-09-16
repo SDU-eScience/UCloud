@@ -21,6 +21,14 @@ class ShareController(
             ok(shares.reject(actorAndProject, request))
         }
 
+        implement(Shares.browseOutgoing) {
+            ok(shares.browseOutgoing(actorAndProject, request))
+        }
+
+        implement(Shares.updatePermissions) {
+            ok(shares.updatePermissions(actorAndProject, request))
+        }
+
         return@with
     }
 }

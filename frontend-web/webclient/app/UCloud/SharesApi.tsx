@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+    CREATE_TAG,
     DELETE_TAG,
     ProductSupport,
     Resource,
@@ -9,24 +10,29 @@ import {
     ResourceUpdate
 } from "UCloud/ResourceApi";
 import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
+import {Flex, Icon, RadioTile, RadioTilesContainer} from "ui-components";
 import {ItemRenderer} from "ui-components/Browse";
 import {Product} from "Accounting";
 import {PrettyFilePath} from "Files/FilePath";
 import {Operation} from "ui-components/Operation";
 import {Client} from "Authentication/HttpClientInstance";
-import {BulkRequest, FindByStringId} from "UCloud/index";
-import {apiUpdate} from "Authentication/DataHook";
+import {accounting, BulkRequest, FindByStringId, PaginationRequest, PaginationRequestV2} from "UCloud/index";
+import {apiBrowse, apiUpdate} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {fileName} from "Utilities/FileUtilities";
 import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {doNothing, prettierString, preventDefault, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
+import {useCallback, useEffect, useState} from "react";
+import ProductReference = accounting.ProductReference;
+import {TextPill, ValuePill} from "Resource/Filter";
+import {useAvatars} from "AvataaarLib/hook";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;
     sourceFilePath: string;
-    permissions: ("READ" | "WRITE")[];
+    permissions: ("READ" | "EDIT")[];
 }
 
 export type ShareState = "APPROVED" | "PENDING" | "REJECTED";
@@ -44,9 +50,24 @@ export interface ShareUpdate extends ResourceUpdate {
 }
 
 export interface ShareFlags extends ResourceIncludeFlags {
+    filterIngoing?: boolean | null;
+    filterOriginalPath?: string | null;
 }
 
 export type Share = Resource<ShareUpdate, ShareStatus, ShareSpecification>;
+
+export interface OutgoingShareGroup {
+    sourceFilePath: string;
+    storageProduct: ProductReference;
+    sharePreview: OutgoingShareGroupPreview[];
+}
+
+export interface OutgoingShareGroupPreview {
+    sharedWith: string;
+    permissions: ("READ" | "EDIT")[];
+    state: ShareState;
+    shareId: string;
+}
 
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
@@ -55,29 +76,121 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     page = SidebarPages.Shares;
     productType = "STORAGE" as const;
 
-    renderer: ItemRenderer<Share> = {
+    renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
         MainTitle({resource}) {
             return resource ? <>
                 {resource.owner.createdBy !== Client.username ?
                     fileName(resource.specification.sourceFilePath) :
-                    <PrettyFilePath path={resource.specification.sourceFilePath}/>
+                    resource.specification.sharedWith
                 }
             </> : <></>
         },
+
         Icon({resource, size}) {
+            const avatars = useAvatars();
             if (resource?.owner?.createdBy === Client.username) {
-                return <UserAvatar avatar={defaultAvatar} width={size} />;
+                return <UserAvatar
+                    avatar={avatars.cache[resource!.specification.sharedWith] ?? defaultAvatar}
+                    width={size}
+                    height={size}
+                    mx={"0"}
+                />;
             }
-            return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
+            return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>;
+        },
+
+        ImportantStats({resource, callbacks}) {
+            const [isEdit, setIsEdit] = useState(
+                resource?.specification?.permissions?.some(it => it === "EDIT") === true
+            );
+
+            useEffectSkipMount(() => {
+                setIsEdit(resource?.specification?.permissions?.some(it => it === "EDIT") === true)
+            }, [resource?.specification.permissions]);
+
+            const updatePermissions = useCallback(async (isEditing: boolean) => {
+                if (!resource) return;
+
+                setIsEdit(isEditing);
+                const api = callbacks.api as ShareApi;
+                await callbacks.invokeCommand(api.updatePermissions(bulkRequestOf(
+                    {
+                        id: resource.id,
+                        permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
+                    }
+                )));
+                callbacks.reload();
+            }, [resource, callbacks.invokeCommand, callbacks.reload]);
+
+            const updatePermissionsRead = useCallback((e) => {
+                updatePermissions(false);
+            }, [updatePermissions]);
+
+            const updatePermissionsEdit = useCallback((e) => {
+                updatePermissions(true);
+            }, [updatePermissions]);
+
+            if (resource === undefined) return null;
+
+            return <Flex alignItems={"center"}>
+                {resource.status.state !== "APPROVED" ? null :
+                    <><Icon color={"green"} name={"check"} mr={8}/> Approved</>
+                }
+                {resource.status.state !== "PENDING" ? null :
+                    <><Icon color={"blue"} name={"questionSolid"} mr={8}/> Pending</>
+                }
+                {resource.status.state !== "REJECTED" ? null :
+                    <><Icon color={"red"} name={"close"} mr={8}/> Rejected</>
+                }
+                <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
+                    <RadioTilesContainer height={48} onClick={stopPropagation}>
+                        <RadioTile
+                            disabled={resource.owner.createdBy !== Client.username}
+                            label={"Read"}
+                            onChange={updatePermissionsRead}
+                            icon={"search"}
+                            name={"READ"}
+                            checked={!isEdit}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                        <RadioTile
+                            disabled={resource.owner.createdBy !== Client.username}
+                            label={"Edit"}
+                            onChange={updatePermissionsEdit}
+                            icon={"edit"}
+                            name={"EDIT"}
+                            checked={isEdit}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                    </RadioTilesContainer>
+                </form>
+            </Flex>;
         }
     };
 
     constructor() {
         super("shares");
+
+        this.filterPills.push(props => {
+            return <ValuePill {...props} propertyName={"filterIngoing"} showValue={true} icon={"share"} title={""}
+                              valueToString={value => value === "true" ? "Shared with me" : "Shared by me"}
+                              canRemove={false}/>
+        });
+
+        this.filterPills.push(props => {
+            return <ValuePill {...props} propertyName={"filterOriginalPath"} showValue={false} icon={"ftFolder"}
+                              title={"Path"} canRemove={false}>
+                <PrettyFilePath path={props.properties["filterOriginalPath"]}/>
+            </ValuePill>
+        });
     }
 
     retrieveOperations(): Operation<Share, ResourceBrowseCallbacks<Share>>[] {
-        const baseOperations = super.retrieveOperations();
+        const baseOperations = super.retrieveOperations().filter(op => {
+            return op.tag !== CREATE_TAG;
+        });
         const deleteOp = baseOperations.find(it => it.tag === DELETE_TAG);
         if (deleteOp) {
             const enabled = deleteOp.enabled;
@@ -136,6 +249,14 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
     reject(request: BulkRequest<FindByStringId>): APICallParameters {
         return apiUpdate(request, this.baseContext, "reject");
+    }
+
+    updatePermissions(request: BulkRequest<{ id: string, permissions: ("READ" | "EDIT")[] }>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "permissions");
+    }
+
+    browseOutgoing(request: PaginationRequestV2): APICallParameters {
+        return apiBrowse(request, this.baseContext, "outgoing");
     }
 }
 

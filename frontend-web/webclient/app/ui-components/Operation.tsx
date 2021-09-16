@@ -140,10 +140,10 @@ export const Operations: OperationsType = props => {
     const closeDropdown = () => closeDropdownRef.current();
 
     // Don't render anything if we are in row and we have selected something
-    if (props.selected.length > 0 && props.location === "IN_ROW") return null;
+    // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
     if (props.location === "IN_ROW" && !props.row) return null;
 
-    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
@@ -201,6 +201,7 @@ export const Operations: OperationsType = props => {
         closeFnRef: closeDropdownRef,
         openFnRef: props.openFnRef,
         trigger: (
+            props.selected.length === 0 ?
             <Icon
                 onClick={preventDefault}
                 ml={"5px"}
@@ -209,7 +210,7 @@ export const Operations: OperationsType = props => {
                 size={"1em"}
                 rotation={90}
                 data-tag={props.dropdownTag}
-            />
+            /> : <Box ml={"33px"}/>
         )
     };
 

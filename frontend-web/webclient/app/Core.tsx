@@ -51,7 +51,7 @@ const ProviderConnection = React.lazy(() => import("Providers/Connect"));
 const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("Applications/NetworkIP/Router"));
-const ShareRouter = React.lazy(() => import("Files/Share2"));
+const ShareRouter = React.lazy(() => import("Files/Shares"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -72,6 +72,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
 import JobRouter from "Applications/Jobs/NewApi";
 import {Debugger} from "Debug/Debugger";
+import {SharesOutgoing} from "Files/SharesOutgoing";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -98,7 +99,10 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
-                    <Route path={"/shares"}><ShareRouter /></Route>
+                    <Route path={"/shares"}>
+                        <ShareRouter />
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
+                    </Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

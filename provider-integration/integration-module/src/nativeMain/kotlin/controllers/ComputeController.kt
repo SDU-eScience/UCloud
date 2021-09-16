@@ -44,6 +44,7 @@ class ComputeController(
             return result
         }
 
+        /*
         implement(jobs.create) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -239,6 +240,7 @@ class ComputeController(
 
             OutgoingCallResponse.Ok(Unit)
         }
+         */
     }
 
     companion object : Loggable {
