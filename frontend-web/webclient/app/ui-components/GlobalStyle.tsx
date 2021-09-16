@@ -1,22 +1,13 @@
 import theme from "./theme";
 import {device} from "@/ui-components/Hide";
 
-const useInter = localStorage.getItem("inter") !== null;
-
-import fontLight from "@/Assets/IBMPlexSans-Light.ttf";
-import fontRegular from "@/Assets/IBMPlexSans-Regular.ttf";
 import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
-import inter from "@/Assets/Inter.ttf";
+import inter from "@/Assets/Inter.woff";
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontLight}');
-            font-display: swap;
-        }
         
         @font-face {
             font-family: 'Inter';
