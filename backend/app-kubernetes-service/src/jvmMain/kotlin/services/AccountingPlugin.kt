@@ -71,7 +71,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
                     ResourceChargeCredits(
                         jobId,
                         lastTs.toString(),
-                        kotlin.math.ceil(timespent / 1000 * 60.0).toLong()
+                        kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                     )
                 ),
                 k8.serviceClient
