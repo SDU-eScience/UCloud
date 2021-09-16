@@ -117,6 +117,7 @@ class GrantApplicationService(
             insertResources(session, applicationId, request.requestedResources)
 
             // TODO Auto-approve
+            autoApproveApplication(session,)
 
             notifications.notify(
                 actorAndProject.actor.safeUsername(),
@@ -142,6 +143,11 @@ class GrantApplicationService(
             applicationId
         }
     }
+
+    private suspend fun autoApproveApplication(session: AsyncDBConnection) {
+
+    }
+
 
     private suspend fun insertResources(
         session: AsyncDBConnection,

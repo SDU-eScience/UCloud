@@ -100,9 +100,50 @@ begin
 end;
 $$;
 
-create trigger require_fixed_price_per_unit
+
+create trigger require_fixed_price_per_unit_for_diff
 after insert or update on accounting.products
 for each row execute procedure accounting.require_fixed_price_per_unit_for_diff_quota();
+
+create or replace function accounting.require_fixed_price_per_unit_for_unit_per_x() returns trigger language plpgsql as $$
+declare
+    current_unit_of_price accounting.product_price_unit;
+begin
+    select pc.unit_of_price into current_unit_of_price
+    from
+        accounting.products p join
+        accounting.product_categories pc on pc.id = p.category
+    where
+        p.id = new.id;
+
+    if ((current_unit_of_price = 'UNITS_PER_MINUTE' or
+        current_unit_of_price = 'UNITS_PER_HOUR' or
+        current_unit_of_price = 'UNITS_PER_DAY' or
+        current_unit_of_price = 'PER_UNIT') and
+        new.price_per_unit != 1) then
+        raise exception 'Price per unit for UNITS_PER_X or PER_UNIT products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_fixed_price_per_unit_for_units
+after insert or update on accounting.products
+for each row execute procedure accounting.require_fixed_price_per_unit_for_unit_per_x();
+
+create or replace function accounting.require_fixed_price_per_unit_for_free_to_use() returns trigger language plpgsql as $$
+begin
+
+    if (new.free_to_use and new.price_per_unit != 1) then
+        raise exception 'Price per unit for free_to_use products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+create trigger require_fixed_price_per_unit_for_free
+after insert or update on accounting.products
+for each row execute procedure accounting.require_fixed_price_per_unit_for_free_to_use();
 
 ---- /Changes to product_categories ----
 

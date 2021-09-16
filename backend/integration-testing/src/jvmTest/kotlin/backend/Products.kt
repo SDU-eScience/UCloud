@@ -96,7 +96,7 @@ val sampleStorageOtherProvider = sampleStorage.copy(
 
 val sampleNetworkIp = Product.NetworkIP(
     "u1-public-ip",
-    1_000_000,
+    1,
     ProductCategoryId("public-ip", UCLOUD_PROVIDER),
     description = "product description"
 )
@@ -203,7 +203,7 @@ class ProductTest : IntegrationTest() {
                                         "ucloud", "ucloud"
                                     ),
                                     description = "description",
-                                    unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
                                 ),
                                 Product.Compute(
                                     "standard2",
@@ -212,7 +212,7 @@ class ProductTest : IntegrationTest() {
                                         "ucloud", "ucloud"
                                     ),
                                     description = "description",
-                                    unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
                                 )
                             )
                         )
@@ -785,10 +785,10 @@ class ProductTest : IntegrationTest() {
                     Products.create.call(
                         BulkRequest(
                             listOf(
-                                sampleStorage.copy(pricePerUnit = 222),
+                                sampleStorage.copy(pricePerUnit = 1),
                                 sampleCompute.copy(pricePerUnit = 333),
                                 sampleIngress.copy(pricePerUnit = 1),
-                                sampleNetworkIp.copy(pricePerUnit = 2),
+                                sampleNetworkIp.copy(pricePerUnit = 1),
                                 sampleStorageDifferential.copy(description = "new")
                             )
                         ),
@@ -806,7 +806,7 @@ class ProductTest : IntegrationTest() {
                             Accounting.rootDeposit.call(
                                 bulkRequestOf(
                                     RootDepositRequestItem(
-                                        sampleStorage.category,
+                                        sampleCompute.category,
                                         owner,
                                         1000000,
                                         "Initial deposit",
@@ -856,7 +856,7 @@ class ProductTest : IntegrationTest() {
                     input(
                         In(
                             browseRequest = ProductsBrowseRequest(
-                                filterName = sampleStorage.name,
+                                filterName = sampleCompute.name,
                                 includeBalance = true
                             ),
                             createWallet = true
@@ -868,7 +868,7 @@ class ProductTest : IntegrationTest() {
                         assertEquals(1, page.items.size)
                         val item = page.items.first()
                         assertEquals(1000000, item.balance)
-                        assertEquals(sampleStorage.name, item.name)
+                        assertEquals(sampleCompute.name, item.name)
                         assertEquals(2, item.version)
                     }
                 }
@@ -889,10 +889,10 @@ class ProductTest : IntegrationTest() {
                         sampleProducts.forEach { product ->
                             assertTrue(page.items.contains(product))
                         }
-                        assertTrue(page.items.contains(sampleStorage.copy(pricePerUnit = 222, version = 2)))
+                        assertTrue(page.items.contains(sampleStorage.copy(pricePerUnit = 1, version = 2)))
                         assertTrue(page.items.contains(sampleCompute.copy(pricePerUnit = 333, version = 2)))
                         assertTrue(page.items.contains(sampleIngress.copy(pricePerUnit = 1, version = 2)))
-                        assertTrue(page.items.contains(sampleNetworkIp.copy(pricePerUnit = 2, version = 2)))
+                        assertTrue(page.items.contains(sampleNetworkIp.copy(pricePerUnit = 1, version = 2)))
                         assertTrue(page.items.contains(sampleStorageDifferential.copy(description = "new", version = 2)))
                     }
                 }
@@ -901,16 +901,16 @@ class ProductTest : IntegrationTest() {
                     input(
                         In(
                             retrieveRequest = ProductsRetrieveRequest(
-                                filterName = sampleStorage.name,
-                                filterCategory = sampleStorage.category.name,
-                                filterProvider = sampleStorage.category.provider,
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
                             )
                         )
                     )
                     check {
                         assertNotNull(output.product)
                         val product = output.product!!
-                        assertEquals(sampleStorage.copy(pricePerUnit = 222, version = 2), product)
+                        assertEquals(sampleCompute.copy(pricePerUnit = 333, version = 2), product)
                     }
                 }
 
@@ -918,9 +918,9 @@ class ProductTest : IntegrationTest() {
                     input(
                         In(
                             retrieveRequest = ProductsRetrieveRequest(
-                                filterName = sampleStorage.name,
-                                filterCategory = sampleStorage.category.name,
-                                filterProvider = sampleStorage.category.provider,
+                                filterName = sampleCompute.name,
+                                filterCategory = sampleCompute.category.name,
+                                filterProvider = sampleCompute.category.provider,
                                 includeBalance = true
                             ),
                             createWallet = true
@@ -931,7 +931,7 @@ class ProductTest : IntegrationTest() {
                         val product = output.product!!
                         assertEquals(1000000, product.balance)
 
-                        assertEquals(sampleStorage.name, product.name)
+                        assertEquals(sampleCompute.name, product.name)
                         assertEquals(2, product.version)
                     }
                 }
