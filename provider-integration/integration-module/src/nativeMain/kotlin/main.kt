@@ -81,7 +81,7 @@ fun main(args: Array<String>) {
     }
 
     val ownExecutable = readSelfExecutablePath()
-    signal(SIGCHLD, SIG_IGN) // Automatically reap children
+    //signal(SIGCHLD, SIG_IGN) // Automatically reap children - commenting out as currently interferes with execve.kt
     signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
     runBlocking {

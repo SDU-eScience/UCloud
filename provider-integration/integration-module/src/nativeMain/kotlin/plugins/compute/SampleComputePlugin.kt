@@ -43,6 +43,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
 import kotlinx.coroutines.isActive
+import kotlinx.datetime.Clock
 
 
 @Serializable
@@ -119,7 +120,7 @@ fun manageHeader(job:Job):String {
             }
         }
 
-    // append header lines starting with headerEnd
+    // append lines starting with headerEnd
     fileBody.addAll(headerEnd, headerSuffix)
     
     // append shebang
@@ -140,16 +141,15 @@ fun PluginContext.getStatus(id: String) : JobState {
         val ipcClient = ipcClient ?: error("No ipc client")
         val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "get.job", defaultMapper.encodeToJsonElement( SlurmJob(id, "someid", "somepartition" ) ) as JsonObject ) ).orThrow<SlurmJob>()
 
-        val mString = popen("SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sacct --partition ${slurmJob.partition}  --jobs ${slurmJob.slurmId} --allusers --format jobid,state,exitcode --noheader --parsable2", "r")
-
-        val stdout = buildString {
-            val buffer = ByteArray(4096)
-            while (true) {
-                val input = fgets(buffer.refTo(0), buffer.size, mString) ?: break
-                append(input.toKString())
-            }
-        }
-        pclose(mString)
+        val (code, stdout, stderr) = CmdBuilder("/usr/bin/sacct")
+                                    .addArg("--partition",  slurmJob.partition)
+                                    .addArg("--jobs",       slurmJob.slurmId)
+                                    .addArg("--allusers")
+                                    .addArg("--format", "jobid,state,exitcode")
+                                    .addArg("--noheader")
+                                    .addArg("--parsable2")
+                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                    .execute()
 
         val slurmStatus = stdout.lines().get(0).split("|").get(1)
         ucloudStatus =   when (slurmStatus) {
@@ -249,15 +249,6 @@ fun PluginContext.getStatus(id: String) : JobState {
 
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
- 
-        //val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-        // val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
-        // val request_product = job.specification?.product as ProductReference
-        // val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
-        // val job_partition = "normal" //product!!.id 
-        // val product_cpu = product!!.cpu
-        // val product_mem = product!!.mem
-        // val product_gpu = product!!.gpu
 
         mkdir("/data/${job.id}", "0770".toUInt(8) )
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
@@ -269,36 +260,11 @@ fun PluginContext.getStatus(id: String) : JobState {
 
         runBlocking {
 
-    //    val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch")
-    //                                 .addArg("--chdir", "/data/${job.id}")
-    //                                 .addArg("--cpus-per-task", "${product_cpu}")
-    //                                 .addArg("--mem", "${product_mem}")
-    //                                 .addArg("--gpus-per-node", "${product_gpu}")
-    //                                 .addArg("--time", "${job_timelimit}")
-    //                                 .addArg("--job-name", "${job.id}")
-    //                                 .addArg("--partition", "normal")    // ${job_partition}
-    //                                 .addArg("--parsable")
-    //                                 .addArg("--output", "std.out")
-    //                                 .addArg("--error", "std.err")
-    //                                 .addArg("job.sbatch")
-    //                                 .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
-    //                                 .execute()
+        val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch").addArg("/data/${job.id}/job.sbatch").addEnv("SLURM_CONF", "/etc/slurm/slurm.conf").execute()
 
-    //     println("PLUGINDATA: $code  $stdout  $stderr")
-
-        //TODO: solve formatting errors
-        val mString = popen("SLURM_CONF=/etc/slurm/slurm.conf /usr/bin/sbatch /data/${job.id}/job.sbatch", "r")
-
-        val slurmId = buildString {
-            val buffer = ByteArray(4096)
-            while (true) {
-                val input = fgets(buffer.refTo(0), buffer.size, mString) ?: break
-                append(input.toKString())
-            }
-        }
-        pclose(mString)
-
-
+        val slurmId = stdout
+        println("CODE: $code $stderr $stdout")
+        //TODO: check file formatting errors
 
         val ipcClient = ipcClient ?: error("No ipc client")
         val request_product = job.specification?.product as ProductReference
@@ -313,7 +279,7 @@ fun PluginContext.getStatus(id: String) : JobState {
                 JobsControlUpdateRequestItem(
                     job.id,
                     JobState.IN_QUEUE,
-                    "The job has been queued. Log into url.dtu.dk and approve request."
+                    "The job has been queued"
                 )
             ), client
         ).orThrow()    
@@ -348,7 +314,6 @@ fun PluginContext.getStatus(id: String) : JobState {
 
 
         // Sends SIGKILL or custom with -s INTEGER
-        //DONE: replace --name with --job
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/scancel")
                 .addArg("--partition", "normal")    // ${job_partition}
                 .addArg("--full")
@@ -356,7 +321,8 @@ fun PluginContext.getStatus(id: String) : JobState {
                 .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
                 .execute()
 
-        println("CANCEL $code - $stdout - $stderr")
+        //println("CANCEL $code - $stdout - $stderr")
+
         //check process status and change to SUCCESS
         sleep(2)
         runBlocking {
@@ -391,22 +357,6 @@ fun PluginContext.getStatus(id: String) : JobState {
             sleep(2)
             println("follow logs")
 
-            fun getTime():String{
-
-                    val mString = popen("/usr/bin/date +\"%Y/%m/%d %H:%M:%S:%N\" ", "r")
-
-                    val stdout = buildString {
-                        val buffer = ByteArray(4096)
-                        while (true) {
-                            val input = fgets(buffer.refTo(0), buffer.size, mString) ?: break
-                            append(input.toKString())
-                        }
-                    }
-                    pclose(mString)
-
-                    return stdout.replace("\r", "").replace("\n", "").trim()
-            }
-
             
             val stdOut = NativeFile.open(path="/data/${job.id}/std.out", readOnly = true)
             val stdErr = NativeFile.open(path="/data/${job.id}/std.err", readOnly = true)
@@ -416,11 +366,13 @@ fun PluginContext.getStatus(id: String) : JobState {
                 when ( mState ) {
 
                         JobState.RUNNING -> {
+
                             val line = stdOut.readText(autoClose = false)
-                            if ( !line.isNullOrEmpty() ) emitStdout(0, "[${ getTime() }] OUT: ${ line.trim() } \n")
+
+                            if ( !line.isNullOrEmpty() ) emitStdout(0, "[${ Clock.System.now() }] OUT: ${ line.trim() } \n")
 
                             val err = stdOut.readText(autoClose = false)
-                            if ( !err.isNullOrEmpty() ) emitStdout(0, "[${ getTime() }] ERR: ${ err.trim() } \n")
+                            if ( !err.isNullOrEmpty() ) emitStdout(0, "[${ Clock.System.now() }] ERR: ${ err.trim() } \n")
 
                         }
 

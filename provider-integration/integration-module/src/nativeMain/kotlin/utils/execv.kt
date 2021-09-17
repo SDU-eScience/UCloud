@@ -59,14 +59,12 @@ fun startProcess(
 ): Int {
     val forkResult = fork()
 
-    println(forkResult)
 
     if (forkResult == -1) {
         throw IllegalStateException("Could not start new process")
     } else if (forkResult == 0) {
         replaceThisProcess(args, createStreams(), envs = envs)
     }
-
 
     return forkResult
 }
@@ -90,14 +88,8 @@ class Process(
             val wstatus = alloc<IntVar>()
             val result = waitpid(pid, wstatus.ptr, if (waitForExit) 0 else WNOHANG)
             return when {
-                result == 0 -> ProcessStatus(0) // TODO: was ProcessStatus(-1)
-                result < 0 -> {
-                    if (!waitForExit && errno == ECHILD) {
-                        ProcessStatus(-1)
-                    } else {
-                        throw IllegalStateException(getNativeErrorMessage(errno))
-                    }
-                }
+                result == 0 -> ProcessStatus(-1)
+                result < 0 -> throw IllegalStateException(getNativeErrorMessage(errno))
                 else -> ProcessStatus(
                     if (wifexited(wstatus.value)) wexitstatus(wstatus.value)
                     else 255
@@ -218,6 +210,7 @@ fun startProcessAndCollectToMemory(
 
             try {
                 val read = process.stdout.read(stdoutBuffer, stdoutPtr, bytesToRead)
+
                 val error = read.getErrorOrNull()
                 if (error != EAGAIN && error != EWOULDBLOCK) {
                     stdoutPtr += read.getOrThrow()
@@ -267,8 +260,7 @@ fun startProcessAndCollectToString(
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResultText {
     val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
-    println("startProcessAndCollectToString  $res.statusCode $res.stdout $res.stderr")
-    return ProcessResultText(res.statusCode, res.stdout.decodeToString(), res.stderr.decodeToString())
+    return ProcessResultText(res.statusCode, res.stdout.decodeToString().trim(), res.stderr.decodeToString().trim())
 }
 
 
@@ -290,7 +282,6 @@ data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableLi
     }
 
     fun execute() : ProcessResultText {
-        println("EXECUTING: $args , $envs")
        return startProcessAndCollectToString( args, envs )
     }
     
