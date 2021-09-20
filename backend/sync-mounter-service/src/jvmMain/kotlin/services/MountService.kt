@@ -71,13 +71,19 @@ class MountService(
                 val pid = ProcessHandle.current().pid()
                 val realSourcePath = Paths.get(joinPath("/proc", pid.toString(), "fd", fileDescriptors.last().toString()))
 
-                CLibrary.INSTANCE.mount(
+                val mountValue = CLibrary.INSTANCE.mount(
                     realSourcePath.pathString,
                     target.canonicalPath,
                     null,
                     MS_BIND,
                     null
                 )
+
+                if (mountValue < 0) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to mount folder")
+                }
+
+
             } catch (ex: Throwable) {
                 throw ex
             } finally {
@@ -99,7 +105,9 @@ class MountService(
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
             }
 
-            CLibrary.INSTANCE.umount(target.canonicalPath)
+            if(CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
+            }
 
             if (!target.delete()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to delete target")

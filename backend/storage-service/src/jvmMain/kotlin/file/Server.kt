@@ -87,7 +87,8 @@ class Server(
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
-        val syncthingClient = SyncthingClient(syncConfig, db)
+        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache, db, syncthingClient)
         val synchronizationService =
             SynchronizationService(syncthingClient, fsRootFile.absolutePath, db, newAclService, client)
@@ -236,7 +237,8 @@ class Server(
                 }
 
                 val db = AsyncDBSessionFactory(micro.databaseConfig)
-                val syncthingClient = SyncthingClient(syncConfig, db)
+                val distributedLocks = DistributedLockBestEffortFactory(micro)
+                val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
                 syncthingClient.writeConfig(running)
                 syncthingClient.rescan(running)
             } catch (ex: Throwable) {
