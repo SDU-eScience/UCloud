@@ -360,12 +360,7 @@ interface CopyToClipboard {
  * @param param contains the value to be copied and the message to show the user on success.
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
-    const input = document.createElement("input");
-    input.value = value ?? "";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
+    navigator.clipboard.writeText(value ?? "");
     snackbarStore.addSuccess(message, true);
 }
 
