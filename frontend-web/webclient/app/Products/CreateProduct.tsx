@@ -12,7 +12,32 @@ interface DataType {
 }
 const DataContext = React.createContext<DataType>({required: [], fields: {}});
 
+interface ResourceField {
+    id: string;
+    label: string;
+    required?: boolean;
+    placeholder?: string;
+    styling: LabelProps;
+    leftLabel?: string;
+    rightLabel?: string;
+}
+
+interface NumberField extends ResourceField {
+    min?: number;
+    max?: number;
+    step?: string;
+}
+
+interface SelectField extends Omit<ResourceField, "leftLabel" | "rightLabel"> {
+    options: {value: string, text: string}[];
+}
+
+interface CheckboxField extends Omit<ResourceField, "leftLabel" | "rightLabel" | "placeholder"> {
+    defaultChecked: boolean;
+}
+
 export default abstract class ResourceForm<Request> extends React.Component<{
+    /* Note(jonas): Seems passing "fields" only would work just as well. */
     createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
     formatError?: (errors: string[]) => string;
@@ -83,7 +108,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         return missingFields.length === 0;
     }
 
-    public static Number({id, label, styling, leftLabel, rightLabel, ...props}: {id: string; step?: string; label: string; required?: boolean; placeholder?: string; min?: number; max?: number; styling: LabelProps; rightLabel?: string; leftLabel?: string;}): JSX.Element {
+    public static Number({id, label, styling, leftLabel, rightLabel, ...props}: NumberField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required});
 
         /* Why in the world is color not allowed? */
@@ -101,7 +126,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         </Label>
     }
 
-    public static Select({id, label, options, styling, ...props}: {id: string; label: string; required?: boolean; options: {value: string, text: string}[], styling: LabelProps}): JSX.Element {
+    public static Select({id, label, options, styling, ...props}: SelectField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
 
         React.useEffect(() => {
@@ -122,7 +147,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         </Label>;
     }
 
-    public static Checkbox({id, label, ...props}: {id: string; label: string; required?: boolean; defaultChecked: boolean;}): JSX.Element {
+    public static Checkbox({id, label, ...props}: CheckboxField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required, defaultChecked: props.defaultChecked});
 
         return <Label>
@@ -131,7 +156,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         </Label>;
     }
 
-    public static Text({id, label, styling, leftLabel, rightLabel, ...props}: {id: string; label: string; required?: boolean; placeholder?: string; styling: LabelProps; rightLabel?: string; leftLabel?: string;}): JSX.Element {
+    public static Text({id, label, styling, leftLabel, rightLabel, ...props}: ResourceField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
 
         /* Why in the world is color not allowed? */
@@ -147,7 +172,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         </Label>
     }
 
-    public static TextArea({id, label, styling, ...props}: {id: string; label: string; required?: boolean; rows?: number; placeholder?: string; styling: LabelProps;}): JSX.Element {
+    public static TextArea({id, label, styling, ...props}: ResourceField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
 
         /* Why in the world is color not allowed? */
