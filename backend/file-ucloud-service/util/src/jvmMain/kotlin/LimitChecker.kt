@@ -26,12 +26,16 @@ class LimitChecker(
             }
         }
     )
-    suspend fun checkLimit(collection: FileCollection) {
-        if (isCollectionLocked.get(collection.id) == true) {
+    suspend fun checkLimit(collection: String) {
+        if (isCollectionLocked.get(collection) == true) {
             throw RPCException(
                 "Quota has been exceeded. Delete some files and try again later.",
                 HttpStatusCode.PaymentRequired
             )
         }
     }
+}
+
+suspend inline fun LimitChecker.checkLimit(collection: FileCollection) {
+    checkLimit(collection.id)
 }
