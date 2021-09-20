@@ -1,5 +1,5 @@
 import {style} from "styled-system";
-import {ThemeColor} from "ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 
 export const cursor = style({
     prop: "cursor",

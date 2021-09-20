@@ -1,6 +1,6 @@
 import * as React from "react";
-import {FacialHairColor} from "UserSettings/AvatarOptions";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {FacialHairColor} from "@/UserSettings/AvatarOptions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import Colors from "./Colors";
 
 export default class MoustacheMagnum extends React.Component<{facialHairColor: FacialHairColor}> {

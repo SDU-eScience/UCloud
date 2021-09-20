@@ -2,7 +2,7 @@ import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styled from "styled-components";
 import {borders, fontSize, space} from "styled-system";
-import theme from "ui-components/theme";
+import theme from "@/ui-components/theme";
 import {InputProps} from "./Input";
 
 export const DatePicker = styled(ReactDatePicker) <InputProps>`

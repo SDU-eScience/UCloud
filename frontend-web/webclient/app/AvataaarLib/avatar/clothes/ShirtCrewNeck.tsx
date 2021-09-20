@@ -1,8 +1,8 @@
 import * as React from "react"
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 import Colors from "./Colors"
-import {ColorFabric} from "UserSettings/AvatarOptions";
+import {ColorFabric} from "@/UserSettings/AvatarOptions";
 
 export default class ShirtCrewNeck extends React.Component<{color: ColorFabric}> {
   static optionValue = "ShirtCrewNeck";

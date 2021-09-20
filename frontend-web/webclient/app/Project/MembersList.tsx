@@ -1,17 +1,17 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project";
-import {useAsyncCommand} from "Authentication/DataHook";
-import {useAvatars} from "AvataaarLib/hook";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "@/Project";
+import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-components";
-import {IconName} from "ui-components/Icon";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {addStandardDialog} from "UtilityComponents";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
+import {IconName} from "@/ui-components/Icon";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {addStandardDialog} from "@/UtilityComponents";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];

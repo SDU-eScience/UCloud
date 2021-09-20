@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import theme from "ui-components/theme";
+import theme from "@/ui-components/theme";
 import Flex from "./Flex";
 import Text from "./Text";
 

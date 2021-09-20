@@ -1,23 +1,23 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Card} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown} from "ui-components/Dropdown";
-import {TextSpan} from "ui-components/Text";
-import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import CONF from "../../site.config.json";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Card} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
+import {TextSpan} from "@/ui-components/Text";
+import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "@/Utilities/URIUtilities";
+import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, LOGIN_PAGE_PRODUCTS} from "../../site.config.json";
 import {BG1} from "./BG1";
-import * as Heading from "ui-components/Heading";
+import * as Heading from "@/ui-components/Heading";
 
-const bg2 = require("Assets/Images/bg2.svg");
-const wayfLogo = require("Assets/Images/WAYFLogo.svg");
-const aarhusu_logo = require("Assets/Images/aarhusu_logo.png")
-const aalborgu_logo = require("Assets/Images/aalborgu_logo.png")
+import bg2 from "@/Assets/Images/bg2.svg";
+import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
+import aarhusu_logo from "@/Assets/Images/aarhusu_logo.png";
+import aalborgu_logo from "@/Assets/Images/aalborgu_logo.png";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
@@ -508,7 +508,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
     return (<>
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
-                {!CONF.SUPPORT_EMAIL ? null : (
+                {!SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="224px"
                         top="36px"
@@ -516,14 +516,14 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                         colorOnHover={false}
                         trigger={<LoginIcon mr={"1em"} name="suggestion" />}
                     >
-                        <ExternalLink href={`mailto:${CONF.SUPPORT_EMAIL}`}>
+                        <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
-                                    {" "}<b>{CONF.SUPPORT_EMAIL}</b>
+                                    {" "}<b>{SUPPORT_EMAIL}</b>
                         </ExternalLink>
                     </ClickableDropdown>
                 )}
-                {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                    <LoginExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                {!SITE_DOCUMENTATION_URL ? null : (
+                    <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
                         <LoginIcon name="docs" /> Docs
                     </LoginExternalLink>
                 )}
@@ -559,7 +559,7 @@ export function LoginSelection(): JSX.Element {
         <LoginWrapper selection>
             <Flex justifyContent="center">
                 <CenteredGrid>
-                    {CONF.LOGIN_PAGE_PRODUCTS.map(product => (
+                    {LOGIN_PAGE_PRODUCTS.map(product => (
                         <Card
                             key={product.name}
                             width={1}

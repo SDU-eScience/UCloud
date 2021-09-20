@@ -1,16 +1,16 @@
-import {useInput} from "Admin/LicenseServers";
-import {useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import MainContainer from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {useInput} from "@/Admin/LicenseServers";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import MainContainer from "@/MainContainer/MainContainer";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as UCloud from "UCloud";
-import {Box, Button, Checkbox, Flex, Input, Label} from "ui-components";
-import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
-import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import * as UCloud from "@/UCloud";
+import {Box, Button, Checkbox, Flex, Input, Label} from "@/ui-components";
+import {errorMessageOrDefault, stopPropagation} from "@/UtilityFunctions";
+import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {useHistory} from "react-router";
-import {useProjectId} from "Project";
+import {useProjectId} from "@/Project";
 
 function Create(): JSX.Element | null {
     const [loading, invokeCommand] = useCloudCommand();

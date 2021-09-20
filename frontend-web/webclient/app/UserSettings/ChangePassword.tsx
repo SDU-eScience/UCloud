@@ -1,9 +1,9 @@
-import {useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
-import {Box, Button, Icon, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import {Box, Button, Icon, Input, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 
 enum ChangePasswordError {
     BAD_CURRENT,

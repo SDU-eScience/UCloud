@@ -1,14 +1,14 @@
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import * as React from "react";
-import {ShakingBox} from "UtilityComponents";
-import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "ui-components/index";
-import {groupSummaryRequest, useProjectId} from "Project";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {GroupWithSummary} from "Project/GroupList";
-import {bulkRequestOf, emptyPage} from "DefaultObjects";
+import {ShakingBox} from "@/UtilityComponents";
+import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {groupSummaryRequest, useProjectId} from "@/Project";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {GroupWithSummary} from "@/Project/GroupList";
+import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
-import * as Pagination from "Pagination";
-import {TextSpan} from "ui-components/Text";
+import * as Pagination from "@/Pagination";
+import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
 import {
     AclEntity,
@@ -16,7 +16,7 @@ import {
     Resource,
     ResourceAclEntry,
     ResourceApi,
-} from "UCloud/ResourceApi";
+} from "@/UCloud/ResourceApi";
 
 interface ResourcePermissionEditorProps<T extends Resource> {
     reload: () => void;

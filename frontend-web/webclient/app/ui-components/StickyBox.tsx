@@ -1,4 +1,4 @@
-import Box from "ui-components/Box";
+import Box from "@/ui-components/Box";
 import styled from "styled-components";
 import {TopProps, top} from "styled-system";
 

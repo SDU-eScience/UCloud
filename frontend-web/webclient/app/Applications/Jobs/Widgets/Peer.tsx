@@ -1,20 +1,20 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
-import Flex from "ui-components/Flex";
+import Flex from "@/ui-components/Flex";
 import {useCallback, useState} from "react";
-import Box from "ui-components/Box";
+import Box from "@/ui-components/Box";
 import styled from "styled-components";
-import Input from "ui-components/Input";
-import Label from "ui-components/Label";
+import Input from "@/ui-components/Input";
+import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {emptyPage} from "DefaultObjects";
-import {useCloudAPI} from "Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {JobBrowse} from "Applications/Jobs/NewApi";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {JobBrowse} from "@/Applications/Jobs/NewApi";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;

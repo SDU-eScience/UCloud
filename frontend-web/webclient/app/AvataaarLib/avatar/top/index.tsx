@@ -1,5 +1,5 @@
 import * as React from "react";
-import {FacialHair, FacialHairColor, HairColor, HatColor, Top as TopOption} from "UserSettings/AvatarOptions";
+import {FacialHair, FacialHairColor, HairColor, HatColor, Top as TopOption} from "@/UserSettings/AvatarOptions";
 import Eyepatch from "./Eyepatch";
 import Hat from "./Hat";
 import Hijab from "./Hijab";

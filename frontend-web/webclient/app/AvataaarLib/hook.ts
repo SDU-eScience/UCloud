@@ -1,7 +1,7 @@
-import {AvatarType} from "UserSettings/Avataaar";
+import {AvatarType} from "@/UserSettings/Avataaar";
 import {useCallback, useState} from "react";
-import {useAsyncCommand} from "Authentication/DataHook";
-import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "AvataaarLib/index";
+import {useAsyncCommand} from "@/Authentication/DataHook";
+import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
 
 // Hack: It is really hard for these kind of global caches to avoid double loading if we go through the
 // React/Redux way of thinking. Instead we keep an actual global reference, which is more or less what we do with redux,

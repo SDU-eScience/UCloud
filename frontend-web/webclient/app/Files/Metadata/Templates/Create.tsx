@@ -1,22 +1,22 @@
 import * as React from "react";
 import {useHistory} from "react-router";
-import {getQueryParam} from "Utilities/URIUtilities";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import MainContainer from "MainContainer/MainContainer";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import MainContainer from "@/MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
-import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {Operation, Operations} from "ui-components/Operation";
-import {Section} from "ui-components/Section";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
+import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {Section} from "@/ui-components/Section";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
-import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
-import {BulkResponse, FindByStringId} from "UCloud";
+import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {BulkResponse, FindByStringId} from "@/UCloud";
 import styled from "styled-components";
 
 enum Stage {

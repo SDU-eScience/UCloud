@@ -1,4 +1,4 @@
-import PromiseKeeper from "PromiseKeeper";
+import PromiseKeeper from "@/PromiseKeeper";
 
 describe("Promise Keeper", () => {
     test("New Promise Keeper has no promises", () =>

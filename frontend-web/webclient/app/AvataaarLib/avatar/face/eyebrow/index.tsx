@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Eyebrows} from "UserSettings/AvatarOptions";
+import {Eyebrows} from "@/UserSettings/AvatarOptions";
 import Angry from "./Angry";
 import AngryNatural from "./AngryNatural";
 import Default from "./Default";

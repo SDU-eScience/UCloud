@@ -1,11 +1,11 @@
 import * as React from "react";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Heading from "ui-components/Heading";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {Button, Input} from "ui-components";
+import {useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Heading from "@/ui-components/Heading";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {Button, Input} from "@/ui-components";
 import {useRef} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 
 export interface KillJobRequest {

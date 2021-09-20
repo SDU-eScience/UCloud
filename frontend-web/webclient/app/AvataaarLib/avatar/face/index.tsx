@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Eyebrows, Eyes as EyeOptions, MouthTypes} from "UserSettings/AvatarOptions";
+import {Eyebrows, Eyes as EyeOptions, MouthTypes} from "@/UserSettings/AvatarOptions";
 import Eyebrow from "./eyebrow";
 import Eyes from "./eyes";
 import Mouth from "./mouth";

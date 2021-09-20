@@ -1,18 +1,18 @@
 import * as React from "react";
-import {Text, Link, Truncate, Flex, Button, Input, Box, Icon} from "ui-components";
-import * as Pagination from "Pagination";
-import {useCloudCommand} from "Authentication/DataHook";
+import {Text, Link, Truncate, Flex, Button, Input, Box, Icon} from "@/ui-components";
+import * as Pagination from "@/Pagination";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import {
     listGroupMembersRequest,
     removeGroupMemberRequest,
     updateGroupName,
-} from "Project";
-import {addStandardDialog, ConfirmCancelButtons} from "UtilityComponents";
-import {ProjectRole} from "Project";
-import {useProjectManagementStatus} from "Project/index";
-import {MembersList} from "Project/MembersList";
-import * as Heading from "ui-components/Heading";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+} from "@/Project";
+import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
+import {ProjectRole} from "@/Project";
+import {useProjectManagementStatus} from "@/Project/index";
+import {MembersList} from "@/Project/MembersList";
+import * as Heading from "@/ui-components/Heading";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const GroupView: React.FunctionComponent = () => {
     const {

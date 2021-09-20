@@ -1,28 +1,28 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import styled from "styled-components";
 import ReactModal from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "ui-components";
-import {TextSpan} from "ui-components/Text";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "@/ui-components";
+import {TextSpan} from "@/ui-components/Text";
 import {
     errorMessageOrDefault,
     extensionFromPath,
     inSuccessRange,
     preventDefault
-} from "UtilityFunctions";
-import {fetcherFromDropOrSelectEvent} from "Files/HTML5FileSelector";
-import {supportedProtocols, Upload, UploadState} from "Files/Upload";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {Operation, Operations} from "ui-components/Operation";
-import {default as FilesApi, FilesCreateUploadResponseItem} from "UCloud/FilesApi";
-import {callAPI} from "Authentication/DataHook";
-import {bulkRequestOf} from "DefaultObjects";
-import {BulkResponse} from "UCloud";
-import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
-import {fileName, sizeToString} from "Utilities/FileUtilities";
-import {FilesCreateUploadRequestItem} from "UCloud/FilesApi";
+} from "@/UtilityFunctions";
+import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
+import {supportedProtocols, Upload, UploadState} from "@/Files/Upload";
+import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {default as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
+import {callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {BulkResponse} from "@/UCloud";
+import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {fileName, sizeToString} from "@/Utilities/FileUtilities";
+import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
 
 const maxConcurrentUploads = 5;
 const entityName = "Upload";

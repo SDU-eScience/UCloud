@@ -1,9 +1,9 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {MainContainer} from "MainContainer/MainContainer";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Box, Button, TextArea} from "ui-components";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Box, Button, TextArea} from "@/ui-components";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 
 interface ErrorBoundaryState {
     hasError: boolean;

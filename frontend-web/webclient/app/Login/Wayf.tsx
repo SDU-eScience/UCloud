@@ -1,6 +1,6 @@
 import * as React from "react";
-import {RouterLocationProps} from "Utilities/URIUtilities";
-import {inDevEnvironment} from "UtilityFunctions";
+import {RouterLocationProps} from "@/Utilities/URIUtilities";
+import {inDevEnvironment} from "@/UtilityFunctions";
 import {LoginPage} from "./Login";
 
 // https://stackoverflow.com/a/2138471

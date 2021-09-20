@@ -1,5 +1,5 @@
 import * as React from "react";
-import {HatColor} from "UserSettings/AvatarOptions";
+import {HatColor} from "@/UserSettings/AvatarOptions";
 
 
 export interface Props {

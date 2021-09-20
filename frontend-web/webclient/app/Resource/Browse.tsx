@@ -1,4 +1,5 @@
 import * as React from "react";
+import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
     ResolvedSupport,
     Resource,
@@ -9,37 +10,36 @@ import {
     SupportByProvider,
     ResourceSpecification,
     UCLOUD_CORE
-} from "UCloud/ResourceApi";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {bulkRequestOf} from "DefaultObjects";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {useScrollStatus} from "Utilities/ScrollStatus";
-import {PageRenderer} from "Pagination/PaginationV2";
-import {Box, Icon, List} from "ui-components";
-import {ListRowStat} from "ui-components/List";
-import {Operation, Operations} from "ui-components/Operation";
-import {dateToString} from "Utilities/DateUtilities";
-import MainContainer from "MainContainer/MainContainer";
-import {StickyBox} from "ui-components/StickyBox";
-import {NamingField} from "UtilityComponents";
-import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
-import {useSidebarPage} from "ui-components/Sidebar";
-import * as Heading from "ui-components/Heading";
+} from "@/UCloud/ResourceApi";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {useScrollStatus} from "@/Utilities/ScrollStatus";
+import {PageRenderer} from "@/Pagination/PaginationV2";
+import {Box, Icon, List} from "@/ui-components";
+import {ListRowStat} from "@/ui-components/List";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {dateToString} from "@/Utilities/DateUtilities";
+import MainContainer from "@/MainContainer/MainContainer";
+import {StickyBox} from "@/ui-components/StickyBox";
+import {NamingField} from "@/UtilityComponents";
+import {ProductSelector} from "@/Resource/ProductSelector";
+import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useSidebarPage} from "@/ui-components/Sidebar";
+import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {ResourceFilter} from "Resource/Filter";
-import {useResourceSearch} from "Resource/Search";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {ResourceFilter} from "@/Resource/Filter";
+import {useResourceSearch} from "@/Resource/Search";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
-import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
-import {useAvatars} from "AvataaarLib/hook";
-import {Avatar} from "AvataaarLib";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {Product, ProductType, productTypeToIcon} from "Accounting";
+import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {Avatar} from "@/AvataaarLib";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;

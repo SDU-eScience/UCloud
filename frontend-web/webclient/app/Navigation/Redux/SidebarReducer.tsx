@@ -1,4 +1,4 @@
-import {initSidebar, SidebarReduxObject} from "DefaultObjects";
+import {initSidebar, SidebarReduxObject} from "@/DefaultObjects";
 import {SidebarActions} from "./SidebarActions";
 
 export const KC_SUCCESS = "KC_SUCCESS";

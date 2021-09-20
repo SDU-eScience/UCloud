@@ -1,15 +1,15 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {defaultErrorHandler} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Button, Input, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 
 const initialState: UserCreationState = {

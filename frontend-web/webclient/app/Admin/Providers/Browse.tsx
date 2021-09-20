@@ -1,17 +1,17 @@
 import * as React from "react";
-import MainContainer from "MainContainer/MainContainer";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import * as UCloud from "UCloud"
-import {emptyPageV2} from "DefaultObjects";
-import {ListV2} from "Pagination";
-import * as Heading from "ui-components/Heading";
-import {Button, Link, List} from "ui-components";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
+import MainContainer from "@/MainContainer/MainContainer";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud"
+import {emptyPageV2} from "@/DefaultObjects";
+import {ListV2} from "@/Pagination";
+import * as Heading from "@/ui-components/Heading";
+import {Button, Link, List} from "@/ui-components";
+import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
 import {useHistory} from "react-router";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {Operation, Operations} from "ui-components/Operation";
-import {addStandardDialog} from "UtilityComponents";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {addStandardDialog} from "@/UtilityComponents";
 
 const entityName = "Provider";
 

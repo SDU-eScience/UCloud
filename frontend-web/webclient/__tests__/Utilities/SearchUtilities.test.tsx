@@ -1,4 +1,4 @@
-import * as SearchUtils from "Utilities/SearchUtilities";
+import * as SearchUtils from "@/Utilities/SearchUtilities";
 
 test("", () => {
     const priority = "APPS";
