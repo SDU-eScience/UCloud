@@ -926,6 +926,7 @@ abstract class ResourceService<
                 },
                 resource.specification.product,
                 reqItem.description,
+                reqItem.chargeId
             )
         }
 
@@ -1161,7 +1162,6 @@ abstract class ResourceService<
                         order by
                             resc.category, resc.name, spec.$sortBy $sortDirection
                     """,
-                    debug = true,
                 )
             },
             mapper = { _, rows ->

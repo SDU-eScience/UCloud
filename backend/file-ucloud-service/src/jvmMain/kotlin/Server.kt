@@ -64,7 +64,8 @@ class Server(
         val nativeFs = NativeFS(pathConverter, micro)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
 
-        val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient)
+        val limitChecker = LimitChecker(db)
+        val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
         if (micro.commandLineArguments.contains("--scan-accounting")) {
             try {
                 runBlocking {
@@ -104,7 +105,7 @@ class Server(
         useTestingSizes = micro.developmentModeEnabled
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker),
             FileCollectionsController(fileCollectionService),
             ShareController(shareService),
             object : Controller {

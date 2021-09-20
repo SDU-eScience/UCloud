@@ -153,7 +153,7 @@ class ProductService(
                     """
                         declare c cursor for 
                         $query
-                    """, debug = true
+                    """
                 )
             },
             mapper = {_, rows ->

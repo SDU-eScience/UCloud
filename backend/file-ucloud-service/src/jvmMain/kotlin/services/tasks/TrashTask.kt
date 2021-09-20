@@ -55,9 +55,6 @@ class TrashTask(
                         memberFiles.initializeMemberFiles(nextItem.username, project)
                     }
 
-                    println("internal file is $internalFile")
-                    println("Target is $targetDirectory")
-                    println("target file is $targetFile")
                     try {
                         nativeFs.stat(targetDirectory)
                     } catch (ex: FSException.NotFound) {
