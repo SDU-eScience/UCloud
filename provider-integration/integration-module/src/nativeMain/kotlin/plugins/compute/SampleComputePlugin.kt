@@ -141,17 +141,32 @@ fun PluginContext.getStatus(id: String) : JobState {
         val ipcClient = ipcClient ?: error("No ipc client")
         val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "get.job", defaultMapper.encodeToJsonElement( SlurmJob(id, "someid", "somepartition" ) ) as JsonObject ) ).orThrow<SlurmJob>()
 
-        val (code, stdout, stderr) = CmdBuilder("/usr/bin/sacct")
+
+        val (code, stdout, stderr) = CmdBuilder("/usr/bin/squeue")
                                     .addArg("--partition",  slurmJob.partition)
                                     .addArg("--jobs",       slurmJob.slurmId)
-                                    .addArg("--allusers")
-                                    .addArg("--format", "jobid,state,exitcode")
                                     .addArg("--noheader")
-                                    .addArg("--parsable2")
+                                    .addArg("--format", "%T")
                                     .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
                                     .execute()
+        
+        //if job information is removed due to MinJobAge then squeue will throw slurm_load_jobs error: Invalid job id specified . Need to also check sacct in this case
+        val sacct = if(code != 0) CmdBuilder("/usr/bin/sacct")
+                            .addArg("--partition",  slurmJob.partition)
+                            .addArg("--jobs",       slurmJob.slurmId)
+                            .addArg("--allusers")
+                            .addArg("--format", "jobid,state,exitcode")
+                            .addArg("--noheader")
+                            .addArg("--parsable2")
+                            .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                            .execute() 
+                    else  ProcessResultText(1, "", "")
 
-        val slurmStatus = stdout.lines().get(0).split("|").get(1)
+
+    
+
+        val slurmStatus = if (code == 0) stdout.trim() else sacct.stdout.lines().get(0).split("|").get(1)
+        
         ucloudStatus =   when (slurmStatus) {
                                 "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "REQUEUE_HOLD", "REQUEUED", "RESIZING", "SUSPENDED"   -> JobState.IN_QUEUE
                                 "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT", "STOPPED"                                    -> JobState.RUNNING
@@ -262,9 +277,10 @@ fun PluginContext.getStatus(id: String) : JobState {
 
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch").addArg("/data/${job.id}/job.sbatch").addEnv("SLURM_CONF", "/etc/slurm/slurm.conf").execute()
 
-        val slurmId = stdout
-        println("CODE: $code $stderr $stdout")
-        //TODO: check file formatting errors
+        if ( code != 0 ) throw RPCException("Unhandled exception when creating job: $stderr", HttpStatusCode.BadRequest)
+
+        var slurmId = stdout
+
 
         val ipcClient = ipcClient ?: error("No ipc client")
         val request_product = job.specification?.product as ProductReference
@@ -273,7 +289,6 @@ fun PluginContext.getStatus(id: String) : JobState {
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(SlurmJob(job.id, slurmId.trim(), job_partition )) as JsonObject ) ).orThrow<Unit>()
         sleep(2)
 
-        //TODO: check status
         JobsControl.update.call(
             bulkRequestOf(
                 JobsControlUpdateRequestItem(
@@ -284,6 +299,7 @@ fun PluginContext.getStatus(id: String) : JobState {
             ), client
         ).orThrow()    
 
+        sleep(5)
 
         JobsControl.update.call(
             bulkRequestOf(
@@ -321,9 +337,6 @@ fun PluginContext.getStatus(id: String) : JobState {
                 .addEnv("SLURM_CONF", "/etc/slurm/slurm.conf")
                 .execute()
 
-        //println("CANCEL $code - $stdout - $stderr")
-
-        //check process status and change to SUCCESS
         sleep(2)
         runBlocking {
             JobsControl.update.call(
@@ -365,31 +378,75 @@ fun PluginContext.getStatus(id: String) : JobState {
                 val mState = getStatus(job.id)
                 when ( mState ) {
 
-                        JobState.RUNNING -> {
+                        JobState.IN_QUEUE -> {
 
-                            val line = stdOut.readText(autoClose = false)
-
-                            if ( !line.isNullOrEmpty() ) emitStdout(0, "[${ Clock.System.now() }] OUT: ${ line.trim() } \n")
-
-                            val err = stdOut.readText(autoClose = false)
-                            if ( !err.isNullOrEmpty() ) emitStdout(0, "[${ Clock.System.now() }] ERR: ${ err.trim() } \n")
-
-                        }
-
-                        else -> {  
                                         runBlocking {
                                             JobsControl.update.call(
-                                                bulkRequestOf(
-                                                    JobsControlUpdateRequestItem(
-                                                        job.id,
-                                                        mState,
-                                                        "The job has finished!"
-                                                    )
-                                                ),
+                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has been queued!" )),
                                                 client
                                             ).orThrow()
                                         }
+
+                        }
+
+
+                        JobState.RUNNING -> {
+
+                            val line = stdOut.readText(autoClose = false)
+                            if ( !line.isNullOrEmpty() ) emitStdout(0, "[${ Clock.System.now() }] OUT: ${ line.trim() } \n")
+
+                            val err = stdOut.readText(autoClose = false)
+                            if ( !err.isNullOrEmpty() ) emitStderr(0, "[${ Clock.System.now() }] ERR: ${ err.trim() } \n")
+
+                        }
+
+
+                        JobState.SUCCESS -> {
+
+                                        runBlocking {
+                                            JobsControl.update.call(
+                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has successfully finished!" )),
+                                                client
+                                            ).orThrow()
+                                        }
+
                                         break@thisLoop
+
+                        }
+
+
+                        JobState.FAILURE -> {
+
+                                        runBlocking {
+                                            JobsControl.update.call(
+                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has failed!" )),
+                                                client
+                                            ).orThrow()
+                                        }
+
+                                        break@thisLoop
+
+                        }
+
+                        JobState.EXPIRED -> {
+
+                                        runBlocking {
+                                            JobsControl.update.call(
+                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has expired!" )),
+                                                client
+                                            ).orThrow()
+                                        }
+
+                                        break@thisLoop
+
+
+
+                        }
+
+
+                        else -> {   
+                                    throw RPCException("Unknown job state", HttpStatusCode.BadRequest)
+                                    break@thisLoop
                         }
                 }
 
