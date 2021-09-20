@@ -95,6 +95,7 @@ data class ShareFlags(
     override val filterProviderId: String? = null,
     val filterIngoing: Boolean = false,
     val filterOriginalPath: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 typealias SharesUpdatePermissionsRequest = BulkRequest<SharesUpdatePermissionsRequestItem>

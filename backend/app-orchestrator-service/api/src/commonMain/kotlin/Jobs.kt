@@ -355,6 +355,7 @@ data class JobIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderId: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

@@ -116,6 +116,7 @@ data class IngressIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderId: String? = null,
+    override val filterIds: String? = null,
     val filterState: IngressState? = null,
 ) : ResourceIncludeFlags
 

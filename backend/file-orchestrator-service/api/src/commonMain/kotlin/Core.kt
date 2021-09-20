@@ -121,6 +121,7 @@ This value is `true` by default """)
     val allowUnsupportedInclude: Boolean? = null,
     @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
     val filterHiddenFiles: Boolean = false,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -410,6 +411,7 @@ data class FileCollectionIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderId: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this

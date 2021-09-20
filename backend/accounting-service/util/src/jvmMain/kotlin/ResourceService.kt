@@ -976,6 +976,12 @@ abstract class ResourceService<
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
                 setParameter("filter_provider_id", flags?.filterProviderId ?: simpleFlags?.filterProviderId)
+                setParameter(
+                    "filter_ids", 
+                    (flags?.filterIds ?: simpleFlags?.filterIds)?.let { ids ->
+                        ids.split(",").mapNotNull { it.toLongOrNull() }
+                    }
+                )
             },
             buildString {
                 append(
@@ -1064,7 +1070,8 @@ abstract class ResourceService<
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
-                          (:filter_provider_id::text is null or r.provider_generated_id = :filter_provider_id::text)
+                          (:filter_provider_id::text is null or r.provider_generated_id = :filter_provider_id::text) and
+                          (:filter_ids::bigint[] is null or r.id = some(:filter_ids::bigint[]))
                                         
                     """
                 )

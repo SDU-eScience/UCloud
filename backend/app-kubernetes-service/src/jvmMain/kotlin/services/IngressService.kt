@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -29,6 +30,11 @@ class IngressService(
     private val k8: K8Dependencies,
 ) : JobManagementPlugin {
     suspend fun create(ingresses: BulkRequest<Ingress>) {
+        IngressControl.chargeCredits.call(
+            bulkRequestOf(ingresses.items.map { ResourceChargeCredits(it.id, it.id, 1) }),
+            k8.serviceClient
+        ).orThrow()
+
         try {
             db.withSession { session ->
                 for (ingress in ingresses.items) {

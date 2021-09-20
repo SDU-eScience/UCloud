@@ -56,7 +56,6 @@ export const FilesBrowse: React.FunctionComponent<{
             navigateToPath(history, file.id);
         } else {
             return "properties";
-            // history.push(`/${FilesApi.routingNamespace}/properties/${encodeURIComponent(file.id)}`);
         }
     }, [navigateToPath]);
 
