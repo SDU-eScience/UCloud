@@ -8,7 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 
-sealed class JwtRefresher {
+abstract class JwtRefresher {
     abstract suspend fun fetchToken(client: RpcClient): String
 
     class Normal(private val refreshToken: String) : JwtRefresher() {
