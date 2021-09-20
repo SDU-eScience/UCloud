@@ -3,8 +3,7 @@ package dk.sdu.cloud.app.aau.rpc
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.aau.services.ResourceCache
@@ -74,7 +73,7 @@ class ComputeController(
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
                                         "machine_template" to JsonPrimitive(resources.product.name),
-                                        // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
+                                        "total_grant_allocation" to JsonPrimitive("Ask SDU if needed, no longer available in the temporary solution"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )
                                 )
@@ -123,7 +122,7 @@ class ComputeController(
                                         "owner_project" to JsonPrimitive(req.owner.project),
                                         "base_image" to JsonPrimitive(tool.description.image),
                                         "machine_template" to JsonPrimitive(resources.product.name),
-                                        // "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
+                                        "total_grant_allocation" to JsonPrimitive("Ask SDU if needed, no longer available in the temporary solution"),
                                         "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                     )
                                 )
@@ -195,8 +194,7 @@ class ComputeController(
         }
 
         implement(AauCompute.retrieveProducts) {
-            TODO()
-            // ok(retrieveProductsTemporary())
+            ok(retrieveProductsTemporary())
         }
 
         implement(AauCompute.follow) {
@@ -269,30 +267,23 @@ class ComputeController(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
-        TODO()
-        /*
-        Products.retrieveAllFromProvider.call(
-            RetrieveAllFromProviderRequest("aau"),
-            client.client
-        ).orThrow().filterIsInstance<Product.Compute>()
-         */
+        Products.browse.call(
+            ProductsBrowseRequest(filterProvider = "aau", filterArea = ProductType.COMPUTE),
+            serviceClient
+        ).orThrow().items.filterIsInstance<Product.Compute>()
     })
 
-    /*
-    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
-        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
-            ComputeProductSupport(
-                ProductReference(it.id, it.category.id, it.category.provider),
-                ComputeSupport(
-                    ComputeSupport.Docker(
-                        enabled = false,
-                    ),
-                    ComputeSupport.VirtualMachine(
-                        enabled = true,
-                    )
+    suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
+        return BulkResponse(productCache.get(Unit)?.map {
+            ComputeSupport(
+                ProductReference(it.name, it.category.name, it.category.provider),
+                ComputeSupport.Docker(
+                    enabled = false,
+                ),
+                ComputeSupport.VirtualMachine(
+                    enabled = true,
                 )
             )
         } ?: emptyList())
     }
-     */
 }
