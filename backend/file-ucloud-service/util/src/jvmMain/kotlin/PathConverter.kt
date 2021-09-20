@@ -203,7 +203,7 @@ class PathConverter(
         return runBlocking {
             val collection = FileCollectionsControl.browse.call(
                 ResourceBrowseRequest(
-                    FileCollectionIncludeFlags(filterProviderId = internalId)
+                    FileCollectionIncludeFlags(filterProviderIds = internalId)
                 ),
                 serviceClient
             ).orRethrowAs {

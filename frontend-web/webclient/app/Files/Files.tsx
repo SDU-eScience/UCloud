@@ -107,13 +107,13 @@ export const FilesBrowse: React.FunctionComponent<{
                             <>
                                 <List childPadding={"8px"} bordered={false}>
                                     {items.map(drive => (
-                                        <div
+                                        <DriveInDropdown
                                             key={drive.id}
                                             className="expandable-row-child"
                                             onClick={() => navigateToPath(history, `/${drive.id}`)}
                                         >
                                             {drive.specification?.title}
-                                        </div>
+                                        </DriveInDropdown>
                                     ))}
                                 </List>
                             </>
@@ -185,8 +185,10 @@ const Router: React.FunctionComponent = () => {
 
 const DriveDropdown: React.FunctionComponent = props => {
     return (
-        <ClickableDropdown 
-            colorOnHover={false} 
+        <ClickableDropdown
+            colorOnHover={false}
+            paddingControlledByContent={true}
+            width={"450px"}
             trigger={<div style={{display: "flex"}}>
                 <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
                 <Icon
@@ -201,5 +203,15 @@ const DriveDropdown: React.FunctionComponent = props => {
         </ClickableDropdown>
     );
 }
+
+const DriveInDropdown = styled.div`
+  padding: 0 17px;
+  width: 450px;
+  overflow-x: hidden;
+
+  &:hover {
+    background-color: var(--lightBlue);
+  }
+`;
 
 export default Router;

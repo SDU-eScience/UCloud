@@ -42,42 +42,72 @@ class UsageScan(
             Time.javaTimeZone
         ).format(DateTimeFormatter.ofPattern("YYYY.MM.dd"))
 
-        val startOfScan = Time.now()
-        val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
-        val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
-        collections.chunked(100).forEach { chunk ->
-            val resolvedCollections = retrieveCollections(providerGenerated = false, collections.map { it.toString() })
-            if (resolvedCollections == null) return@forEach
+        run {
+            val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
+            val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
+            collections.chunked(100).forEach { chunk ->
+                val resolvedCollections =
+                    retrieveCollections(providerGenerated = false, collections.map { it.toString() })
+                        ?: return@forEach
 
-            val sizes = chunk.map { 
-                val thisCollection = pathConverter.relativeToInternal(RelativeInternalFile("/collections/${it}"))
                 // NOTE(Dan): We assume that if the recursive size comes back as null then this means that the
                 // collection has been deleted and thus shouldn't count.
-                
-                fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
+                val sizes = chunk.map {
+                    val thisCollection = pathConverter.relativeToInternal(RelativeInternalFile("/collections/${it}"))
+                    fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
+                }
+
+                processChunk(chunk, sizes, resolvedCollections)
             }
+        }
 
-            for (idx in chunk.indices) {
-                val size = sizes[idx]
-                val collectionId = chunk[idx]
-                val resolvedCollection = resolvedCollections.find { it.id == collectionId.toString() }
-                if (resolvedCollection == null) continue
-                val (username, project) = resolvedCollection.owner
-                val key = UsageDataPoint.Key(
-                    if (project != null) {
-                        WalletOwner.Project(project)
-                    } else {
-                        WalletOwner.User(username)
-                    },
-                    ProductCategoryId(
-                        resolvedCollection.specification.product.category,
-                        resolvedCollection.specification.product.provider,
-                    )
-                )
+        run {
+            val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
+            val collections = fs.listFiles(collectionRoot)
+            collections.chunked(100).forEach { chunk ->
+                val resolvedCollections = retrieveCollections(
+                    providerGenerated = true,
+                    collections.map { PathConverter.COLLECTION_HOME_PREFIX + it }
+                ) ?: return@forEach
 
-                val entry = dataPoints[key] ?: UsageDataPoint(key, resolvedCollection.id, 0L)
-                entry.usageInBytes += size
-                dataPoints[key] = entry
+                val sizes = chunk.map { filename ->
+                    val thisCollection = pathConverter.relativeToInternal(RelativeInternalFile("/home/${filename}"))
+                    fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
+                }
+
+                val mappedChunk = chunk.map { filename ->
+                    resolvedCollections
+                        .find { it.providerGeneratedId == PathConverter.COLLECTION_HOME_PREFIX + it }
+                        ?.id
+                        ?.toLongOrNull()
+                }
+
+                processChunk(mappedChunk, sizes, resolvedCollections)
+            }
+        }
+
+        run {
+            val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
+            val collections = fs.listFiles(collectionRoot)
+            collections.chunked(100).forEach { chunk ->
+                val resolvedCollections = retrieveCollections(
+                    providerGenerated = true,
+                    collections.map { PathConverter.COLLECTION_PROJECT_PREFIX + it }
+                ) ?: return@forEach
+
+                val sizes = chunk.map { filename ->
+                    val thisCollection = pathConverter.relativeToInternal(RelativeInternalFile("/projects/${filename}"))
+                    fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
+                }
+
+                val mappedChunk = chunk.map { filename ->
+                    resolvedCollections
+                        .find { it.providerGeneratedId == PathConverter.COLLECTION_PROJECT_PREFIX + it }
+                        ?.id
+                        ?.toLongOrNull()
+                }
+
+                processChunk(mappedChunk, sizes, resolvedCollections)
             }
         }
 
@@ -105,12 +135,40 @@ class UsageScan(
         }
     }
 
+    private fun processChunk(
+        chunk: List<Long?>,
+        sizes: List<Long>,
+        resolvedCollections: List<FileCollection>
+    ) {
+        for (idx in chunk.indices) {
+            val size = sizes[idx]
+            val collectionId = chunk[idx] ?: continue
+            val resolvedCollection = resolvedCollections.find { it.id == collectionId.toString() } ?: continue
+            val (username, project) = resolvedCollection.owner
+            val key = UsageDataPoint.Key(
+                if (project != null) {
+                    WalletOwner.Project(project)
+                } else {
+                    WalletOwner.User(username)
+                },
+                ProductCategoryId(
+                    resolvedCollection.specification.product.category,
+                    resolvedCollection.specification.product.provider,
+                )
+            )
+
+            val entry = dataPoints[key] ?: UsageDataPoint(key, resolvedCollection.id, 0L)
+            entry.usageInBytes += size
+            dataPoints[key] = entry
+        }
+    }
+
     private suspend fun retrieveCollections(
         providerGenerated: Boolean, 
         collections: List<String>
     ): List<FileCollection>? {
         val includeFlags = if (providerGenerated) {
-            TODO("API should do this by bulk")
+            FileCollectionIncludeFlags(filterProviderIds = collections.joinToString(","))
         } else {
             FileCollectionIncludeFlags(filterIds = collections.joinToString(","))
         }
