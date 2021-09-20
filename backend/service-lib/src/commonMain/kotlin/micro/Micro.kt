@@ -66,7 +66,7 @@ fun <T : Any> delegate(key: String): ReadWriteProperty<Micro, T> {
 var Micro.serviceDescription: ServiceDescription by delegate("serviceDescription")
 var Micro.commandLineArguments: List<String> by delegate("commandLineArguments")
 
-class Micro(private val parent: Micro?, initHook: (() -> Unit)? = null) {
+class Micro(val parent: Micro?, initHook: (() -> Unit)? = null) {
     private val internalAttributes = HashMap<String, Any>()
     private val children = ArrayList<Micro>()
 

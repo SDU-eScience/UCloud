@@ -3,9 +3,13 @@ package dk.sdu.cloud.file.ucloud.services
 import com.sun.jna.Native
 import com.sun.jna.Platform
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.tellMeEverything
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
 import io.ktor.utils.io.pool.*
@@ -40,8 +44,10 @@ const val LINUX_FS_USER_UID = 11042
 
 class NativeFS(
     private val pathConverter: PathConverter,
+    private val micro: Micro? = null,
 ) {
     var disableChown = false
+    private val debug: DebugSystem? = micro?.feature(DebugSystem)
 
     private fun openFile(file: InternalFile, flag: Int = 0): Int {
         with(CLibrary.INSTANCE) {

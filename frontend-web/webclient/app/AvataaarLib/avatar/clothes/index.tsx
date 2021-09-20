@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Clothes as ClothesOpts, ClothesGraphic, ColorFabric} from "UserSettings/AvatarOptions";
+import {Clothes as ClothesOpts, ClothesGraphic, ColorFabric} from "@/UserSettings/AvatarOptions";
 import BlazerShirt from "./BlazerShirt";
 import BlazerSweater from "./BlazerSweater";
 import CollarSweater from "./CollarSweater";

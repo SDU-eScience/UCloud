@@ -1,8 +1,8 @@
 import * as React from "react";
-import {default as Api, FileMetadataTemplate, FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
-import Create from "Files/Metadata/Templates/Create";
+import {default as Api, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
+import Create from "@/Files/Metadata/Templates/Create";
 
 export const MetadataNamespacesBrowse: React.FunctionComponent<{
     onSelect?: (selection: FileMetadataTemplateNamespace) => void;

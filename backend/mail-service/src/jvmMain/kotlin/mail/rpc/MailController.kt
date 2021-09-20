@@ -31,7 +31,7 @@ class MailController(
             request.messages.forEach {
                 val allowedToSend = mailService.allowedToSend(it.receiver)
                 if (allowedToSend) {
-                    mailService.send(ctx.securityPrincipal, it.receiver, it.mail, it.mandatory)
+                    mailService.send(ctx.securityPrincipal, it.receiver, it.mail, it.mandatory, testMail = it.testMail)
                 }
             }
             ok(Unit)

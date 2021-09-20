@@ -366,7 +366,7 @@ object UCloudLauncher : Loggable {
                 override val description: ServiceDescription = PlaceholderServiceDescription
                 override fun initializeServer(micro: Micro): CommonServer {
                     micro.install(DatabaseConfigurationFeature)
-                    db = AsyncDBSessionFactory(micro.databaseConfig)
+                    db = AsyncDBSessionFactory(micro)
                     dbConfig = micro.databaseConfig
                     return object : CommonServer {
                         override val micro: Micro = micro

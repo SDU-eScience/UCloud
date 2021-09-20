@@ -216,5 +216,6 @@ enum class PaginationRequestV2Consistency {
     PREFER,
 
     @UCloudApiDoc("Consistency is required. A request will fail if consistency is no longer guaranteed.")
+    @Deprecated("No longer supported")
     REQUIRE
 }

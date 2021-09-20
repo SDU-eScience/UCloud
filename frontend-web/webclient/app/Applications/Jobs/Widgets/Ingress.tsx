@@ -1,25 +1,23 @@
 import * as React from "react";
-import {Flex} from "ui-components";
+import {Flex} from "@/ui-components";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import Browse from "Applications/Ingresses/Browse";
-import * as UCloud from "UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications/Jobs/Widgets/index";
-import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import * as UCloud from "@/UCloud";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
-// import Ingress = compute.Ingress;
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
+import IngressBrowse from "@/Applications/Ingresses/Browse";
+import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
 }
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
-    return null;
-    /*
     const error = props.errors[props.parameter.name] != null;
     const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
@@ -29,8 +27,8 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         setOpen(false)
     }, [setOpen]);
 
-    const onUse = useCallback((ingress: Ingress) => {
-        IngressSetter(props.parameter, {type: "ingress", id: ingress.id});
+    const onUse = useCallback((network: Ingress) => {
+        IngressSetter(props.parameter, {type: "ingress", id: network.id});
         setOpen(false);
     }, [props.parameter, setOpen]);
 
@@ -45,11 +43,11 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         const listener = async () => {
             const value = valueInput();
             if (value) {
-                const ingressId = value!.value;
-                const ingress = await callAPI<Ingress>(UCloud.compute.ingresses.retrieve({id: ingressId}));
+                const id = value!.value;
+                const ingress = await callAPI<Ingress>(IngressApi.retrieve({id: id}));
                 const visual = visualInput();
                 if (visual) {
-                    visual.value = ingress.specification.domain;
+                    visual.value = ingress.specification.domain ?? "No address";
                 }
             }
         };
@@ -77,11 +75,9 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <Browse computeProvider={props.provider} onSelect={onUse}/>
+            <IngressBrowse computeProvider={props.provider} onSelect={onUse} embedded={true}/>
         </ReactModal>
     </Flex>);
-
-     */
 }
 
 export const IngressValidator: WidgetValidator = (param) => {

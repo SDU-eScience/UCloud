@@ -1,8 +1,8 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, joinToString, useFrameHidden} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -15,8 +15,9 @@ import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {useProjectId, useProjectManagementStatus} from "Project";
+import {setActivePage} from "@/Navigation/Redux/StatusActions";
+import {ProjectRole, useProjectId, useProjectManagementStatus, UserInProject, viewProject} from "@/Project";
+import {useGlobalCloudAPI} from "@/Authentication/DataHook";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -213,9 +214,25 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     if (useFrameHidden()) return null;
 
     const projectId = useProjectId();
-    const projectStatus = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
+    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
+    );
+
+    useEffect(() => {
+        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId]);
+
     const projectPath = joinToString(
-        [...(projectStatus.projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectStatus.projectDetails.data.title],
+        [...(projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectDetails.data.title],
         "/"
     );
     const copyProjectPath = useCallback(() => {
@@ -245,6 +262,22 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {inDevEnvironment() || onDevSite() ? <>
+                <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
+                    <Box
+                        cursor={"pointer"}
+                        onClick={() => {
+                            window.open(
+                                "/debugger?hide-frame",
+                                undefined,
+                                "width=1000,height=1000,status=no"
+                            );
+                        }}
+                    >
+                        Open debugger
+                    </Box>
+                </SidebarTextLabel>
+            </>: null}
             {!projectId ? null : <>
                 <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
                                   title={projectPath}>

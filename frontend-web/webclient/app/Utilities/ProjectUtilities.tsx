@@ -1,5 +1,5 @@
-import {ProjectName, ProjectRole} from "Project";
-import {ProjectStatus} from "Project/cache";
+import {ProjectName, ProjectRole} from "@/Project";
+import {ProjectStatus} from "@/Project/cache";
 
 /**
  * Extracts title and projectId from project status.

@@ -6,8 +6,10 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.random.Random
 
 @Serializable
 @Deprecated("APIs will switch to WalletOwner instead")
@@ -191,7 +193,9 @@ data class ChargeWalletRequestItem(
     @UCloudApiDoc("The username of the user who generated this request")
     val performedBy: String,
     @UCloudApiDoc("A description of the charge this is used purely for presentation purposes")
-    val description: String
+    val description: String,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String = Random.nextLong().toString() + Time.now()
 ) {
     init {
         checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
@@ -230,6 +234,8 @@ data class DepositToWalletRequestItem(
     """
     )
     val endDate: Long? = null,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String = Random.nextLong().toString() + Time.now()
 )
 
 typealias DepositToWalletResponse = Unit
@@ -263,6 +269,8 @@ data class TransferToWalletRequestItem(
     """
     )
     val endDate: Long? = null,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String = Random.nextLong().toString() + Time.now()
 )
 
 typealias TransferToWalletResponse = Unit
@@ -274,6 +282,8 @@ data class UpdateAllocationRequestItem(
     val startDate: Long,
     val endDate: Long?,
     val reason: String,
+    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
+    var transactionId: String = Random.nextLong().toString() + Time.now()
 )
 
 typealias UpdateAllocationResponse = Unit
@@ -287,7 +297,8 @@ data class RootDepositRequestItem(
     val amount: Long,
     val description: String,
     val startDate: Long? = null,
-    val endDate: Long? = null
+    val endDate: Long? = null,
+    var transactionId: String = Random.nextLong().toString() + Time.now()
 )
 
 object Accounting : CallDescriptionContainer("accounting") {

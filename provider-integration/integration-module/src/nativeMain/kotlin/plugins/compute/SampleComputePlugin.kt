@@ -11,6 +11,8 @@ import platform.posix.sleep
 
 class SampleComputePlugin : ComputePlugin {
     override fun PluginContext.retrieveSupport(): ComputeSupport {
+        TODO()
+        /*
         return ComputeSupport(
             ComputeSupport.Docker(
                 enabled = true,
@@ -23,9 +25,12 @@ class SampleComputePlugin : ComputePlugin {
                 suspension = true
             )
         )
+         */
     }
 
     override fun PluginContext.create(job: Job) {
+        TODO()
+        /*
         val client = rpcClient ?: error("No client")
         sleep(2)
         runBlocking {
@@ -40,9 +45,12 @@ class SampleComputePlugin : ComputePlugin {
                 client
             ).orThrow()
         }
+         */
     }
 
     override fun PluginContext.delete(job: Job) {
+        TODO()
+        /*
         val client = rpcClient ?: error("No client")
         runBlocking {
             JobsControl.update.call(
@@ -56,9 +64,12 @@ class SampleComputePlugin : ComputePlugin {
                 client
             ).orThrow()
         }
+         */
     }
 
     override fun PluginContext.extend(request: JobsProviderExtendRequestItem) {
+        TODO()
+        /*
         val client = rpcClient ?: error("No client")
         runBlocking {
             JobsControl.update.call(
@@ -71,6 +82,7 @@ class SampleComputePlugin : ComputePlugin {
                 client
             ).orThrow()
         }
+         */
     }
 
     override fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem) {

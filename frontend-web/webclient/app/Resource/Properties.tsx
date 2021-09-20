@@ -1,26 +1,34 @@
 import * as React from "react";
 import styled, {keyframes} from "styled-components";
-import {device, deviceBreakpoint} from "ui-components/Hide";
-import {Resource, ResourceApi, ResourceBrowseCallbacks, ResourceUpdate, UCLOUD_CORE} from "UCloud/ResourceApi";
+import {device, deviceBreakpoint} from "@/ui-components/Hide";
+import {
+    Resource,
+    ResourceApi,
+    ResourceBrowseCallbacks,
+    ResourceUpdate,
+    SupportByProvider,
+    UCLOUD_CORE
+} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage} from "ui-components/Sidebar";
-import {useProjectId} from "Project";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import * as Heading from "ui-components/Heading";
-import Box from "ui-components/Box";
-import Flex from "ui-components/Flex";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {shortUUID} from "UtilityFunctions";
-import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
-import {dateToTimeOfDayString} from "Utilities/DateUtilities";
-import MainContainer from "MainContainer/MainContainer";
-import {Operations} from "ui-components/Operation";
-import {ResourcePermissionEditor} from "Resource/PermissionEditor";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage} from "@/ui-components/Sidebar";
+import {useProjectId} from "@/Project";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import * as Heading from "@/ui-components/Heading";
+import Box from "@/ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {shortUUID} from "@/UtilityFunctions";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
+import MainContainer from "@/MainContainer/MainContainer";
+import {Operations} from "@/ui-components/Operation";
+import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useHistory, useParams} from "react-router";
-import {useResourceSearch} from "Resource/Search";
+import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
+import {Product} from "@/Accounting";
 
 const enterAnimation = keyframes`
   from {
@@ -221,6 +229,19 @@ export function ResourceProperties<Res extends Resource>(
 
     useEffect(() => reload(), [reload]);
 
+    const supportByProvider: SupportByProvider = useMemo(() => {
+        const result: SupportByProvider = {productsByProvider: {}};
+        if (resource != null && resource.status.resolvedSupport != null) {
+            result.productsByProvider[resource.specification.product.provider] = [
+                {
+                    product: resource.status.resolvedProduct as any as Product,
+                    support: resource.status.resolvedSupport
+                }
+            ];
+        }
+        return result;
+    }, [resource]);
+
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
         isCreating: false,
@@ -230,8 +251,9 @@ export function ResourceProperties<Res extends Resource>(
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
         dispatch,
-        history
-    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch, history]);
+        history,
+        supportByProvider
+    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch, history, supportByProvider]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 

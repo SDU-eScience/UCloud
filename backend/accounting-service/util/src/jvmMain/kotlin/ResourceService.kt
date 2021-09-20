@@ -45,6 +45,7 @@ abstract class ResourceService<
     protected abstract val table: SqlObject.Table
     protected abstract val sortColumns: Map<String, SqlObject.Column>
     protected abstract val defaultSortColumn: SqlObject.Column
+    protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
     protected open val resourceType: String by lazy {
         runBlocking {
@@ -207,7 +208,7 @@ abstract class ResourceService<
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
                     if (permissionOneOf.singleOrNull() == Permission.Provider) {
-                        // Admin isn't enough if we looking for Provider
+                        // Admin isn't enough if we are looking for Provider
                         if (Permission.Provider !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
                         }
@@ -407,6 +408,10 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>,
                     response: BulkResponse<FindByStringId?>
                 ) {
+                    if (response.responses.any { it?.id?.contains(",") == true }) {
+                        throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadGateway)
+                    }
+
                     (ctx as? AsyncDBConnection ?: db).withSession { session ->
                         session
                             .sendPreparedStatement(
@@ -439,7 +444,7 @@ abstract class ResourceService<
                 ) {
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
-                            deleteInternal(
+                            deleteFromDatabaseSkipProvider(
                                 mappedRequestIfAny.items.map { it.id.toLong() },
                                 mappedRequestIfAny.items,
                                 session
@@ -618,7 +623,7 @@ abstract class ResourceService<
             )
     }
 
-    private suspend fun deleteInternal(ids: List<Long>, resources: List<Res>, session: AsyncDBConnection) {
+    suspend fun deleteFromDatabaseSkipProvider(ids: List<Long>, resources: List<Res>, session: AsyncDBConnection) {
         val block: EnhancedPreparedStatement.() -> Unit = { setParameter("ids", ids) }
 
         deleteSpecification(ids, resources, session)
@@ -684,7 +689,7 @@ abstract class ResourceService<
                         val mappedResources = resources.map {
                             ((it.second) as ProductRefOrResource.SomeResource<Res>).resource
                         }
-                        deleteInternal(ids, mappedResources, session)
+                        deleteFromDatabaseSkipProvider(ids, mappedResources, session)
 
                         return BulkRequest(mappedResources)
                     }
@@ -778,6 +783,10 @@ abstract class ResourceService<
             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
         providers.verifyProvider(provider, actorAndProject.actor)
+
+        if (request.items.any { it.providerGeneratedId?.contains(",") == true }) {
+            throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
+        }
 
         return BulkResponse(db.withSession { session ->
             val generatedIds = session
@@ -974,6 +983,16 @@ abstract class ResourceService<
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
+                setParameter(
+                    "filter_provider_ids",
+                    (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
+                )
+                setParameter(
+                    "filter_ids", 
+                    (flags?.filterIds ?: simpleFlags?.filterIds)?.let { ids ->
+                        ids.split(",").mapNotNull { it.toLongOrNull() }
+                    }
+                )
             },
             buildString {
                 append(
@@ -1061,7 +1080,12 @@ abstract class ResourceService<
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
-                          (:filter_product_category::text is null or p_cat.category = :filter_product_category)
+                          (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (
+                              :filter_provider_ids::text[] is null or
+                              r.provider_generated_id = some(:filter_provider_ids::text[])
+                          ) and
+                          (:filter_ids::bigint[] is null or r.id = some(:filter_ids::bigint[]))
                                         
                     """
                 )
@@ -1103,10 +1127,9 @@ abstract class ResourceService<
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
-        val sortDirection = when (sortFlags?.sortDirection) {
+        val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
-            null -> "asc"
         }
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -1136,7 +1159,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            spec.$sortBy $sortDirection
+                            resc.category, resc.name, spec.$sortBy $sortDirection
                     """,
                     debug = true,
                 )

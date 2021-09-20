@@ -1,7 +1,7 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import {IconName} from "ui-components/Icon";
-import {apiBrowse, apiRetrieve, apiUpdate} from "Authentication/DataHook";
-import {BulkRequest, PaginationRequestV2} from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {IconName} from "@/ui-components/Icon";
+import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, PaginationRequestV2} from "@/UCloud";
 
 export const UCLOUD_PROVIDER = "ucloud";
 

@@ -6,17 +6,17 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {BulkRequest, compute} from "UCloud/index";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
-import {EnumFilter} from "Resource/Filter";
-import {JobBinding} from "UCloud/JobsApi";
+} from "@/UCloud/ResourceApi";
+import {BulkRequest, compute} from "@/UCloud/index";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Icon} from "@/ui-components";
+import {EnumFilter} from "@/Resource/Filter";
+import {JobBinding} from "@/UCloud/JobsApi";
 import PortRangeAndProto = compute.PortRangeAndProto;
-import {ResourceProperties} from "Resource/Properties";
-import {FirewallEditor} from "Applications/NetworkIP/FirewallEditor";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductNetworkIP} from "Accounting";
+import {ResourceProperties} from "@/Resource/Properties";
+import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductNetworkIP} from "@/Accounting";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -35,7 +35,7 @@ export interface NetworkIPStatus extends ResourceStatus {
 }
 
 export interface NetworkIPSupport extends ProductSupport {
-    binding?: JobBinding;
+    firewall?: {enabled?: boolean | null} | null;
 }
 
 export interface NetworkIPUpdate extends ResourceUpdate {
@@ -74,9 +74,13 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
         return <ResourceProperties
             api={this}
             {...props}
-            ContentChildren={(p) => (
-                <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload} />
-            )}
+            ContentChildren={(p) => {
+                const support = (p.resource as NetworkIP).status.resolvedSupport
+                    ?.support as NetworkIPSupport | undefined;
+
+                if (support?.firewall?.enabled !== true) return null;
+                return <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload}/>;
+            }}
         />;
     };
 

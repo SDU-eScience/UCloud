@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.api.providers
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
@@ -89,6 +90,26 @@ abstract class ResourceControlApi<
             successClass = typeInfo.resType,
             errorClass = typeOf<CommonErrorMessage>()
         )
+
+    val browse: CallDescription<ResourceBrowseRequest<Flags>, PageV2<Res>, CommonErrorMessage>
+        get() = call(
+            name = "browse",
+            handler = {
+                httpBrowse(
+                    ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
+                    typeOf<ResourceBrowseRequest<Flags>>(),
+                    baseContext,
+                    roles = Roles.PROVIDER
+                )
+            },
+            requestType = ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
+            successType = PageV2.serializer(typeInfo.resSerializer),
+            errorType = CommonErrorMessage.serializer(),
+            requestClass = typeOf<ResourceBrowseRequest<Flags>>(),
+            successClass = typeOf<PageV2<Res>>(),
+            errorClass = typeOf<CommonErrorMessage>()
+        )
+
 
     val update: CallDescription<BulkRequest<ResourceUpdateAndId<Update>>, Unit, CommonErrorMessage>
         get() = call(

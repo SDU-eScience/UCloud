@@ -2,27 +2,27 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {buildQueryString} from "Utilities/URIUtilities";
-import {SidebarPages} from "ui-components/Sidebar";
-import {InvokeCommand} from "Authentication/DataHook";
-import {Operation} from "ui-components/Operation";
-import {dialogStore} from "Dialog/DialogStore";
-import {ResourcePermissionEditor} from "Resource/PermissionEditor";
-import {doNothing} from "UtilityFunctions";
-import {bulkRequestOf} from "DefaultObjects";
-import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "Resource/Filter";
-import {IconName} from "ui-components/Icon";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {InvokeCommand} from "@/Authentication/DataHook";
+import {Operation} from "@/ui-components/Operation";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
+import {doNothing} from "@/UtilityFunctions";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
+import {IconName} from "@/ui-components/Icon";
 import * as H from "history";
 import {Dispatch} from "redux";
-import {ResourceProperties} from "Resource/Properties";
-import {ItemRenderer} from "ui-components/Browse";
-import {Product, ProductType} from "Accounting";
+import {ResourceProperties} from "@/Resource/Properties";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {Product, ProductType} from "@/Accounting";
 
 export interface ProductSupport {
     product: ProductReference;
 }
 
-export interface ResolvedSupport<P extends UCloud.accounting.Product = UCloud.accounting.Product, S extends ProductSupport = ProductSupport> {
+export interface ResolvedSupport<P extends Product = Product, S extends ProductSupport = ProductSupport> {
     product: P;
     support: S;
 }
@@ -76,8 +76,17 @@ export interface FindById {
     id: string;
 }
 
-export interface SupportByProvider {
-    productsByProvider: Record<string, ResolvedSupport[]>;
+export interface SupportByProvider<P extends Product = Product, S extends ProductSupport = ProductSupport> {
+    productsByProvider: Record<string, ResolvedSupport<P, S>[]>;
+}
+
+export function findSupport<S extends ProductSupport = ProductSupport>(
+    support: SupportByProvider,
+    resource: Resource
+): ResolvedSupport<Product, S> | null {
+    const ref = resource.specification.product;
+    return support.productsByProvider[ref.provider]
+        ?.find(it => it.product.name === ref.id && it.product.category.name === ref.category) ?? null as any;
 }
 
 export interface ResourceBrowseCallbacks<Res extends Resource> {
@@ -94,6 +103,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     history: H.History;
+    supportByProvider: SupportByProvider;
 }
 
 export interface SortFlags {
@@ -117,11 +127,12 @@ export abstract class ResourceApi<Res extends Resource,
     Support extends ProductSupport = ProductSupport> {
     protected namespace: string;
     protected baseContext: string;
-    
+
     public abstract productType?: ProductType;
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
+    public defaultSortDirection: "ascending" | "descending" = "ascending";
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
     public filterPills: React.FunctionComponent<PillProps>[] = [];
@@ -296,7 +307,7 @@ export abstract class ResourceApi<Res extends Resource,
         };
     }
 
-    retrieveProducts(): APICallParameters<{}, SupportByProvider> {
+    retrieveProducts(): APICallParameters<{}, SupportByProvider<Prod, Support>> {
         return {
             context: "",
             method: "GET",

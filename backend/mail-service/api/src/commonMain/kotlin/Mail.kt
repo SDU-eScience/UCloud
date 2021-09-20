@@ -40,11 +40,16 @@ sealed class Mail {
     @Serializable
     @SerialName("lowFunds")
     data class LowFundsMail(
-        val category: String,
-        val provider: String,
-        val projectTitle: String,
-        override val subject: String = "Project low on resource"
-    ): Mail()
+        val categories: List<String>,
+        val providers: List<String>,
+        val projectTitles: List<String?>,
+        override val subject: String = "Wallets low on resource"
+    ): Mail() {
+        init {
+            require(categories.size == providers.size)
+            require(projectTitles.size == providers.size)
+        }
+    }
 
     @Serializable
     @SerialName("stillLowFunds")

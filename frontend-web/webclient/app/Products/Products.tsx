@@ -4,22 +4,22 @@ import {
     ProductArea,
     ProductCompute,
     UCLOUD_PROVIDER
-} from "Accounting";
-import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {List} from "Pagination";
-import {Card, Box, Flex, Icon, Text, ContainerForText} from "ui-components";
+} from "@/Accounting";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {List} from "@/Pagination";
+import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";
-import {capitalized} from "UtilityFunctions";
-import * as Heading from "ui-components/Heading";
-import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {Client} from "Authentication/HttpClientInstance";
-import {NonAuthenticatedHeader} from "Navigation/Header";
+import {capitalized} from "@/UtilityFunctions";
+import * as Heading from "@/ui-components/Heading";
+import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import styled from "styled-components";
 import * as ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {Spacer} from "ui-components/Spacer";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {Spacer} from "@/ui-components/Spacer";
 import CONF from "../../site.config.json";
 
 function Products(): JSX.Element {

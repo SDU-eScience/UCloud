@@ -1,9 +1,9 @@
 import * as React from "react";
 import styled from "styled-components";
-import Box from "ui-components/Box";
-import Flex from "ui-components/Flex";
-import Icon from "ui-components/Icon";
-import Text from "ui-components/Text";
+import Box from "@/ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import Icon from "@/ui-components/Icon";
+import Text from "@/ui-components/Text";
 import {ErrorWrapper} from "./Error";
 
 interface WarningProps {clearWarning?: () => void; warning?: string; width?: string | number}

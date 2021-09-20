@@ -1,4 +1,4 @@
-import {HookStore} from "DefaultObjects";
+import {HookStore} from "@/DefaultObjects";
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 

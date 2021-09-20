@@ -1,14 +1,14 @@
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Notification} from "Notifications";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Notification} from "@/Notifications";
 import {History} from "history";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {ProjectName} from "Project";
-import {getStoredProject} from "Project/Redux";
-import {JWT} from "Authentication/lib";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {HTTP_STATUS_CODES} from "@/Utilities/XHRUtils";
+import {ProjectName} from "@/Project";
+import {getStoredProject} from "@/Project/Redux";
+import {JWT} from "@/Authentication/lib";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
-import {UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
+import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -449,7 +449,7 @@ export function useFrameHidden(): boolean {
     const legacyHide =
         ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
         window.location.search === "?dav=true" ||
-        window.location.search === "?hide-frame";
+        window.location.search.indexOf("?hide-frame") === 0;
     return legacyHide || frameHidden;
 }
 

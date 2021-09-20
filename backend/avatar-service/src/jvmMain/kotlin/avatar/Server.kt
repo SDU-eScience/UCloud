@@ -14,7 +14,7 @@ import dk.sdu.cloud.service.startServices
 class Server(
     override val micro: Micro
 ) : CommonServer {
-    private val db = AsyncDBSessionFactory(micro.databaseConfig)
+    private val db = AsyncDBSessionFactory(micro)
 
     override val log = logger()
 

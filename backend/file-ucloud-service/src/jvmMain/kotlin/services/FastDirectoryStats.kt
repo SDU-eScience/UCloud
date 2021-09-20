@@ -1,15 +1,23 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.service.Loggable
+import kotlin.math.absoluteValue
+import kotlin.random.Random
+
+internal var useTestingSizes = false
 
 class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
     override val log = logger()
 
-    fun getRecursiveSize(file: InternalFile): Long {
+    fun getRecursiveSize(file: InternalFile): Long? {
         return try {
             nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
-            return -1
+            return if (useTestingSizes) {
+                Random.nextInt().absoluteValue.toLong() // up to 2GB
+            } else {
+                null
+            }
         }
     }
 

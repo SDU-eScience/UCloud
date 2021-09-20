@@ -17,6 +17,10 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.ucloud.services.InternalFile
+import dk.sdu.cloud.file.ucloud.services.MemberFiles
+import dk.sdu.cloud.file.ucloud.services.NativeFS
+import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
@@ -66,14 +70,15 @@ class Server(
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val nameAllocator = NameAllocator()
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
+        val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         k8Dependencies = K8Dependencies(
             if (integrationTestingIsKubernetesReady) KubernetesClient()
             else KubernetesClient(KubernetesConfigurationSource.Placeholder),
 
             micro.backgroundScope,
-            authenticator.authenticateClient(OutgoingHttpCall),
+            serviceClient,
             nameAllocator,
             DockerImageSizeQuery()
         )
@@ -109,6 +114,9 @@ class Server(
         )
         val licenseService = LicenseService(k8Dependencies, db)
         val networkIpService = NetworkIPService(db, k8Dependencies, configuration.networkInterface ?: "")
+        val pathConverter = PathConverter(InternalFile("/mnt/cephfs"), serviceClient)
+        val fs = NativeFS(pathConverter)
+        val memberFiles = MemberFiles(fs, pathConverter, serviceClient)
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -130,7 +138,7 @@ class Server(
                 configuration.useSmallReservation && micro.developmentModeEnabled
             ))
             register(ParameterPlugin(licenseService))
-            register(FileMountPlugin(cephConfig))
+            register(FileMountPlugin(fs, memberFiles, pathConverter, cephConfig))
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)
             register(ExpiryPlugin)
@@ -143,6 +151,7 @@ class Server(
             register(ingressService)
             register(networkIpService)
             register(ProxyPlugin(broadcastingStream, ingressService))
+            register(OutputLogPlugin(pathConverter, fs, cephConfig, logService))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
             // related to our infrastructure setup

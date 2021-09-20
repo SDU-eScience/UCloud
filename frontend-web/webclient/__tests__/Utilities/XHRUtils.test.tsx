@@ -1,4 +1,4 @@
-import * as XHRUtils from "Utilities/XHRUtils";
+import * as XHRUtils from "@/Utilities/XHRUtils";
 
 /* function unwrapError(e: any): ErrorMessage {
     const request: XMLHttpRequest = e.request;

@@ -63,7 +63,8 @@ class AccountingService(
                             unnest(:product_categories::text[]),
                             unnest(:product_provider::text[]),
                             unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]) 
+                            unnest(:descriptions::text[]), 
+                            unnest(:transaction_ids::text[])
                         )::accounting.charge_request req
                     )
                     select accounting.charge(array_agg(req))
@@ -104,7 +105,8 @@ class AccountingService(
                                 unnest(:product_categories::text[]),
                                 unnest(:product_provider::text[]),
                                 unnest(:performed_by::text[]),
-                                unnest(:descriptions::text[]) 
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[])
                             )::accounting.charge_request req
                         )
                         select accounting.credit_check(array_agg(req))
@@ -127,6 +129,7 @@ class AccountingService(
             val productProvider by parameterList<String>()
             val performedBy by parameterList<String>()
             val descriptions by parameterList<String>()
+            val transactionIds by parameterList<String>()
             for (req in request.items) {
                 when (val payer = req.payer) {
                     is WalletOwner.Project -> {
@@ -145,6 +148,7 @@ class AccountingService(
                 productProvider.add(req.product.provider)
                 performedBy.add(req.performedBy)
                 descriptions.add(req.description)
+                transactionIds.add(req.transactionId)
             }
         }
 
@@ -163,6 +167,7 @@ class AccountingService(
                     val startDates by parameterList<Long?>()
                     val endDates by parameterList<Long?>()
                     val descriptions by parameterList<String>()
+                    val transactionIds by parameterList<String>()
                     for (req in request.items) {
                         initiatedBy.add(actorAndProject.actor.safeUsername())
                         when (val recipient = req.recipient) {
@@ -180,6 +185,7 @@ class AccountingService(
                         startDates.add(req.startDate?.let { it / 1000 })
                         endDates.add(req.endDate?.let { it / 1000 })
                         descriptions.add(req.description)
+                        transactionIds.add(req.transactionId)
                     }
                 },
                 """
@@ -192,12 +198,13 @@ class AccountingService(
                             unnest(:desired_balance::bigint[]),
                             to_timestamp(unnest(:start_dates::bigint[])),
                             to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:descriptions::text[])
+                            unnest(:descriptions::text[]),
+                            unnest(:transaction_ids::text[])
                         )::accounting.deposit_request req
                     )
                     select accounting.deposit(array_agg(req))
                     from requests
-                """
+                """, debug = true
             )
 
             session.sendPreparedStatement(
@@ -238,6 +245,7 @@ class AccountingService(
                 val endDates by parameterList<Long?>()
                 val balances by parameterList<Long?>()
                 val descriptions by parameterList<String?>()
+                val transactionIds by parameterList<String>()
                 setParameter("actor", actorAndProject.actor.safeUsername())
                 for (req in request.items) {
                     productCategories.add(req.categoryId.name)
@@ -248,6 +256,7 @@ class AccountingService(
                     endDates.add(req.endDate?.let { it / 1000 })
                     balances.add(req.amount)
                     descriptions.add(req.description)
+                    transactionIds.add(req.transactionId)
                 }
             }
 
@@ -292,7 +301,9 @@ class AccountingService(
                         accounting.wallet_owner wo on
                             req.username = wo.username or
                             req.project_id = wo.project_id
-                    on conflict do nothing
+                    on conflict (category, owned_by) do update 
+                    set low_funds_notifications_send = false
+                    where wallets.category = excluded.category and wallets.owned_by = excluded.owned_by
                 """
             ).rowsAffected
             val rowsAffected = session.sendPreparedStatement(
@@ -310,6 +321,7 @@ class AccountingService(
                                 to_timestamp(unnest(:end_dates::bigint[])) end_date,
                                 unnest(:balances::bigint[]) balance,
                                 unnest(:descriptions::text[]) description,
+                                unnest(:transaction_ids::text[]) transaction_id,
                                 :actor actor
                         ),
                         new_allocations as (
@@ -334,12 +346,12 @@ class AccountingService(
                             returning id, balance
                         )
                     insert into accounting.transactions
-                        (type, affected_allocation_id, action_performed_by, change, description, start_date)
-                    select 'deposit', alloc.id, r.actor, alloc.balance, r.description, coalesce(r.start_date, now())
+                        (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+                    select 'deposit', alloc.id, r.actor, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
-                """, debug = true
+                """
             ).rowsAffected
 
             if (rowsAffected != request.items.size.toLong()) {
@@ -365,6 +377,7 @@ class AccountingService(
                 val endDates by parameterList<Long?>()
                 val performedBy by parameterList<String>()
                 val descriptions by parameterList<String>()
+                val transactionIds by parameterList<String>()
                 for (req in request.items) {
                     val sourceId = when (val source = req.source) {
                         is WalletOwner.Project -> {
@@ -397,6 +410,7 @@ class AccountingService(
                     endDates.add(req.endDate?.let { it / 1000 })
                     performedBy.add(actorAndProject.actor.safeUsername())
                     descriptions.add("Transfer from $sourceId to $targetId")
+                    transactionIds.add(req.transactionId)
                 }
             }
 
@@ -417,7 +431,8 @@ class AccountingService(
                             to_timestamp(unnest(:start_dates::bigint[])),
                             to_timestamp(unnest(:end_dates::bigint[])),
                             unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[])
+                            unnest(:descriptions::text[]),
+                            unnest(:transaction_ids::text[])
                         )::accounting.transfer_request req
                     )
                     select accounting.credit_check(array_agg(req))
@@ -447,7 +462,8 @@ class AccountingService(
                             to_timestamp(unnest(:start_dates::bigint[])),
                             to_timestamp(unnest(:end_dates::bigint[])),
                             unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[])
+                            unnest(:descriptions::text[]),
+                            unnest(:transaction_ids::text[])
                         )::accounting.transfer_request req
                     )
                     select accounting.transfer(array_agg(req))
@@ -500,7 +516,8 @@ class AccountingService(
                                 to_timestamp(unnest(:start_dates::bigint[])) start_date,
                                 to_timestamp(unnest(:end_dates::bigint[])) end_date,    
                                 unnest(:performed_by::text[]) performed_by, 
-                                unnest(:descriptions::text[]) description
+                                unnest(:descriptions::text[]) description,
+                                unnest(:transaction_ids::text[]) transaction_id
                         ),
                         new_allocations as (
                             insert into accounting.wallet_allocations
@@ -524,8 +541,8 @@ class AccountingService(
                             returning id, balance
                         )
                     insert into accounting.transactions
-                        (type, affected_allocation_id, action_performed_by, change, description, start_date)
-                    select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now())
+                        (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+                    select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
                     from
                         new_allocations alloc join
                         requests r on alloc.id = r.alloc_id
@@ -549,6 +566,7 @@ class AccountingService(
                     val startDates by parameterList<Long>()
                     val endDates by parameterList<Long?>()
                     val descriptions by parameterList<String>()
+                    val transactionIds by parameterList<String>()
                     setParameter("performed_by", actorAndProject.actor.safeUsername())
                     for (req in request.items) {
                         ids.add(req.id.toLongOrNull())
@@ -556,6 +574,7 @@ class AccountingService(
                         descriptions.add(req.reason)
                         startDates.add(req.startDate / 1000)
                         endDates.add(req.endDate?.let { it / 1000 })
+                        transactionIds.add(req.transactionId)
                     }
                 },
                 """
@@ -566,7 +585,8 @@ class AccountingService(
                             to_timestamp(unnest(:start_dates::bigint[])),
                             to_timestamp(unnest(:end_dates::bigint[])),
                             unnest(:descriptions::text[]),
-                            unnest(:balance::bigint[])
+                            unnest(:balance::bigint[]),
+                            unnest(:transaction_ids::text[])
                         )::accounting.allocation_update_request req
                     )
                     select accounting.update_allocations(array_agg(req))

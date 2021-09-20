@@ -1,12 +1,12 @@
-import {Client} from "Authentication/HttpClientInstance";
-import MainContainer from "MainContainer/MainContainer";
+import {Client} from "@/Authentication/HttpClientInstance";
+import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
-import * as UCloud from "UCloud";
-import {Flex} from "ui-components";
-import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
+import * as UCloud from "@/UCloud";
+import {Flex} from "@/ui-components";
+import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {useHistory} from "react-router";
-import RS from "Products/CreateProduct";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import RS from "@/Products/CreateProduct";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 function Create(): JSX.Element | null {
     const history = useHistory();

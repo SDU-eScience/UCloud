@@ -18,11 +18,12 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val streams = micro.eventStreamService
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
+        val exporter = ParameterExportService(db)
 
         val altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
             ComputeCommunication(
@@ -51,6 +52,7 @@ class Server(override val micro: Micro) : CommonServer {
                 jobSupport,
                 serviceClient,
                 appStoreCache,
+                exporter,
             )
 
         val jobMonitoring = JobMonitoringService(micro.backgroundScope, distributedLocks)

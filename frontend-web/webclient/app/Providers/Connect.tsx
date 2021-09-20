@@ -1,17 +1,17 @@
 import * as React from "react";
-import {PageV2, provider} from "UCloud";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {emptyPageV2} from "DefaultObjects";
+import {PageV2, provider} from "@/UCloud";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {emptyPageV2} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import IntegrationApi = provider.im;
-import MainContainer from "MainContainer/MainContainer";
-import * as Pagination from "Pagination";
-import {PageRenderer} from "Pagination/PaginationV2";
-import {Button, List} from "ui-components";
-import {ListRow} from "ui-components/List";
+import MainContainer from "@/MainContainer/MainContainer";
+import * as Pagination from "@/Pagination";
+import {PageRenderer} from "@/Pagination/PaginationV2";
+import {Button, List} from "@/ui-components";
+import {ListRow} from "@/ui-components/List";
 
 const Connect: React.FunctionComponent = () => {
     const [infScroll, setInfScroll] = useState(0);

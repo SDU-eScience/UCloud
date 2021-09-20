@@ -46,9 +46,17 @@ class FileQueries(
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
+        forcedPrefix: String? = null,
     ): PartialUFile {
+        val realPath = pathConverter.internalToUCloud(file).path
+        val pathToReturn = if (forcedPrefix != null) {
+            forcedPrefix.removeSuffix("/") + "/" + realPath.fileName()
+        } else {
+            realPath
+        }
+
         return PartialUFile(
-            pathConverter.internalToUCloud(file).path,
+            pathToReturn,
             UFileStatus(
                 nativeStat.fileType,
                 findIcon(file),
@@ -89,9 +97,15 @@ class FileQueries(
 
         if (foundFiles == null) {
             val internalFile = pathConverter.ucloudToInternal(file)
-            foundFiles = nativeFs.listFiles(internalFile).map {
-                InternalFile(internalFile.path + "/" + it)
-            }
+            foundFiles = nativeFs.listFiles(internalFile)
+                .mapNotNull {
+                    val result = InternalFile(internalFile.path + "/" + it)
+                    if (flags.filterHiddenFiles && it.startsWith(".")) {
+                        return@mapNotNull null
+                    } else {
+                        result
+                    }
+                }
         }
 
         // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
@@ -119,6 +133,7 @@ class FileQueries(
                             convertNativeStatToUFile(
                                 nextInternalFile,
                                 nativeFs.stat(nextInternalFile),
+                                file.path
                             )
                         )
                     } catch (ex: FSException.NotFound) {
@@ -136,7 +151,8 @@ class FileQueries(
                     items.add(
                         convertNativeStatToUFile(
                             nextInternalFile,
-                            foundFilesToStat[nextInternalFile.path]!!
+                            foundFilesToStat[nextInternalFile.path]!!,
+                            file.path
                         )
                     )
 

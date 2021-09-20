@@ -1,76 +1,82 @@
 import * as React from "react";
 
-// Loadable with React Lazy
-const Applications = React.lazy(() => import("Applications/Browse"));
-const ApplicationsOverview = React.lazy(() => import("Applications/Overview"));
-const ApplicationView = React.lazy(() => import("Applications/View"));
-const AdminOverview = React.lazy(() => import("Admin/Overview"));
-const App = React.lazy(() => import("Applications/Studio/Applications"));
-const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
-const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
-const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
-const FilesRouter = React.lazy(() => import("Files/Files"));
-const FileCollectionsRouter = React.lazy(() => import("Files/FileCollections"));
-const MetadataNamespacesRouter = React.lazy(() => import("Files/Metadata/Templates/Namespaces"));
-const Shares = React.lazy(() => import("Files/Shares"));
-const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
-const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
-const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
-const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
-const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
-const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
-const LoginPage = React.lazy(() => import("Login/Login"));
-const LoginSelection = React.lazy(() => import("Login/LoginSelection"));
-const NewsList = React.lazy(() => import("NewsPost/NewsList"));
-const NewsManagement = React.lazy(() => import("Admin/NewsManagement"));
-const OutgoingApplications = React.lazy(() => import("Project/Grant/OutgoingApplications"));
-const Playground = React.lazy(() => import("Playground/Playground"));
-const Products = React.lazy(() => import("Products/Products"));
-const ProjectBrowser = React.lazy(() => import("Project/Grant/ProjectBrowser"));
-const ProjectDashboard = React.lazy(() => import("Project/ProjectDashboard"));
-const ProjectList = React.lazy(() => import("Project/ProjectList"));
-const ProjectMembers = React.lazy(() => import("Project/Members"));
-const ProjectSettings = React.lazy(() => import("Project/ProjectSettings"));
-const ProjectResources = React.lazy(() => import("Project/Resources"));
-const Search = React.lazy(() => import("Search/Search"));
-const ServiceLicenseAgreement = React.lazy(() => import("ServiceLicenseAgreement"));
-const Studio = React.lazy(() => import("Applications/Studio/Page"));
-const Tool = React.lazy(() => import("Applications/Studio/Tool"));
-const UserCreation = React.lazy(() => import("Admin/UserCreation"));
-const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
-const Wayf = React.lazy(() => import("Login/Wayf"));
-const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
-const AppAauAdmin = React.lazy(() => import("Admin/AppAauAdmin"));
-const Demo = React.lazy(() => import("Playground/Demo"));
-const LagTest = React.lazy(() => import("Playground/LagTest"));
-const Providers = React.lazy(() => import("Admin/Providers/Browse"));
-const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
-const RegisterProvider = React.lazy(() => import("Admin/Providers/Approve"));
-const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
-const ProviderConnection = React.lazy(() => import("Providers/Connect"));
-
-const IngressRouter = React.lazy(() => import("Applications/Ingresses/Router"));
-const LicenseRouter = React.lazy(() => import("Applications/Licenses"));
-const NetworkIPsRouter = React.lazy(() => import("Applications/NetworkIP/Router"));
-
-// Not React.lazy-able due to how the components are created on demand.
-import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
-
-// Always load.
-import Sidebar from "ui-components/Sidebar";
-import Uploader from "Files/Uploader";
-import Snackbars from "Snackbar/Snackbars";
-import Dialog from "Dialog/Dialog";
+import Applications from "@/Applications/Browse";
+import ApplicationsOverview from "@/Applications/Overview";
+import ApplicationView from "@/Applications/View";
+import AdminOverview from "@/Admin/Overview";
+import App from "@/Applications/Studio/Applications";
+import AvataaarModification from "@/UserSettings/Avataaar";
+import Dashboard from "@/Dashboard/Dashboard";
+import DetailedNews from "@/NewsPost/DetailedNews";
+import FilesRouter from "@/Files/Files";
+import FileCollectionsRouter from "@/Files/FileCollections";
+import MetadataNamespacesRouter from "@/Files/Metadata/Templates/Namespaces";
+import ShareRouter from "@/Files/Shares";
+import IngoingApplications from "@/Project/Grant/IngoingApplications";
+import JobShell from "@/Applications/Jobs/Shell";
+import JobWeb from "@/Applications/Jobs/Web";
+import JobVnc from "@/Applications/Jobs/Vnc";
+import LandingPage from "@/Project/Grant/LandingPage";
+import LicenseServers from "@/Admin/LicenseServers";
+import LoginPage from "@/Login/Login";
+import LoginSelection from "@/Login/LoginSelection";
+import NewsList from "@/NewsPost/NewsList";
+import NewsManagement from "@/Admin/NewsManagement";
+import OutgoingApplications from "@/Project/Grant/OutgoingApplications";
+import Playground from "@/Playground/Playground";
+import Products from "@/Products/Products";
+import ProjectBrowser from "@/Project/Grant/ProjectBrowser";
+import ProjectDashboard from "@/Project/ProjectDashboard";
+import ProjectList from "@/Project/ProjectList";
+import ProjectMembers from "@/Project/Members";
+import ProjectSettings from "@/Project/ProjectSettings";
+import ProjectResources from "@/Project/Resources";
+import Search from "@/Search/Search";
+import ServiceLicenseAgreement from "@/ServiceLicenseAgreement";
+import Studio from "@/Applications/Studio/Page";
+import Tool from "@/Applications/Studio/Tool";
+import UserCreation from "@/Admin/UserCreation";
+import UserSettings from "@/UserSettings/UserSettings";
+import Wayf from "@/Login/Wayf";
+import AppK8Admin from "@/Admin/AppK8Admin";
+import AppAauAdmin from "@/Admin/AppAauAdmin";
+import Demo from "@/Playground/Demo";
+import LagTest from "@/Playground/LagTest";
+import Providers from "@/Admin/Providers/Browse";
+import CreateProvider from "@/Admin/Providers/Create";
+import RegisterProvider from "@/Admin/Providers/Approve";
+import ViewProvider from "@/Admin/Providers/View";
+import ProviderConnection from "@/Providers/Connect";
+import IngressRouter from "@/Applications/Ingresses/Router";
+import LicenseRouter from "@/Applications/Licenses";
+import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
+import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
+import Sidebar from "@/ui-components/Sidebar";
+import Uploader from "@/Files/Uploader";
+import Snackbars from "@/Snackbar/Snackbars";
+import {Dialog} from "@/Dialog/Dialog";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
-import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
-import {inDevEnvironment} from "UtilityFunctions";
+import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
+import {inDevEnvironment} from "@/UtilityFunctions";
 import {History} from "history";
-import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
-import {dispatchUserAction, onLogin} from "App";
-import {MainContainer} from "MainContainer/MainContainer";
-import {Client} from "Authentication/HttpClientInstance";
+import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {Client} from "@/Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
-import JobRouter from "Applications/Jobs/NewApi";
+import JobRouter from "@/Applications/Jobs/NewApi";
+import {Debugger} from "@/Debug/Debugger";
+import Header from "@/Navigation/Header";
+import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
+import {Provider} from "react-redux";
+import {BrowserRouter} from "react-router-dom";
+import {createGlobalStyle, ThemeProvider} from "styled-components";
+import {theme, UIGlobalStyle} from "@/ui-components";
+import {invertedColors} from "@/ui-components/theme";
+import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {store} from "@/Utilities/ReduxUtilities";
+import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
+import {injectFonts} from "@/ui-components/GlobalStyle";
+import {SharesOutgoing} from "@/Files/SharesOutgoing";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -92,11 +98,15 @@ const Core = (): JSX.Element => (
                     <Route exact path="/login/wayf" component={Wayf} />
                     <Route exact path="/" component={requireAuth(Dashboard)} />
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
+                    <Route exact path={"/debugger"} component={Debugger} />
 
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
                     <Route path={"/files"}><FilesRouter /></Route>
                     <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
-                    <Route exact path="/shares" component={requireAuth(Shares)} />
+                    <Route path={"/shares"}>
+                        <ShareRouter />
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
+                    </Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
@@ -238,4 +248,52 @@ const LoginSuccess = (props: {history: History}): null => {
     return null;
 };
 
-export default Core;
+export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+    store.dispatch({type});
+}
+
+export async function onLogin(): Promise<void> {
+    const action = await findAvatar();
+    if (action !== null) store.dispatch(action);
+}
+
+const GlobalStyle = createGlobalStyle`
+  ${UIGlobalStyle}
+`;
+
+Client.initializeStore(store);
+removeExpiredFileUploads();
+
+function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
+    const [isLightTheme, setTheme] = React.useState(() => {
+        const isLight = isLightThemeStored();
+        toggleCssColors(isLight);
+        return isLight;
+    });
+    const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
+
+    function toggle(): void {
+        toggleCssColors(isLightTheme);
+        setAndStoreTheme(!isLightTheme);
+    }
+
+    return (
+        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
+            <GlobalStyle />
+            <BrowserRouter basename="app">
+                <Header toggleTheme={toggle} />
+                {children}
+            </BrowserRouter>
+        </ThemeProvider>
+    );
+}
+
+injectFonts();
+
+export default function UCloudApp(): JSX.Element {
+    return (<Provider store={store}>
+        <MainApp>
+            <Core />
+        </MainApp>
+    </Provider>);
+}

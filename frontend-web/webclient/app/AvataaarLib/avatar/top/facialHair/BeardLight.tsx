@@ -1,7 +1,7 @@
 import * as React from "react";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import Colors from "./Colors";
-import {FacialHairColor} from "UserSettings/AvatarOptions";
+import {FacialHairColor} from "@/UserSettings/AvatarOptions";
 
 export default class BeardLight extends React.Component<{facialHairColor: FacialHairColor}> {
   public static optionValue = "BeardLight";

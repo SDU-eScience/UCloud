@@ -2,39 +2,40 @@ import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {AppToolLogo} from "Applications/AppToolLogo";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
-import {Box, Button, Flex, Icon, Link} from "ui-components";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {IconName} from "ui-components/Icon";
-import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
-import {device, deviceBreakpoint} from "ui-components/Hide";
+import {Box, Button, Flex, Icon, Link} from "@/ui-components";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {IconName} from "@/ui-components/Icon";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
-import {WSFactory} from "Authentication/HttpClientInstance";
-import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {margin, MarginProps} from "styled-system";
-import {useProjectStatus} from "Project/cache";
-import {ProjectName} from "Project";
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import {bulkRequestOf} from "DefaultObjects";
-import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "UCloud/JobsApi";
-import {compute} from "UCloud";
-import {ResolvedSupport} from "UCloud/ResourceApi";
+import {useProjectStatus} from "@/Project/cache";
+import {ProjectName} from "@/Project";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {bulkRequestOf} from "@/DefaultObjects";
+import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
+import {compute} from "@/UCloud";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {
     priceExplainer,
     ProductCompute,
     usageExplainer
-} from "Accounting";
+} from "@/Accounting";
+import {FilesBrowse} from "@/Files/Files";
 
 const enterAnimation = keyframes`
   from {
@@ -327,14 +328,14 @@ export const View: React.FunctionComponent = () => {
         let t1: number | undefined;
         let t2: number | undefined;
         if (job) {
-            t1 = setTimeout(() => {
+            t1 = window.setTimeout(() => {
                 setDataAnimationAllowed(true);
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
             }, delayInitialAnim ? 3000 : 400);
 
-            t2 = setTimeout(() => {
+            t2 = window.setTimeout(() => {
                 setLogoAnimationAllowed(true);
             }, delayInitialAnim ? 2200 : 0);
         }
@@ -506,8 +507,11 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
-    }, [status]);
+        const support = job.status.resolvedSupport?.support as ComputeSupport;
+        if (support.docker.utilization === true || support.virtualMachine.utilization === true) {
+            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+        }
+    }, [job]);
 
     return <>
         <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
@@ -1107,19 +1111,9 @@ const OutputFilesWrapper = styled.div`
 `;
 
 const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+    const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <Heading.h3>Files</Heading.h3>
-        {/*
-        TODO
-        <VirtualFileTable
-            embedded
-            disableNavigationButtons
-            previewEnabled
-            permissionAlertEnabled={false}
-            onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage(files)}
-        />
-        */}
+        <FilesBrowse embedded={true} pathRef={pathRef} forceNavigationToPage={true} />
     </OutputFilesWrapper>;
 };
 

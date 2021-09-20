@@ -1,6 +1,6 @@
 import * as React from "react";
-import {default as NetworkIPApi, NetworkIP} from "UCloud/NetworkIPApi";
-import {ResourceBrowse} from "Resource/Browse";
+import {default as NetworkIPApi, NetworkIP} from "@/UCloud/NetworkIPApi";
+import {ResourceBrowse} from "@/Resource/Browse";
 
 export const NetworkIPBrowse: React.FunctionComponent<{
     provider?: string;

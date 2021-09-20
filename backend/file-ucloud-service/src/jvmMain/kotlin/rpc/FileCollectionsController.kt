@@ -29,7 +29,7 @@ class FileCollectionsController(
 
         implement(UCloudFileCollections.rename) {
             fileCollections.rename(request)
-            ok(FileCollectionsProviderRenameResponse)
+            ok(BulkResponse(request.items.map {}))
         }
 
         implement(UCloudFileCollections.retrieveProducts) {

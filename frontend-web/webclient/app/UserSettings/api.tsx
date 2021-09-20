@@ -1,4 +1,4 @@
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export interface UserSession {
     ipAddress: string;

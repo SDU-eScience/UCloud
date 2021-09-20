@@ -19,7 +19,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
 
     override fun start() {
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         val settingsService = SettingsService(db)
 

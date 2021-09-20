@@ -3,24 +3,24 @@ import {
     default as metadataApi,
     FileMetadataHistory,
     FileMetadataDocumentOrDeleted, FileMetadataDocumentApproval,
-} from "UCloud/MetadataDocumentApi";
-import {FileMetadataTemplate} from "UCloud/MetadataNamespaceApi";
+} from "@/UCloud/MetadataDocumentApi";
+import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {noopCall, useCloudCommand} from "Authentication/DataHook";
-import {bulkRequestOf} from "DefaultObjects";
-import {TextArea, Box, Button, Flex, Grid, Icon, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {dateToString} from "Utilities/DateUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import {JsonSchemaForm} from "Files/Metadata/JsonSchemaForm";
+import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {TextArea, Box, Button, Flex, Grid, Icon, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import styled from "styled-components";
-import {ListRowStat} from "ui-components/List";
-import {deviceBreakpoint} from "ui-components/Hide";
-import {UFile} from "UCloud/FilesApi";
-import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
-import {Operation} from "ui-components/Operation";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {SvgFt} from "ui-components/FtIcon";
+import {ListRowStat} from "@/ui-components/List";
+import {deviceBreakpoint} from "@/ui-components/Hide";
+import {UFile} from "@/UCloud/FilesApi";
+import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
+import {Operation} from "@/ui-components/Operation";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {SvgFt} from "@/ui-components/FtIcon";
 
 export const History: React.FunctionComponent<{
     file: UFile;

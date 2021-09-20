@@ -1,6 +1,6 @@
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
-const CONF = require("../../site.config.json");
+import * as CONF from "../../site.config.json";
 import {
     Area,
     AreaChart,
@@ -11,13 +11,13 @@ import {
     Tooltip,
     XAxis,
 } from "recharts";
-import {MainContainer} from "MainContainer/MainContainer";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import {useProjectManagementStatus} from "Project";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {accounting, PageV2, PaginationRequestV2} from "UCloud";
+import {useProjectManagementStatus} from "@/Project";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {accounting, PageV2, PaginationRequestV2} from "@/UCloud";
 import {
     CheckboxFilterWidget,
     DateRangeFilter,
@@ -26,29 +26,29 @@ import {
     PillProps,
     ResourceFilter,
     ValuePill
-} from "Resource/Filter";
+} from "@/Resource/Filter";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {capitalized, doNothing, timestampUnixMs} from "UtilityFunctions";
-import {ThemeColor} from "ui-components/theme";
-import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {ThemeColor} from "@/ui-components/theme";
+import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "@/ui-components";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Operation, Operations, useOperationOpener} from "ui-components/Operation";
-import * as Pagination from "Pagination";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
+import * as Pagination from "@/Pagination";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import ReactDatePicker from "react-datepicker";
 import {enGB} from "date-fns/locale";
-import {SlimDatePickerWrapper} from "ui-components/DatePicker";
-import {getStartOfDay} from "Utilities/DateUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {deviceBreakpoint} from "ui-components/Hide";
+import {SlimDatePickerWrapper} from "@/ui-components/DatePicker";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {deviceBreakpoint} from "@/ui-components/Hide";
 import {
     browseWallets,
     ChargeType, deposit,
@@ -66,9 +66,9 @@ import {
     usageExplainer,
     Wallet,
     WalletAllocation,
-} from "Accounting";
-import {InputLabel} from "ui-components/Input";
-import HighlightedCard from "ui-components/HighlightedCard";
+} from "@/Accounting";
+import {InputLabel} from "@/ui-components/Input";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -95,16 +95,16 @@ registerFilter(EnumFilter("cubeSolid", "filterType", "Product type", productType
 
 filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterWorkspace"} secondaryProperties={["filterWorkspaceProject"]}
-               showValue={true} icon={"projects"} title={"Workspace"}/>);
+        showValue={true} icon={"projects"} title={"Workspace"} />);
 
 filterPills.push(props =>
-    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"}/>);
+    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
 
 const showSubAllocationsProp = "showSubAllocations";
 
 filterWidgets.push(props =>
     <CheckboxFilterWidget propertyName={showSubAllocationsProp} icon={"grant"}
-                          title={"Show sub-allocations"} {...props} />)
+        title={"Show sub-allocations"} {...props} />)
 
 
 const ResourcesGrid = styled.div`
@@ -123,8 +123,8 @@ const Resources: React.FunctionComponent = props => {
     useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
-    const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
-    const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
+    const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
+    const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
@@ -175,7 +175,7 @@ const Resources: React.FunctionComponent = props => {
     return (
         <MainContainer
             header={
-                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]}/>
+                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />
             }
             headerSize={60}
             sidebar={<>
@@ -195,23 +195,23 @@ const Resources: React.FunctionComponent = props => {
                 <Grid gridGap={"16px"}>
                     {maximizedUsage == null ? null : <>
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                                          onMaximizeToggle={() => onUsageMaximize(maximizedUsage)}/>
+                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
                     </>}
                     {maximizedUsage != null ? null :
                         <>
                             <VisualizationSection className={usageClassName}>
                                 {usage.data.charts.map((it, idx) =>
-                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)}/>
+                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
                                 )}
                             </VisualizationSection>
                             <VisualizationSection className={walletsClassName}>
                                 {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it}/>
+                                    <WalletViewer key={idx} wallet={it} />
                                 )}
                             </VisualizationSection>
                             <VisualizationSection className={breakdownClassName}>
                                 {breakdowns.data.charts.map((it, idx) =>
-                                    <DonutChart key={idx} chart={it}/>
+                                    <DonutChart key={idx} chart={it} />
                                 )}
                             </VisualizationSection>
                         </>
@@ -220,8 +220,8 @@ const Resources: React.FunctionComponent = props => {
 
                 {!subAllocationsVisible ? null :
                     <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                         loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
-                                         filterByWorkspace={filterByWorkspace}/>
+                        loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
+                        filterByWorkspace={filterByWorkspace} />
                 }
             </ResourcesGrid>}
         />
@@ -229,9 +229,9 @@ const Resources: React.FunctionComponent = props => {
 };
 
 
-const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
+const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     return <>
-        {wallet.allocations.map((it, idx) => <AllocationViewer key={idx} wallet={wallet} allocation={it}/>)}
+        {wallet.allocations.map((it, idx) => <AllocationViewer key={idx} wallet={wallet} allocation={it} />)}
     </>
 }
 
@@ -253,7 +253,7 @@ const AllocationViewer: React.FunctionComponent<{
     }), [openMoving]);
 
     const onTransferSubmit = useCallback(async (workspaceId: string, isProject: boolean, amount: number,
-                                                startDate: number, endDate: number) => {
+        startDate: number, endDate: number) => {
         if (isDeposit) {
             await invokeCommand(deposit(bulkRequestOf({
                 amount,
@@ -287,14 +287,14 @@ const AllocationViewer: React.FunctionComponent<{
     }, [isDeposit]);
     return <HighlightedCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
         <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
-                              onSubmit={onTransferSubmit} wallet={wallet}/>
+            onSubmit={onTransferSubmit} wallet={wallet} />
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
-                  size={"54px"} mr={"16px"}/>
+                size={"54px"} mr={"16px"} />
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
                 <Flex alignItems={"center"} mr={"-16px"}>
                     <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Operations
                         openFnRef={opRef}
                         location={"IN_ROW"}
@@ -307,8 +307,8 @@ const AllocationViewer: React.FunctionComponent<{
                 </Flex>
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
-                <Box flexGrow={1} mt={"8px"}/>
-                <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate}/></div>
+                <Box flexGrow={1} mt={"8px"} />
+                <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
             </Flex>
         </Flex>
     </HighlightedCard>;
@@ -318,7 +318,7 @@ interface AllocationCallbacks {
     openMoving: (isDeposit: boolean) => void;
 }
 
-const allocationOperations: Operation<{ wallet: Wallet, allocation: WalletAllocation }, AllocationCallbacks>[] = [{
+const allocationOperations: Operation<{wallet: Wallet, allocation: WalletAllocation}, AllocationCallbacks>[] = [{
     text: "Transfer to...",
     icon: "move",
     enabled: selected => selected.length === 1,
@@ -377,6 +377,7 @@ const TransferDepositModal: React.FunctionComponent<{
     }, []);
 
     const doSubmit = useCallback(() => {
+        console.log(amountField, amountField.current?.value);
         if (recipient && createdBefore) {
             const amount = normalizeBalanceForBackend(parseInt(amountField.current?.value ?? "0"),
                 wallet.productType, wallet.chargeType, wallet.unit);
@@ -400,17 +401,17 @@ const TransferDepositModal: React.FunctionComponent<{
                     <Label>Recipient:</Label>
                     {recipient == null ? "None" : <>
                         <Icon name={recipient.isProject ? "projects" : "user"} mr={8}
-                              color={"iconColor"} color2={"iconColor2"}/>
+                            color={"iconColor"} color2={"iconColor2"} />
                         {recipient.title}
                     </>}
                     <Icon name={"edit"} color={"iconColor"} color2={"iconColor2"} size={16} cursor={"pointer"}
-                          onClick={() => setLookingForRecipient(true)} ml={8}/>
+                        onClick={() => setLookingForRecipient(true)} ml={8} />
                 </div>
 
                 <Label>
                     Amount:
                     <Flex>
-                        <Input ref={amountField} rightLabel/>
+                        <Input ref={amountField} rightLabel />
                         <InputLabel rightLabel>
                             {explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)}
                         </InputLabel>
@@ -433,16 +434,16 @@ const TransferDepositModal: React.FunctionComponent<{
                 </div>
 
                 <ConfirmationButton actionText={isDeposit ? "Deposit" : "Transfer"} icon={isDeposit ? "grant" : "move"}
-                                    onAction={doSubmit}/>
+                    onAction={doSubmit} />
             </Grid>
         }
         {!lookingForRecipient ? null : <Grid gridGap={16}>
             <div>
                 <p>
                     Enter the
-                    <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>
+                    <Icon name={"id"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"} />
                     of the user, if the recipient is a personal workspace. Otherwise, enter the
-                    <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"}/>.
+                    <Icon name={"projects"} size={16} mx={8} color={"iconColor"} color2={"iconColor2"} />.
                 </p>
 
                 <p>
@@ -454,7 +455,7 @@ const TransferDepositModal: React.FunctionComponent<{
             <form onSubmit={onRecipientQuery}>
                 <Label>
                     Recipient:
-                    <Input ref={recipientQueryField}/>
+                    <Input ref={recipientQueryField} />
                 </Label>
                 <Button my={16} fullWidth type={"submit"}>Validate</Button>
             </form>
@@ -473,7 +474,7 @@ const TransferDepositModal: React.FunctionComponent<{
     </ReactModal>
 }
 
-const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number | null; }> = ({startDate, endDate}) => {
+const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | null;}> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
     if (endDate == null) {
         return <>No expiration</>;
@@ -564,10 +565,10 @@ const UsageChartViewer: React.FunctionComponent<{
                 <div>
                     <Text color="gray">{productTypeToTitle(c.type)}</Text>
                     <Text bold my="-6px"
-                          fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
+                        fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
-                <Box flexGrow={1}/>
-                <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
+                <Box flexGrow={1} />
+                <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle} />
             </Flex>
 
             <ResponsiveContainer className={"usage-chart"} height={maximized ? 800 : 170}>
@@ -580,8 +581,8 @@ const UsageChartViewer: React.FunctionComponent<{
                     }}
                     data={flattenedLines}
                 >
-                    <XAxis dataKey={"timestamp"}/>
-                    <Tooltip labelFormatter={dateFormatter} formatter={formatter}/>
+                    <XAxis dataKey={"timestamp"} />
+                    <Tooltip labelFormatter={dateFormatter} formatter={formatter} />
                     {names.map((it, index) =>
                         <Area
                             key={it}
@@ -605,14 +606,14 @@ interface BreakdownChart {
     type: ProductType;
     chargeType: ChargeType;
     unit: ProductPriceUnit;
-    chart: { points: { name: string, value: number }[] }
+    chart: {points: {name: string, value: number}[]}
 }
 
 function toPercentageString(value: number) {
     return `${Math.round(value * 10_000) / 100} %`
 }
 
-const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => {
+const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
     const totalUsage = props.chart.chart.points.reduce((prev, current) => prev + current.value, 0);
     return (
         <HighlightedCard
@@ -633,7 +634,7 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
                         innerRadius={55}
                     >
                         {props.chart.chart.points.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])}/>
+                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
                         ))}
                     </Pie>
                 </PieChart>
@@ -714,7 +715,7 @@ const SubAllocationViewer: React.FunctionComponent<{
         </Text>
 
         {!editingAllocation ? null :
-            <SubAllocationEditModal allocation={editingAllocation} onSubmit={onSubmit} onClose={closeEditing}/>
+            <SubAllocationEditModal allocation={editingAllocation} onSubmit={onSubmit} onClose={closeEditing} />
         }
 
         <Pagination.ListV2
@@ -730,11 +731,11 @@ const SubAllocationViewer: React.FunctionComponent<{
                             <TableHeaderCell textAlign={"left"}>Category</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Remaining</TableHeaderCell>
                             <TableHeaderCell textAlign={"left"}>Active</TableHeaderCell>
-                            <TableHeaderCell width={"35px"}/>
+                            <TableHeaderCell width={"35px"} />
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {page.map((row, idx) => <SubAllocationRow key={idx} row={row} cb={cb}/>)}
+                        {page.map((row, idx) => <SubAllocationRow key={idx} row={row} cb={cb} />)}
                     </tbody>
                 </Table>;
             }}
@@ -742,18 +743,18 @@ const SubAllocationViewer: React.FunctionComponent<{
     </HighlightedCard>;
 };
 
-const SubAllocationRow: React.FunctionComponent<{ row: SubAllocation, cb: SubAllocationCallbacks }> = ({row, cb}) => {
+const SubAllocationRow: React.FunctionComponent<{row: SubAllocation, cb: SubAllocationCallbacks}> = ({row, cb}) => {
     const [opRef, onContextMenu] = useOperationOpener()
 
     return <TableRow onContextMenu={onContextMenu} highlightOnHover>
         <TableCell>
             <Icon name={row.workspaceIsProject ? "projects" : "user"} mr={"8px"} color={"iconColor"}
-                  color2={"iconColor2"}/>
+                color2={"iconColor2"} />
             {row.workspaceTitle}
         </TableCell>
         <TableCell>{row.productCategoryId.name} / {row.productCategoryId.provider}</TableCell>
         <TableCell>{usageExplainer(row.remaining, row.productType, row.chargeType, row.unit)}</TableCell>
-        <TableCell><ExpiresIn startDate={row.startDate} endDate={row.endDate}/></TableCell>
+        <TableCell><ExpiresIn startDate={row.startDate} endDate={row.endDate} /></TableCell>
         <TableCell>
             <Operations
                 openFnRef={opRef}
@@ -881,7 +882,7 @@ const SubAllocationEditModal: React.FunctionComponent<{
             </Grid>
 
             <Button fullWidth type={"submit"}>
-                <Icon name={"edit"} mr={"8px"} size={"16px"}/>Update
+                <Icon name={"edit"} mr={"8px"} size={"16px"} />Update
             </Button>
         </form>
     </ReactModal>

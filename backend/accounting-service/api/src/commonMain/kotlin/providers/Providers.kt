@@ -45,6 +45,27 @@ data class ProviderSpecification(
     override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
 }
 
+fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url
+    return buildString {
+        if (https) {
+            append("https://")
+        } else {
+            append("http://")
+        }
+
+        append(domain)
+
+        if (port != null) {
+            append(":")
+            append(port)
+        }
+
+        append('/')
+        append(url.removePrefix("/"))
+    }
+}
+
 @Serializable
 data class ProviderSupport(override val product: ProductReference) : ProductSupport
 
@@ -98,6 +119,8 @@ data class ProviderIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
     val filterName: String? = null,
 ) : ResourceIncludeFlags
 

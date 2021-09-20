@@ -22,6 +22,10 @@ interface ResourceIncludeFlags {
     val filterProvider: String?
     val filterProductId: String?
     val filterProductCategory: String?
+    @UCloudApiDoc("Filters by the provider ID. The value is comma-separated.")
+    val filterProviderIds: String?
+    @UCloudApiDoc("Filters by the resource ID. The value is comma-separated.")
+    val filterIds: String?
 }
 
 @Serializable
@@ -36,6 +40,8 @@ data class SimpleResourceIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiDoc(

@@ -1,9 +1,9 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {Action} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {AvatarType} from "UserSettings/Avataaar";
-import {findAvatarQuery, saveAvatarQuery} from "Utilities/AvatarUtilities";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {AvatarType} from "@/UserSettings/Avataaar";
+import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {AVATAR_ERROR, AVATAR_SAVE} from "./AvataaarReducer";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError;

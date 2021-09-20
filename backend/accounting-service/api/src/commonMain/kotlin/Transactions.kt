@@ -38,6 +38,12 @@ sealed class Transaction {
     @UCloudApiDoc("The product category which this transaction belongs to")
     abstract val resolvedCategory: ProductCategoryId
 
+    @UCloudApiDoc("ID of the transaction that was received from provider or user. Used for traceability and duplicate prevention")
+    abstract val initialTransactionId: String
+
+    @UCloudApiDoc("An UUID to a transactions. When the transaction is the root transaction then initial transaction id and transaction id is the same")
+    abstract val transactionId: String
+
     @Serializable
     @SerialName("charge")
     data class Charge(
@@ -81,6 +87,8 @@ sealed class Transaction {
         override val description: String,
         override val timestamp: Long,
         override val resolvedCategory: ProductCategoryId,
+        override val initialTransactionId: String,
+        override val transactionId: String
     ) : Transaction()
 
     @Serializable
@@ -99,6 +107,8 @@ sealed class Transaction {
         override val affectedAllocationId: String,
         override val timestamp: Long,
         override val resolvedCategory: ProductCategoryId,
+        override val initialTransactionId: String,
+        override val transactionId: String
     ) : Transaction()
 
     @Serializable
@@ -117,6 +127,8 @@ sealed class Transaction {
         override val affectedAllocationId: String,
         override val timestamp: Long,
         override val resolvedCategory: ProductCategoryId,
+        override val initialTransactionId: String,
+        override val transactionId: String
     ) : Transaction()
 
     @Serializable
@@ -133,6 +145,8 @@ sealed class Transaction {
         override val affectedAllocationId: String,
         override val timestamp: Long,
         override val resolvedCategory: ProductCategoryId,
+        override val initialTransactionId: String,
+        override val transactionId: String
     ) : Transaction()
 }
 

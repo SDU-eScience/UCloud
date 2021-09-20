@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
@@ -16,6 +17,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.ucloud.services.NativeFS
+import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -31,6 +35,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlin.collections.ArrayList
 import kotlin.random.Random
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.minutes
@@ -245,7 +250,6 @@ class JobManagement(
         return true
     }
 
-
     @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
@@ -455,7 +459,7 @@ class JobManagement(
                         }
                     }
 
-                    if (duration >= 1.minutes) {
+                    if (duration >= Duration.minutes(1)) {
                         log.warn("Took too long to process events ($duration). We will probably lose master status.")
                     }
 
@@ -488,25 +492,6 @@ class JobManagement(
                     onJobComplete(jobId, job)
                 }
             }
-        }
-
-        val dir = logService.downloadLogsToDirectory(jobId)
-        try {
-            dir?.listFiles()?.forEach { file ->
-                JobsControl.submitFile.call(
-                    JobsControlSubmitFileRequest(
-                        jobId,
-                        file.name
-                    ),
-                    k8.serviceClient.withHttpBody(
-                        ContentType.Application.OctetStream,
-                        file.length(),
-                        file.readChannel()
-                    )
-                )
-            }
-        } finally {
-            dir?.deleteRecursively()
         }
 
         with(k8) {

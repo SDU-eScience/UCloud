@@ -1,31 +1,32 @@
 import * as React from "react";
 import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {PageV2} from "UCloud";
-import {emptyPageV2, pageV2Of} from "DefaultObjects";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import * as Pagination from "Pagination";
-import {PageRenderer} from "Pagination/PaginationV2";
-import {ToggleSetHook, useToggleSet} from "Utilities/ToggleSet";
-import {Operation, Operations} from "ui-components/Operation";
-import {NamingField} from "UtilityComponents";
-import {ListRow, ListStatContainer} from "ui-components/List";
-import {doNothing, EmptyObject} from "UtilityFunctions";
+import {PageV2} from "@/UCloud";
+import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import * as Pagination from "@/Pagination";
+import {PageRenderer} from "@/Pagination/PaginationV2";
+import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {NamingField} from "@/UtilityComponents";
+import {ListRow, ListStatContainer} from "@/ui-components/List";
+import {doNothing, EmptyObject} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import * as H from "history";
-import {useScrollStatus} from "Utilities/ScrollStatus";
+import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
 import {useHistory} from "react-router";
-import {Box, List} from "ui-components/index";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {StickyBox} from "ui-components/StickyBox";
-import MainContainer from "MainContainer/MainContainer";
+import {Box, List} from "@/ui-components/index";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {StickyBox} from "@/ui-components/StickyBox";
+import MainContainer from "@/MainContainer/MainContainer";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
     generateCall: (next?: string) => APICallParameters;
     pageRenderer: PageRenderer<T>;
+    onLoad?: (newItems: T[]) => void;
 
     loadingRef?: React.MutableRefObject<boolean>;
     reloadRef?: React.MutableRefObject<() => void>;
@@ -41,10 +42,12 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() => {
         return hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data;
-    },
+    }, [props.preloadedResources, remoteResources.data]);
 
-        [props.preloadedResources, remoteResources.data]
-    );
+    useEffect(() => {
+        if (props.onLoad) props.onLoad(resources.items);
+    }, [resources, props.onLoad]);
+
     const isLoading = hasPreloadedResources ? false : remoteResources.loading;
     if (props.loadingRef) props.loadingRef.current = isLoading;
 
@@ -78,16 +81,16 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
         infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />;
 }
 
-export interface ItemRenderer<T> {
+export interface ItemRenderer<T, CB = any> {
     Icon?: React.FunctionComponent<{resource?: T, size: string;}>;
     MainTitle?: React.FunctionComponent<{resource?: T;}>;
     Stats?: React.FunctionComponent<{resource?: T}>;
-    ImportantStats?: React.FunctionComponent<{resource?: T}>;
+    ImportantStats?: React.FunctionComponent<{resource?: T, callbacks: CB}>;
 }
 
 interface ItemRowProps<T, CB> {
     item?: T;
-    renderer: ItemRenderer<T>;
+    renderer: ItemRenderer<T, CB>;
 
     toggleSet: ToggleSetHook<T>;
     navigate?: (item: T) => void;
@@ -146,7 +149,8 @@ export const ItemRow = <T, CB>(
         }
         right={
             <>
-                {renderer.ImportantStats ? <renderer.ImportantStats resource={props.item} /> : null}
+                {renderer.ImportantStats ?
+                    <renderer.ImportantStats resource={props.item} callbacks={props.callbacks} /> : null}
                 {props.item ?
                     <Operations
                         selected={props.toggleSet.checked.items}
@@ -212,7 +216,7 @@ export interface StandardCallbacks<T> {
 interface StandardListBrowse<T, CB> {
     preloadedResources?: T[];
     generateCall: (next?: string) => APICallParameters;
-    renderer: ItemRenderer<T>;
+    renderer: ItemRenderer<T, CB>;
     operations: Operation<T, StandardCallbacks<T> & CB>[];
     title: string;
     titlePlural?: string;

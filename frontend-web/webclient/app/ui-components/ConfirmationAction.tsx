@@ -1,13 +1,13 @@
 import styled from "styled-components";
 import * as React from "react";
-import {Button} from "ui-components/index";
-import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {ButtonProps} from "ui-components/Button";
-import Icon, {IconName} from "ui-components/Icon";
-import {shakeAnimation} from "UtilityComponents";
-import {doNothing} from "UtilityFunctions";
+import {Button} from "@/ui-components/index";
+import {useCallback, useLayoutEffect, useRef, useState} from "react";
+import {ButtonProps} from "@/ui-components/Button";
+import Icon, {IconName} from "@/ui-components/Icon";
+import {shakeAnimation} from "@/UtilityComponents";
+import {doNothing} from "@/UtilityFunctions";
 import {fontSize, FontSizeProps} from "styled-system";
-import {selectHoverColor, ThemeColor} from "ui-components/theme";
+import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 
 const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string } & FontSizeProps>`
   --progress-border: var(--background, #f00);
@@ -26,7 +26,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   backface-visibility: hidden;
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
-  min-width: 200px;
+  min-width: ${p => p.asSquare ? "200px" : "250px"};
   background: var(--background, #f00);
   font-size: ${p => p.asSquare ? "16px" : "large"};
   font-weight: ${p => p.asSquare ? "400" : "700"};
@@ -224,12 +224,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         timer.current -= tickRate;
         if (timer.current <= 0) {
             button.classList.add("success");
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
             setTimeout(() => {
                 if (props.onAction) props.onAction();
             }, 1000);
         } else {
-            timeout.current = setTimeout(success, tickRate);
+            timeout.current = window.setTimeout(success, tickRate);
         }
     }, [buttonRef.current, props.onAction]);
 
@@ -240,7 +240,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         if (timer.current >= 1600) {
             timer.current = 1600;
         } else {
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
         }
     }, [buttonRef.current]);
 
@@ -259,7 +259,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
         button.classList.remove("success");
         button.classList.add("process");
-        timeout.current = setTimeout(success, tickRate);
+        timeout.current = window.setTimeout(success, tickRate);
     }, [buttonRef.current, success]);
 
     const end = useCallback(() => {
@@ -268,7 +268,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.classList.remove("process");
         if (timeout.current !== -1) {
             clearTimeout(timeout.current);
-            timeout.current = setTimeout(countUp, tickRate);
+            timeout.current = window.setTimeout(countUp, tickRate);
         }
 
         if (timer.current > 1500 && !wasReset.current) {

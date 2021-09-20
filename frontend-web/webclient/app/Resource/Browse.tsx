@@ -1,4 +1,5 @@
 import * as React from "react";
+import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
     ResolvedSupport,
     Resource,
@@ -9,37 +10,36 @@ import {
     SupportByProvider,
     ResourceSpecification,
     UCLOUD_CORE
-} from "UCloud/ResourceApi";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {bulkRequestOf} from "DefaultObjects";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {useScrollStatus} from "Utilities/ScrollStatus";
-import {PageRenderer} from "Pagination/PaginationV2";
-import {Box, Icon, List} from "ui-components";
-import {ListRowStat} from "ui-components/List";
-import {Operation, Operations} from "ui-components/Operation";
-import {dateToString} from "Utilities/DateUtilities";
-import MainContainer from "MainContainer/MainContainer";
-import {StickyBox} from "ui-components/StickyBox";
-import {NamingField} from "UtilityComponents";
-import {ProductSelector} from "Resource/ProductSelector";
-import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
-import {useSidebarPage} from "ui-components/Sidebar";
-import * as Heading from "ui-components/Heading";
+} from "@/UCloud/ResourceApi";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {useScrollStatus} from "@/Utilities/ScrollStatus";
+import {PageRenderer} from "@/Pagination/PaginationV2";
+import {Box, Icon, List} from "@/ui-components";
+import {ListRowStat} from "@/ui-components/List";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {dateToString} from "@/Utilities/DateUtilities";
+import MainContainer from "@/MainContainer/MainContainer";
+import {StickyBox} from "@/ui-components/StickyBox";
+import {NamingField} from "@/UtilityComponents";
+import {ProductSelector} from "@/Resource/ProductSelector";
+import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useSidebarPage} from "@/ui-components/Sidebar";
+import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {ResourceFilter} from "Resource/Filter";
-import {useResourceSearch} from "Resource/Search";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {ResourceFilter} from "@/Resource/Filter";
+import {useResourceSearch} from "@/Resource/Search";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
-import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "ui-components/Browse";
-import {useAvatars} from "AvataaarLib/hook";
-import {Avatar} from "AvataaarLib";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {Product, ProductType, productTypeToIcon} from "Accounting";
+import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {Avatar} from "@/AvataaarLib";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -49,19 +49,26 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
     inlineCreationMode?: "TEXT" | "NONE";
     inlineProduct?: Product;
+    productFilterForCreate?: (product: ResolvedSupport) => boolean;
 
-    withDefaultStats?: boolean;
     additionalFilters?: Record<string, string>;
     header?: JSX.Element;
     headerSize?: number;
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
-    navigateToChildren?: (history: H.History, resource: Res) => void;
+    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
     emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
     extraCallbacks?: any;
 
-    inspectValidator?: (res: Res) => boolean;
+    viewPropertiesInline?: (res: Res) => boolean;
+
+    withDefaultStats?: boolean;
+    showCreatedAt?: boolean;
+    showCreatedBy?: boolean;
+    showProduct?: boolean;
+
+    onResourcesLoaded?: (newItems: Res[]) => void;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -77,14 +84,16 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
 ): ReactElement | null => {
 
-    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>({noop: true},
-        {productsByProvider: {}});
+    const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [filters, setFilters] = useState<Record<string, string>>({});
-    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("ascending");
+    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
     const history = useHistory();
     const location = useLocation();
@@ -116,18 +125,28 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     const products: Product[] = useMemo(() => {
         const allProducts: Product[] = [];
         for (const provider of Object.keys(productsWithSupport.data.productsByProvider)) {
-            for (const productWithSupport of productsWithSupport.data.productsByProvider[provider]) {
+            const productsByProvider = productsWithSupport.data.productsByProvider[provider];
+            if (!productsByProvider) continue;
+            for (const productWithSupport of productsByProvider) {
+                if (props.productFilterForCreate !== undefined && !props.productFilterForCreate(productWithSupport)) {
+                    continue;
+                }
+
                 allProducts.push(productWithSupport.product as unknown as Product);
             }
         }
         return allProducts;
-    }, [productsWithSupport]);
+    }, [productsWithSupport, props.productFilterForCreate]);
 
     const selectedProductWithSupport: ResolvedSupport | null = useMemo(() => {
         if (selectedProduct) {
-            return productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
-                ?.find(it => it.product.id === selectedProduct.name &&
-                    it.product.category.name === selectedProduct.category.name) ?? null;
+            const productsByProvider = productsWithSupport.data.productsByProvider[selectedProduct.category.provider]
+            if (productsByProvider) {
+                return productsByProvider.find(it =>
+                    it.product.name === selectedProduct.name &&
+                    it.product.category.name === selectedProduct.category.name
+                ) ?? null;
+            }
         }
         return null;
     }, [selectedProduct, productsWithSupport]);
@@ -151,19 +170,22 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
     }, [props.inlineProduct]);
 
     const viewProperties = useCallback((res: Res) => {
-        if (props.embedded) {
+        if (props.embedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
             history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, props.embedded, history, api]);
+    }, [setInlineInspecting, props.embedded, history, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
         invokeCommand,
         commandLoading,
-        reload: () => reloadRef.current(),
+        reload: () => {
+            toggleSet.uncheckAll();
+            reloadRef.current()
+        },
         embedded: props.embedded == true,
         onSelect,
         dispatch,
@@ -179,9 +201,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
             }
         },
         viewProperties,
-        ...props.extraCallbacks
+        ...props.extraCallbacks,
+        supportByProvider: productsWithSupport.data
     }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
-        viewProperties, props.inlineProduct, props.extraCallbacks]);
+        viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet, productsWithSupport.data]);
 
     const onProductSelected = useCallback(async (product: Product) => {
         if (props.inlineCreationMode !== "NONE") {
@@ -236,7 +259,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         renderer.MainTitle = ({resource}) => {
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onProductSelected={onProductSelected} />
+                    <ProductSelector products={products} onProductSelected={onProductSelected}/>
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -249,40 +272,46 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle resource={resource} /> : null;
+                return NormalMainTitle ? <NormalMainTitle resource={resource}/> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
-                <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>
-                <ListRowStat icon={"user"}>{Client.username}</ListRowStat>
-                {!selectedProduct ? null : <>
-                    <ListRowStat icon={"cubeSolid"}>{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
+                {props.showCreatedAt === false ? null :
+                    <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>}
+                {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
+                {props.showProduct === false || !selectedProduct ? null : <>
+                    <ListRowStat
+                        icon={"cubeSolid"}>{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
                 </>}
             </> : <>
-                <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>
-                <div className="tooltip">
-                    <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
-                    <div className="tooltip-content centered">
-                        <UserBox username={resource.owner.createdBy} />
+                {props.showCreatedAt === false ? null :
+                    <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
+                {props.showCreatedBy === false ? null :
+                    <div className="tooltip">
+                        <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
+                        <div className="tooltip-content centered">
+                            <UserBox username={resource.owner.createdBy}/>
+                        </div>
                     </div>
-                </div>
-                {resource.specification.product.provider === UCLOUD_CORE ? null :
+                }
+                {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
                     <div className="tooltip">
                         <ListRowStat icon={"cubeSolid"}>
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
                         <div className="tooltip-content">
-                            <ProductBox resource={resource} productType={api.productType} />
+                            <ProductBox resource={resource} productType={api.productType}/>
                         </div>
                     </div>
                 }
             </>}
-            {RemainingStats ? <RemainingStats resource={resource} /> : null}
+            {RemainingStats ? <RemainingStats resource={resource}/> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
-        onInlineCreate, inlineInputRef, selectedProductWithSupport]);
+        onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
+        props.showProduct]);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <List childPadding={"8px"} bordered={false} onContextMenu={preventDefault}>
@@ -303,10 +332,11 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 <ItemRow
                     key={it.id}
                     navigate={() => {
-                        if (props.inspectValidator?.(it)) {
-                            viewProperties(it);
-                        } else if (props.navigateToChildren) {
-                            props.navigateToChildren?.(history, it)
+                        if (props.navigateToChildren) {
+                            const result = props.navigateToChildren?.(history, it)
+                            if (result === "properties") {
+                                viewProperties(it);
+                            }
                         } else {
                             viewProperties(it);
                         }
@@ -329,10 +359,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 
     const main = !inlineInspecting ? <>
         <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={props.embedded != true} />
+                        setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded}/>
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
-            closeProperties={closeProperties} {...props.propsForInlineResources} />
+                        closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     if (props.embedded) {
@@ -342,15 +372,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations}/>
                         {props.header}
                         <ResourceFilter
                             embedded
                             pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} />
+                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters}/>
                     </>
                 }
             </StickyBox>
@@ -365,22 +395,22 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations}/>
 
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
-                            sortEntries={api.sortEntries} sortDirection={sortDirection}
-                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} />
+                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
+                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                                        onApplyFilters={reloadRef.current}
+                                        readOnlyProperties={props.additionalFilters}/>
                     </>
             }
         />
     }
 };
 
-function UserBox(props: {username: string}) {
+function UserBox(props: { username: string }) {
     const avatars = useAvatars();
-    avatars.updateCache([props.username]);
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
         <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />
@@ -405,7 +435,7 @@ function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceS
     const {resource} = props;
     const {product} = resource.specification;
     return <div className="product-box">
-        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
+        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)}/> : null}
         <span>{product.id} / {product.category}</span>
         <div><b>ID:</b> {product.id}</div>
         <div><b>Category:</b> {product.category}</div>

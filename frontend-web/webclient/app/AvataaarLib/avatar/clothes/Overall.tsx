@@ -1,5 +1,5 @@
 import * as React from "react"
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 import {ColorFabric} from 'UserSettings/AvatarOptions';
 import Colors from './Colors'

@@ -267,7 +267,6 @@ $$;
 ---- Additions to transactions ----
 
 create table accounting.new_transactions(
-    -- TODO Add a unique ID for the initiator transaction
     id bigserial primary key,
     type accounting.transaction_type not null,
     created_at timestamptz not null default now(),
@@ -283,6 +282,10 @@ create table accounting.new_transactions(
 
     start_date timestamptz default null,
     end_date timestamptz default null,
+
+    transaction_id text not null,
+    initial_transaction_id text not null,
+
 
     constraint valid_charge check (
         type != 'charge' or (
@@ -362,8 +365,8 @@ with new_allocations as (
     returning id, balance
 )
 insert into accounting.new_transactions
-    (type, affected_allocation_id, action_performed_by, change, description, start_date)
-select 'deposit', id, '_ucloud', balance, 'Initial balance', now()
+    (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+select 'deposit', id, '_ucloud', balance, 'Initial balance', now(), uuid_generate_v4(), uuid_generate_v4()
 from new_allocations;
 
 ---- /Transfer all personal workspace balances ----
@@ -392,8 +395,8 @@ with new_allocations as (
     returning id, balance
 )
 insert into accounting.new_transactions
-(type, affected_allocation_id, action_performed_by, change, description, start_date)
-select 'deposit', id, '_ucloud', balance, 'Initial balance', now()
+(type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+select 'deposit', id, '_ucloud', balance, 'Initial balance', now(), uuid_generate_v4(), uuid_generate_v4()
 from new_allocations;
 
 -- TODO(Dan): The allocation path is wrong. It needs to match the current project hierarchy, which I don't think we
@@ -584,7 +587,8 @@ create type accounting.charge_request as (
     product_cat_name text,
     product_provider text,
     performed_by text,
-    description text
+    description text,
+    transaction_id text
 );
 
 create or replace function accounting.process_charge_requests(
@@ -592,12 +596,24 @@ create or replace function accounting.process_charge_requests(
 ) returns void language plpgsql as $$
 declare
     charge_count bigint;
+    invalid_transactions bigint;
 begin
+    create temporary table duplicate_transactions on commit drop as
+        with requests as (
+                select transaction_id,
+                       row_number() over () local_request_id
+                from unnest(requests) r
+            )
+        select req.local_request_id, req.transaction_id
+        from requests req join accounting.transactions tr on req.transaction_id = tr.transaction_id;
+
+    select count(distinct local_request_id) into invalid_transactions from duplicate_transactions;
+
     create temporary table product_and_price on commit drop as
         with requests as (
             -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
             select payer, payer_is_project, units, number_of_products, product_name, product_cat_name,
-                   product_provider, performed_by, description,
+                   product_provider, performed_by, description, transaction_id,
                    row_number() over () local_request_id
            from unnest(requests) r
         )
@@ -616,7 +632,9 @@ begin
             accounting.product_categories pc on
                 p.category = pc.id and
                 pc.category = request.product_cat_name and
-                pc.provider = request.product_provider
+                pc.provider = request.product_provider left join
+            duplicate_transactions dt on dt.local_request_id = request.local_request_id
+
         where
             p.version = (
                 select max(version)
@@ -624,7 +642,9 @@ begin
                 where
                     p2.name = p.name and
                     p2.category = p.category
-            );
+            ) and
+            -- Note(Henrik) The join and null search should filter out the duplicates
+            dt.local_request_id is null;
 
     -- If a request has active allocations with credit remaining, then these must be used
     -- However, if a request only has active allocations with no credit, then one must be picked.
@@ -690,11 +710,12 @@ begin
             units, number_of_products, performed_by, description,
             payment_required, local_request_id,
             balance_available,
-            free_to_use
+            free_to_use,
+            transaction_id
         from
             (
                 select
-                    product_id, units, number_of_products, performed_by, description, payment_required, local_request_id,
+                    product_id, units, number_of_products, performed_by, description, payment_required, local_request_id, transaction_id,
                     alloc.id,
                     alloc.balance,
                     alloc.allocation_path,
@@ -763,7 +784,7 @@ begin
                     product_id,
                     units, number_of_products, performed_by, description,
                     payment_required, local_request_id,
-                    balance_available, free_to_use
+                    balance_available, free_to_use, transaction_id
                 from
                     allocation_selection
                 where
@@ -779,7 +800,7 @@ begin
                     product_id,
                     units, number_of_products, performed_by, description,
                     payment_required, local_request_id,
-                    balance_available, free_to_use
+                    balance_available, free_to_use, transaction_id
                 from
                     allocation_selection
                 where
@@ -794,6 +815,7 @@ begin
             select * from absolute_leaves
             union
             select * from differential_leaves;
+
     update all_leaves leaves
         set subtracted = leaves.subtracted + greatest(0, l.payment_required - missing_payment.max_balance)
         from
@@ -814,6 +836,7 @@ begin
 
     -- NOTE(Dan): Finally, we combine the leaf allocations with ancestor allocations. We will charge what we subtracted
     -- from the child allocation, in every ancestor.
+
     create temporary table charge_result on commit drop as
         select
             leaves.id as leaf_id,
@@ -825,14 +848,47 @@ begin
             ancestor_alloc.associated_wallet as local_wallet,
             product_id,
             units, number_of_products, performed_by, description,
-            payment_required, local_request_id, free_to_use
+            payment_required, local_request_id, free_to_use, transaction_id
         from
             all_leaves leaves left join
             accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path or free_to_use = true;
 
+    create temporary table ancestor_charges on commit drop as
+        select leaves.id as leaf_id,
+            leaves.associated_wallet as leaf_wallet,
+            ancestor_alloc.id as local_id,
+            subtracted as local_subtraction,
+            ancestor_alloc.balance current_balance,
+            ancestor_alloc.allocation_path,
+            ancestor_alloc.associated_wallet as local_wallet,
+            product_id,
+            units, number_of_products, performed_by, description,
+            payment_required, local_request_id, free_to_use, transaction_id
+        from
+            all_leaves leaves left join
+            accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path or free_to_use = true
+        where ancestor_alloc.id != leaves.id;
+
+    create temporary table leaves_charges on commit drop as
+        select
+            leaves.id as leaf_id,
+            leaves.associated_wallet as leaf_wallet,
+            ancestor_alloc.id as local_id,
+            subtracted as local_subtraction,
+            ancestor_alloc.balance current_balance,
+            ancestor_alloc.allocation_path,
+            ancestor_alloc.associated_wallet as local_wallet,
+            product_id,
+            units, number_of_products, performed_by, description,
+            payment_required, local_request_id, free_to_use, transaction_id
+        from
+            all_leaves leaves left join
+            accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path or free_to_use = true
+        where ancestor_alloc.id = leaves.id;
+
     select count(distinct local_request_id) into charge_count from charge_result;
-    if charge_count != cardinality(requests) then
-        raise exception 'Unable to fulfill all requests. Permission denied/bad request. % %', charge_count, cardinality(requests);
+    if charge_count != (cardinality(requests)-invalid_transactions) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
     end if;
 end;
 $$;
@@ -870,6 +926,10 @@ begin
         charge_result c on u.local_id = c.local_id
     where u.new_balance < 0 and free_to_use != true;
 
+    insert into failed_charges (request_index)
+    select local_request_id
+    from duplicate_transactions;
+
     with
         combined_local_balance_subtractions as (
             select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction
@@ -891,13 +951,23 @@ begin
         charge_result c on u.local_id = c.local_id
     where new_balance < 0 and free_to_use != true;
 
+    delete from ancestor_charges
+    where local_request_id in (select local_request_id from failed_charges);
+
+    insert into accounting.transactions
+    (type, created_at, affected_allocation_id, action_performed_by, change, description,
+         source_allocation_id, product_id, number_of_products, units, transaction_id, initial_transaction_id)
+    select 'charge', now(), res.local_id , res.performed_by, -res.local_subtraction, res.description,
+       res.leaf_id, res.product_id, res.number_of_products, res.units, res.transaction_id, res.transaction_id from leaves_charges res
+    where res.local_subtraction != 0;
+
     -- NOTE(Dan): Insert a record of every change we did in the transactions table except free to use items
     insert into accounting.transactions
             (type, created_at, affected_allocation_id, action_performed_by, change, description,
-             source_allocation_id, product_id, number_of_products, units)
+             source_allocation_id, product_id, number_of_products, units, transaction_id, initial_transaction_id)
     select 'charge', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
-           res.leaf_id, res.product_id, res.number_of_products, res.units
-    from charge_result res
+           res.leaf_id, res.product_id, res.number_of_products, res.units, uuid_generate_v4(), res.transaction_id
+    from ancestor_charges res
     where free_to_use != true;
 
     return query select distinct request_index - 1 from failed_charges;
@@ -930,7 +1000,8 @@ create type accounting.deposit_request as (
     desired_balance bigint,
     start_date timestamptz,
     end_date timestamptz,
-    description text
+    description text,
+    transaction_id text
 );
 
 create or replace function accounting.deposit(
@@ -943,7 +1014,7 @@ begin
         -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
         with unpacked_requests as (
             select initiated_by, recipient, recipient_is_project, source_allocation, desired_balance, start_date,
-                   end_date, description
+                   end_date, description, transaction_id
             from unnest(requests)
         )
         select
@@ -960,7 +1031,8 @@ begin
             request.desired_balance,
             request.initiated_by,
             source_wallet.category,
-            request.description
+            request.description,
+            request.transaction_id
         from
             unpacked_requests request join
             accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
@@ -1053,11 +1125,16 @@ begin
         returning id, balance
     )
     insert into accounting.transactions
-    (type, affected_allocation_id, action_performed_by, change, description, start_date)
-    select 'deposit', alloc.id, r.initiated_by, alloc.balance, r.description , now()
+    (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+    select 'deposit', alloc.id, r.initiated_by, alloc.balance, r.description , now(), r.transaction_id, r.transaction_id
     from
         new_allocations alloc join
         deposit_result r on alloc.id = r.idx;
+
+    update accounting.wallets
+    set low_funds_notifications_send = false
+    from deposit_result r
+    where r.target_wallet = id;
 end;
 $$;
 
@@ -1067,7 +1144,8 @@ create type accounting.allocation_update_request as (
     start_date timestamptz,
     end_date timestamptz,
     description text,
-    balance bigint
+    balance bigint,
+    transaction_id text
 );
 
 create or replace function accounting.update_allocations(
@@ -1076,14 +1154,14 @@ create or replace function accounting.update_allocations(
 begin
     create temporary table update_result on commit drop as
     with requests as (
-        select performed_by, allocation_id, start_date, end_date, description, balance, row_number() over () request_idx
+        select performed_by, allocation_id, start_date, end_date, description, balance, transaction_id, row_number() over () request_idx
         from unnest(request)
     )
     select
         alloc.id as alloc_id, parent.id as parent_id, descendant.id as descandant_id,
         alloc.balance as alloc_balance, descendant.balance as descendant_balance,
         req.performed_by, req.start_date, req.end_date, req.description, req.balance, request_idx,
-        pc.charge_type, alloc.initial_balance as alloc_initial_balance
+        pc.charge_type, alloc.initial_balance as alloc_initial_balance, req.transaction_id
     from
         requests req join
         accounting.wallet_allocations alloc on allocation_id = alloc.id join
@@ -1163,16 +1241,16 @@ begin
     -- NOTE(Dan): Insert transactions for all descendants
     insert into accounting.transactions
         (type, affected_allocation_id, action_performed_by, change, description,
-        start_date, end_date)
+        start_date, end_date, transaction_id, initial_transaction_id)
     select 'allocation_update'::accounting.transaction_type, u.descandant_id, u.performed_by, 0, u.description,
-           u.start_date, u.end_date
+           u.start_date, u.end_date, u.transaction_id, u.transaction_id
     from update_result u
     where u.descandant_id is not null and u.descandant_id != u.alloc_id;
 
     -- NOTE(Dan): Insert transactions for all target allocations
     insert into accounting.transactions
         (type, affected_allocation_id, action_performed_by, change, description,
-        start_date, end_date)
+        start_date, end_date, transaction_id, initial_transaction_id)
     select distinct
         'allocation_update'::accounting.transaction_type, u.alloc_id, u.performed_by,
         case
@@ -1180,7 +1258,7 @@ begin
                 (u.balance - (u.alloc_initial_balance - u.alloc_balance)) - u.alloc_balance
             else u.balance - u.alloc_balance
         end,
-        u.description, u.start_date, u.end_date
+        u.description, u.start_date, u.end_date, u.transaction_id, u.transaction_id
     from update_result u;
 end;
 $$;
@@ -1312,6 +1390,8 @@ begin
         'description', transaction_in.description,
         'affectedAllocationId', transaction_in.affected_allocation_id::text,
         'timestamp', floor(extract(epoch from transaction_in.created_at) * 1000),
+        'transactionId', transaction_in.transaction_id,
+        'initialTransactionId', transaction_in.initial_transaction_id,
         'resolvedCategory', case
             when category_in is null then null
             else accounting.product_category_to_json(category_in)
@@ -1359,7 +1439,8 @@ create type accounting.transfer_request as (
     start_date timestamptz,
     end_date timestamptz,
     performed_by text,
-    description text
+    description text,
+    transaction_id text
 );
 
 create or replace function accounting.process_transfer_requests(
@@ -1373,7 +1454,7 @@ begin
         with requests as (
                 -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
                 select source, source_is_project, target, target_is_project, units, product_cat_name,
-                        product_provider, start_date, end_date, performed_by, description,
+                        product_provider, start_date, end_date, performed_by, description, transaction_id,
                         row_number() over () local_request_id
                 from unnest(requests) r
                 where source != target
@@ -1410,7 +1491,7 @@ begin
                     balance - greatest(0, balance - (payment_required - (balance_available - balance))) as subtracted,
                     units, performed_by, description,
                     payment_required, local_request_id,
-                    start_date, end_date
+                    start_date, end_date, p.transaction_id
                 from
                     product_and_price p,
                     lateral (
@@ -1453,7 +1534,7 @@ begin
         ancestor_alloc.associated_wallet as local_wallet,
         units, performed_by, description,
         payment_required, local_request_id,
-        leaves.start_date, leaves.end_date
+        leaves.start_date, leaves.end_date, leaves.transaction_id
     from
         leaf_charges leaves join
         accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path;
@@ -1482,9 +1563,9 @@ begin
     -- NOTE(Dan): Insert a record of every change we did in the transactions table
     insert into accounting.transactions
             (type, created_at, affected_allocation_id, action_performed_by, change, description,
-                source_allocation_id, product_id, number_of_products, units, start_date, end_date)
+                source_allocation_id, product_id, number_of_products, units, start_date, end_date, transaction_id, initial_transaction_id)
     select 'transfer', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
-           res.leaf_id, null, null, null, coalesce(res.start_date, now()), res.end_date
+           res.leaf_id, null, null, null, coalesce(res.start_date, now()), res.end_date, res.transaction_id, res.transaction_id
     from transfer_result res;
 end;
 $$;
@@ -2109,6 +2190,143 @@ begin
         res.application_id = application_id_in and
         target_wallet.id is null;
 end;
-$$
+$$;
+
+
+create or replace function accounting.low_funds_wallets(
+    name text,
+    computeCreditsLimit bigint,
+    storageCreditsLimit bigint,
+    computeUnitsLimit bigint,
+    storageQuotaLimit bigint,
+    storageUnitsLimit bigint
+) returns void language plpgsql as $$
+declare
+    query text;
+begin
+    create temporary table project_wallets on commit drop as
+        select
+            distinct (wa.id),
+            prin.id username,
+            wo.project_id,
+            pr.title project_title,
+            pc.provider,
+            pc.category,
+            pc.product_type,
+            pc.charge_type,
+            pc.unit_of_price,
+            p.free_to_use,
+            w.low_funds_notifications_send,
+            w.id wallet_id,
+            wa.local_balance,
+            prin.email
+        from
+            accounting.product_categories pc join
+            accounting.products p on pc.id = p.category join
+            accounting.wallets w on pc.id = w.category join
+            accounting.wallet_allocations wa on w.id = wa.associated_wallet join
+            accounting.wallet_owner wo on w.owned_by = wo.id join
+            project.projects pr on wo.project_id = pr.id join
+            project.project_members pm on pr.id = pm.project_id and (pm.role = 'ADMIN' or pm.role = 'PI') join
+            auth.principals prin on prin.id = pm.username
+        where wa.start_date <= now()
+            and (wa.end_date is null or wa.end_date >= now())
+            and w.low_funds_notifications_send = false
+            and pc.unit_of_price != 'PER_UNIT'
+        order by w.id;
+
+    create temporary table user_wallets on commit drop as
+        select
+            distinct (wa.id),
+            prin.id username,
+            wo.project_id,
+            null project_title,
+            pc.provider,
+            pc.category,
+            pc.product_type,
+            pc.charge_type,
+            pc.unit_of_price,
+            p.free_to_use,
+            w.low_funds_notifications_send,
+            w.id wallet_id,
+            wa.local_balance,
+            prin.email
+        from
+            accounting.product_categories pc join
+            accounting.products p on pc.id = p.category join
+            accounting.wallets w on pc.id = w.category join
+            accounting.wallet_allocations wa on w.id = wa.associated_wallet join
+            accounting.wallet_owner wo on w.owned_by = wo.id join
+            auth.principals prin on prin.id = wo.username
+        where wa.start_date <= now()
+            and (wa.end_date is null or wa.end_date >= now())
+            and w.low_funds_notifications_send = false
+            and pc.unit_of_price != 'PER_UNIT'
+        order by w.id;
+
+    create temporary table all_wallets on commit drop as
+        select * from project_wallets
+        union
+        select * from user_wallets;
+
+    create temporary table sum_wallets on commit drop as
+        select
+            wallet_id,
+            username,
+            project_id,
+            project_title,
+            email,
+            provider,
+            category,
+            product_type,
+            charge_type,
+            unit_of_price,
+            free_to_use,
+            low_funds_notifications_send,
+            sum(local_balance)::bigint total_local_balance
+        from all_wallets
+        group by username, project_id, project_title, wallet_id, provider, category, product_type, charge_type, unit_of_price, free_to_use, low_funds_notifications_send, email;
+
+
+    create temporary table low_fund_wallets on commit drop as
+        SELECT *
+        FROM sum_wallets
+        where
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'CREDITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < storageCreditsLimit
+            ) or
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < storageUnitsLimit
+            ) or
+            (
+                product_type = 'STORAGE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'DIFFERENTIAL_QUOTA'
+                and total_local_balance < storageQuotaLimit
+            ) or
+            (
+                product_type = 'COMPUTE'
+                and (unit_of_price = 'CREDITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'CREDITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < computeCreditsLimit
+            ) or
+            (
+                product_type = 'COMPUTE'
+                and (unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit or unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit)
+                and charge_type = 'ABSOLUTE'
+                and total_local_balance < computeUnitsLimit
+            );
+
+    query = 'SELECT * FROM low_fund_wallets';
+    EXECUTE 'DECLARE ' || quote_ident(name) || ' CURSOR WITH HOLD FOR ' || query;
+
+end;
+$$;
 
 ---- /Grants ----

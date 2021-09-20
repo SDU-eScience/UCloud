@@ -1,25 +1,25 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useProjectManagementStatus} from "Project";
-import {MainContainer} from "MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import * as Heading from "ui-components/Heading";
-import Box from "ui-components/Box";
-import Button  from "ui-components/Button";
-import ButtonGroup from "ui-components/ButtonGroup";
-import Card from "ui-components/Card";
-import ExternalLink from "ui-components/ExternalLink";
-import Flex from "ui-components/Flex";
-import Icon  from "ui-components/Icon";
-import Input from "ui-components/Input";
-import Label from "ui-components/Label";
-import List from "ui-components/List";
-import Checkbox from "ui-components/Checkbox";
-import Text from "ui-components/Text";
-import TextArea from "ui-components/TextArea";
-import theme from "ui-components/theme";
-import Tooltip from "ui-components/Tooltip";
-import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {useProjectManagementStatus} from "@/Project";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import * as Heading from "@/ui-components/Heading";
+import Box from "@/ui-components/Box";
+import Button  from "@/ui-components/Button";
+import ButtonGroup from "@/ui-components/ButtonGroup";
+import Card from "@/ui-components/Card";
+import ExternalLink from "@/ui-components/ExternalLink";
+import Flex from "@/ui-components/Flex";
+import Icon  from "@/ui-components/Icon";
+import Input from "@/ui-components/Input";
+import Label from "@/ui-components/Label";
+import List from "@/ui-components/List";
+import Checkbox from "@/ui-components/Checkbox";
+import Text from "@/ui-components/Text";
+import TextArea from "@/ui-components/TextArea";
+import theme from "@/ui-components/theme";
+import Tooltip from "@/ui-components/Tooltip";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -30,9 +30,9 @@ import {
     ProductType,
     productTypeToTitle,
     productTypes, explainAllocation, normalizeBalanceForBackend, normalizeBalanceForFrontend,
-} from "Accounting";
+} from "@/Accounting";
 import styled from "styled-components";
-import HighlightedCard from "ui-components/HighlightedCard";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
     approveGrantApplication,
     closeGrantApplication,
@@ -52,29 +52,29 @@ import {
     submitGrantApplication, transferApplication,
     viewGrantApplication,
     ViewGrantApplicationResponse
-} from "Project/Grant/index";
+} from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
-import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {dateToString} from "Utilities/DateUtilities";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {AvatarHook, useAvatars} from "AvataaarLib/hook";
-import Table, {TableCell, TableRow} from "ui-components/Table";
-import {addStandardDialog} from "UtilityComponents";
-import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
+import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
+import {addStandardDialog} from "@/UtilityComponents";
+import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {loadingAction} from "Loading";
-import * as UCloud from "UCloud";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {loadingAction} from "@/Loading";
+import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {TextSpan} from "ui-components/Text";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {TextSpan} from "@/ui-components/Text";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {emptyPage} from "DefaultObjects";
-import {Spacer} from "ui-components/Spacer";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {emptyPage} from "@/DefaultObjects";
+import {Spacer} from "@/ui-components/Spacer";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const RequestForSingleResourceWrapper = styled.div`
   ${Icon} {
@@ -658,12 +658,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 return;
                             } else {
                                 attempts++;
-                                timeout = setTimeout(work, 500);
+                                timeout = window.setTimeout(work, 500);
                             }
                         }
                     };
 
-                    timeout = setTimeout(work, 0);
+                    timeout = window.setTimeout(work, 0);
                 }
             }
             return () => {

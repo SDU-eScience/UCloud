@@ -2,7 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
  * A generic error message
@@ -1587,8 +1587,8 @@ export interface ApplicationInvocationDescription {
     allowMultiNode: boolean,
     fileExtensions: string[],
     licenseServers: string[],
-    shouldAllowAdditionalMounts: boolean,
-    shouldAllowAdditionalPeers: boolean,
+    // shouldAllowAdditionalMounts: boolean,
+    // shouldAllowAdditionalPeers: boolean,
 }
 export interface ToolReference {
     name: string,

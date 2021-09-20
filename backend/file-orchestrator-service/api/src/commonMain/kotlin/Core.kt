@@ -111,6 +111,7 @@ data class UFileIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,
@@ -118,6 +119,9 @@ data class UFileIncludeFlags(
     @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
 This value is `true` by default """)
     val allowUnsupportedInclude: Boolean? = null,
+    @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
+    val filterHiddenFiles: Boolean = false,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -406,6 +410,8 @@ data class FileCollectionIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
@@ -471,11 +477,6 @@ data class FileCollection(
     ) : ResourceStatus<Product.Storage, FSSupport>
 }
 
-data class FSSupportResolved(
-    val product: Product.Storage,
-    val support: FSSupport,
-)
-
 @Serializable
 data class FSSupport(
     override val product: ProductReference,
@@ -507,8 +508,6 @@ data class FSCollectionSupport(
     val usersCanCreate: Boolean? = null,
     val usersCanDelete: Boolean? = null,
     val usersCanRename: Boolean? = null,
-
-    val searchSupported: Boolean? = null,
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")
