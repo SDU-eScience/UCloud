@@ -1,10 +1,10 @@
-import {callAPI} from "Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Checkbox, Input, Label, Select, TextArea} from "ui-components";
-import {InputLabel} from "ui-components/Input";
-import {LabelProps} from "ui-components/Label";
-import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Button, Checkbox, Input, Label, Select, TextArea} from "@/ui-components";
+import {InputLabel} from "@/ui-components/Input";
+import {LabelProps} from "@/ui-components/Label";
+import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 
 interface DataType {
     required: string[];
