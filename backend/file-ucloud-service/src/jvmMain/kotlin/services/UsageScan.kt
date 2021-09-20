@@ -111,8 +111,6 @@ class UsageScan(
             }
         }
 
-        println("Received the following data points: ${dataPoints}")
-
         for (chunk in dataPoints.values.chunked(100)) {
             val allRequests = chunk.mapNotNull { dataPoint ->
                 val chargeId = when (val owner = dataPoint.key.owner) {
