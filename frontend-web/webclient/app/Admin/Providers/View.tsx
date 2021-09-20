@@ -291,7 +291,7 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
             <ResourceForm.TextArea required id="description" placeholder="Description..." label="Description" rows={10} styling={{}} />
             <ResourceForm.Number required id="priority" placeholder="Priority..." label="Priority" styling={{}} />
             <ResourceForm.Number required id="version" placeholder="Version..." label="Version" min={0} styling={{}} />
-            <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" />
+            <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}} />
             <ResourceForm.Select id="unitOfPrice" label="Unit of Price" required options={[
                 {value: "PER_UNIT", text: "Per Unit"},
                 {value: "CREDITS_PER_MINUTE", text: "Credits Per Minute"},
@@ -305,7 +305,7 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
                 {value: "ABSOLUTE", text: "Absolute"},
                 {value: "DIFFERENTIAL_QUOTA", text: "Differential Quota"}
             ]} styling={{}} />
-            <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications" defaultChecked={false} />
+            <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications" defaultChecked={false} styling={{}} />
 
             {type !== "compute" ? null : (
                 <>

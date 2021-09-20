@@ -34,14 +34,19 @@ interface SelectField extends Omit<ResourceField, "leftLabel" | "rightLabel"> {
 
 interface CheckboxField extends Omit<ResourceField, "leftLabel" | "rightLabel" | "placeholder"> {
     defaultChecked: boolean;
+    // NOTE(Jonas): Should we omit styling here?
 }
 
-export default abstract class ResourceForm<Request> extends React.Component<{
+interface TextAreaField extends ResourceField {
+    rows: number;
+}
+
+export default abstract class ResourceForm<Request, Response> extends React.Component<{
     /* Note(jonas): Seems passing "fields" only would work just as well. */
     createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
     formatError?: (errors: string[]) => string;
-    onSubmitSucceded?: (res: any, d: DataType) => void;
+    onSubmitSucceded?: (res: Response, d: DataType) => void;
 }> {
     public data: DataType = {required: [], fields: {}};
 
@@ -54,7 +59,7 @@ export default abstract class ResourceForm<Request> extends React.Component<{
         if (validated) {
             const request = await this.props.createRequest(this.data);
             try {
-                const res = await callAPI<Request>(request);
+                const res = await callAPI<Response>(request);
                 this.props.onSubmitSucceded?.(res, this.data);
             } catch (err) {
                 errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
@@ -64,7 +69,10 @@ export default abstract class ResourceForm<Request> extends React.Component<{
 
     public render(): JSX.Element {
         return (
-            <form onSubmit={e => {stopPropagationAndPreventDefault(e); this.onSubmit()}} style={{maxWidth: "800px", marginTop: "30px", marginLeft: "auto", marginRight: "auto"}}>
+            <form
+                onSubmit={e => {stopPropagationAndPreventDefault(e); this.onSubmit()}}
+                style={{maxWidth: "800px", marginTop: "30px", marginLeft: "auto", marginRight: "auto"}}
+            >
                 <DataContext.Provider value={this.data}>
                     {this.props.children}
                 </DataContext.Provider>
@@ -120,7 +128,13 @@ export default abstract class ResourceForm<Request> extends React.Component<{
             {label}
             <div style={{display: "flex"}}>
                 {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
-                <Input type="number" onChange={e => {ctx.fields[id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}} leftLabel={!!leftLabel} rightLabel={!!rightLabel} {...props} />
+                <Input
+                    type="number"
+                    onChange={e => {ctx.fields[id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}}
+                    leftLabel={!!leftLabel}
+                    rightLabel={!!rightLabel}
+                    {...props}
+                />
                 {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
             </div>
         </Label>
@@ -166,13 +180,19 @@ export default abstract class ResourceForm<Request> extends React.Component<{
             {label}
             <div style={{display: "flex"}}>
                 {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
-                <Input type="text" onChange={e => ctx.fields[id] = e.target.value} {...props} leftLabel={!!leftLabel} rightLabel={!!rightLabel} />
+                <Input
+                    type="text"
+                    onChange={e => ctx.fields[id] = e.target.value}
+                    leftLabel={!!leftLabel}
+                    rightLabel={!!rightLabel}
+                    {...props}
+                />
                 {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
             </div>
         </Label>
     }
 
-    public static TextArea({id, label, styling, ...props}: ResourceField): JSX.Element {
+    public static TextArea({id, label, styling, ...props}: TextAreaField): JSX.Element {
         const ctx = useResourceFormField({id, required: props.required})
 
         /* Why in the world is color not allowed? */

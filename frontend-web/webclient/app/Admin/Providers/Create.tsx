@@ -38,7 +38,7 @@ function Create(): JSX.Element | null {
                     <RS.Text id="DOMAIN" label="Domain" placeholder="Domain..." required styling={{width: "80%"}} />
                     <RS.Number id="PORT" label="Port" step="0.1" min={0.0} max={2 ** 16} styling={{ml: "8px", width: "20%"}} />
                 </Flex>
-                <RS.Checkbox id="HTTPS" label="Uses HTTP" required={false} defaultChecked={false} />
+                <RS.Checkbox id="HTTPS" label="Uses HTTP" required={false} defaultChecked={false} styling={{}} />
             </RS>
         </>}
     />;
