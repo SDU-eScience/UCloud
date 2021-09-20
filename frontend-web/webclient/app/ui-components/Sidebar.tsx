@@ -16,7 +16,8 @@ import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {setActivePage} from "@/Navigation/Redux/StatusActions";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
+import {ProjectRole, useProjectId, useProjectManagementStatus, UserInProject, viewProject} from "@/Project";
+import {useGlobalCloudAPI} from "@/Authentication/DataHook";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -213,9 +214,25 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     if (useFrameHidden()) return null;
 
     const projectId = useProjectId();
-    const projectStatus = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
+    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
+    );
+
+    useEffect(() => {
+        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId]);
+
     const projectPath = joinToString(
-        [...(projectStatus.projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectStatus.projectDetails.data.title],
+        [...(projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectDetails.data.title],
         "/"
     );
     const copyProjectPath = useCallback(() => {
