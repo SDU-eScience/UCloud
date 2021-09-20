@@ -1,4 +1,4 @@
-import {Notification} from "Notifications";
+import {Notification} from "@/Notifications";
 
 export type DashboardProps = DashboardOperations & DashboardStateProps;
 

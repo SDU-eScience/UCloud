@@ -1,13 +1,13 @@
-import {useCloudCommand} from "Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
-import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "UtilityFunctions";
-import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
-import {Flex, Markdown} from "ui-components";
-import FilesApi, {FilesCreateDownloadResponseItem, UFile} from "UCloud/FilesApi";
+import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
+import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
+import {Flex, Markdown} from "@/ui-components";
+import FilesApi, {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
-import {fileName} from "Utilities/FileUtilities";
-import {bulkRequestOf} from "DefaultObjects";
-import {BulkResponse} from "UCloud";
+import {fileName} from "@/Utilities/FileUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {BulkResponse} from "@/UCloud";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import styled from "styled-components";
 

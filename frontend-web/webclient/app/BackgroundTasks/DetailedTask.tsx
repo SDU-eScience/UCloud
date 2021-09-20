@@ -1,14 +1,14 @@
-import {TaskUpdate} from "BackgroundTasks/api";
+import {TaskUpdate} from "@/BackgroundTasks/api";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis} from "recharts";
 import styled from "styled-components";
-import Box from "ui-components/Box";
-import Flex from "ui-components/Flex";
-import * as Heading from "ui-components/Heading";
-import IndeterminateProgressBar from "ui-components/IndeterminateProgress";
-import ProgressBar from "ui-components/Progress";
-import {groupBy, takeLast} from "Utilities/CollectionUtilities";
+import Box from "@/ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import * as Heading from "@/ui-components/Heading";
+import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
+import ProgressBar from "@/ui-components/Progress";
+import {groupBy, takeLast} from "@/Utilities/CollectionUtilities";
 
 const DetailedTask: React.FunctionComponent<{ task: TaskUpdate }> = ({task}) => {
     if (task === undefined) {

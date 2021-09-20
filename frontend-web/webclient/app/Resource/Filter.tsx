@@ -1,21 +1,21 @@
 import * as React from "react";
 import {useCallback, useMemo, useState} from "react";
-import {IconName} from "ui-components/Icon";
-import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import * as Text from "ui-components/Text";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Cursor} from "ui-components/Types";
+import {IconName} from "@/ui-components/Icon";
+import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import * as Text from "@/ui-components/Text";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Cursor} from "@/ui-components/Types";
 import styled from "styled-components";
-import {ListRow, ListRowStat} from "ui-components/List";
-import {SlimDatePickerWrapper} from "ui-components/DatePicker";
+import {ListRow, ListRowStat} from "@/ui-components/List";
+import {SlimDatePickerWrapper} from "@/ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
-import {Toggle} from "ui-components/Toggle";
-import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Utilities/DateUtilities";
-import {dateToStringNoTime} from "Utilities/DateUtilities";
-import {SortEntry} from "UCloud/ResourceApi";
+import {Toggle} from "@/ui-components/Toggle";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
+import {dateToStringNoTime} from "@/Utilities/DateUtilities";
+import {SortEntry} from "@/UCloud/ResourceApi";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;

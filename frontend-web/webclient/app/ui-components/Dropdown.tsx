@@ -13,7 +13,7 @@ import {
     TopProps,
     HeightProps,
 } from "styled-system";
-import {Button} from "ui-components";
+import {Button} from "@/ui-components";
 import {CSSVarThemeColor} from "./theme";
 import {Cursor} from "./Types";
 

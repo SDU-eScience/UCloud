@@ -7,24 +7,24 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification, ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {accounting, BulkRequest, BulkResponse, compute, FindByStringId} from "UCloud/index";
+} from "@/UCloud/ResourceApi";
+import {accounting, BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
 import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import {SidebarPages} from "ui-components/Sidebar";
-import {AppToolLogo} from "Applications/AppToolLogo";
-import {EnumFilter} from "Resource/Filter";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {EnumFilter} from "@/Resource/Filter";
 import Application = compute.Application;
-import {buildQueryString} from "Utilities/URIUtilities";
-import {stateToTitle} from "Applications/Jobs";
-import {Box, Flex, Icon} from "ui-components";
-import {IconName} from "ui-components/Icon";
-import View from "Applications/Jobs/View";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductCompute} from "Accounting";
-import {Operation} from "ui-components/Operation";
-import {bulkRequestOf} from "DefaultObjects";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {stateToTitle} from "@/Applications/Jobs";
+import {Box, Flex, Icon} from "@/ui-components";
+import {IconName} from "@/ui-components/Icon";
+import View from "@/Applications/Jobs/View";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductCompute} from "@/Accounting";
+import {Operation} from "@/ui-components/Operation";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";

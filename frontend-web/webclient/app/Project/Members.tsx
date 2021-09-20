@@ -1,26 +1,26 @@
-import {callAPIWithErrorHandler} from "Authentication/DataHook";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus, } from "Project/index";
-import * as Heading from "ui-components/Heading";
+import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useProjectManagementStatus, } from "@/Project/index";
+import * as Heading from "@/ui-components/Heading";
 import * as React from "react";
 import {useEffect} from "react";
-import {Box, Button} from "ui-components";
+import {Box, Button} from "@/ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {loadingAction} from "Loading";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {loadingAction} from "@/Loading";
 import {
     membershipSearch,
     verifyMembership
-} from "Project";
+} from "@/Project";
 import styled from "styled-components";
 import GroupView from "./GroupList";
 import ProjectMembers from "./MembersPanel";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {ProjectSettings} from "Project/ProjectSettings";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {ProjectSettings} from "@/Project/ProjectSettings";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {

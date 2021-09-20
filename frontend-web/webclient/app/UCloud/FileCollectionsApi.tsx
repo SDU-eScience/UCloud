@@ -1,24 +1,22 @@
 import {
-    CREATE_TAG, DELETE_TAG,
-    findSupport, PERMISSIONS_TAG,
-    ProductSupport,
-    Resource,
+    DELETE_TAG, findSupport, PERMISSIONS_TAG,
+    ProductSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
+} from "@/UCloud/ResourceApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Icon} from "@/ui-components";
 import * as React from "react";
 import * as H from "history";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductStorage, UCLOUD_PROVIDER} from "Accounting";
-import {BulkRequest} from "UCloud/index";
-import {apiUpdate} from "Authentication/DataHook";
-import {Operation} from "ui-components/Operation";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
+import {BulkRequest} from "@/UCloud/index";
+import {apiUpdate} from "@/Authentication/DataHook";
+import {Operation} from "@/ui-components/Operation";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -144,7 +142,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         history.push(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
-    rename(request: BulkRequest<{id: string; newTitle: String;}>): APICallParameters {
+    rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {
         return apiUpdate(request, this.baseContext, "rename");
     }
 }

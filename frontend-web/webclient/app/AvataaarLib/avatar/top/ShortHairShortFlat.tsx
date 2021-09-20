@@ -1,6 +1,6 @@
 import * as React from "react";
-import {FacialHair as FaceHair, FacialHairColor, HairColor as Color} from "UserSettings/AvatarOptions";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {FacialHair as FaceHair, FacialHairColor, HairColor as Color} from "@/UserSettings/AvatarOptions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import FacialHair from "./facialHair";
 import HairColor from "./HairColor";
 

@@ -1,6 +1,6 @@
 import * as React from "react";
-import {default as IngressApi, Ingress, IngressSupport} from "UCloud/IngressApi";
-import {ResourceBrowse} from "Resource/Browse";
+import {default as IngressApi, Ingress, IngressSupport} from "@/UCloud/IngressApi";
+import {ResourceBrowse} from "@/Resource/Browse";
 
 const Browse: React.FunctionComponent<{
     computeProvider?: string;

@@ -1,13 +1,13 @@
 import * as React from "react";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
-import SharesApi, {Share} from "UCloud/SharesApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
+import SharesApi, {Share} from "@/UCloud/SharesApi";
 import {useLocation} from "react-router";
-import {getQueryParam} from "Utilities/URIUtilities";
-import {SharedByTabs} from "Files/SharesOutgoing";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {SharedByTabs} from "@/Files/SharesOutgoing";
 import {useCallback, useMemo} from "react";
-import * as Heading from "ui-components/Heading";
-import {useAvatars} from "AvataaarLib/hook";
+import * as Heading from "@/ui-components/Heading";
+import {useAvatars} from "@/AvataaarLib/hook";
 
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;

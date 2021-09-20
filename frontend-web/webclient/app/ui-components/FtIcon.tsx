@@ -1,11 +1,11 @@
 import * as React from "react";
 import styled from "styled-components";
 import {color, ColorProps, space, SpaceProps} from "styled-system";
-import {extensionType} from "UtilityFunctions";
+import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FileIconHint} from "Files";
 
 const ftColor = (fType: string): string => {

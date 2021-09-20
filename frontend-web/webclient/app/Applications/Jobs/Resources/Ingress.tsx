@@ -1,17 +1,17 @@
 import * as React from "react";
-import * as UCloud from "UCloud"
+import * as UCloud from "@/UCloud"
 import {
     Box,
     Button,
     Flex,
-} from "ui-components";
-import Warning from "ui-components/Warning";
+} from "@/ui-components";
+import Warning from "@/ui-components/Warning";
 import {validateMachineReservation} from "../Widgets/Machines";
-import {Widget} from "Applications/Jobs/Widgets";
-import {compute} from "UCloud";
+import {Widget} from "@/Applications/Jobs/Widgets";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
-import * as Heading from "ui-components/Heading";
-import BaseLink from "ui-components/BaseLink";
+import * as Heading from "@/ui-components/Heading";
+import BaseLink from "@/ui-components/BaseLink";
 
 export const IngressResource: React.FunctionComponent<{
     application: UCloud.compute.Application;

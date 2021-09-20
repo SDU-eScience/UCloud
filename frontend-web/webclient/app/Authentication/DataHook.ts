@@ -1,10 +1,10 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {capitalize, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "UtilityFunctions";
-import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
-import {HookStore} from "DefaultObjects";
-import {usePromiseKeeper} from "PromiseKeeper";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {capitalize, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
+import {useGlobal, ValueOrSetter} from "@/Utilities/ReduxHooks";
+import {HookStore} from "@/DefaultObjects";
+import {usePromiseKeeper} from "@/PromiseKeeper";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as React from "react";
 
 function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {

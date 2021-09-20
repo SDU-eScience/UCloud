@@ -1,15 +1,15 @@
-import {IconName} from "ui-components/Icon";
-import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "ui-components/index";
+import {IconName} from "@/ui-components/Icon";
+import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
 import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
-import {TextSpan} from "ui-components/Text";
-import ClickableDropdown, {ClickableDropdownProps} from "ui-components/ClickableDropdown";
-import {doNothing, preventDefault} from "UtilityFunctions";
-import Grid from "ui-components/Grid";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import {ThemeColor} from "ui-components/theme";
-import * as Heading from "ui-components/Heading";
+import {TextSpan} from "@/ui-components/Text";
+import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
+import {doNothing, preventDefault} from "@/UtilityFunctions";
+import Grid from "@/ui-components/Grid";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {ThemeColor} from "@/ui-components/theme";
+import * as Heading from "@/ui-components/Heading";
 
 type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;

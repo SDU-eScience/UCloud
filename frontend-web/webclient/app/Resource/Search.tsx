@@ -1,9 +1,9 @@
 import * as React from "react";
-import {Resource, ResourceApi} from "UCloud/ResourceApi";
+import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {useHistory} from "react-router";
-import {useSearch, useSearchPlaceholder} from "DefaultObjects";
+import {useSearch, useSearchPlaceholder} from "@/DefaultObjects";
 import {useCallback} from "react";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export function useResourceSearch<Res extends Resource>(api: ResourceApi<Res, never>) {
     const history = useHistory();

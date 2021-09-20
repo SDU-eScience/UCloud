@@ -1,8 +1,8 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -15,8 +15,8 @@ import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {useProjectId, useProjectManagementStatus} from "Project";
+import {setActivePage} from "@/Navigation/Redux/StatusActions";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;

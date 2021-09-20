@@ -1,13 +1,13 @@
 import * as React from "react";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useResourceSearch} from "Resource/Search";
-import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "UCloud/SharesApi";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useResourceSearch} from "@/Resource/Search";
+import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "@/UCloud/SharesApi";
 import {useCallback, useMemo, useRef, useState} from "react";
-import {ItemRow, StandardBrowse} from "ui-components/Browse";
-import MainContainer from "MainContainer/MainContainer";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {PrettyFilePath} from "Files/FilePath";
+import {ItemRow, StandardBrowse} from "@/ui-components/Browse";
+import MainContainer from "@/MainContainer/MainContainer";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {PrettyFilePath} from "@/Files/FilePath";
 import {
     Button,
     Flex,
@@ -18,19 +18,19 @@ import {
     RadioTilesContainer,
     SelectableText,
     SelectableTextWrapper
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {doNothing, preventDefault, stopPropagation, timestampUnixMs} from "UtilityFunctions";
-import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
-import {Client} from "Authentication/HttpClientInstance";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {useCloudCommand} from "Authentication/DataHook";
-import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
+} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useHistory} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {useAvatars} from "AvataaarLib/hook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {useAvatars} from "@/AvataaarLib/hook";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {

@@ -1,5 +1,5 @@
-import {Snack, SnackType} from "Snackbar/Snackbars";
-import {timestampUnixMs} from "UtilityFunctions";
+import {Snack, SnackType} from "@/Snackbar/Snackbars";
+import {timestampUnixMs} from "@/UtilityFunctions";
 
 type SnackbarSubscriber = (activeSnack?: Snack) => void;
 

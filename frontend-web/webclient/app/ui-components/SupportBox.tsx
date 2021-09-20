@@ -1,10 +1,10 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {KeyCode} from "DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as Heading from "ui-components/Heading";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import * as Heading from "@/ui-components/Heading";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";

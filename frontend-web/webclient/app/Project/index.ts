@@ -1,18 +1,16 @@
-import {useGlobalCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
-import {inDevEnvironment} from "UtilityFunctions";
-import {IconName} from "ui-components/Icon";
+import {useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {IconName} from "@/ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import {useProjectStatus} from "./cache";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
 import {useCallback, useEffect} from "react";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 
 const groupContext = "/projects/groups/";

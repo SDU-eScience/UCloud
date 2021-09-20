@@ -1,19 +1,19 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import {Box, Flex, Input, Label} from "ui-components";
-import {TextP} from "ui-components/Text";
+import * as UCloud from "@/UCloud";
+import {Box, Flex, Input, Label} from "@/ui-components";
+import {TextP} from "@/ui-components/Text";
 import {
     Machines,
     setMachineReservationFromRef,
     validateMachineReservation
-} from "Applications/Jobs/Widgets/Machines";
+} from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import {useProjectId} from "Project";
-import {MandatoryField} from "Applications/Jobs/Widgets/index";
-import {costOfDuration, Product, productCategoryEquals, ProductCompute, usageExplainer} from "Accounting";
-import {emptyPageV2} from "DefaultObjects";
-import {joinToString} from "UtilityFunctions";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {useProjectId} from "@/Project";
+import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
+import {costOfDuration, Product, productCategoryEquals, ProductCompute, usageExplainer} from "@/Accounting";
+import {emptyPageV2} from "@/DefaultObjects";
+import {joinToString} from "@/UtilityFunctions";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";

@@ -6,26 +6,26 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {BulkRequest, FindByStringId, PaginationRequestV2} from "UCloud/index";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Grid, Icon} from "ui-components";
+} from "@/UCloud/ResourceApi";
+import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Grid, Icon} from "@/ui-components";
 import * as React from "react";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {Operation} from "ui-components/Operation";
-import {ItemRenderer, StandardCallbacks, StandardList} from "ui-components/Browse";
-import {ListRowStat} from "ui-components/List";
-import {ResourceProperties} from "Resource/Properties";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {SvgFt} from "ui-components/FtIcon";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {dateToString} from "Utilities/DateUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {Operation} from "@/ui-components/Operation";
+import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
+import {ListRowStat} from "@/ui-components/List";
+import {ResourceProperties} from "@/Resource/Properties";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {SvgFt} from "@/ui-components/FtIcon";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
-import {Section} from "ui-components/Section";
-import * as Heading from "ui-components/Heading";
-import {JsonSchemaForm} from "Files/Metadata/JsonSchemaForm";
-import {prettierString} from "UtilityFunctions";
-import {Product} from "Accounting";
+import {Section} from "@/ui-components/Section";
+import * as Heading from "@/ui-components/Heading";
+import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
+import {prettierString} from "@/UtilityFunctions";
+import {Product} from "@/Accounting";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 

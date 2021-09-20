@@ -1,5 +1,5 @@
 import * as React from "react";
-import {FacialHairColor, FacialHair as Hair} from "UserSettings/AvatarOptions";
+import {FacialHairColor, FacialHair as Hair} from "@/UserSettings/AvatarOptions";
 import BeardLight from "./BeardLight";
 import BeardMajestic from "./BeardMajestic";
 import BeardMedium from "./BeardMedium";
