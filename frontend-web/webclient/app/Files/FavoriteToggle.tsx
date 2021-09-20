@@ -66,7 +66,7 @@ export const FileFavoriteToggle: React.FunctionComponent<{
 
             if (isFavorite) {
                 // Note(Jonas): New state will be _not_  favorite
-                
+
                 await invokeCommand(
                     metadataApi.delete(
                         bulkRequestOf({
@@ -75,10 +75,10 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                         })
                     ),
                     {defaultErrorHandler: false}
-                )
+                );
             } else {
                 // Note(Jonas): New state will be favorite
-                await invokeCommand(
+                setStatusId((await invokeCommand(
                     /* Note(Jonas): If already favorite, new */
                     metadataApi.create(bulkRequestOf({
                         fileId: file.id,
@@ -90,14 +90,14 @@ export const FileFavoriteToggle: React.FunctionComponent<{
                         }
                     })),
                     {defaultErrorHandler: false}
-                );
+                )).responses[0].id);
             }
 
 
         } catch (e) {
             setFavorite(isFavorite);
         }
-    }, [file, isFavorite]);
+    }, [file, isFavorite, mostRecentStatusId]);
 
     return <Icon
         name={isFavorite ? "starFilled" : "starEmpty"} mr={"10px"} color={isFavorite ? "blue" : "midGray"}
