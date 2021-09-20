@@ -22,10 +22,11 @@ import {
 import {doNothing, extensionFromPath, removeTrailingSlash} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
 import {ResourceProperties} from "@/Resource/Properties";
+import {CheckboxFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {MetadataBrowse} from "@/Files/Metadata/Documents/Browse";
@@ -36,10 +37,10 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
+import {addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
-import {addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
 import SharesApi from "@/UCloud/SharesApi";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
@@ -162,6 +163,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         });
         this.filterWidgets = [];
         this.filterPills = [];
+
+        this.registerFilter(CheckboxFilter("search", "filterHiddenFiles", "Show hidden files", true));
     }
 
     routingNamespace = "files";

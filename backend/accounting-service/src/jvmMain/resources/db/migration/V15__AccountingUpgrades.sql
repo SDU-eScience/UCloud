@@ -596,7 +596,19 @@ create or replace function accounting.process_charge_requests(
 ) returns void language plpgsql as $$
 declare
     charge_count bigint;
+    invalid_transactions bigint;
 begin
+    create temporary table duplicate_transactions on commit drop as
+        with requests as (
+                select transaction_id,
+                       row_number() over () local_request_id
+                from unnest(requests) r
+            )
+        select req.local_request_id, req.transaction_id
+        from requests req join accounting.transactions tr on req.transaction_id = tr.transaction_id;
+
+    select count(distinct local_request_id) into invalid_transactions from duplicate_transactions;
+
     create temporary table product_and_price on commit drop as
         with requests as (
             -- NOTE(Dan): DataGrip/IntelliJ thinks these are unresolved. They are not.
@@ -620,7 +632,9 @@ begin
             accounting.product_categories pc on
                 p.category = pc.id and
                 pc.category = request.product_cat_name and
-                pc.provider = request.product_provider
+                pc.provider = request.product_provider left join
+            duplicate_transactions dt on dt.local_request_id = request.local_request_id
+
         where
             p.version = (
                 select max(version)
@@ -628,7 +642,9 @@ begin
                 where
                     p2.name = p.name and
                     p2.category = p.category
-            );
+            ) and
+            -- Note(Henrik) The join and null search should filter out the duplicates
+            dt.local_request_id is null;
 
     -- If a request has active allocations with credit remaining, then these must be used
     -- However, if a request only has active allocations with no credit, then one must be picked.
@@ -799,6 +815,7 @@ begin
             select * from absolute_leaves
             union
             select * from differential_leaves;
+
     update all_leaves leaves
         set subtracted = leaves.subtracted + greatest(0, l.payment_required - missing_payment.max_balance)
         from
@@ -869,16 +886,9 @@ begin
             accounting.wallet_allocations ancestor_alloc on leaves.allocation_path <@ ancestor_alloc.allocation_path or free_to_use = true
         where ancestor_alloc.id = leaves.id;
 
-    insert into accounting.transactions
-    (type, created_at, affected_allocation_id, action_performed_by, change, description,
-         source_allocation_id, product_id, number_of_products, units, transaction_id, initial_transaction_id)
-    select 'charge', now(), res.local_id , res.performed_by, -res.local_subtraction, res.description,
-       res.leaf_id, res.product_id, res.number_of_products, res.units, res.transaction_id, res.transaction_id from leaves_charges res
-    where res.local_subtraction != 0;
-
     select count(distinct local_request_id) into charge_count from charge_result;
-    if charge_count != cardinality(requests) then
-        raise exception 'Unable to fulfill all requests. Permission denied/bad request. % %', charge_count, cardinality(requests);
+    if charge_count != (cardinality(requests)-invalid_transactions) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
     end if;
 end;
 $$;
@@ -916,6 +926,10 @@ begin
         charge_result c on u.local_id = c.local_id
     where u.new_balance < 0 and free_to_use != true;
 
+    insert into failed_charges (request_index)
+    select local_request_id
+    from duplicate_transactions;
+
     with
         combined_local_balance_subtractions as (
             select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction
@@ -939,6 +953,13 @@ begin
 
     delete from ancestor_charges
     where local_request_id in (select local_request_id from failed_charges);
+
+    insert into accounting.transactions
+    (type, created_at, affected_allocation_id, action_performed_by, change, description,
+         source_allocation_id, product_id, number_of_products, units, transaction_id, initial_transaction_id)
+    select 'charge', now(), res.local_id , res.performed_by, -res.local_subtraction, res.description,
+       res.leaf_id, res.product_id, res.number_of_products, res.units, res.transaction_id, res.transaction_id from leaves_charges res
+    where res.local_subtraction != 0;
 
     -- NOTE(Dan): Insert a record of every change we did in the transactions table except free to use items
     insert into accounting.transactions
