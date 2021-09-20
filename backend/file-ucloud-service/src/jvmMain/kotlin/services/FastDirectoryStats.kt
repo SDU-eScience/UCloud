@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.service.Loggable
+import kotlin.math.absoluteValue
 import kotlin.random.Random
 
 internal var useTestingSizes = false
@@ -13,7 +14,7 @@ class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
             nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
             return if (useTestingSizes) {
-                Random.nextInt().toLong() // up to 2GB
+                Random.nextInt().absoluteValue.toLong() // up to 2GB
             } else {
                 null
             }
