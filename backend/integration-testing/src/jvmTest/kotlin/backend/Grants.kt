@@ -48,9 +48,6 @@ class GrantTest : IntegrationTest() {
 
     override fun defineTests() {
 
-        testFilter = { title, subtitle ->
-            title == "Auto approval tests"
-        }
         run {
             class In(
                 val uploadSettings: ProjectApplicationSettings,

@@ -19,10 +19,6 @@ class AccountingController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Accounting.charge) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-            }
             ok(accounting.charge(actorAndProject, request))
         }
 
@@ -35,10 +31,6 @@ class AccountingController(
         }
 
         implement(Accounting.check) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-            }
             ok(accounting.check(actorAndProject, request))
         }
 
