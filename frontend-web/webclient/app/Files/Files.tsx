@@ -14,7 +14,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {Flex, Icon, theme, List} from "@/ui-components";
+import {Flex, Icon, List} from "@/ui-components";
 import {PageV2} from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
