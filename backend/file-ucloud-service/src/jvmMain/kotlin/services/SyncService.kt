@@ -49,22 +49,25 @@ class SyncService(
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
         db.withSession { session ->
-            syncthing.config.devices.minByOrNull { device ->
+            syncthing.config.devices.associateWith { device ->
                 session.sendPreparedStatement(
                     {
                         setParameter("device", device.id)
                     },
                     """
-                        select path
-                        from file_orchestrator.sync_folders
-                        where device_id = :device
-                    """
-                ).rows.sumOf {
+                                select path
+                                from file_orchestrator.sync_folders
+                                where device_id = :device
+                            """
+                ).rows.map { it.getField(SynchronizedFoldersTable.path) }
+            }.filter { it.value.size < 1000 }
+             .minByOrNull { (_, folders) ->
+                folders.sumOf { folder ->
                     cephStats.getRecursiveSize(
-                        pathConverter.ucloudToInternal(UCloudFile.create(it.getField(SynchronizedFoldersTable.path)))
+                        pathConverter.ucloudToInternal(UCloudFile.create(folder))
                     ) ?: 0
                 }
-            }
+            }?.key
         }
     }
 
@@ -75,9 +78,7 @@ class SyncService(
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
-        val ids: MutableList<String> = mutableListOf()
-        val syncTypes: MutableList<SynchronizationType> = mutableListOf()
-        val devices: MutableList<LocalSyncthingDevice> = mutableListOf()
+        val devices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
 
         val affectedRows: Long = db.withSession { session ->
             request.items.forEach { folder ->
@@ -101,11 +102,9 @@ class SyncService(
                     )
                 }
 
-                //val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
                 affectedDevices.add(device)
 
-                // Update status
                 SyncFolderControl.update.call(
                     bulkRequestOf(
                         ResourceUpdateAndId(
@@ -116,7 +115,6 @@ class SyncService(
                     authenticatedClient
                 )
 
-
                 Mounts.mount.call(
                     MountRequest(
                         listOf(MountFolder(folder.id, folder.specification.path))
@@ -126,32 +124,9 @@ class SyncService(
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
                 }
 
-                ids.add(folder.id)
                 devices.add(device)
-                //syncTypes.add(syncType)
             }
 
-            /*session.sendPreparedStatement(
-                {
-                    setParameter("ids", ids)
-                    setParameter("devices", devices.map { it.id })
-                    setParameter("paths", request.items.map { folder -> folder.specification.path.normalize() })
-                    //setParameter("users", ids.map { actor.username })
-                    setParameter("access", syncTypes.map { it.name })
-                },
-                """
-                    insert into file_orchestrator.sync_folders(
-                        resource, 
-                        device_id, 
-                        path
-                    ) values (
-                        unnest(:ids::text[]),
-                        unnest(:devices::text[]),
-                        unnest(:paths::text[]),
-                        unnest(:access::text[])
-                    )
-            """
-            ).rowsAffected*/
             0L
         }
 
