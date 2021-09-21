@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
-import {HeaderStateToProps} from "Navigation";
+import {HeaderStateToProps} from "@/Navigation";
 import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
 import Notification from "@/Notifications";
 import {usePromiseKeeper} from "@/PromiseKeeper";
@@ -428,4 +428,4 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 const isAnyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.notifications.loading;
 
-export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);
+export default connect(mapStateToProps, mapDispatchToProps)(Header);
