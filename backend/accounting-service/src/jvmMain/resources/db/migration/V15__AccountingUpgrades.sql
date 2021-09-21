@@ -2008,7 +2008,8 @@ begin
             coalesce(result.credits_requested, result.quota_requested_bytes),
             result.start_date,
             result.end_date,
-            'Grant application approved'
+            'Grant application approved',
+            concat(result.approved_by, '-', uuid_generate_v4())
         )::accounting.deposit_request req
         from approve_result result
     ) t;
