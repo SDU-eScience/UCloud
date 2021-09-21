@@ -6,13 +6,20 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseResponse
+import dk.sdu.cloud.file.ucloud.withMounterInfo
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.sync.mounter.api.*
 import io.ktor.http.*
 import java.io.File
 import java.util.*
@@ -36,6 +43,7 @@ class SyncService(
     private val syncthing: SyncthingClient,
     private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
+    private val syncMounterClient: AuthenticatedClient,
     private val cephStats: CephFsFastDirectoryStats,
     private val pathConverter: PathConverter
 ) {
@@ -61,13 +69,11 @@ class SyncService(
     }
 
     private suspend fun chooseFolderDevice(session: AsyncDBConnection): LocalSyncthingDevice {
-        //return folderDeviceCache.get(Unit)
-        //    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
-        return LocalSyncthingDevice("UCloud", id = "UCLOUD_DEVICE_ID")
+        return folderDeviceCache.get(Unit)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
-        println("Adding folder $request")
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val ids: MutableList<String> = mutableListOf()
         val syncTypes: MutableList<SynchronizationType> = mutableListOf()
@@ -95,20 +101,32 @@ class SyncService(
                     )
                 }
 
-                val id = UUID.randomUUID().toString()
+                //val id = UUID.randomUUID().toString()
                 val device = chooseFolderDevice(session)
                 affectedDevices.add(device)
 
-                /*Mounts.mount.call(
-                    MountRequest(
-                        listOf(MountFolder(id, folder.path))
+                // Update status
+                SyncFolderControl.update.call(
+                    bulkRequestOf(
+                        ResourceUpdateAndId(
+                            folder.id,
+                            SyncFolder.Update(Time.now(), "", deviceId = device.id)
+                        )
                     ),
-                    authenticatedClient.withMounterInfo(device)
+                    authenticatedClient
+                )
+
+
+                Mounts.mount.call(
+                    MountRequest(
+                        listOf(MountFolder(folder.id, folder.specification.path))
+                    ),
+                    syncMounterClient
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
-                }*/
+                }
 
-                ids.add(id)
+                ids.add(folder.id)
                 devices.add(device)
                 //syncTypes.add(syncType)
             }
@@ -158,8 +176,13 @@ class SyncService(
     }
 
     suspend fun removeFolders(request: BulkRequest<SyncFolder>) {
-        val affectedRows = db.withSession { session ->
-            val devices = session.sendPreparedStatement(
+        Mounts.unmount.call(
+            UnmountRequest(
+                request.items.map { MountFolderId(it.id) }
+            ),
+            syncMounterClient
+        )
+            /*val devices = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id })
                     //setParameter("user", actor.username)
@@ -178,7 +201,7 @@ class SyncService(
                 } else {
                     null
                 }
-            }
+            }*/
             /*val grouped = devices.groupBy { it.second.id }
             grouped.forEach { (_, requests) ->
                 Mounts.unmount.call(
@@ -191,12 +214,12 @@ class SyncService(
                 }
             }*/
 
-            devices.size
-        }
+            //devices.size
+        //}
 
-        if (affectedRows > 0) {
+        /*if (affectedRows > 0) {
             syncthing.writeConfig()
-        }
+        }*/
     }
 
     internal suspend fun removeSubfolders(path: String) {
@@ -265,7 +288,6 @@ class SyncService(
     }
 
     suspend fun addDevices(request: BulkRequest<SyncDevice>): BulkResponse<FindByStringId?> {
-        println("addDevice called")
         /*val affectedRows = db.withSession { session ->
             request.items.sumOf { item ->
                 if (syncthing.config.devices.any { it.id == item.id }) {

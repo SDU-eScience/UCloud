@@ -52,18 +52,18 @@ object UCloudFileDownload : CallDescriptionContainer("file.ucloud.download") {
     }
 }
 
-object UCloudBrowseSyncFolders : CallDescriptionContainer("file.sync.folders") {
+object UCloudSyncFoldersBrowse : CallDescriptionContainer("file.ucloud.sync.folders") {
     val browse = call<UCloudSyncFoldersBrowseRequest, UCloudSyncFoldersBrowseResponse,
         CommonErrorMessage>("browse") {
-        audit<Unit>()
         auth {
             access = AccessRight.READ
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {
             method = HttpMethod.Get
             path { using("/ucloud/ucloud/sync/folders") }
+            params { +boundTo(UCloudSyncFoldersBrowseRequest::device) }
         }
     }
 }

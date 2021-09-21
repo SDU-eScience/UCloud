@@ -114,14 +114,14 @@ fun runInstaller(configDir: File) {
                     syncthing:
                       devices:
                         - hostname: syncthing
-                          apiKey: ${apiKey}
-                          id: ${deviceId}
+                          apiKey: $apiKey
+                          id: $deviceId
                           port: 8384
                           username: syncthinguser
                           password: syncthingpassword
                           
                     syncMount:
-                      deviceId: ${deviceId}
+                      deviceId: $deviceId
                 """.trimIndent()
             )
         }

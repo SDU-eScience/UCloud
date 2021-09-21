@@ -1,31 +1,55 @@
 package dk.sdu.cloud.sync.mounter 
 
+import com.github.jasync.sql.db.util.length
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.ucloud.api.*
+import dk.sdu.cloud.file.orchestrator.api.SyncFolderControl
+import dk.sdu.cloud.file.orchestrator.api.SyncFolderIncludeFlags
+import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
+import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowse
+import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseRequest
+import dk.sdu.cloud.file.ucloud.services.JwtRefresherSharedSecret
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.providerTokenValidation
 import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.sync.mounter.api.*
 import dk.sdu.cloud.sync.mounter.http.MountController
 import dk.sdu.cloud.sync.mounter.services.MountService
 import kotlinx.coroutines.runBlocking
+import service.TokenValidationChain
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 class Server(
     override val micro: Micro,
-    private val config: SyncMounterConfiguration
+    private val config: SyncMounterConfiguration,
+    private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
     private val ready: AtomicBoolean = AtomicBoolean(false)
     
     override fun start() {
+        if (syncMounterSharedSecret == null) {
+            log.warn("Cannot start the sync-mounter without a shared secret")
+            return
+        }
         val mountService = MountService(config, ready)
+        val internalAuthenticator = RefreshingJWTAuthenticator(
+            micro.client,
+            JwtRefresherSharedSecret(syncMounterSharedSecret)
+        )
+        @Suppress("UNCHECKED_CAST")
+        micro.providerTokenValidation = TokenValidationChain(listOf(
+            InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
+        ))
+
+        val internalClient = internalAuthenticator.authenticateClient(OutgoingHttpCall)
 
         with(micro.server) {
             configureControllers(
@@ -53,6 +77,10 @@ class Server(
     }
 
     override fun onKtorReady() {
+        if (syncMounterSharedSecret == null) {
+            return
+        }
+
         runBlocking {
             val readyFile = File(joinPath(config.syncBaseMount, "ready"))
             readyFile.deleteOnExit()
@@ -63,21 +91,33 @@ class Server(
                     syncFolder.mkdir()
                 }
 
-                val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+                val internalAuthenticator = RefreshingJWTAuthenticator(
+                    micro.client,
+                JwtRefresherSharedSecret(syncMounterSharedSecret)
+                )
+                @Suppress("UNCHECKED_CAST")
+                micro.providerTokenValidation = TokenValidationChain(listOf(
+                    InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
+                ))
+
+                val client = internalAuthenticator.authenticateClient(OutgoingHttpCall)
+
                 val mountService = MountService(config, ready)
 
-                val folders = UCloudBrowseSyncFolders.browse.call(
+                val folders = UCloudSyncFoldersBrowse.browse.call(
                     UCloudSyncFoldersBrowseRequest(config.deviceId),
                     client
                 ).orThrow()
 
-                mountService.mount(
-                    MountRequest(
-                        folders.map { folder ->
-                            MountFolder(folder.id, folder.path)
-                        }
+                if (folders.length > 0) {
+                    mountService.mount(
+                        MountRequest(
+                            folders.map { folder ->
+                                MountFolder(folder.id.toString(), folder.path)
+                            }
+                        )
                     )
-                )
+                }
             } catch (ex: Throwable) {
                 log.warn("Caught exception while initializing mounter (is file-ucloud down?)")
                 log.warn(ex.stackTraceToString())

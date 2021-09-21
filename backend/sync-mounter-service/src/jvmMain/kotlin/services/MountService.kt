@@ -21,13 +21,7 @@ class MountService(
     fun mount(request: MountRequest) {
         request.items.forEach { item ->
             val source = File(joinPath(config.cephfsBaseMount, item.path))
-            if (!source.exists() ||
-                !source.isDirectory ||
-                !(source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "home/")) ||
-                    source.canonicalPath.startsWith(joinPath(config.cephfsBaseMount, "projects/"))
-                )
-
-            ) {
+            if (!source.exists() || !source.isDirectory) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MountFolder(
-    val id: Long,
+    val id: String,
     val path: String
 )
 
@@ -32,14 +32,14 @@ object Mounts: CallDescriptionContainer("sync.mounter") {
     private const val baseContext = "/api/sync/mount"
 
     val mount = call<MountRequest, MountResponse, CommonErrorMessage>("mount") {
-        httpCreate(baseContext, roles = Roles.PRIVILEGED)
+        httpCreate(baseContext, roles = Roles.PUBLIC)
     }
 
     val unmount = call<UnmountRequest, UnmountResponse, CommonErrorMessage>("unmount") {
-        httpDelete(baseContext, roles = Roles.PRIVILEGED)
+        httpDelete(baseContext, roles = Roles.PUBLIC)
     }
 
     val ready = call<ReadyRequest, ReadyResponse, CommonErrorMessage>("ready") {
-        httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
+        httpRetrieve(baseContext, roles = Roles.PUBLIC)
     }
 }

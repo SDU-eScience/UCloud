@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
@@ -47,8 +48,6 @@ class SyncFolderService(
             listOf(Permission.Read)
         )
 
-        println(fileCollections)
-
         session
             .sendPreparedStatement(
                 {
@@ -68,22 +67,17 @@ class SyncFolderService(
                             }
 
                         }
-                        into("devices") {
-                            "UCLOUD_DEVICE_ID"
-                        }
                     }
                 },
                 """
-                    insert into file_orchestrator.sync_folders (resource, device_id, path, sync_type)
-                    select unnest(:ids::bigint[]), unnest(:devices::text[]), unnest(:paths::text[]), unnest(:permissions::text[])
+                    insert into file_orchestrator.sync_folders (resource, path, sync_type)
+                    select unnest(:ids::bigint[]), unnest(:paths::text[]), unnest(:permissions::text[])
                     on conflict (resource) do nothing
                 """
             )
     }
 
     override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
-        println("Browsing syncfolders")
-        println("query: $query, filter_path: ${flags?.filterByPath}, filter_device: ${flags?.filterDeviceId}")
         return PartialQuery(
             {
                 setParameter("query", query)
@@ -95,10 +89,35 @@ class SyncFolderService(
                 from file_orchestrator.sync_folders
                 where
                     (:query::text is null or path ilike ('%' || :query || '%')) and
-                    (:filter_path::text is null or :filter_path = path) and
+                    (:filter_path::text is null or :filter_path::text = path) and
                     (:filter_devices::text[] is null or
-                        array_length(:filter_devices::text[], 1) < 1 or device_id in :filter_devices::text[])
+                        array_length(:filter_devices::text[], 1) < 1 or 
+                        device_id in (select unnest(:filter_devices::text[]))
+                    )
             """
         )
+    }
+
+    override suspend fun onUpdate(
+        resources: List<SyncFolder>,
+        updates: List<ResourceUpdateAndId<SyncFolder.Update>>,
+        session: AsyncDBConnection
+    ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("ids", updates.map { it.id })
+                setParameter("devices", updates.map { it.update.deviceId })
+            },
+            """
+                update file_orchestrator.sync_folders as f
+                set device_id = c.device_id
+                from (
+                    select unnest(:ids::bigint[]), unnest(:devices::text[])
+                ) as c(resource, device_id)
+                where c.resource = f.resource
+            """
+        )
+
+        super.onUpdate(resources, updates, session)
     }
 }

@@ -1,8 +1,10 @@
 package dk.sdu.cloud.file.ucloud
 
-import dk.sdu.cloud.auth.api.JwtRefresher
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.SyncController
@@ -12,16 +14,20 @@ import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import service.TokenValidationChain
 import java.io.File
+import java.util.*
 
 class Server(
     override val micro: Micro,
     private val configuration: Configuration,
     private val cephConfig: CephConfiguration,
-    private val syncConfig: SyncConfiguration
+    private val syncConfig: SyncConfiguration,
+    private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
 
+    @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
         val (refreshToken, validation) =
             if (configuration.providerRefreshToken == null || configuration.ucloudCertificate == null) {
@@ -34,9 +40,23 @@ class Server(
             }
 
         val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken))
+        val internalAuthenticator = RefreshingJWTAuthenticator(
+            micro.client,
+            JwtRefresherSharedSecret(syncMounterSharedSecret ?: "this_will_fail")
+        )
         @Suppress("UNCHECKED_CAST")
-        micro.providerTokenValidation = validation as TokenValidation<Any>
+        micro.providerTokenValidation = TokenValidationChain(
+            buildList {
+                add(validation as TokenValidation<Any>)
+                if (syncMounterSharedSecret != null) {
+                    InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
+                } else {
+                    log.warn("Missing shared secret for file-ucloud-service and sync-mounter. Sync will not work")
+                }
+            }
+        )
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
+        val mounterClient = internalAuthenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro)
 
         val fsRootFile =
@@ -55,7 +75,7 @@ class Server(
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val syncthingClient = SyncthingClient(syncConfig, db, authenticatedClient, distributedLocks)
         val syncService =
-            SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
+            SyncService(syncthingClient, db, authenticatedClient, mounterClient, cephStats, pathConverter)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {

@@ -52,7 +52,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     }, [syncFolder]);
 
     useEffect(() => {
-        if (folders.data && folders.data.items.length == 1) {
+        if (folders.data && folders.data.items.length > 0) {
             setSyncFolder(folders.data.items[0]);
         }
     }, [folders]);

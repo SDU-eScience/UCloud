@@ -1,6 +1,9 @@
 package dk.sdu.cloud.file.ucloud
 
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.calls.client.withFixedHost
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.file.ucloud.api.FileUcloudServiceDescription
 import dk.sdu.cloud.service.CommonServer
@@ -29,6 +32,14 @@ data class LocalSyncthingDevice(
     val doNotChangeHostNameForMounter: Boolean = false,
 )
 
+fun AuthenticatedClient.withMounterInfo(device: LocalSyncthingDevice): AuthenticatedClient {
+    return if (device.doNotChangeHostNameForMounter) {
+        this
+    } else {
+        withFixedHost(HostInfo(device.hostname, port = 8080))
+    }
+}
+
 data class SyncConfiguration(
     val devices: List<LocalSyncthingDevice> = emptyList()
 )
@@ -40,6 +51,7 @@ object FileUcloudService : Service {
         micro.install(AuthenticatorFeature)
         micro.install(BackgroundScopeFeature)
 
+        val sharedSecret = micro.configuration.requestChunkAtOrNull<String>("syncthing", "sharedSecret")
         val configuration = micro.configuration.requestChunkAtOrNull("files", "ucloud") ?: Configuration()
         val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
         val syncDevices = micro.configuration.requestChunkAtOrNull<List<LocalSyncthingDevice>>("syncthing", "devices") ?: emptyList()
@@ -49,7 +61,7 @@ object FileUcloudService : Service {
             return EmptyServer
         }
 
-        return Server(micro, configuration, cephConfig, syncConfig)
+        return Server(micro, configuration, cephConfig, syncConfig, sharedSecret)
     }
 }
 

@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
@@ -35,6 +36,7 @@ class SyncDeviceService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+
         session
             .sendPreparedStatement(
                 {
@@ -67,7 +69,7 @@ class SyncDeviceService(
                     (:filter_owner::text[] is null
                         or array_length(:filter_owner::text[], 1) < 1
                         or resource in (
-                            select id from provider.resource where type = 'sync_device' and created_by in :filter_owner::text[]
+                            select id from provider.resource where type = 'sync_device' and created_by in (select unnest(:filter_owner::text[]))
                         )
                     )
             """

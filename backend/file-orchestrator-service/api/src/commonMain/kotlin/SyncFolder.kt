@@ -43,7 +43,9 @@ data class SyncFolder(
     @Serializable
     data class Update(
         override val timestamp: Long,
-        override val status: String?
+        override val status: String?,
+        val deviceId: String? = null,
+        val syncType: SynchronizationType? = null,
     ) : ResourceUpdate
 }
 
