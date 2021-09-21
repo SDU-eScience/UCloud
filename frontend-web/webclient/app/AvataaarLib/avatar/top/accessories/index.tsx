@@ -1,5 +1,5 @@
 import * as React from "react";
-import {TopAccessory} from "UserSettings/AvatarOptions";
+import {TopAccessory} from "@/UserSettings/AvatarOptions";
 import Blank from "./Blank";
 import Kurt from "./Kurt";
 import Prescription01 from "./Prescription01";

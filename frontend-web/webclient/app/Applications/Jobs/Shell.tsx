@@ -1,15 +1,15 @@
 import * as React from "react";
-import {useXTerm} from "Applications/Jobs/xterm";
-import {WSFactory} from "Authentication/HttpClientInstance";
+import {useXTerm} from "@/Applications/Jobs/xterm";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
-import {Box, Button} from "ui-components";
-import {isLightThemeStored, shortUUID, useEffectSkipMount, useNoFrame} from "UtilityFunctions";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf, bulkResponseOf} from "DefaultObjects";
-import {default as JobsApi} from "UCloud/JobsApi";
+import {Box, Button} from "@/ui-components";
+import {isLightThemeStored, shortUUID, useEffectSkipMount, useNoFrame} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
+import {default as JobsApi} from "@/UCloud/JobsApi";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();

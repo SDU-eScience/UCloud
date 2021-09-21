@@ -1,5 +1,5 @@
 import * as React from "react";
-import Divider from "ui-components/Divider";
+import Divider from "@/ui-components/Divider";
 import {
     fetchDataManagementPlan,
     FetchDataManagementPlanResponse,
@@ -10,7 +10,7 @@ import {
     setProjectArchiveStatusBulk, updateDataManagementPlan,
     useProjectManagementStatus,
     UserInProject
-} from "Project/index";
+} from "@/Project/index";
 import {
     Box,
     Button,
@@ -24,32 +24,32 @@ import {
     Text,
     TextArea,
     Checkbox
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
+} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import styled from "styled-components";
-import {addStandardDialog} from "UtilityComponents";
-import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {addStandardDialog} from "@/UtilityComponents";
+import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {useHistory, useParams} from "react-router";
-import {Client} from "Authentication/HttpClientInstance";
-import {dialogStore} from "Dialog/DialogStore";
-import {MainContainer} from "MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {GrantProjectSettings, LogoAndDescriptionSettings} from "Project/Grant/Settings";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Toggle} from "ui-components/Toggle";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {GrantProjectSettings, LogoAndDescriptionSettings} from "@/Project/Grant/Settings";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Toggle} from "@/ui-components/Toggle";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {TextSpan} from "ui-components/Text";
-import {doNothing} from "UtilityFunctions";
+import {TextSpan} from "@/ui-components/Text";
+import {doNothing} from "@/UtilityFunctions";
 import {
     AllowSubProjectsRenamingRequest,
     AllowSubProjectsRenamingResponse,
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
     ToggleSubProjectsRenamingRequest
-} from "Project/Grant";
-import {buildQueryString} from "Utilities/URIUtilities";
+} from "@/Project/Grant";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 const ActionContainer = styled.div`
     & > * {

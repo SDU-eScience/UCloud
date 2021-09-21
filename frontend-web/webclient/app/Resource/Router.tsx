@@ -1,8 +1,8 @@
 import * as React from "react";
-import {Resource, ResourceApi} from "UCloud/ResourceApi";
+import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement} from "react";
 import {Route, Switch} from "react-router-dom";
-import {ResourceProperties} from "Resource/Properties";
+import {ResourceProperties} from "@/Resource/Properties";
 
 interface RouterProps<T extends Resource> {
     api: ResourceApi<T, never>;

@@ -1,14 +1,14 @@
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Notification} from "Notifications";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Notification} from "@/Notifications";
 import {History} from "history";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {ProjectName} from "Project";
-import {getStoredProject} from "Project/Redux";
-import {JWT} from "Authentication/lib";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {HTTP_STATUS_CODES} from "@/Utilities/XHRUtils";
+import {ProjectName} from "@/Project";
+import {getStoredProject} from "@/Project/Redux";
+import {JWT} from "@/Authentication/lib";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
-import {UPLOAD_LOCALSTORAGE_PREFIX} from "Files/ChunkedFileReader";
+import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -360,12 +360,7 @@ interface CopyToClipboard {
  * @param param contains the value to be copied and the message to show the user on success.
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
-    const input = document.createElement("input");
-    input.value = value ?? "";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
+    navigator.clipboard.writeText(value ?? "");
     snackbarStore.addSuccess(message, true);
 }
 

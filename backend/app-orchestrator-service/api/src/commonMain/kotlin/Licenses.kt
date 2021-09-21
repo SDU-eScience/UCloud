@@ -22,7 +22,8 @@ data class LicenseIncludeFlags(
     override val filterProvider: String?,
     override val filterProductId: String?,
     override val filterProductCategory: String?,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

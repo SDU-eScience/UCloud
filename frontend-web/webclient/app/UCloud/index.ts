@@ -2,7 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
  * A generic error message
@@ -7012,11 +7012,11 @@ export function updateProduct(
     };
 }
 export function createProduct(
-    request: Product
-): APICallParameters<Product, any /* unknown */> {
+    request: BulkRequest<Product>
+): APICallParameters<BulkRequest<Product>, any /* unknown */> {
     return {
         context: "",
-        method: "PUT",
+        method: "POST",
         path: "/api/products",
         parameters: request,
         reloadId: Math.random(),

@@ -17,10 +17,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.ucloud.services.InternalFile
-import dk.sdu.cloud.file.ucloud.services.MemberFiles
-import dk.sdu.cloud.file.ucloud.services.NativeFS
-import dk.sdu.cloud.file.ucloud.services.PathConverter
+import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
@@ -138,7 +135,7 @@ class Server(
                 configuration.useSmallReservation && micro.developmentModeEnabled
             ))
             register(ParameterPlugin(licenseService))
-            register(FileMountPlugin(fs, memberFiles, pathConverter, cephConfig))
+            register(FileMountPlugin(fs, memberFiles, pathConverter, LimitChecker(db), cephConfig))
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)
             register(ExpiryPlugin)

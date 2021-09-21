@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Eyes as EyeOptions} from "UserSettings/AvatarOptions";
+import {Eyes as EyeOptions} from "@/UserSettings/AvatarOptions";
 import Close from "./Close";
 import Cry from "./Cry";
 import Default from "./Default";

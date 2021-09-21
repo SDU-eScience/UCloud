@@ -1,15 +1,15 @@
 import * as React from "react";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import Icon from "ui-components/Icon";
-import Box from "ui-components/Box";
-import {Button, Link, theme} from "ui-components";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import Icon from "@/ui-components/Icon";
+import Box from "@/ui-components/Box";
+import {Button, Link, theme} from "@/ui-components";
 import {useEffect, useState} from "react";
-import {accounting} from "UCloud";
+import {accounting} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
 import styled from "styled-components";
-import {NoResultsCardBody} from "Dashboard/Dashboard";
-import {priceExplainer, ProductCompute} from "Accounting";
+import {NoResultsCardBody} from "@/Dashboard/Dashboard";
+import {priceExplainer, ProductCompute} from "@/Accounting";
 
 export const reservationMachine = "reservation-machine";
 

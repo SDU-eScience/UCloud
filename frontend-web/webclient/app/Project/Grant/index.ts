@@ -1,5 +1,5 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import {PageV2, PaginationRequestV2} from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 
 export interface ReadTemplatesRequest {
     projectId: string;

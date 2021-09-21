@@ -1,26 +1,26 @@
 import * as React from "react";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Heading from "ui-components/Heading";
-import {useCloudAPI} from "Authentication/DataHook";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Heading from "@/ui-components/Heading";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {
     retrieveDescription,
     RetrieveDescriptionResponse
-} from "Project/Grant/index";
-import {emptyPage, emptyPageV2} from "DefaultObjects";
-import * as Pagination from "Pagination";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Box, Card, Icon, Text} from "ui-components";
+} from "@/Project/Grant/index";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import * as Pagination from "@/Pagination";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {Box, Card, Icon, Text} from "@/ui-components";
 import {useHistory, useParams} from "react-router";
-import HighlightedCard from "ui-components/HighlightedCard";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
-import {GridCardGroup} from "ui-components/Grid";
+import {GridCardGroup} from "@/ui-components/Grid";
 import {useCallback, useEffect, useState} from "react";
-import {Client} from "Authentication/HttpClientInstance";
-import {AppLogo, hashF} from "Applications/Card";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {grant, PageV2, PaginationRequestV2} from "UCloud";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {AppLogo, hashF} from "@/Applications/Card";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {grant, PageV2, PaginationRequestV2} from "@/UCloud";
 import ProjectWithTitle = grant.ProjectWithTitle;
 
 function browseProjects(request: PaginationRequestV2): APICallParameters {

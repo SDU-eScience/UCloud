@@ -1,14 +1,14 @@
 import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {Text, Button, Flex, Icon, Link} from "ui-components";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {Text, Button, Flex, Icon, Link} from "@/ui-components";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import styled from "styled-components";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {Center} from "UtilityComponents";
-import {IconName} from "ui-components/Icon";
-import {ThemeColor} from "ui-components/theme";
-import {useProjectManagementStatus} from "Project";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {Center} from "@/UtilityComponents";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
+import {useProjectManagementStatus} from "@/Project";
 
 const LandingPageContainer = styled.div`
     display: grid;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {MouthTypes} from "UserSettings/AvatarOptions";
+import {MouthTypes} from "@/UserSettings/AvatarOptions";
 import Concerned from "./Concerned";
 import Default from "./Default";
 import Disbelief from "./Disbelief";

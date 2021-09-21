@@ -1,8 +1,8 @@
 import * as React from "react"
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 import HatColor from "./HatColor";
-import {HairProps} from "UserSettings/AvatarOptions";
+import {HairProps} from "@/UserSettings/AvatarOptions";
 
 export default class Hijab extends React.Component<HairProps> {
   static optionValue = "Hijab";

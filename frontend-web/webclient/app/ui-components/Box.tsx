@@ -5,7 +5,7 @@ import {
     TextAlignProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink, 
     JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps
 } from "styled-system";
-import {cursor} from "Utilities/StyledComponentsUtilities";
+import {cursor} from "@/Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
 
 export type BoxProps =

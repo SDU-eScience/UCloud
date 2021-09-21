@@ -1,8 +1,7 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import * as UCloud from "UCloud";
-import {IconName} from "ui-components/Icon";
-import {apiBrowse, apiRetrieve, apiUpdate} from "Authentication/DataHook";
-import {BulkRequest, PaginationRequestV2} from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {IconName} from "@/ui-components/Icon";
+import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, PaginationRequestV2} from "@/UCloud";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
@@ -16,7 +15,7 @@ export interface ProductCategoryId {
     title?: string;
 }
 
-export function productToArea(product: UCloud.accounting.Product): ProductArea {
+export function productToArea(product: Product): ProductArea {
     switch (product.type) {
         case "compute": return "COMPUTE";
         case "ingress": return "INGRESS";
@@ -209,6 +208,7 @@ export type ProductPriceUnit =
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
 export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
+export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
 export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
 
 export interface ProductMetadata {
@@ -221,7 +221,7 @@ export interface ProductMetadata {
 }
 
 export interface ProductBase extends ProductMetadata {
-    type: string;
+    type: Type;
     pricePerUnit: number;
     name: string;
     description: string;

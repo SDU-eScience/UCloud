@@ -1,24 +1,24 @@
 import * as React from "react";
-import {default as FilesApi, UFile} from "UCloud/FilesApi";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
+import {default as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {getParentPath, pathComponents} from "Utilities/FileUtilities";
-import {joinToString, removeTrailingSlash} from "UtilityFunctions";
-import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
-import {useCloudAPI} from "Authentication/DataHook";
-import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
+import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
+import FileCollectionsApi, {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
-import {ResourceBrowseCallbacks} from "UCloud/ResourceApi";
-import {Flex, Icon, theme, List} from "ui-components";
-import {PageV2} from "UCloud";
-import {ListV2} from "Pagination";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {Flex, Icon, theme, List} from "@/ui-components";
+import {PageV2} from "@/UCloud";
+import {ListV2} from "@/Pagination";
 import styled from "styled-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -28,7 +28,11 @@ export const FilesBrowse: React.FunctionComponent<{
     forceNavigationToPage?: boolean;
 }> = props => {
     const [, setUploadPath] = useGlobal("uploadPath", "/");
-    const location = useLocation(); const pathFromQuery = getQueryParamOrElse(location.search, "path", "/"); const [pathFromState, setPathFromState] = useState(props.embedded !== true ? pathFromQuery : props.pathRef?.current ?? pathFromQuery);
+    const location = useLocation();
+    const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
+    const [pathFromState, setPathFromState] = useState(
+        props.embedded !== true ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
+    );
     const path = props.embedded === true ? pathFromState : pathFromQuery;
     const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
@@ -56,7 +60,6 @@ export const FilesBrowse: React.FunctionComponent<{
             navigateToPath(history, file.id);
         } else {
             return "properties";
-            // history.push(`/${FilesApi.routingNamespace}/properties/${encodeURIComponent(file.id)}`);
         }
     }, [navigateToPath]);
 
@@ -100,18 +103,17 @@ export const FilesBrowse: React.FunctionComponent<{
                     }))}
                     page={drives.data}
                     pageRenderer={items => {
-                        const filteredItems = items.filter((c) => c.specification?.title !== collection.data?.specification.title)
                         return (
                             <>
                                 <List childPadding={"8px"} bordered={false}>
-                                    {filteredItems.map(drive => (
-                                        <div
+                                    {items.map(drive => (
+                                        <DriveInDropdown
                                             key={drive.id}
                                             className="expandable-row-child"
                                             onClick={() => navigateToPath(history, `/${drive.id}`)}
                                         >
                                             {drive.specification?.title}
-                                        </div>
+                                        </DriveInDropdown>
                                     ))}
                                 </List>
                             </>
@@ -183,8 +185,10 @@ const Router: React.FunctionComponent = () => {
 
 const DriveDropdown: React.FunctionComponent = props => {
     return (
-        <ClickableDropdown 
-            colorOnHover={false} 
+        <ClickableDropdown
+            colorOnHover={false}
+            paddingControlledByContent={true}
+            width={"450px"}
             trigger={<div style={{display: "flex"}}>
                 <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
                 <Icon
@@ -200,32 +204,12 @@ const DriveDropdown: React.FunctionComponent = props => {
     );
 }
 
-const ContentWrapper = styled.div<{ isOpen: boolean; width: string; height: string; }>`
-  display: ${p => p.isOpen ? "flex" : "none"};
-  padding: 10px 5px 5px 5px;
-  position: absolute;
-  box-shadow: ${theme.shadows.sm};
-  background-color: var(--white);
-  width: ${p => p.width};
-  height: ${p => p.height};
-  z-index: 1;
-  max-height: 200px;
-  overflow-y: scroll;
-  border-radius: 5px;
+const DriveInDropdown = styled.div`
+  padding: 0 17px;
+  width: 450px;
+  overflow-x: hidden;
 
-  & div.expandable-row-child {
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-left: -5px;
-    margin-right: -5px;
-    padding-left: 8px;
-    padding-right: 8px;
-    width: calc(${p => p.width});
-  }
-
-  & div.expandable-row-child:hover {
+  &:hover {
     background-color: var(--lightBlue);
   }
 `;

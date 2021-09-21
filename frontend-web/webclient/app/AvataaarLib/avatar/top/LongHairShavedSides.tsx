@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {HairProps} from 'UserSettings/AvatarOptions';
-import {generateId as uniqueId} from 'UtilityFunctions';
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import FacialHair from './facialHair'
 
 export default class LongHairShavedSides extends React.Component<HairProps> {

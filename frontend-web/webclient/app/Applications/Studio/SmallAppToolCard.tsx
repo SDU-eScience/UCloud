@@ -1,4 +1,4 @@
-import {AppCard} from "Applications/Card";
+import {AppCard} from "@/Applications/Card";
 import styled from "styled-components";
 
 export const SmallAppToolCard = styled(AppCard)`

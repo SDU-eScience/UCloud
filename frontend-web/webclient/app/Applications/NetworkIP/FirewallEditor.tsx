@@ -1,13 +1,13 @@
 import * as React from "react";
-import NetworkIPApi, {NetworkIP} from "UCloud/NetworkIPApi";
-import {Box, Button, Input, Select} from "ui-components";
-import {ShakingBox} from "UtilityComponents";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
+import {Box, Button, Input, Select} from "@/ui-components";
+import {ShakingBox} from "@/UtilityComponents";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {useCallback, useRef, useState} from "react";
-import {useCloudCommand} from "Authentication/DataHook";
-import {blankOrUndefined} from "UtilityFunctions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import HighlightedCard from "ui-components/HighlightedCard";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {blankOrUndefined} from "@/UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;

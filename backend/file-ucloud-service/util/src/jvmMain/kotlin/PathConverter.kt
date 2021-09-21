@@ -79,7 +79,7 @@ class PathConverter(
     )
 
     private val cachedProviderIdsMutex = Mutex()
-    private val cachedProviderIds = HashMap<String, String>()
+    private val cachedProviderIds = HashMap<String, FileCollection>()
 
     suspend fun fetchProject(file: UCloudFile): String? {
         val components = file.normalize().components()
@@ -100,16 +100,13 @@ class PathConverter(
 
         if (collection.providerGeneratedId != null) {
             cachedProviderIdsMutex.withLock {
-                cachedProviderIds[storedName] = collectionId
+                cachedProviderIds[storedName] = collection
             }
         }
 
         if (storedName.startsWith(COLLECTION_SHARE_PREFIX)) {
             val shareEntryPoint = (shareCache.get(storedName)
                 ?: throw RPCException("Unknown file", HttpStatusCode.NotFound))
-
-            println(shareEntryPoint)
-            println(withoutCollection)
 
             return ucloudToInternal(
                 UCloudFile.create(joinPath(*(shareEntryPoint.components() + withoutCollection).toTypedArray()))
@@ -194,7 +191,7 @@ class PathConverter(
         )
     }
 
-    private fun lookupCollectionFromInternalId(internalId: String): String {
+    private fun lookupCollectionFromInternalId(internalId: String): FileCollection {
         val cached = cachedProviderIds[internalId]
         if (cached != null) {
             return cached
@@ -203,7 +200,7 @@ class PathConverter(
         return runBlocking {
             val collection = FileCollectionsControl.browse.call(
                 ResourceBrowseRequest(
-                    FileCollectionIncludeFlags(filterProviderId = internalId)
+                    FileCollectionIncludeFlags(filterProviderIds = internalId)
                 ),
                 serviceClient
             ).orRethrowAs {
@@ -212,10 +209,10 @@ class PathConverter(
                 ?: throw RPCException("Collection does not exist: $internalId", HttpStatusCode.InternalServerError)
 
             cachedProviderIdsMutex.withLock {
-                cachedProviderIds[internalId] = collection.id
+                cachedProviderIds[internalId] = collection
             }
 
-            collection.id
+            collection
         }
     }
 
@@ -230,7 +227,7 @@ class PathConverter(
                 val startIdx: Int
                 when (components[0]) {
                     HOME_DIRECTORY -> {
-                        val collectionId = lookupCollectionFromInternalId("${COLLECTION_HOME_PREFIX}${components[1]}")
+                        val collectionId = lookupCollectionFromInternalId("${COLLECTION_HOME_PREFIX}${components[1]}").id
                         append(collectionId)
                         startIdx = 2
                     }
@@ -239,7 +236,7 @@ class PathConverter(
                         if (components.size <= 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError)
                         if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
                             val collectionId = lookupCollectionFromInternalId("$COLLECTION_PROJECT_MEMBER_PREFIX" +
-                                    "${components[1]}/${components[3]}")
+                                    "${components[1]}/${components[3]}").id
                             append(collectionId)
                             startIdx = 4
                         } else {
@@ -249,7 +246,7 @@ class PathConverter(
 
                             val collectionId = lookupCollectionFromInternalId(
                                 "${COLLECTION_PROJECT_PREFIX}${components[1]}/${components[2]}"
-                            )
+                            ).id
                             append(collectionId)
                             startIdx = 3
                         }

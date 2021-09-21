@@ -1,6 +1,6 @@
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as UF from "UtilityFunctions";
-import {ProjectName} from "Project";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import * as UF from "@/UtilityFunctions";
+import {ProjectName} from "@/Project";
 
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.

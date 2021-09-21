@@ -21,6 +21,7 @@ data class Payment(
     val owner: WalletOwner,
     val product: ProductReference,
     val description: String? = null,
+    val transactionId: String? = null,
 )
 
 class PaymentService(
@@ -43,8 +44,7 @@ class PaymentService(
                     it.product,
                     it.performedBy,
                     it.description ?: "Payment",
-                   // TODO(CREATE A BETTER WAY FOR ID OF TRANSACTION)
-                    "${it.product.provider}-${UUID.randomUUID()}"
+                    "${it.product.provider}-${it.chargeId}"
                 )
             }),
             serviceClient

@@ -1,8 +1,8 @@
 import * as React from "react";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import FacialHair from "./facialHair";
 import HatColor from "./HatColor";
-import {HairProps} from "UserSettings/AvatarOptions";
+import {HairProps} from "@/UserSettings/AvatarOptions";
 
 export default class WinterHat1 extends React.Component<HairProps> {
   public static optionValue = "WinterHat1";

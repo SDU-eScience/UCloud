@@ -1,9 +1,9 @@
 import * as React from "react"
-import {generateId as uniqueId} from "UtilityFunctions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 import FacialHair from "./facialHair"
 import HairColor from "./HairColor"
-import {HairProps} from "UserSettings/AvatarOptions";
+import {HairProps} from "@/UserSettings/AvatarOptions";
 
 export default class LongHairStraightStrand extends React.Component<HairProps> {
   public static optionValue = "LongHairStraightStrand";

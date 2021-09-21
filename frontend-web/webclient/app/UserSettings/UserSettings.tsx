@@ -1,17 +1,17 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {ChangePassword} from "UserSettings/ChangePassword";
-import {Sessions} from "UserSettings/Sessions";
+import {Box, Flex} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {ChangePassword} from "@/UserSettings/ChangePassword";
+import {Sessions} from "@/UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
-import {ChangeUserDetails} from "UserSettings/ChangeUserDetails";
-import {ChangeEmailSettings} from "UserSettings/ChangeEmailSettings";
+import {ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
+import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 
 interface UserSettingsState {
     headerLoading: boolean;

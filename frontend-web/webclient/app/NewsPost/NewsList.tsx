@@ -1,19 +1,19 @@
 import * as React from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import * as Heading from "ui-components/Heading";
-import {Link, Text, Flex, Box, Icon, theme, Grid} from "ui-components";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {NewsPost} from "Dashboard/Dashboard";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {emptyPage} from "DefaultObjects";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import * as Heading from "@/ui-components/Heading";
+import {Link, Text, Flex, Box, Icon, theme, Grid} from "@/ui-components";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {emptyPage} from "@/DefaultObjects";
 import {useParams} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Pagination from "Pagination";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Pagination from "@/Pagination";
 import {format} from "date-fns/esm";
-import {Tag, hashF, appColor} from "Applications/Card";
-import {capitalized} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {Tag, hashF, appColor} from "@/Applications/Card";
+import {capitalized} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;

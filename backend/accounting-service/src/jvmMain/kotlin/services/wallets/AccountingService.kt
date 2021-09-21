@@ -69,7 +69,7 @@ class AccountingService(
                     )
                     select accounting.charge(array_agg(req))
                     from requests;
-                """, debug = true
+                """
             ).rows.forEach {
                 val res = it[0] as? Int
                 if (res != null) {
@@ -204,7 +204,7 @@ class AccountingService(
                     )
                     select accounting.deposit(array_agg(req))
                     from requests
-                """, debug = true
+                """
             )
 
             session.sendPreparedStatement(
@@ -437,7 +437,7 @@ class AccountingService(
                     )
                     select accounting.credit_check(array_agg(req))
                     from requests;
-                """, debug = true
+                """
             ).rows
                 .forEach {
                     if (!it.getBoolean(0)!!) {

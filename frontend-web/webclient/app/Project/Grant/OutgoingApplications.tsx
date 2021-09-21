@@ -1,22 +1,22 @@
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPageV2} from "DefaultObjects";
-import * as Heading from "ui-components/Heading";
-import {ListV2 as PaginationList} from "Pagination";
-import {MainContainer} from "MainContainer/MainContainer";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPageV2} from "@/DefaultObjects";
+import * as Heading from "@/ui-components/Heading";
+import {ListV2 as PaginationList} from "@/Pagination";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import {GrantApplication, GrantApplicationFilter, grantApplicationFilterPrettify, listOutgoingApplications} from ".";
 import {GrantApplicationList} from "./IngoingApplications";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {Box, Button, Flex, Label, Link} from "ui-components";
-import {Center} from "UtilityComponents";
-import {TextP} from "ui-components/Text";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
+import {Box, Button, Flex, Label, Link} from "@/ui-components";
+import {Center} from "@/UtilityComponents";
+import {TextP} from "@/ui-components/Text";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
-import {PageV2} from "UCloud";
-import {useEffectSkipMount} from "UtilityFunctions";
+import {PageV2} from "@/UCloud";
+import {useEffectSkipMount} from "@/UtilityFunctions";
 
 export const FilterTrigger = styled.div`
     user-select: none;

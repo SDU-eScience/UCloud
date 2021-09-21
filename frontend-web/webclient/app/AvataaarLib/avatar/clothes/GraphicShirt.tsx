@@ -1,6 +1,6 @@
 import * as React from "react";
-import {ClothesGraphic, ColorFabric} from "UserSettings/AvatarOptions";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {ClothesGraphic, ColorFabric} from "@/UserSettings/AvatarOptions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 import Colors from "./Colors";
 import Graphics from "./Graphics";
 

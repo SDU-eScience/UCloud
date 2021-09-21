@@ -408,6 +408,10 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>,
                     response: BulkResponse<FindByStringId?>
                 ) {
+                    if (response.responses.any { it?.id?.contains(",") == true }) {
+                        throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadGateway)
+                    }
+
                     (ctx as? AsyncDBConnection ?: db).withSession { session ->
                         session
                             .sendPreparedStatement(
@@ -780,6 +784,10 @@ abstract class ResourceService<
 
         providers.verifyProvider(provider, actorAndProject.actor)
 
+        if (request.items.any { it.providerGeneratedId?.contains(",") == true }) {
+            throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
+        }
+
         return BulkResponse(db.withSession { session ->
             val generatedIds = session
                 .sendPreparedStatement(
@@ -918,6 +926,7 @@ abstract class ResourceService<
                 },
                 resource.specification.product,
                 reqItem.description,
+                reqItem.chargeId
             )
         }
 
@@ -975,7 +984,16 @@ abstract class ResourceService<
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
-                setParameter("filter_provider_id", flags?.filterProviderId ?: simpleFlags?.filterProviderId)
+                setParameter(
+                    "filter_provider_ids",
+                    (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
+                )
+                setParameter(
+                    "filter_ids", 
+                    (flags?.filterIds ?: simpleFlags?.filterIds)?.let { ids ->
+                        ids.split(",").mapNotNull { it.toLongOrNull() }
+                    }
+                )
             },
             buildString {
                 append(
@@ -1064,7 +1082,11 @@ abstract class ResourceService<
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
-                          (:filter_provider_id::text is null or r.provider_generated_id = :filter_provider_id::text)
+                          (
+                              :filter_provider_ids::text[] is null or
+                              r.provider_generated_id = some(:filter_provider_ids::text[])
+                          ) and
+                          (:filter_ids::bigint[] is null or r.id = some(:filter_ids::bigint[]))
                                         
                     """
                 )
@@ -1140,7 +1162,6 @@ abstract class ResourceService<
                         order by
                             resc.category, resc.name, spec.$sortBy $sortDirection
                     """,
-                    debug = true,
                 )
             },
             mapper = { _, rows ->

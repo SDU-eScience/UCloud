@@ -6,17 +6,17 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {BulkRequest, compute} from "UCloud/index";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
-import {EnumFilter} from "Resource/Filter";
-import {JobBinding} from "UCloud/JobsApi";
+} from "@/UCloud/ResourceApi";
+import {BulkRequest, compute} from "@/UCloud/index";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Icon} from "@/ui-components";
+import {EnumFilter} from "@/Resource/Filter";
+import {JobBinding} from "@/UCloud/JobsApi";
 import PortRangeAndProto = compute.PortRangeAndProto;
-import {ResourceProperties} from "Resource/Properties";
-import {FirewallEditor} from "Applications/NetworkIP/FirewallEditor";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductNetworkIP} from "Accounting";
+import {ResourceProperties} from "@/Resource/Properties";
+import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductNetworkIP} from "@/Accounting";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;

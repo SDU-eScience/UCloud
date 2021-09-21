@@ -1,10 +1,10 @@
 import styled from "styled-components";
 import Box from "./Box";
 import * as React from "react";
-import {IconName} from "ui-components/Icon";
-import {Icon} from "ui-components/index";
+import {IconName} from "@/ui-components/Icon";
+import {Icon} from "@/ui-components/index";
 import {ThemeColor} from "./theme";
-import {Cursor} from "ui-components/Types";
+import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 
 type StringOrNumber = string | number;

@@ -8,26 +8,25 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Flex, Icon, RadioTile, RadioTilesContainer} from "ui-components";
-import {ItemRenderer} from "ui-components/Browse";
-import {Product} from "Accounting";
-import {PrettyFilePath} from "Files/FilePath";
-import {Operation} from "ui-components/Operation";
-import {Client} from "Authentication/HttpClientInstance";
-import {accounting, BulkRequest, FindByStringId, PaginationRequest, PaginationRequestV2} from "UCloud/index";
-import {apiBrowse, apiUpdate} from "Authentication/DataHook";
-import {bulkRequestOf} from "DefaultObjects";
-import {fileName} from "Utilities/FileUtilities";
-import {Avatar} from "AvataaarLib";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {doNothing, prettierString, preventDefault, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
-import {useCallback, useEffect, useState} from "react";
+} from "@/UCloud/ResourceApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Flex, Icon, RadioTile, RadioTilesContainer} from "@/ui-components";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {Product} from "@/Accounting";
+import {PrettyFilePath} from "@/Files/FilePath";
+import {Operation} from "@/ui-components/Operation";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
+import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {fileName} from "@/Utilities/FileUtilities";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {preventDefault, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
+import {useCallback, useState} from "react";
 import ProductReference = accounting.ProductReference;
-import {TextPill, ValuePill} from "Resource/Filter";
-import {useAvatars} from "AvataaarLib/hook";
+import {ValuePill} from "@/Resource/Filter";
+import {useAvatars} from "@/AvataaarLib/hook";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;

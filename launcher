@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys, tty, subprocess, shutil, termios, signal
+import sys, tty, subprocess, shutil, termios, signal, os
 
 print("UCloud Launcher v2021.2.0")
 print()
@@ -30,6 +30,8 @@ tty.setcbreak(sys.stdin.fileno())
 frontend = False
 backend = False
 integrationModule = False
+
+os.makedirs('.compose', exist_ok=True)
 
 def printCheckbox(value):
 	if value:

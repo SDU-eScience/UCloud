@@ -1,6 +1,6 @@
-import {BulkRequest, PaginationRequestV2} from "UCloud/index";
-import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiUpdate} from "Authentication/DataHook";
-import {FileMetadataTemplate} from "UCloud/MetadataNamespaceApi";
+import {BulkRequest, PaginationRequestV2} from "@/UCloud/index";
+import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
 
 export type FileMetadataDocumentOrDeleted = FileMetadataDocument | FileMetadataDocumentDeleted;
 

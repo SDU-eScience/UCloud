@@ -1,21 +1,21 @@
-import {WSFactory} from "Authentication/HttpClientInstance";
-import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
-import DetailedTask from "BackgroundTasks/DetailedTask";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {Progress, Speed, Task, TaskUpdate} from "@/BackgroundTasks/api";
+import DetailedTask from "@/BackgroundTasks/DetailedTask";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import styled from "styled-components";
-import {Icon} from "ui-components";
-import Box from "ui-components/Box";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import Flex from "ui-components/Flex";
-import IndeterminateProgressBar from "ui-components/IndeterminateProgress";
-import ProgressBar from "ui-components/Progress";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {associateBy, takeLast} from "Utilities/CollectionUtilities";
+import {Icon} from "@/ui-components";
+import Box from "@/ui-components/Box";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import Flex from "@/ui-components/Flex";
+import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
+import ProgressBar from "@/ui-components/Progress";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {
