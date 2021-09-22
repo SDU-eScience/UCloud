@@ -235,7 +235,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
     return (
         <LoginWrapper>
-            <Flex mr="45px">
+            <Flex>
                 <LoginBox width="315px">
                     {enabledWayf && !challengeId && !isPasswordReset ? (
                         <a href={`/auth/saml/login?service=${service}`}>
