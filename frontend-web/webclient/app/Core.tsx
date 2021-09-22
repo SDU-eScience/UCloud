@@ -19,7 +19,6 @@ import JobVnc from "@/Applications/Jobs/Vnc";
 import LandingPage from "@/Project/Grant/LandingPage";
 import LicenseServers from "@/Admin/LicenseServers";
 import LoginPage from "@/Login/Login";
-import LoginSelection from "@/Login/LoginSelection";
 import NewsList from "@/NewsPost/NewsList";
 import NewsManagement from "@/Admin/NewsManagement";
 import OutgoingApplications from "@/Project/Grant/OutgoingApplications";
@@ -62,7 +61,6 @@ import {History} from "history";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import CONF from "../site.config.json";
 import JobRouter from "@/Applications/Jobs/NewApi";
 import {Debugger} from "@/Debug/Debugger";
 import Header from "@/Navigation/Header";
@@ -90,10 +88,6 @@ const Core = (): JSX.Element => (
             <React.Suspense fallback={<div>Loading</div>}>
                 <Switch>
                     <Route exact path="/login" component={LoginPage} />
-                    {inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
-                        <Route exact path="/login/selection" component={LoginSelection} /> :
-                        <Route exact path="/login/selection" component={LoginPage} />
-                    }
                     <Route exact path="/loginSuccess" component={LoginSuccess} />
                     <Route exact path="/login/wayf" component={Wayf} />
                     <Route exact path="/" component={requireAuth(Dashboard)} />

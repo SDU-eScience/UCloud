@@ -1,8 +1,4 @@
 {
-    "LOGIN_PAGE_PRODUCTS": [
-        {"name": "UCloud", "site": "/app/login"},
-        {"name": "Claaudia", "site": "https://strato.claaudia.aau.dk/auth/login/?next=/"}
-    ],
     "LOGIN_PRODUCT_NAME": "DeiC Type 1 HPC",
     "PRODUCT_NAME": "UCloud",
     "VERSION_TEXT": "",

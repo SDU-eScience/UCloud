@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
-import {HeaderStateToProps} from "Navigation";
+import {HeaderStateToProps} from "@/Navigation";
 import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
 import Notification from "@/Notifications";
 import {usePromiseKeeper} from "@/PromiseKeeper";
