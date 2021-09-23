@@ -1,8 +1,13 @@
 package dk.sdu.cloud.calls.client
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
+
+object FakeOutgoingCall : OutgoingCall {
+    override val attributes: AttributeContainer = AttributeContainer()
+}
 
 sealed class IngoingCallResponse<S : Any, E : Any> {
     abstract val statusCode: HttpStatusCode

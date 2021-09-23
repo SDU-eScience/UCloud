@@ -5,6 +5,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.FakeOutgoingCall
+import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import io.ktor.http.*
@@ -121,6 +123,7 @@ data class FilesCreateDownloadResponseItem(var endpoint: String)
 
 // ---
 
+@UCloudApiStable
 object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
     FSSupport>("files") {
     override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
@@ -138,6 +141,65 @@ types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain 
 natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
 of bytes.
 """
+    }
+
+    override fun examples() {
+        useCase(
+            "Renaming a file",
+            trigger = "User-initiated action, typically though the user-interface",
+            preConditions = listOf(
+                "A file present at /123/my/file",
+                "The user has EDIT permissions on the file"
+            ),
+            postConditions = listOf(
+                "The file is moved to /123/my/new_file"
+            ),
+            flow = {
+                val user = UseCaseNode.Actor("user", "An authenticated user")
+                add(user)
+                add(UseCaseNode.Call(
+                    move,
+                    bulkRequestOf(
+                        FilesMoveRequestItem("/123/my/file", "/123/my/new_file", WriteConflictPolicy.REJECT)
+                    ),
+                    IngoingCallResponse.Ok(
+                        FilesMoveResponse(listOf(LongRunningTask.Complete())),
+                        HttpStatusCode.OK,
+                        FakeOutgoingCall
+                    ),
+                    user
+                ))
+            }
+        )
+
+        useCase(
+            "Copying a file to itself",
+            trigger = "Use-initiated action, typically through the user-interface",
+            preConditions = listOf(
+                "A file present at /123/my/file",
+                "The user has EDIT permissions on the file",
+                "The provider supports RENAME for conflict policies"
+            ),
+            postConditions = listOf(
+                "A new file present at '/123/my/file (1)'"
+            ),
+            flow = {
+                val user = UseCaseNode.Actor("user", "An authenticated user")
+                add(user)
+                add(UseCaseNode.Call(
+                    copy,
+                    bulkRequestOf(
+                        FilesCopyRequestItem("/123/my/file", "/123/my/file", WriteConflictPolicy.RENAME)
+                    ),
+                    IngoingCallResponse.Ok(
+                        FilesMoveResponse(listOf(LongRunningTask.Complete())),
+                        HttpStatusCode.OK,
+                        FakeOutgoingCall
+                    ),
+                    user
+                ))
+            }
+        )
     }
 
     /*

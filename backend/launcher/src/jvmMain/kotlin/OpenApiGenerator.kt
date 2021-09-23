@@ -91,41 +91,6 @@ fun runOpenApiGenerator(args: Array<String>? = null) {
     exitProcess(0)
 }
 
-private fun badge(
-    label: String,
-    message: String,
-    color: String,
-    altText: String = "$label: $message",
-): String {
-    return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
-}
-
-private fun apiMaturityBadge(level: UCloudApiMaturity): String {
-    val label = "API"
-    fun normalizeEnum(enum: Enum<*>): String {
-        return enum.name.toLowerCase().capitalize()
-    }
-    return when (level) {
-        is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
-        is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
-        UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
-        else -> error("unknown level")
-    }
-}
-
-private fun rolesBadge(roles: Set<Role>): String {
-    val message = when (roles) {
-        Roles.AUTHENTICATED -> "Authenticated"
-        Roles.PRIVILEGED -> "Services"
-        Roles.END_USER -> "Users"
-        Roles.ADMIN -> "Admin"
-        Roles.PUBLIC -> "Public"
-        Roles.PROVIDER -> "Provider"
-        else -> roles.joinToString(", ")
-    }
-
-    return badge("Auth", message, "informational")
-}
 
 private fun writeSpecification(
     knownCalls: MutableList<CallDescription<*, *, *>>,

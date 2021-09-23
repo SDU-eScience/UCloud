@@ -78,9 +78,21 @@ private fun makeSureEverythingIsLoaded() {
 
 sealed class Chapter {
     abstract val title: String
+    abstract var path: List<Chapter.Node>
 
-    data class Node(override val title: String, val children: List<Chapter>) : Chapter()
-    data class Feature(override val title: String, val container: CallDescriptionContainer) : Chapter()
+    data class Node(override val title: String, val children: List<Chapter>) : Chapter() {
+        override var path: List<Chapter.Node> = emptyList()
+    }
+    data class Feature(override val title: String, val container: CallDescriptionContainer) : Chapter() {
+        override var path: List<Chapter.Node> = emptyList()
+    }
+}
+
+fun Chapter.addPaths(path: List<Chapter.Node> = emptyList()) {
+    this.path = path
+    if (this !is Chapter.Node) return
+    val newPath = path + listOf(this)
+    children.forEach { it.addPaths(newPath) }
 }
 
 fun main() {
@@ -347,21 +359,29 @@ fun main() {
             )
         )
     )
+    structure.addPaths()
 
     var previousSection: Chapter? = null
     val stack = LinkedList<Chapter?>(listOf(structure))
 
     while (true) {
         val chapter = stack.pollFirst() ?: break
-        println(chapter)
         when (chapter) {
             is Chapter.Feature -> {
+                chapter.container.examples()
                 val nextSection = stack.peek()
                 val types = LinkedHashMap<String, GeneratedType>()
                 val calls = generateCalls(chapter.container, types)
 
-                println("Success! $chapter")
-//                generateMarkdown(previousSection, nextSection, types, calls, )
+                generateMarkdown(
+                    previousSection,
+                    nextSection,
+                    chapter.path,
+                    types,
+                    calls,
+                    chapter.title,
+                    chapter.container,
+                )
             }
 
             is Chapter.Node -> {
