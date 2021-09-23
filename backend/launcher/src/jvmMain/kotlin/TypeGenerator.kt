@@ -2,20 +2,11 @@ package dk.sdu.cloud
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiInternal
-import dk.sdu.cloud.calls.UCloudApiMaturity
-import dk.sdu.cloud.calls.UCloudApiStable
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.JsonObject
-import java.lang.reflect.Field
-import java.lang.reflect.GenericArrayType
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
+import java.lang.reflect.*
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.reflect.KClass
@@ -25,7 +16,6 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.superclasses
 import kotlin.reflect.javaType
 import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.jvmName
 
 sealed class GeneratedTypeReference {
     abstract var nullable: Boolean
@@ -57,7 +47,7 @@ sealed class GeneratedTypeReference {
     data class ConstantString(val value: String) : GeneratedTypeReference() {
         override var nullable: Boolean = false
             set(value) {
-                error("Cannot change the nullability of a constant string")
+                field = false
             }
     }
 
@@ -65,20 +55,6 @@ sealed class GeneratedTypeReference {
     data class Any(override var nullable: Boolean = false) : GeneratedTypeReference()
 }
 
-data class ResponseExample(val statusCode: Int, val description: String)
-data class UseCaseReference(val usecase: String, val description: String)
-
-data class GeneratedRemoteProcedureCall(
-    val requestType: GeneratedTypeReference,
-    val responseType: GeneratedTypeReference,
-    val errorType: GeneratedTypeReference,
-    val namespace: String,
-    val name: String,
-    val roles: Set<Role>,
-    val responseExamples: List<ResponseExample>,
-    val useCaseReferences: List<UseCaseReference>,
-    val doc: Documentation,
-)
 
 data class Documentation(
     val deprecated: Boolean,
@@ -125,7 +101,7 @@ sealed class GeneratedType {
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>): GeneratedTypeReference {
+fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>): GeneratedTypeReference {
     when (type) {
         is GenericArrayType -> {
             return GeneratedTypeReference.Array(traverseType(type.genericComponentType, visitedTypes))
@@ -149,49 +125,19 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
 
                     val initialType = traverseType(type.rawType, visitedTypes)
                     if (initialType !is GeneratedTypeReference.Structure) error("Expected raw type to be a struct")
-                    val rawComputedType = initialType.copy(properties = HashMap(initialType.properties))
+                    val qualifiedName = (type.rawType as Class<*>).canonicalName
 
-                    val actualTypeArgs = type.actualTypeArguments.map { traverseType(it, visitedTypes) }
-                    val typeParams = rawType.typeParameters
-
-                    for (entry in rawComputedType.properties.entries) {
-                        val value = entry.value
-                        if (value is ComputedType.Array && value.itemType is ComputedType.Generic) {
-                            val typeIdx = typeParams.indexOfFirst { it.name == value.itemType.id }
-                            if (typeIdx == -1) error("type idx is -1")
-                            val newValue = actualTypeArgs[typeIdx].asRef()
-                            entry.setValue(ComputedType.Array(newValue).apply {
-                                documentation = entry.value.documentation
-                                nullable = entry.value.nullable
-                                optional = entry.value.optional
-                                deprecated = entry.value.deprecated
-                            })
-                        } else if (value is ComputedType.Generic) {
-                            val typeIdx = typeParams.indexOfFirst { it.name == value.id }
-                            if (typeIdx == -1) error("type idx is -1")
-                            val newValue = actualTypeArgs[typeIdx].asRef()
-                            entry.setValue(newValue)
-                        } else if (value is ComputedType.Dictionary && value.itemType is ComputedType.Generic) {
-                            val typeIdx = typeParams.indexOfFirst { it.name == value.itemType.id }
-                            if (typeIdx == -1) error("type idx is -1")
-                            val newValue = actualTypeArgs[typeIdx].asRef()
-                            entry.setValue(ComputedType.Dictionary(newValue).apply {
-                                documentation = entry.value.documentation
-                                nullable = entry.value.nullable
-                                optional = entry.value.optional
-                                deprecated = entry.value.deprecated
-                            })
-                        }
+                    val actualTypeArgs = type.actualTypeArguments.map {
+                        traverseType(it, visitedTypes)
                     }
 
-                    return rawComputedType
+                    return GeneratedTypeReference.Structure(qualifiedName, actualTypeArgs)
                 }
             }
         }
-        /*
 
         is TypeVariable<*> -> {
-            return ComputedType.Generic(type.name)
+            return GeneratedTypeReference.Structure(type.name)
         }
 
         is WildcardType -> {
@@ -199,10 +145,12 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
             return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
         }
 
-        */
-
         JsonObject::class.java -> {
             return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
+        }
+
+        java.lang.Byte::class.java, Byte::class.java -> {
+            return GeneratedTypeReference.Int8()
         }
 
         java.lang.Short::class.java, Short::class.java -> {
@@ -241,8 +189,12 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
             val qualifiedName = type.canonicalName
             val existing = visitedTypes[qualifiedName]
             if (existing != null) return GeneratedTypeReference.Structure(qualifiedName)
-
             val doc = type.documentation()
+
+            if (type.isArray) {
+                val componentType = traverseType(type.componentType, visitedTypes)
+                return GeneratedTypeReference.Array(componentType)
+            }
 
             if (type.isEnum) {
                 visitedTypes[qualifiedName] = GeneratedType.Enum(
@@ -250,8 +202,8 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
                     doc,
                     type.enumConstants.map {
                         val name = (it as Enum<*>).name
-                        val field = type.getField(name)!!
-                        GeneratedType.EnumOption(name, field.documentation())
+                        val field = type.getField(name)
+                        GeneratedType.EnumOption(name, field.documentation(doc.maturity))
                     }
                 )
 
@@ -259,16 +211,22 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
             }
 
             if (type == Unit::class.java || type == Any::class.java) {
-                return GeneratedTypeReference.Void()
+                return GeneratedTypeReference.Any()
             }
+
+            // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
+            // so it doesn't have to be correct.
+            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList())
 
             val properties = ArrayList<GeneratedType.Property>()
             val generics = ArrayList<String>()
-            val struct = GeneratedType.Struct(qualifiedName, doc, properties)
-            visitedTypes[qualifiedName] = struct
 
             if (type.isKotlinClass()) {
                 val kotlinType = type.kotlin
+
+                kotlinType.typeParameters.forEach { typeParam ->
+                    generics.add(typeParam.name)
+                }
 
                 kotlinType.primaryConstructor?.parameters?.forEach { prop ->
                     if (prop.name == null) return@forEach
@@ -291,9 +249,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
 
                     val propType = traverseType(prop.type.javaType, visitedTypes)
 
-                    val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()?.documentation
-                    val synopsis = propApiDoc?.substringBefore('\n')
-                    val description = propApiDoc?.substringAfter('\n')
+                    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
 
                     var propName = prop.name!!
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
@@ -318,7 +274,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
                             stableMaturity != null -> UCloudApiMaturity.Stable
                             experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
                             internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
-                            else -> UCloudApiMaturity.Internal(UCloudApiMaturity.Internal.Level.BETA)
+                            else -> doc.maturity
                         }
                     }
 
@@ -330,23 +286,21 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
                 }
 
                 // Almost the identical code for the properties which are not part of the primary constructor.
-                // The code is unfortunately not easily refactorable due to slightly different types.
+                // The code is unfortunately not easily refactored due to slightly different types.
                 kotlinType.memberProperties.forEach { prop ->
                     if (properties.any { it.name == prop.name }) return@forEach
 
                     val javaFieldAnnotations = prop.javaField?.annotations?.toList() ?: emptyList()
-                    val getterAnnotations = prop.getter?.annotations ?: emptyList()
+                    val getterAnnotations = prop.getter.annotations
                     val annotations: Set<Annotation> =
                         (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
 
                     val propType = traverseType(prop.returnType.javaType, visitedTypes)
 
-                    val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()?.documentation
-                    val synopsis = propApiDoc?.substringBefore('\n')
-                    val description = propApiDoc?.substringAfter('\n')
+                    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
 
-                    var propName = prop.name!!
+                    var propName = prop.name
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
                     if (jsonPropAnnotation != null) {
                         propName = jsonPropAnnotation.value
@@ -391,7 +345,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
                 }
 
                 if (kotlinType.isSealed) {
-                    val options = kotlinType.sealedSubclasses.mapNotNull {
+                    val options = kotlinType.sealedSubclasses.map {
                         traverseType(it.java, visitedTypes)
                     }
 
@@ -404,7 +358,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
                 visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics)
                 return GeneratedTypeReference.Structure(qualifiedName)
             } else {
-                TODO("Non-primitive and non-kotlin class $type")
+                TODO("Non-primitive and non-kotlin class $type ${type::class}")
             }
         }
 
@@ -412,7 +366,6 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Generat
             error("Unknown thing: $type")
         }
     }
-    TODO()
 }
 
 inline fun <reified T : Annotation> Class<*>.findAnnotation(): T? {
@@ -436,9 +389,7 @@ inline fun <reified T : Annotation> Class<*>.findAnnotation(): T? {
 
 fun Class<*>.documentation(): Documentation {
     val type = this
-    val documentation = type.findAnnotation<UCloudApiDoc>()?.documentation
-    val synopsis = documentation?.split("\n")?.getOrNull(0)
-    val description = documentation?.substringAfter('\n')
+    val (synopsis, description) = type.findAnnotation<UCloudApiDoc>().split()
     val deprecated = type.findAnnotation<Deprecated>() != null
     val maturity = run {
         val internalMaturity = type.findAnnotation<UCloudApiInternal>()
@@ -456,10 +407,8 @@ fun Class<*>.documentation(): Documentation {
     return Documentation(deprecated, maturity, synopsis, description)
 }
 
-fun Field.documentation(): Documentation {
-    val documentation = annotations.filterIsInstance<UCloudApiDoc>()?.firstOrNull()?.documentation
-    val synopsis = documentation?.split("\n")?.getOrNull(0)
-    val description = documentation?.substringAfter('\n')
+fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
+    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
     val deprecated = annotations.filterIsInstance<Deprecated>().firstOrNull() != null
     val maturity = run {
         val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
@@ -470,13 +419,90 @@ fun Field.documentation(): Documentation {
             stableMaturity != null -> UCloudApiMaturity.Stable
             experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
             internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
-            else -> UCloudApiMaturity.Internal(UCloudApiMaturity.Internal.Level.BETA)
+            else -> defaultMaturity
         }
     }
 
     return Documentation(deprecated, maturity, synopsis, description)
 }
 
-fun runGenerator() {
+data class SynopsisAndDescription(val synopsis: String?, val description: String?)
 
+fun UCloudApiDoc?.split(): SynopsisAndDescription {
+    if (this == null) return SynopsisAndDescription(null, null)
+    val normalized = documentation.trimIndent()
+    return SynopsisAndDescription(
+        normalized.substringBefore('\n'),
+        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() }
+    )
+}
+
+@UCloudApiStable
+@UCloudApiDoc("Testing")
+enum class MyEnum {
+    @UCloudApiDoc("""
+        This is the first option
+        
+        Further explanation goes here
+    """)
+    A,
+    @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
+    @UCloudApiDoc("This one is in beta")
+    B,
+    @UCloudApiDoc("You should not use this")
+    @Deprecated("Do not use this")
+    C
+}
+
+@UCloudApiStable
+@UCloudApiDoc("Docs")
+data class SimpleClass(
+    val byte: Byte,
+    val short: Short,
+    @UCloudApiStable
+    @UCloudApiDoc("Int docs")
+    val int: Int,
+    val long: Long,
+    val float: Float,
+    val double: Double,
+    val string: String,
+    val void: Unit,
+    val any: Any,
+    val json: JsonObject,
+    val nullable: Any?,
+    val selfReference: SimpleClass?,
+)
+
+data class CollectionTest(
+    val listTest: List<Any?>,
+    val setTest: Set<Any?>,
+    val mapTest: Map<String, Any?>,
+)
+
+data class GenericUsageTest(
+    val request: BulkRequest<JsonObject>
+)
+
+sealed class MySealedClass {
+    abstract val myInt: Int
+    @SerialName("a")
+    class A(override val myInt: Int, val myText: String) : MySealedClass()
+
+    @SerialName("b")
+    class B(override val myInt: Int, val myBoolean: Boolean) : MySealedClass()
+}
+
+fun runGenerator() {
+    val visitedTypes = LinkedHashMap<String, GeneratedType>()
+    println(traverseType(MySealedClass::class.java, visitedTypes))
+
+    for ((key, value) in visitedTypes) {
+        println(key)
+        println(value)
+        println("================================================================================")
+    }
+}
+
+fun main() {
+    runGenerator()
 }
