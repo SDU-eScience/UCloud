@@ -67,7 +67,6 @@ class PaymentService(
                         product,
                         "_ucloud",
                         "Credit check",
-                        // TODO(CREATE A BETTER WAY FOR ID OF TRANSACTION)
                         "${product.provider}-${UUID.randomUUID()}"
                     )
                 }

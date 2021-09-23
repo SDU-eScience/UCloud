@@ -11,37 +11,7 @@ import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.grant.api.ApplicationStatus
-import dk.sdu.cloud.grant.api.ApplicationWithComments
-import dk.sdu.cloud.grant.api.ApproveApplicationRequest
-import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
-import dk.sdu.cloud.grant.api.BrowseProjectsRequest
-import dk.sdu.cloud.grant.api.CloseApplicationRequest
-import dk.sdu.cloud.grant.api.CommentOnApplicationRequest
-import dk.sdu.cloud.grant.api.DKK
-import dk.sdu.cloud.grant.api.DeleteCommentRequest
-import dk.sdu.cloud.grant.api.EditApplicationRequest
-import dk.sdu.cloud.grant.api.FetchDescriptionRequest
-import dk.sdu.cloud.grant.api.FetchDescriptionResponse
-import dk.sdu.cloud.grant.api.FetchLogoRequest
-import dk.sdu.cloud.grant.api.GrantRecipient
-import dk.sdu.cloud.grant.api.Grants
-import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
-import dk.sdu.cloud.grant.api.IngoingApplicationsRequest
-import dk.sdu.cloud.grant.api.IsEnabledRequest
-import dk.sdu.cloud.grant.api.OutgoingApplicationsRequest
-import dk.sdu.cloud.grant.api.ReadRequestSettingsRequest
-import dk.sdu.cloud.grant.api.ReadTemplatesRequest
-import dk.sdu.cloud.grant.api.RejectApplicationRequest
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.SetEnabledStatusRequest
-import dk.sdu.cloud.grant.api.SubmitApplicationRequest
-import dk.sdu.cloud.grant.api.UploadDescriptionRequest
-import dk.sdu.cloud.grant.api.UploadLogoRequest
-import dk.sdu.cloud.grant.api.UploadRequestSettingsRequest
-import dk.sdu.cloud.grant.api.UploadTemplatesRequest
-import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.grant.api.ViewApplicationRequest
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.assertUserError
@@ -66,6 +36,7 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class GrantTest : IntegrationTest() {
@@ -76,6 +47,176 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
+
+        run {
+            class In(
+                val uploadSettings: ProjectApplicationSettings,
+                val resourceRequests: List<ResourceRequest>
+            )
+            class Out(
+                val applicationStatus: ApplicationStatus
+            )
+
+            test<In, Out>("Auto approval tests") {
+                execute {
+                    val pi = createUser("userPI")
+                    val applier = createUser("userApply", email = "mojn@schulz.dk")
+                    createSampleProducts()
+
+                    val root = initializeRootProject(pi.username)
+
+                    Grants.setEnabledStatus.call(
+                        SetEnabledStatusRequest(
+                            root,
+                            true
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+                    Grants.uploadRequestSettings.call(
+                        input.uploadSettings,
+                        pi.client.withProject(root)
+                    ).orThrow()
+
+                    val applicationId = Grants.submitApplication.call(
+                        SubmitApplicationRequest(
+                            root,
+                            GrantRecipient.NewProject("Say hello to my little friend"),
+                            "I would like resources",
+                            input.resourceRequests
+                        ),
+                        applier.client
+                    ).orThrow().id
+
+                    val appStatus = Grants.viewApplication.call(
+                        ViewApplicationRequest(applicationId),
+                        applier.client
+                    ).orThrow().application.status
+
+                    Out(appStatus)
+                }
+                case("auto approve full fail check") {
+                    input(
+                        In(
+                            uploadSettings = (
+                                ProjectApplicationSettings(
+                                    automaticApproval = AutomaticApprovalSettings(
+                                        listOf(
+                                            UserCriteria.EmailDomain("wrong.dk")
+                                        ),
+                                        listOf(
+                                            ResourceRequest(
+                                                sampleCompute.category.name,
+                                                sampleCompute.category.provider,
+                                                1000
+                                            ),
+                                            ResourceRequest(
+                                                sampleStorage.category.name,
+                                                sampleStorage.category.provider,
+                                                500
+                                            )
+                                        )
+                                    ),
+                                    allowRequestsFrom = listOf(UserCriteria.Anyone()),
+                                    excludeRequestsFrom = emptyList()
+                                )
+                            ),
+                            resourceRequests = listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    1200
+                                )
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(ApplicationStatus.IN_PROGRESS, output.applicationStatus)
+                    }
+                }
+
+                case("auto approve full accept check") {
+                    input(
+                        In(
+                            uploadSettings = (
+                                ProjectApplicationSettings(
+                                    automaticApproval = AutomaticApprovalSettings(
+                                        listOf(
+                                            UserCriteria.EmailDomain("schulz.dk")
+                                        ),
+                                        listOf(
+                                            ResourceRequest(
+                                                sampleCompute.category.name,
+                                                sampleCompute.category.provider,
+                                                1000
+                                            ),
+                                            ResourceRequest(
+                                                sampleStorage.category.name,
+                                                sampleStorage.category.provider,
+                                                500
+                                            )
+                                        )
+                                    ),
+                                    allowRequestsFrom = listOf(UserCriteria.Anyone()),
+                                    excludeRequestsFrom = emptyList()
+                                )
+                                ),
+                            resourceRequests = listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    800
+                                )
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(ApplicationStatus.APPROVED, output.applicationStatus)
+                    }
+                }
+
+                case("auto approve partial fail check") {
+                    input(
+                        In(
+                            uploadSettings = (
+                                ProjectApplicationSettings(
+                                    automaticApproval = AutomaticApprovalSettings(
+                                        listOf(
+                                            UserCriteria.EmailDomain("wrong.dk")
+                                        ),
+                                        listOf(
+                                            ResourceRequest(
+                                                sampleCompute.category.name,
+                                                sampleCompute.category.provider,
+                                                1000
+                                            ),
+                                            ResourceRequest(
+                                                sampleStorage.category.name,
+                                                sampleStorage.category.provider,
+                                                500
+                                            )
+                                        )
+                                    ),
+                                    allowRequestsFrom = listOf(UserCriteria.Anyone()),
+                                    excludeRequestsFrom = emptyList()
+                                )
+                                ),
+                            resourceRequests = listOf(
+                                ResourceRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    800
+                                )
+                            )
+                        )
+                    )
+                    check {
+                        assertEquals(ApplicationStatus.IN_PROGRESS, output.applicationStatus)
+                    }
+                }
+            }
+
+        }
 
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)

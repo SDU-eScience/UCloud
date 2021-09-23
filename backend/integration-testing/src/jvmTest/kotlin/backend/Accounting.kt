@@ -524,7 +524,7 @@ class AccountingTest : IntegrationTest() {
                 case("charge free to use") {
                     val freeCompute = Product.Compute(
                         "freeCompute",
-                        20L,
+                        1,
                         ProductCategoryId("ucloud", "ucloud"),
                         "new description",
                         freeToUse = true
@@ -551,14 +551,14 @@ class AccountingTest : IntegrationTest() {
                 case("charge free to use multiple items") {
                     val freeCompute = Product.Compute(
                         "freeCompute",
-                        20L,
+                        1,
                         ProductCategoryId("ucloud", "ucloud"),
                         "new description",
                         freeToUse = true
                     )
                     val freeQuota = Product.Storage(
                         "freeQuota",
-                        20L,
+                        1,
                         ProductCategoryId("ceph-quota", "ucloud"),
                         "new description",
                         freeToUse = true
@@ -589,14 +589,14 @@ class AccountingTest : IntegrationTest() {
                 case("charge mixed items (free and compute)") {
                     val freeCompute = Product.Compute(
                         "freeCompute",
-                        20L,
+                        1,
                         ProductCategoryId("ucloud", "ucloud"),
                         "new description",
                         freeToUse = true
                     )
                     val freeQuota = Product.Storage(
                         "freeQuota",
-                        20L,
+                        1,
                         ProductCategoryId("ceph-quota", "ucloud"),
                         "new description",
                         freeToUse = true
@@ -630,14 +630,14 @@ class AccountingTest : IntegrationTest() {
                     case("charge mixed items (not enough resources to charge)") {
                         val freeCompute = Product.Compute(
                             "freeCompute",
-                            20L,
+                            1,
                             ProductCategoryId("ucloud", "ucloud"),
                             "new description",
                             freeToUse = true
                         )
                         val freeQuota = Product.Storage(
                             "freeQuota",
-                            20L,
+                            1,
                             ProductCategoryId("ceph-quota", "ucloud"),
                             "new description",
                             freeToUse = true
