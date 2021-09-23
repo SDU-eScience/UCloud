@@ -243,107 +243,83 @@ class SyncthingClient(
     suspend fun writeConfig(toDevices: List<LocalSyncthingDevice> = emptyList()) {
         if (lock.acquire()) {
             mutex.withLock {
-                val localDevices = toDevices.ifEmpty {
+                val devices = toDevices.ifEmpty {
                     config.devices
                 }
 
-                val folders = SyncFolders.browse.call(
-                    ResourceBrowseRequest(
-                        SyncFolderIncludeFlags(filterDeviceId = localDevices.map { it.id })
-                    ),
-                    client
-                ).orThrow().items
-                println("SyncthingClient fetched ${folders.length} folders: $folders")
-
-                val devices = SyncDevices.browse.call(
-                    ResourceBrowseRequest(
-                        SyncDeviceIncludeFlags(filterOwner = folders.map { it.owner.createdBy })
-                    ),
-                    client
-                ).orThrow().items
-                println("SyncthingClient fetched ${devices.length} devices: ${devices}")
-
-
-
-                /*val result = db.withSession { session ->
+                val result = db.withSession { session ->
                     session.sendPreparedStatement(
                         {
                             setParameter("devices", devices.map { it.id })
                         },
                         """
-                               select resource, path, f.device_id as local_device_id, d.device_id
+                               select f.id, path, sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
                                from
-                                  file_orchestrator.sync_folders f join
-                                  file_orchestrator.sync_devices d on f.user_id = d.user_id
+                                  file_ucloud.sync_folders f join
+                                  file_ucloud.sync_devices d on f.user_id = d.user_id
                                where
                                   f.device_id in (select unnest(:devices::text[]))
                             """
                     )
-                }.rows*/
+                }.rows
 
-                data class SyncFolderWithDevices(
-                    val folder: SyncFolder,
-                    val devices: List<SyncDevice>,
-                    val localDeviceId: String?
-                )
-
-                val result = folders.map { folder ->
-                    SyncFolderWithDevices(
-                        folder,
-                        devices.filter { device -> device.owner.createdBy == folder.owner.createdBy },
-                        folder.status.deviceId
-                    )
-                }
-
-                localDevices.forEach { localDevice ->
+                devices.forEach { device ->
                     val newConfig = SyncthingConfig(
                         devices = result
                             .filter {
-                                it.localDeviceId == localDevice.id
+                                it.getString("local_device_id") == device.id
                             }
-                            .distinctBy { it.devices }
-                            .flatMap { it.devices }
-                            .toSet()
-                            .map { device ->
+                            .distinctBy { it.getField(SyncDevicesTable.device) }
+                            .map { row ->
                                 SyncthingDevice(
-                                    deviceID = device.id,
-                                    name = device.id
+                                    deviceID = row.getField(SyncDevicesTable.device),
+                                    name = row.getField(SyncDevicesTable.device)
                                 )
-                            } + listOf(SyncthingDevice(deviceID = localDevice.id, name = localDevice.name)),
+                            } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
                         folders = result
                             .filter {
-                                it.localDeviceId == localDevice.id
+                                it.getString("local_device_id") == device.id
                             }
-                            .distinctBy { it.folder.id }
-                            .map { folderWithDevices ->
+                            .distinctBy { it.getField(SyncFoldersTable.id) }
+                            .map { row ->
                                 SyncthingFolder(
-                                    id = folderWithDevices.folder.id,
-                                    label = folderWithDevices.folder.specification.path.substringAfterLast("/"),
-                                    devices = folderWithDevices.devices.map { SyncthingFolderDevice(it.specification.deviceId) },
-                                    path = File("/mnt/sync", folderWithDevices.folder.id).absolutePath,
-                                    type = folderWithDevices.folder.status.syncType?.syncthingValue
-                                        ?: SynchronizationType.SEND_ONLY.syncthingValue,
-                                    rescanIntervalS = localDevice.rescanIntervalSeconds
+                                    id = row.getField(SyncFoldersTable.id).toString(),
+                                    label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
+                                    devices = result
+                                        .filter {
+                                            it.getString("local_device_id") == device.id &&
+                                                it.getField(SyncFoldersTable.id) == row.getField(
+                                                SyncFoldersTable.id
+                                            ) &&
+                                                it.getField(SyncDevicesTable.user) == row.getField(
+                                                SyncFoldersTable.user
+                                            )
+                                        }.map {
+                                            SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
+                                        },
+                                    path = File("/mnt/sync", row.getField(SyncFoldersTable.id).toString()).absolutePath,
+                                    type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
+                                    rescanIntervalS = device.rescanIntervalSeconds
                                 )
                             },
                         defaults = SyncthingDefaults(),
                         gui = SyncthingGui(
-                            address = localDevice.hostname,
-                            apiKey = localDevice.apiKey,
-                            user = localDevice.username,
-                            password = localDevice.password
+                            address = device.hostname,
+                            apiKey = device.apiKey,
+                            user = device.username,
+                            password = device.password
                         ),
                         ldap = SyncthingLdap(),
                         options = SyncthingOptions()
                     )
 
-                    val resp = httpClient.put<HttpResponse>(deviceEndpoint(localDevice, "/rest/config")) {
+                    val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
                         body = TextContent(
                             defaultMapper.encodeToString(newConfig),
                             ContentType.Application.Json
                         )
                         headers {
-                            append("X-API-Key", localDevice.apiKey)
+                            append("X-API-Key", device.apiKey)
                         }
                     }
 

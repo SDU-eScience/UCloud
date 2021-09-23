@@ -56,7 +56,6 @@ class Server(
             }
         )
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
-        val mounterClient = internalAuthenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro)
 
         val fsRootFile =
@@ -75,7 +74,7 @@ class Server(
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val syncthingClient = SyncthingClient(syncConfig, db, authenticatedClient, distributedLocks)
         val syncService =
-            SyncService(syncthingClient, db, authenticatedClient, mounterClient, cephStats, pathConverter)
+            SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient).apply {
