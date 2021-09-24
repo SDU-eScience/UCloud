@@ -423,6 +423,12 @@ val Job.blockStorage: List<AppParameterValue.BlockStorage>
             (specification.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
     }
 
+val Job.licences: List<AppParameterValue.License>
+    get() {
+        return (specification.resources?.filterIsInstance<AppParameterValue.License>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.License>() ?: emptyList())
+    }
+
 typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
 
 @Serializable

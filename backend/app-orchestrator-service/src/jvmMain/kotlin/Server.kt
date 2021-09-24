@@ -9,6 +9,13 @@ import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
+import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
+import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
+import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
+import dk.sdu.cloud.file.orchestrator.service.StorageProviderSupport
+import dk.sdu.cloud.file.orchestrator.service.StorageProviders
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -37,6 +44,16 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
 
+        val storageProviders = StorageProviders(serviceClient) { comms ->
+            StorageCommunication(
+                comms.client,
+                comms.wsClient,
+                comms.provider,
+                FilesProvider(comms.provider.id),
+                FileCollectionsProvider(comms.provider.id)
+            )
+        }
+
         val jobSupport = ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>(
             altProviders,
             serviceClient,
@@ -54,16 +71,6 @@ class Server(override val micro: Micro) : CommonServer {
                 appStoreCache,
                 exporter,
             )
-
-        val jobMonitoring = JobMonitoringService(micro.backgroundScope, distributedLocks)
-
-        AppProcessor(
-            streams,
-            jobOrchestrator,
-            appStoreCache
-        ).init()
-
-        if (!micro.developmentModeEnabled) runBlocking { jobMonitoring.initialize() }
 
         val ingressSupport = ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>(
             altProviders,
@@ -93,6 +100,33 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
         val networkService = NetworkIPService(db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
+
+        val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
+            comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
+        }
+
+        val fileCollections = FileCollectionService(db, storageProviders, providerSupport, serviceClient)
+
+
+        val jobMonitoring = JobMonitoringService(
+            micro.backgroundScope,
+            distributedLocks,
+            db,
+            jobOrchestrator,
+            altProviders,
+            fileCollections,
+            ingressService,
+            networkService,
+            licenseService
+        )
+
+        if (!micro.developmentModeEnabled) runBlocking { jobMonitoring.initialize() }
+
+        AppProcessor(
+            streams,
+            jobOrchestrator,
+            appStoreCache
+        ).init()
 
         with(micro.server) {
             configureControllers(
