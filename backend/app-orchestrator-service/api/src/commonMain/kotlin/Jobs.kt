@@ -354,7 +354,8 @@ data class JobIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -362,8 +363,11 @@ data class JobsRetrieveUtilizationRequest(val jobId: String)
 
 @Serializable
 data class JobsRetrieveUtilizationResponse(
+    @UCloudApiDoc("The total capacity of the entire compute system")
     val capacity: CpuAndMemory,
+    @UCloudApiDoc("The capacity currently in use, by running jobs, of the entire compute system")
     val usedCapacity: CpuAndMemory,
+    @UCloudApiDoc("The system of the queue")
     val queueStatus: QueueStatus,
 )
 

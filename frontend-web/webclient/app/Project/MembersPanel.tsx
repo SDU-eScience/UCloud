@@ -1,17 +1,17 @@
-import {useAsyncCommand} from "Authentication/DataHook";
-import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite} from "Project/index";
+import {useAsyncCommand} from "@/Authentication/DataHook";
+import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite} from "@/Project/index";
 import * as React from "react";
 import {useRef} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {Button, Flex, Icon, Input, Absolute, Label, Relative, Text, Tooltip, Box} from "ui-components";
-import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
-import {useProjectManagementStatus} from "Project/index";
-import {addGroupMember} from "Project";
-import {MembersList} from "Project/MembersList";
-import * as Pagination from "Pagination";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
+import {Button, Flex, Icon, Input, Absolute, Label, Relative, Text, Tooltip, Box} from "@/ui-components";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
+import {useProjectManagementStatus} from "@/Project/index";
+import {addGroupMember} from "@/Project";
+import {MembersList} from "@/Project/MembersList";
+import * as Pagination from "@/Pagination";
 import styled from "styled-components";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;

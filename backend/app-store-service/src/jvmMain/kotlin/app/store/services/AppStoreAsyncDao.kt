@@ -290,7 +290,6 @@ class AppStoreAsyncDao(
 
                             order by a.title
                         """,
-                        debug = true
                     )
             },
             mapper = { _, rows ->

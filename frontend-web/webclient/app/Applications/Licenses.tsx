@@ -1,7 +1,7 @@
 import * as React from "react";
-import {default as LicenseApi, License} from "UCloud/LicenseApi";
-import {ResourceBrowse} from "Resource/Browse";
-import {ResourceRouter} from "Resource/Router";
+import {default as LicenseApi, License} from "@/UCloud/LicenseApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {ResourceRouter} from "@/Resource/Router";
 
 export const LicenseBrowse: React.FunctionComponent<{
     tagged?: string[];

@@ -1,4 +1,4 @@
-import {AvatarComponentProps} from "AvataaarLib";
+import {AvatarComponentProps} from "@/AvataaarLib";
 import * as React from "react";
 import Clothe from "./clothes";
 import Face from "./face";

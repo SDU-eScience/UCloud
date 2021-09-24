@@ -1,4 +1,4 @@
-import {NotificationsReduxObject, initNotifications} from "DefaultObjects";
+import {NotificationsReduxObject, initNotifications} from "@/DefaultObjects";
 import {NotificationActions} from "./NotificationsActions";
 
 export const RECEIVE_SINGLE_NOTIFICATION = "RECEIVE_SINGLE_NOTIFICATION";

@@ -1,6 +1,6 @@
 import * as React from "react";
-import {ClothesGraphic} from "UserSettings/AvatarOptions";
-import {generateId as uniqueId} from "UtilityFunctions";
+import {ClothesGraphic} from "@/UserSettings/AvatarOptions";
+import {generateId as uniqueId} from "@/UtilityFunctions";
 
 export interface Props {
   maskID: string;

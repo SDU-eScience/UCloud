@@ -1,17 +1,17 @@
-import { useCloudAPI, useCloudCommand } from "Authentication/DataHook";
-import { bulkRequestOf, placeholderProduct } from "DefaultObjects";
+import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
+import { bulkRequestOf, placeholderProduct } from "@/DefaultObjects";
 import React from "react";
 import { useState } from "react";
-import { UFile } from "UCloud/FilesApi";
-import SyncFolderApi, { SyncFolder } from "UCloud/SyncFolderApi"
-import { Box, Button, Flex, Input, Label, SelectableText, SelectableTextWrapper } from "ui-components";
-import { TextSpan } from "ui-components/Text";
-import { copyToClipboard } from "UtilityFunctions";
+import { UFile } from "@/UCloud/FilesApi";
+import SyncFolderApi, { SyncFolder } from "@/UCloud/SyncFolderApi"
+import { Box, Button, Flex, Input, Label, SelectableText, SelectableTextWrapper } from "@/ui-components";
+import { TextSpan } from "@/ui-components/Text";
+import { copyToClipboard } from "@/UtilityFunctions";
 import { useEffect } from "react";
-import SyncDeviceApi, { SyncDevice } from "UCloud/SyncDeviceApi";
-import { PageV2 } from "UCloud";
-import { ResourceBrowse } from "Resource/Browse";
-import { Toggle } from "ui-components/Toggle";
+import SyncDeviceApi, { SyncDevice } from "@/UCloud/SyncDeviceApi";
+import { PageV2 } from "@/UCloud";
+import { ResourceBrowse } from "@/Resource/Browse";
+import { Toggle } from "@/ui-components/Toggle";
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText

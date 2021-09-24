@@ -1,26 +1,26 @@
-import {clearLogo, uploadLogo} from "Applications/api";
-import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
-import {useCloudCommand, useCloudAPI} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
-import {MainContainer} from "MainContainer/MainContainer";
+import {clearLogo, uploadLogo} from "@/Applications/api";
+import {SmallAppToolCard} from "@/Applications/Studio/SmallAppToolCard";
+import {useCloudCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {emptyPage} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import {
     useRefreshFunction
-} from "Navigation/Redux/HeaderActions";
-import {useLoading} from "Navigation/Redux/StatusActions";
-import * as Pagination from "Pagination";
+} from "@/Navigation/Redux/HeaderActions";
+import {useLoading} from "@/Navigation/Redux/StatusActions";
+import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Flex, VerticalButtonGroup} from "ui-components";
-import Box from "ui-components/Box";
-import * as Heading from "ui-components/Heading";
-import {HiddenInputField} from "ui-components/Input";
-import Truncate from "ui-components/Truncate";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Button, Flex, VerticalButtonGroup} from "@/ui-components";
+import Box from "@/ui-components/Box";
+import * as Heading from "@/ui-components/Heading";
+import {HiddenInputField} from "@/ui-components/Input";
+import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 
 export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> = props => {
     const name = props.match.params.name;

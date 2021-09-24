@@ -1,9 +1,9 @@
 import * as React from "react";
 import styled from "styled-components";
-import Spinner, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Link} from "ui-components";
-import {useProjectManagementStatus} from "Project/index";
+import Spinner, {HexSpinWrapper} from "@/LoadingIcon/LoadingIcon";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {Link} from "@/ui-components";
+import {useProjectManagementStatus} from "@/Project/index";
 
 export interface ProjectBreadcrumbsProps {
     crumbs: {title: string, link?: string}[];

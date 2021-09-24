@@ -1,10 +1,10 @@
 import * as React from "react";
-import * as UCloud from "UCloud"
-import {Box, Button, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import BaseLink from "ui-components/BaseLink";
-import {Widget} from "Applications/Jobs/Widgets";
-import {compute} from "UCloud";
+import * as UCloud from "@/UCloud"
+import {Box, Button, Flex} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import BaseLink from "@/ui-components/BaseLink";
+import {Widget} from "@/Applications/Jobs/Widgets";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 
 export const PeerResource: React.FunctionComponent<{

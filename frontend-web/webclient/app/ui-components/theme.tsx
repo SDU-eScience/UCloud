@@ -26,7 +26,7 @@ addAliases(mediaQueryLT, aliases);
 
 export const space = [0, 4, 8, 16, 32, 64, 128];
 
-export const fontFamily = `'IBM Plex Sans', sans-serif`;
+export const fontFamily = `'Inter', sans-serif`;
 
 export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72];
 

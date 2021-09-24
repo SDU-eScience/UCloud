@@ -1,8 +1,8 @@
 import * as React from "react";
-import ProjectDashboard from "Project/ProjectDashboard";
+import ProjectDashboard from "@/Project/ProjectDashboard";
 import {create} from "react-test-renderer";
 import {Provider} from "react-redux";
-import {store} from "Utilities/ReduxUtilities";
+import {store} from "@/Utilities/ReduxUtilities";
 import {ThemeProvider} from "styled-components";
 import theme from "../../app/ui-components/theme";
 import {MemoryRouter} from "react-router";

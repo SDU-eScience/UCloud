@@ -1,19 +1,18 @@
-import {callAPIWithErrorHandler, useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import MainContainer from "MainContainer/MainContainer";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import MainContainer from "@/MainContainer/MainContainer";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as UCloud from "UCloud";
-import {Box, Button, Input, Label} from "ui-components";
-import {errorMessageOrDefault, inDevEnvironment, onDevSite} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import * as UCloud from "@/UCloud";
+import {Box, Button, Input, Label} from "@/ui-components";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {useLayoutEffect, useRef, useState} from "react";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Toggle} from "ui-components/Toggle";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {Toggle} from "@/ui-components/Toggle";
 import {useHistory} from "react-router";
-import {FindByStringId} from "UCloud";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {FindByStringId} from "@/UCloud";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 
 function ApproveOrSign(): JSX.Element | null {
     const [loading, invokeCommand] = useCloudCommand();

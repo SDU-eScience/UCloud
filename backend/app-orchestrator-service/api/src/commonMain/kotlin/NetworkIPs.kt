@@ -166,7 +166,8 @@ data class NetworkIPFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

@@ -1,21 +1,21 @@
-import {KeyCode} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
+import {KeyCode} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import Input from "ui-components/Input";
+} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import Input from "@/ui-components/Input";
 import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
-import {Client} from "Authentication/HttpClientInstance";
-import {Spacer} from "ui-components/Spacer";
-import {ErrorWrapper} from "ui-components/Error";
-import {ThemeColor} from "ui-components/theme";
-import {stopPropagationAndPreventDefault} from "UtilityFunctions";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Spacer} from "@/ui-components/Spacer";
+import {ErrorWrapper} from "@/ui-components/Error";
+import {ThemeColor} from "@/ui-components/theme";
+import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 
 interface StandardDialog {
     title?: string;

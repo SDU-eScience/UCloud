@@ -10,19 +10,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.joinPath
-import dk.sdu.cloud.file.orchestrator.api.normalize
-import dk.sdu.cloud.file.ucloud.services.InternalFile
-import dk.sdu.cloud.file.ucloud.services.MemberFiles
-import dk.sdu.cloud.file.ucloud.services.NativeFS
-import dk.sdu.cloud.file.ucloud.services.PathConverter
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PERSONAL_REPOSITORY
-import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
-import dk.sdu.cloud.file.ucloud.services.UCloudFile
-import dk.sdu.cloud.file.ucloud.services.normalize
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
@@ -38,6 +28,7 @@ class FileMountPlugin(
     private val fs: NativeFS,
     private val memberFiles: MemberFiles,
     private val pathConverter: PathConverter,
+    private val limitChecker: LimitChecker,
     private val cephConfiguration: CephConfiguration = CephConfiguration(),
 ) : JobManagementPlugin {
     private suspend fun JobManagement.findJobFolder(job: Job): InternalFile {
@@ -103,6 +94,14 @@ class FileMountPlugin(
             val fileName = path.normalize().fileName()
         }
 
+        val fileCollections = job.files.map {
+            it.path.normalize().components().getOrNull(0) ?: error("Unexpected path: $it")
+        }
+
+        for (coll in fileCollections) {
+            limitChecker.checkLimit(coll)
+        }
+
         val fileMounts = run {
             val allMounts = job.files.map {
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(it.path))
@@ -115,6 +114,10 @@ class FileMountPlugin(
         val jobFolder = findJobFolder(job)
         val relativeJobFolder = pathConverter.internalToRelative(jobFolder)
         val ucloudJobFolder = pathConverter.internalToUCloud(jobFolder)
+
+        val jobFolderCollection = ucloudJobFolder.path.components().getOrNull(0)
+            ?: error("Unexpected job folder: $ucloudJobFolder")
+        limitChecker.checkLimit(jobFolderCollection)
 
         JobsControl.update.call(
             bulkRequestOf(

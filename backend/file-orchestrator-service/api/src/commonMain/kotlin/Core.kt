@@ -15,7 +15,7 @@ import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-@UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`")
+@UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`", importance = 102)
 enum class FileIconHint {
     @UCloudApiDoc("A directory containing 'starred' items")
     DIRECTORY_STAR,
@@ -31,7 +31,7 @@ enum class FileIconHint {
 }
 
 @Serializable
-@UCloudApiDoc("The type of a `UFile`")
+@UCloudApiDoc("The type of a `UFile`", importance = 101)
 enum class FileType {
     @UCloudApiDoc("A regular file")
     FILE,
@@ -111,7 +111,7 @@ data class UFileIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,
@@ -119,11 +119,17 @@ data class UFileIncludeFlags(
     @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
 This value is `true` by default """)
     val allowUnsupportedInclude: Boolean? = null,
+    @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
+    val filterHiddenFiles: Boolean = false,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiDoc("A file in UCloud", importance = 500)
 data class UFile(
-    @UCloudApiDoc("""A unique reference to a file
+    @UCloudApiDoc(
+        """
+A unique reference to a file
 
 All files in UCloud have a `name` associated with them. This name uniquely identifies them within their directory. All
 files in UCloud belong to exactly one directory. A `name` can be any textual string, for example: `thesis-42.docx`.
@@ -228,7 +234,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("General system-level stats about a file")
+@UCloudApiDoc("General system-level stats about a file", importance = 400)
 @Serializable
 data class UFileStatus(
     @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
@@ -291,7 +297,7 @@ User-defined metadata describe the contents of a file. All metadata is described
 this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
 purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
 metadata formats.
-"""
+""", importance = 98
 )
 @Serializable
 data class UFileSpecification(
@@ -307,7 +313,7 @@ sealed class FileMetadataOrDeleted {
     abstract val createdBy: String
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use")
+    @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use", importance = 96)
     @Serializable
     @SerialName("deleted")
     data class Deleted(
@@ -323,7 +329,7 @@ sealed class FileMetadataOrDeleted {
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`")
+@UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
 data class FileMetadataDocument(
@@ -334,6 +340,7 @@ data class FileMetadataDocument(
     override val createdBy: String,
 ) : FileMetadataOrDeleted(){
     @Serializable
+    @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
@@ -346,26 +353,32 @@ data class FileMetadataDocument(
     )
 
     @Serializable
+    @UCloudApiDoc("The current status of a metadata document", importance = 95)
     data class Status(
         val approval: ApprovalStatus,
     )
 
     @Serializable
+    @UCloudApiDoc("The approval status of a metadata document", importance = 94)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
+        @UCloudApiDoc("The metadata change has been approved by an admin in the workspace", importance = 93)
         class Approved(val approvedBy: String) : ApprovalStatus()
 
         @Serializable
         @SerialName("pending")
+        @UCloudApiDoc("The metadata document has not yet been approved", importance = 92)
         object Pending : ApprovalStatus()
 
         @Serializable
         @SerialName("rejected")
+        @UCloudApiDoc("The metadata document has been rejected by an admin of the workspace", importance = 91)
         class Rejected(val rejectedBy: String) : ApprovalStatus()
 
         @Serializable
         @SerialName("not_required")
+        @UCloudApiDoc("The metadata document does not require approval", importance = 90)
         object NotRequired : ApprovalStatus()
     }
 }
@@ -407,7 +420,8 @@ data class FileCollectionIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this

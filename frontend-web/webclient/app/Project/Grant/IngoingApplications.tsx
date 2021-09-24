@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI} from "Authentication/DataHook";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {
     GrantApplication,
     GrantApplicationFilter,
@@ -9,25 +9,25 @@ import {
     GrantApplicationStatus,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse
-} from "Project/Grant/index";
-import {emptyPage} from "DefaultObjects";
-import {useProjectManagementStatus} from "Project";
-import * as Pagination from "Pagination";
-import {ListRow, ListRowStat} from "ui-components/List";
-import {Flex, Label, List, Text, Truncate, VerticalButtonGroup} from "ui-components";
-import {useAvatars} from "AvataaarLib/hook";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+} from "@/Project/Grant/index";
+import {emptyPage} from "@/DefaultObjects";
+import {useProjectManagementStatus} from "@/Project";
+import * as Pagination from "@/Pagination";
+import {ListRow, ListRowStat} from "@/ui-components/List";
+import {Flex, Label, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useHistory} from "react-router";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {dateToString} from "Utilities/DateUtilities";
-import {IconName} from "ui-components/Icon";
-import {ThemeColor} from "ui-components/theme";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});

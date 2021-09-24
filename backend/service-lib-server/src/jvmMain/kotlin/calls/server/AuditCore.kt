@@ -4,6 +4,7 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.service.ServiceInstance
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import java.time.Period
 
 @Serializable
@@ -19,7 +20,7 @@ data class HttpCallLogEntry(
     val token: SecurityPrincipalToken?,
 
     val requestSize: Long,
-    //val requestJson: Any?, // TODO!
+    val requestJson: JsonElement?,
 
     val responseCode: Int,
     val responseTime: Long,

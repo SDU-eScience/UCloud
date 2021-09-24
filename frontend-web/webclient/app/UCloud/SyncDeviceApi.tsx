@@ -6,11 +6,11 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductSyncDevice} from "Accounting";
+} from "@/UCloud/ResourceApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Icon} from "@/ui-components";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductSyncDevice} from "@/Accounting";
 
 export interface SyncDeviceSpecification extends ResourceSpecification {
     deviceId: string;

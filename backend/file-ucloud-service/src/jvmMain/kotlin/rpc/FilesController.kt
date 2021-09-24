@@ -18,12 +18,7 @@ import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
 import dk.sdu.cloud.file.orchestrator.api.UploadProtocol
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
-import dk.sdu.cloud.file.ucloud.services.ChunkedUploadService
-import dk.sdu.cloud.file.ucloud.services.DownloadService
-import dk.sdu.cloud.file.ucloud.services.FSException
-import dk.sdu.cloud.file.ucloud.services.FileQueries
-import dk.sdu.cloud.file.ucloud.services.TaskSystem
-import dk.sdu.cloud.file.ucloud.services.UCloudFile
+import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
@@ -51,6 +46,7 @@ class FilesController(
     private val taskSystem: TaskSystem,
     private val chunkedUploadService: ChunkedUploadService,
     private val downloadService: DownloadService,
+    private val limitChecker: LimitChecker,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
@@ -79,6 +75,10 @@ class FilesController(
         }
 
         implement(UCloudFiles.copy) {
+            request.items.forEach { req ->
+                limitChecker.checkLimit(req.resolvedNewCollection)
+            }
+
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
@@ -96,6 +96,8 @@ class FilesController(
                 if (UploadProtocol.CHUNKED !in reqItem.supportedProtocols) {
                     throw RPCException("No protocols supported", HttpStatusCode.BadRequest)
                 }
+
+                limitChecker.checkLimit(reqItem.resolvedCollection)
             }
 
             val responses = ArrayList<FilesCreateUploadResponseItem>()
@@ -112,6 +114,10 @@ class FilesController(
         }
 
         implement(UCloudFiles.move) {
+            for (reqItem in request.items) {
+                limitChecker.checkLimit(reqItem.resolvedNewCollection)
+            }
+
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
@@ -156,6 +162,10 @@ class FilesController(
         }
 
         implement(UCloudFiles.createFolder) {
+            for (reqItem in request.items) {
+                limitChecker.checkLimit(reqItem.resolvedCollection)
+            }
+
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->

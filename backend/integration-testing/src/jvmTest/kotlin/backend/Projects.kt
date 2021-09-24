@@ -27,7 +27,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.collections.ArrayList
 import kotlin.random.Random
 
 private val didCreateProductsInInitializeRootProjects = AtomicBoolean(false)
@@ -88,7 +90,8 @@ suspend fun initializeWallets(
                 category,
                 owner,
                 amount,
-                "Initial balance"
+                "Initial balance",
+                transactionId = UUID.randomUUID().toString()
             )
         }),
         serviceClient

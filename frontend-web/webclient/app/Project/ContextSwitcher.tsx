@@ -1,19 +1,18 @@
-import {emptyPage} from "DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
-import {addTrailingSlash, shortUUID, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
-import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
-import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
+import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
-import {useCloudAPI} from "Authentication/DataHook";
-import {UserInProject, ListProjectsRequest, listProjects} from "Project";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {useHistory} from "react-router";
 import {History} from "history";
-import {Client} from "Authentication/HttpClientInstance";
-import {useProjectStatus} from "Project/cache";
+import {useProjectStatus} from "@/Project/cache";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {

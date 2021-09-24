@@ -1,4 +1,4 @@
-import * as ArrayUtilities from "Utilities/CollectionUtilities";
+import * as ArrayUtilities from "@/Utilities/CollectionUtilities";
 
 describe("Array Utilities", () => {
     test("Add entry to set where entry is not present", () => {

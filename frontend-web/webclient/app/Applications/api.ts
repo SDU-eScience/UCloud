@@ -1,8 +1,8 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {b64EncodeUnicode} from "Utilities/XHRUtils";
-import {inSuccessRange} from "UtilityFunctions";
-import {appLogoCache, toolLogoCache} from "Applications/AppToolLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import {inSuccessRange} from "@/UtilityFunctions";
+import {appLogoCache, toolLogoCache} from "@/Applications/AppToolLogo";
 
 export type AppOrTool = "APPLICATION" | "TOOL";
 

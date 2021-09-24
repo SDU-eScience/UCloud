@@ -67,13 +67,28 @@ typealias JobsProviderUtilizationResponse = JobsRetrieveUtilizationResponse
 
 @Serializable
 data class CpuAndMemory(
+    @UCloudApiDoc(
+        """
+            Number of virtual cores
+            
+            Implement as a floating to represent fractions of a virtual core. This is for example useful for Kubernetes
+            (and other container systems) which will allocate milli-cpus. 
+        """
+    )
     val cpu: Double,
+    @UCloudApiDoc(
+        """
+            Memory available in bytes
+        """
+    )
     val memory: Long,
 )
 
 @Serializable
 data class QueueStatus(
+    @UCloudApiDoc("The number of jobs running in the system")
     val running: Int,
+    @UCloudApiDoc("The number of jobs waiting in the queue")
     val pending: Int,
 )
 

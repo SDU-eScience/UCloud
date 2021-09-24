@@ -10,6 +10,8 @@ create table file_orchestrator.shares(
     state file_orchestrator.share_state default 'PENDING'::file_orchestrator.share_state
 );
 
+create unique index on file_orchestrator.shares (original_file_path, shared_with);
+
 create or replace function file_orchestrator.share_to_json(
     share_in file_orchestrator.shares
 ) returns jsonb language sql as $$

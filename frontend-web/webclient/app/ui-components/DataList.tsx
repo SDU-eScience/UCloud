@@ -1,6 +1,6 @@
 import Fuse from "fuse.js";
 import * as React from "react";
-import {Box, FormField, Icon, Input} from "ui-components";
+import {Box, FormField, Icon, Input} from "@/ui-components";
 import ClickableDropdown from "./ClickableDropdown";
 
 interface ContentValuePair {content: string; value: string}

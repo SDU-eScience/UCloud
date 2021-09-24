@@ -1,5 +1,5 @@
 import * as React from "react";
-import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
@@ -9,24 +9,24 @@ import {
     ReadTemplatesResponse, retrieveDescription, RetrieveDescriptionResponse, uploadDescription,
     uploadGrantRequestSettings, uploadTemplates,
     UserCriteria
-} from "Project/Grant/index";
+} from "@/Project/Grant/index";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useProjectManagementStatus} from "Project";
-import * as Heading from "ui-components/Heading";
-import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text, TextArea} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {useProjectManagementStatus} from "@/Project";
+import * as Heading from "@/ui-components/Heading";
+import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text, TextArea} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import WAYF from "./wayf-idps.json";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
-import {ConfirmCancelButtons} from "UtilityComponents";
-import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
-import {HiddenInputField} from "ui-components/Input";
-import {dialogStore} from "Dialog/DialogStore";
-import {Client} from "Authentication/HttpClientInstance";
-import {b64EncodeUnicode} from "Utilities/XHRUtils";
-import {inSuccessRange} from "UtilityFunctions";
-import {Logo} from "Project/Grant/ProjectBrowser";
-import Divider from "ui-components/Divider";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {ConfirmCancelButtons} from "@/UtilityComponents";
+import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "@/Accounting";
+import {HiddenInputField} from "@/ui-components/Input";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import {inSuccessRange} from "@/UtilityFunctions";
+import {Logo} from "@/Project/Grant/ProjectBrowser";
+import Divider from "@/ui-components/Divider";
 
 export interface UploadLogoProps {
     file: File;

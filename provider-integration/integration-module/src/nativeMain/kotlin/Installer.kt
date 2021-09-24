@@ -179,6 +179,7 @@ private fun runShutdownWorker(
         )
     }
 
+    /*
     @Suppress("UNCHECKED_CAST")
     Products.createProduct.callBlocking(
         Product.Compute(
@@ -196,6 +197,7 @@ private fun runShutdownWorker(
             becomesInvalidSoon = { true }
         ).authenticateClient(OutgoingHttpCall)
     ).orThrow()
+     */
     println("UCloud/IM has been configured successfully. UCloud/IM will now restart...")
     replaceThisProcess(listOf(ownExecutable, "server"), ProcessStreams())
 }

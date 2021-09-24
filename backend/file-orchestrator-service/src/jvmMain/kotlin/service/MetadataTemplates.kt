@@ -266,7 +266,6 @@ class MetadataTemplateNamespaces(
                         file_orchestrator.metadata_templates temp on ns.resource = temp.namespace join
                         entries e on e.id = ns.resource and e.uversion = temp.uversion
                 """,
-                debug = true
             ).rows.map { defaultMapper.decodeFromString(it.getString(0)!!) })
         }.also { resp ->
             if (resp.responses.size != request.items.size) {

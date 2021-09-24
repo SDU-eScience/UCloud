@@ -1,46 +1,46 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {History} from "history";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
-import {Notification, NotificationEntry} from "Notifications";
-import {notificationRead, readAllNotifications} from "Notifications/Redux/NotificationsActions";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
+import {Notification, NotificationEntry} from "@/Notifications";
+import {notificationRead, readAllNotifications} from "@/Notifications/Redux/NotificationsActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Flex, Icon, Link, Markdown, Text} from "ui-components";
-import Error from "ui-components/Error";
-import * as Heading from "ui-components/Heading";
-import List from "ui-components/List";
-import {SidebarPages} from "ui-components/Sidebar";
-import {fileName, getParentPath} from "Utilities/FileUtilities";
-import * as UF from "UtilityFunctions";
+import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
+import Error from "@/ui-components/Error";
+import * as Heading from "@/ui-components/Heading";
+import List from "@/ui-components/List";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import * as UF from "@/UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {GridCardGroup} from "ui-components/Grid";
-import {Spacer} from "ui-components/Spacer";
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {useProjectStatus} from "Project/cache";
-import {dateToString} from "Utilities/DateUtilities";
-import {dispatchSetProjectAction} from "Project/Redux";
-import Table, {TableCell, TableRow} from "ui-components/Table";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {GridCardGroup} from "@/ui-components/Grid";
+import {Spacer} from "@/ui-components/Spacer";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import {useProjectStatus} from "@/Project/cache";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {
     GrantApplication,
     GrantApplicationFilter,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse,
     listOutgoingApplications
-} from "Project/Grant";
-import {GrantApplicationList} from "Project/Grant/IngoingApplications";
-import * as UCloud from "UCloud";
-import {PageV2} from "UCloud";
-import FilesApi, {UFile} from "UCloud/FilesApi";
-import metadataApi, {FileMetadataAttached} from "UCloud/MetadataDocumentApi";
-import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "UCloud/MetadataNamespaceApi";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+} from "@/Project/Grant";
+import {GrantApplicationList} from "@/Project/Grant/IngoingApplications";
+import * as UCloud from "@/UCloud";
+import {PageV2} from "@/UCloud";
+import FilesApi, {UFile} from "@/UCloud/FilesApi";
+import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
+import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
 import {
     Product,
@@ -51,7 +51,7 @@ import {
     retrieveUsage,
     UsageChart,
     usageExplainer
-} from "Accounting";
+} from "@/Accounting";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -499,10 +499,9 @@ function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): J
                         />
 
                         <Box maxHeight={300} overflow={"auto"}>
-                            <Markdown
-                                source={post.body}
-                                unwrapDisallowed
-                            />
+                            <Markdown unwrapDisallowed>
+                                {post.body}
+                            </Markdown>
                         </Box>
                     </Box>
                 ))}

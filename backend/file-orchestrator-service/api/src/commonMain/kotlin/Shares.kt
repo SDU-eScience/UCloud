@@ -2,6 +2,9 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -10,7 +13,6 @@ import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
-import dk.sdu.cloud.provider.api.Provider
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceBilling
@@ -90,8 +92,42 @@ data class ShareFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    val filterIngoing: Boolean = false,
+    val filterOriginalPath: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
+
+typealias SharesUpdatePermissionsRequest = BulkRequest<SharesUpdatePermissionsRequestItem>
+
+@Serializable
+data class SharesUpdatePermissionsRequestItem(
+    val id: String,
+    val permissions: List<Permission>
+)
+
+@Serializable
+data class OutgoingShareGroup(
+    val sourceFilePath: String,
+    val storageProduct: ProductReference,
+    val sharePreview: List<Preview>,
+) {
+    @Serializable
+    data class Preview(
+        val sharedWith: String,
+        val permissions: List<Permission>,
+        val state: Share.State,
+        val shareId: String,
+    )
+}
+
+@Serializable
+data class SharesBrowseOutgoingRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+) : WithPaginationRequestV2
 
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
@@ -99,12 +135,22 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
             Product.Storage, ShareSupport>()
 
     val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
-        httpUpdate(SharesControl.baseContext, "approve")
+        httpUpdate(baseContext, "approve")
     }
 
     val reject = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("reject") {
-        httpUpdate(SharesControl.baseContext, "reject")
+        httpUpdate(baseContext, "reject")
     }
+
+    val updatePermissions = call<SharesUpdatePermissionsRequest, Unit, CommonErrorMessage>("updatePermissions") {
+        httpUpdate(baseContext, "permissions")
+    }
+
+    val browseOutgoing =
+        call<SharesBrowseOutgoingRequest, PageV2<OutgoingShareGroup>, CommonErrorMessage>("browseOutgoing") {
+            httpBrowse(baseContext, "outgoing")
+        }
+
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!

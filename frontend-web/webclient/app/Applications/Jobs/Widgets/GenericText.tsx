@@ -1,8 +1,8 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input} from "ui-components";
-import {compute} from "UCloud";
+import {Input} from "@/ui-components";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 
 type GenericTextType =

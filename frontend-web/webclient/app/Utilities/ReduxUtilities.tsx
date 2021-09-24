@@ -1,17 +1,17 @@
-import dashboard from "Dashboard/Redux/DashboardReducer";
-import {initObject} from "DefaultObjects";
-import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
-import sidebar from "Navigation/Redux/SidebarReducer";
-import status from "Navigation/Redux/StatusReducer";
-import notifications from "Notifications/Redux/NotificationsReducer";
-import * as ProjectRedux from "Project/Redux";
+import dashboard from "@/Dashboard/Redux/DashboardReducer";
+import {initObject} from "@/DefaultObjects";
+import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
+import sidebar from "@/Navigation/Redux/SidebarReducer";
+import status from "@/Navigation/Redux/StatusReducer";
+import notifications from "@/Notifications/Redux/NotificationsReducer";
+import * as ProjectRedux from "@/Project/Redux";
 import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
 import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
-import simpleSearch from "Search/Redux/SearchReducer";
-import {responsiveBP} from "ui-components/theme";
-import avatar from "UserSettings/Redux/AvataaarReducer";
-import hookStore from "Utilities/ReduxHooks";
+import simpleSearch from "@/Search/Redux/SearchReducer";
+import {responsiveBP} from "@/ui-components/theme";
+import avatar from "@/UserSettings/Redux/AvataaarReducer";
+import hookStore from "@/Utilities/ReduxHooks";
 
 export function configureStore(
     initialObject: ReduxObject,

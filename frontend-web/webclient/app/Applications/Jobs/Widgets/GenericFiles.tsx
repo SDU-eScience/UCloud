@@ -1,19 +1,19 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input} from "ui-components";
+import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect, useState} from "react";
 import styled from "styled-components";
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {useProjectStatus} from "Project/cache";
-import {compute} from "UCloud";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import {useProjectStatus} from "@/Project/cache";
+import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {doNothing, removeTrailingSlash} from "UtilityFunctions";
-import {dialogStore} from "Dialog/DialogStore";
-import {FilesBrowse} from "Files/Files";
-import {fileName} from "Utilities/FileUtilities";
-import FilesApi from "UCloud/FilesApi";
-import {prettyFilePath} from "Files/FilePath";
+import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {fileName} from "@/Utilities/FileUtilities";
+import FilesApi from "@/UCloud/FilesApi";
+import {prettyFilePath} from "@/Files/FilePath";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |

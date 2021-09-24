@@ -1,21 +1,21 @@
 import * as React from "react";
 import {useCallback, useMemo, useState} from "react";
-import {IconName} from "ui-components/Icon";
-import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import * as Text from "ui-components/Text";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Cursor} from "ui-components/Types";
+import {IconName} from "@/ui-components/Icon";
+import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import * as Text from "@/ui-components/Text";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Cursor} from "@/ui-components/Types";
 import styled from "styled-components";
-import {ListRow, ListRowStat} from "ui-components/List";
-import {SlimDatePickerWrapper} from "ui-components/DatePicker";
+import {ListRow, ListRowStat} from "@/ui-components/List";
+import {SlimDatePickerWrapper} from "@/ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
-import {Toggle} from "ui-components/Toggle";
-import {doNothing, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "Utilities/DateUtilities";
-import {dateToStringNoTime} from "Utilities/DateUtilities";
-import {SortEntry} from "UCloud/ResourceApi";
+import {Toggle} from "@/ui-components/Toggle";
+import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
+import {dateToStringNoTime} from "@/Utilities/DateUtilities";
+import {SortEntry} from "@/UCloud/ResourceApi";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
@@ -26,6 +26,7 @@ export interface FilterWidgetProps {
 }
 
 export interface PillProps {
+    canRemove?: boolean;
     properties: Record<string, string>;
     onDelete: (keys: string[]) => void;
 }
@@ -53,6 +54,7 @@ export const ResourceFilter: React.FunctionComponent<{
     filterWidgets: React.FunctionComponent<FilterWidgetProps>[];
     sortEntries: SortEntry[];
     properties: Record<string, string>;
+    readOnlyProperties?: Record<string, string>;
     setProperties: (props: Record<string, string>) => void;
     sortDirection: "ascending" | "descending";
     sortColumn?: string;
@@ -63,6 +65,10 @@ export const ResourceFilter: React.FunctionComponent<{
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
     const [isDirty, setIsDirty] = useState(false);
+    const combinedProperties = useMemo(
+        () => ({...(props.readOnlyProperties ?? {}), ...properties}),
+        [props.readOnlyProperties, properties]
+    );
 
     useEffectSkipMount(() => {
         setIsDirty(true)
@@ -148,7 +154,7 @@ export const ResourceFilter: React.FunctionComponent<{
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                     icon={"properties"} title={"Sort by"} options={sortOptions} />
                 {props.pills.map((Pill, idx) =>
-                    <Pill key={Pill.displayName + "_" + idx} properties={properties} onDelete={onPillDeleted} />
+                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} />
                 )}
             </WidgetWrapper>
             {!isDirty ? null :
@@ -200,8 +206,11 @@ function WidgetWrapper({children, embedded, gridGap}: React.PropsWithChildren<{e
 export const FilterPill: React.FunctionComponent<{
     icon: IconName;
     onRemove: () => void;
-}> = ({icon, onRemove, children}) => {
-    return <Stamp fullWidth onClick={onRemove} icon={icon} color={"lightBlue"}>{children}</Stamp>;
+    canRemove?: boolean;
+}> = ({icon, onRemove, canRemove, children}) => {
+    return <Stamp fullWidth onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+        {children}
+    </Stamp>;
 };
 
 interface BaseFilterWidgetProps {
@@ -279,7 +288,7 @@ export const TextPill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
         {props.title}: {value}
     </FilterPill>;
 };
@@ -325,7 +334,7 @@ export const DateRangePill: React.FunctionComponent<{
     const before = props.properties[props.beforeProperty];
 
     return <>
-        <FilterPill icon={props.icon} onRemove={onRemove}>
+        <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
             {before ?
                 <>
                     {props.title} between: {dateToStringNoTime(parseInt(after))} - {dateToStringNoTime(parseInt(before))}
@@ -467,6 +476,7 @@ export const ValuePill: React.FunctionComponent<{
     propertyName: string;
     showValue: boolean;
     secondaryProperties?: string[];
+    valueToString?: (value: string) => string;
 } & PillProps & BaseFilterWidgetProps> = (props) => {
     const onRemove = useCallback(() => {
         const allProperties = [...(props.secondaryProperties ?? [])];
@@ -477,8 +487,11 @@ export const ValuePill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
-        {props.title}{!props.showValue ? null : <>: {value}</>}
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
+        {props.title}
+        {props.title.length > 0 && (props.showValue || props.children) ? ": " : null}
+        {!props.showValue ? null : props.valueToString ? props.valueToString(value) : value}
+        {props.children}
     </FilterPill>;
 };
 
@@ -503,7 +516,7 @@ export const EnumPill: React.FunctionComponent<{
     const value = props.properties[props.propertyName];
     if (!value) return null;
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
         {props.title}: {props.options.find(it => it.value === value)?.title ?? value}
     </FilterPill>;
 };
@@ -559,6 +572,7 @@ export function EnumFilter(
 
 export const CheckboxPill: React.FunctionComponent<{
     propertyName: string;
+    invert?: boolean;
 } & PillProps & BaseFilterWidgetProps> = props => {
     const onRemove = useCallback(() => {
         props.onDelete([props.propertyName]);
@@ -566,22 +580,28 @@ export const CheckboxPill: React.FunctionComponent<{
 
     const value = props.properties[props.propertyName];
     if (!value) return null;
+    let isChecked = value === "true";
+    if (props.invert === true) {
+        isChecked = !isChecked;
+    }
 
-    return <FilterPill icon={props.icon} onRemove={onRemove}>
-        {props.title}: {value === "true" ? "Yes" : "No"}
+    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
+        {props.title}: {isChecked ? "Yes" : "No"}
     </FilterPill>;
 };
 
 export const CheckboxFilterWidget: React.FunctionComponent<{
-    propertyName: string
+    propertyName: string;
+    invert?: boolean;
 } & BaseFilterWidgetProps & FilterWidgetProps> = props => {
-    const isChecked = props.properties[props.propertyName] === "true";
+    const isTrue = props.properties[props.propertyName] === "true";
+    const isChecked = props.invert === true ? !isTrue : isTrue;
 
     const onChange = useCallback(() => {
         const properties: Record<string, string | undefined> = {};
-        properties[props.propertyName] = (!isChecked).toString();
+        properties[props.propertyName] = (!isTrue).toString();
         props.onPropertiesUpdated(properties);
-    }, [isChecked, props.onPropertiesUpdated, props.propertyName]);
+    }, [isTrue, props.onPropertiesUpdated, props.propertyName]);
 
     return <FilterWidget
         icon={props.icon}
@@ -598,9 +618,10 @@ export function CheckboxFilter(
     icon: IconName,
     propertyName: string,
     title: string,
+    invert?: boolean
 ): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
     return [
-        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title} {...props} />,
-        (props) => <CheckboxPill propertyName={propertyName} icon={icon} title={title} {...props} />
+        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />,
+        (props) => <CheckboxPill propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />
     ];
 }

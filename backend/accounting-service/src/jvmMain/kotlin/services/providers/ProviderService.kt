@@ -157,7 +157,7 @@ class ProviderService(
                         setParameter("requested_id", specification.id)
                         setParameter("domain", specification.domain)
                         setParameter("https", specification.https)
-                        setParameter("port", specification.port)
+                        setParameter("port", specification.port ?: if (specification.https) 443 else 80)
                     },
                     """
                         insert into provider.approval_request

@@ -22,7 +22,10 @@ interface ResourceIncludeFlags {
     val filterProvider: String?
     val filterProductId: String?
     val filterProductCategory: String?
-    val filterProviderId: String?
+    @UCloudApiDoc("Filters by the provider ID. The value is comma-separated.")
+    val filterProviderIds: String?
+    @UCloudApiDoc("Filters by the resource ID. The value is comma-separated.")
+    val filterIds: String?
 }
 
 @Serializable
@@ -37,7 +40,8 @@ data class SimpleResourceIncludeFlags(
     override val filterProvider: String? = null,
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
-    override val filterProviderId: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiDoc(
@@ -148,7 +152,8 @@ interface ResourceStatus<P : Product, Support : ProductSupport> {
 }
 
 @UCloudApiDoc(
-    """A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and a
+    [provider](/backend/provider-service/README.md).
 
 `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
 include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For

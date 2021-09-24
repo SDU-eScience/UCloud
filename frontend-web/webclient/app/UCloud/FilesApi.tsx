@@ -5,44 +5,44 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate, UCLOUD_CORE
-} from "UCloud/ResourceApi";
-import {FileIconHint, FileType} from "Files";
-import {BulkRequest, BulkResponse} from "UCloud/index";
-import {FileCollection, FileCollectionSupport} from "UCloud/FileCollectionsApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Box, Button, FtIcon, Link} from "ui-components";
+    ResourceUpdate
+} from "@/UCloud/ResourceApi";
+import {FileIconHint, FileType} from "@/Files";
+import {BulkRequest, BulkResponse} from "@/UCloud/index";
+import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Box, Button, FtIcon, Link} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
     getParentPath,
     readableUnixMode,
-    sizeToHumanReadableWithUnit,
     sizeToString
-} from "Utilities/FileUtilities";
-import {doNothing, extensionFromPath, removeTrailingSlash} from "UtilityFunctions";
-import {Operation} from "ui-components/Operation";
-import {UploadProtocol, WriteConflictPolicy} from "Files/Upload";
-import {bulkRequestOf, placeholderProduct} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
-import {FilesBrowse} from "Files/Files";
-import {ResourceProperties} from "Resource/Properties";
-import {ItemRenderer} from "ui-components/Browse";
-import HighlightedCard from "ui-components/HighlightedCard";
-import {MetadataBrowse} from "Files/Metadata/Documents/Browse";
-import {FileMetadataHistory} from "UCloud/MetadataDocumentApi";
-import {FileFavoriteToggle} from "Files/FavoriteToggle";
-import {PrettyFilePath} from "Files/FilePath";
-import {dateToString} from "Utilities/DateUtilities";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {OpenWith} from "Applications/OpenWith";
-import {FilePreview} from "Files/Preview";
-import {addStandardInputDialog, Sensitivity} from "UtilityComponents";
-import {ProductStorage} from "Accounting";
-import { SynchronizationSettings } from "Files/Synchronization";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {ListRowStat} from "ui-components/List";
-import SharesApi from "UCloud/SharesApi";
+} from "@/Utilities/FileUtilities";
+import {doNothing, extensionFromPath, removeTrailingSlash} from "@/UtilityFunctions";
+import {Operation} from "@/ui-components/Operation";
+import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {ResourceProperties} from "@/Resource/Properties";
+import {CheckboxFilter} from "@/Resource/Filter";
+import {ItemRenderer} from "@/ui-components/Browse";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {MetadataBrowse} from "@/Files/Metadata/Documents/Browse";
+import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
+import {FileFavoriteToggle} from "@/Files/FavoriteToggle";
+import {PrettyFilePath} from "@/Files/FilePath";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {OpenWith} from "@/Applications/OpenWith";
+import {FilePreview} from "@/Files/Preview";
+import {addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
+import {ProductStorage} from "@/Accounting";
+import {SynchronizationSettings} from "@/Files/Synchronization";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {ListRowStat} from "@/ui-components/List";
+import SharesApi from "@/UCloud/SharesApi";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -164,6 +164,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         });
         this.filterWidgets = [];
         this.filterPills = [];
+
+        this.registerFilter(CheckboxFilter("search", "filterHiddenFiles", "Show hidden files", true));
     }
 
     routingNamespace = "files";
@@ -306,7 +308,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 0 && cb.onSelect === undefined;
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+                    return true;
                 },
                 onClick: (_, cb) => {
                     cb.dispatch({
@@ -328,6 +337,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
+                    }
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
                     }
                     return true;
                 },
@@ -493,7 +505,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return "File system is read-only";
                     }
                     return selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
+                        && selected.every(f => f.specification.product)
+                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
                 },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(

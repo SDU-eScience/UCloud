@@ -1,18 +1,18 @@
 import * as React from "react";
-import {Flex} from "ui-components";
 import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {NetworkIPBrowse} from "Applications/NetworkIP/Browse";
-import {default as NetworkIPApi} from "UCloud/NetworkIPApi";
-import * as UCloud from "UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications/Jobs/Widgets/index";
-import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import {Flex} from "@/ui-components";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
+import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
+import * as UCloud from "@/UCloud";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "Authentication/DataHook";
-import {NetworkIP} from "UCloud/NetworkIPApi";
+import {callAPI} from "@/Authentication/DataHook";
+import {NetworkIP} from "@/UCloud/NetworkIPApi";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;

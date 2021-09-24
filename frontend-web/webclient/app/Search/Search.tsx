@@ -1,21 +1,21 @@
-import {HeaderSearchType} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
+import {HeaderSearchType} from "@/DefaultObjects";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setPrioritizedSearch, setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {setActivePage, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation, useRouteMatch} from "react-router";
 import {Dispatch} from "redux";
-import {SelectableText, SelectableTextWrapper} from "ui-components";
-import Hide from "ui-components/Hide";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Spacer} from "ui-components/Spacer";
-import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
-import {prettierString} from "UtilityFunctions";
+import {SelectableText, SelectableTextWrapper} from "@/ui-components";
+import Hide from "@/ui-components/Hide";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Spacer} from "@/ui-components/Spacer";
+import {searchPage} from "@/Utilities/SearchUtilities";
+import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
+import {prettierString} from "@/UtilityFunctions";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as SSActions from "./Redux/SearchActions";
-import * as Applications from "Applications";
+import * as Applications from "@/Applications";
 
 function Search(props: SearchProps): JSX.Element {
     const match = useRouteMatch<{priority: string}>();

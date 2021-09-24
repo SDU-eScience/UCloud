@@ -6,11 +6,11 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "UCloud/ResourceApi";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Icon} from "ui-components";
-import {ItemRenderer} from "ui-components/Browse";
-import {ProductSyncFolder} from "Accounting";
+} from "@/UCloud/ResourceApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Icon} from "@/ui-components";
+import {ItemRenderer} from "@/ui-components/Browse";
+import {ProductSyncFolder} from "@/Accounting";
 
 enum SynchronizationType {
     SEND_RECEIVE = "SEND_RECEIVE",

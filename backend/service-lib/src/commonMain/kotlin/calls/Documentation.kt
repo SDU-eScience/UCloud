@@ -1,7 +1,7 @@
 package dk.sdu.cloud.calls
 
+import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
 /**
@@ -11,7 +11,11 @@ import kotlin.reflect.KProperty
  */
 @Retention
 @Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
-annotation class UCloudApiDoc(@Language("markdown", "", "") val documentation: String, val inherit: Boolean = false)
+annotation class UCloudApiDoc(
+    @Language("markdown", "", "") val documentation: String,
+    val inherit: Boolean = false,
+    val importance: Int = 0,
+)
 
 expect annotation class Language(
     val value: String,
@@ -121,3 +125,64 @@ var CallDescriptionContainer.description: String?
             attributes[containerDescription] = value
         }
     }
+
+private val useCasesKey = AttributeKey<MutableList<UseCase>>("useCases")
+val CallDescriptionContainer.useCases: List<UseCase>
+    get() = attributes.getOrNull(useCasesKey) ?: emptyList()
+
+fun CallDescriptionContainer.useCase(
+    title: String,
+    frequencyOfUse: UseCase.FrequencyOfUse = UseCase.FrequencyOfUse.COMMON,
+    trigger: String? = null,
+    preConditions: List<String> = emptyList(),
+    postConditions: List<String> = emptyList(),
+    flow: MutableList<UseCaseNode>.() -> Unit,
+) {
+    val useCase = UseCase(title, frequencyOfUse, trigger, preConditions, postConditions,
+        ArrayList<UseCaseNode>().apply(flow))
+
+    val allUseCases = attributes.getOrNull(useCasesKey) ?: run {
+        val newList = ArrayList<UseCase>()
+        attributes[useCasesKey] = newList
+        newList
+    }
+
+    allUseCases.add(useCase)
+}
+
+data class UseCase(
+    val title: String,
+    val frequencyOfUse: FrequencyOfUse,
+    val trigger: String?,
+    val preConditions: List<String>,
+    val postConditions: List<String>,
+    val nodes: List<UseCaseNode>,
+) {
+    enum class FrequencyOfUse {
+        COMMON,
+        OCCASIONAL,
+        RARE,
+        ONE_TIME
+    }
+}
+
+sealed class UseCaseNode {
+    class Actor(val name: String, val description: String) : UseCaseNode()
+
+    class Call<R : Any, S : Any, E : Any>(
+        val call: CallDescription<R, S, E>,
+        val request: R,
+        val response: IngoingCallResponse<S, E>,
+        val actor: Actor,
+        val name: String? = null,
+    ) : UseCaseNode()
+
+    class Comment(val comment: String) : UseCaseNode()
+
+    class SourceCode(val language: Language, val code: String) : UseCaseNode()
+
+    enum class Language {
+        KOTLIN,
+        TYPESCRIPT
+    }
+}

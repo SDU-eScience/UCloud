@@ -1,24 +1,24 @@
-import {emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
+import {emptyPage} from "@/DefaultObjects";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import styled from "styled-components";
-import {Box, Flex, Link} from "ui-components";
-import Grid from "ui-components/Grid";
-import * as Heading from "ui-components/Heading";
-import {Spacer} from "ui-components/Spacer";
-import {EllipsedText} from "ui-components/Text";
-import theme from "ui-components/theme";
+import {Box, Flex, Link} from "@/ui-components";
+import Grid from "@/ui-components/Grid";
+import * as Heading from "@/ui-components/Heading";
+import {Spacer} from "@/ui-components/Spacer";
+import {EllipsedText} from "@/ui-components/Text";
+import theme from "@/ui-components/theme";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import * as UCloud from "UCloud";
-import {compute} from "UCloud";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud";
+import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {AppToolLogo} from "Applications/AppToolLogo";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>

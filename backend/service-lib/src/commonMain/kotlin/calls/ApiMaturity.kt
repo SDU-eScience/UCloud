@@ -111,6 +111,8 @@ sealed class UCloudApiMaturity {
             BETA,
             STABLE
         }
+
+        override fun toString(): String = "Internal/${level.name.lowercase()}"
     }
 
     data class Experimental(val level: Level) : UCloudApiMaturity() {
@@ -118,7 +120,11 @@ sealed class UCloudApiMaturity {
             ALPHA,
             BETA
         }
+
+        override fun toString(): String = "Experimental/${level.name.lowercase()}"
     }
 
-    object Stable : UCloudApiMaturity()
+    object Stable : UCloudApiMaturity() {
+        override fun toString(): String = "Stable"
+    }
 }

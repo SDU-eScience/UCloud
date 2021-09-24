@@ -7,7 +7,7 @@ import {
     MaxWidthProps, minHeight, MinHeightProps, minWidth, MinWidthProps, space,
     SpaceProps, width, WidthProps, zIndex, ZIndexProps
 } from "styled-system";
-import {cursor} from "Utilities/StyledComponentsUtilities";
+import {cursor} from "@/Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
 
 

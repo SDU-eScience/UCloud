@@ -1,30 +1,30 @@
-import {MainContainer} from "MainContainer/MainContainer";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
     subprojectsCountRequest
-} from "Project";
+} from "@/Project";
 import * as React from "react";
-import {Flex, Card, Icon, Box} from "ui-components";
+import {Flex, Card, Icon, Box} from "@/ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {loadingAction} from "Loading";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {GridCardGroup} from "ui-components/Grid";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useCloudAPI} from "Authentication/DataHook";
-import Table, {TableCell, TableRow} from "ui-components/Table";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {loadingAction} from "@/Loading";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {GridCardGroup} from "@/ui-components/Grid";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
-import {emptyPage} from "DefaultObjects";
+import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "@/Project/Grant";
+import {emptyPage} from "@/DefaultObjects";
 import {useHistory} from "react-router";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import * as UCloud from "UCloud";
-import HighlightedCard from "ui-components/HighlightedCard";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import * as UCloud from "@/UCloud";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} =
