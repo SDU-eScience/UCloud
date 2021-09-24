@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 24-09-21
+
+Fix a frontend issue related to copying of files.
+
+```
+✅  Deployment(webclient, 0.46.1) (UP-TO-DATE)
+```
+
 ## 20-09-21
 
 Internal testing of synchronization feature.

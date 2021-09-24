@@ -162,7 +162,7 @@ export const defaultFileOperations: FileOperation[] = [
             else if (isAnyMockFile(files)) return true;
             else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
             else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
-            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+            else return !cb.permissions.requireForAll(files, AccessRight.READ);
         },
         icon: "copy",
     },
