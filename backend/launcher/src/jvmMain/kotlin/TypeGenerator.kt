@@ -60,7 +60,8 @@ data class Documentation(
     val deprecated: Boolean,
     val maturity: UCloudApiMaturity,
     val synopsis: String?,
-    val description: String?
+    val description: String?,
+    val importance: Int = 0,
 )
 
 sealed class GeneratedType {
@@ -249,7 +250,8 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     val propType = traverseType(prop.type.javaType, visitedTypes)
 
-                    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+                    val (synopsis, description, importance) =
+                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
 
                     var propName = prop.name!!
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
@@ -280,7 +282,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     properties.add(GeneratedType.Property(
                         propName,
-                        Documentation(deprecated, maturity, synopsis, description),
+                        Documentation(deprecated, maturity, synopsis, description, importance),
                         propType.also { it.nullable = nullable }
                     ))
                 }
@@ -298,7 +300,8 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     val propType = traverseType(prop.returnType.javaType, visitedTypes)
 
-                    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+                    val (synopsis, description, importance) =
+                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
 
                     var propName = prop.name
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
@@ -328,7 +331,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     properties.add(GeneratedType.Property(
                         propName,
-                        Documentation(deprecated, maturity, synopsis, description),
+                        Documentation(deprecated, maturity, synopsis, description, importance),
                         propType.also { it.nullable = nullable }
                     ))
                 }
@@ -389,7 +392,7 @@ inline fun <reified T : Annotation> Class<*>.findAnnotation(): T? {
 
 fun Class<*>.documentation(): Documentation {
     val type = this
-    val (synopsis, description) = type.findAnnotation<UCloudApiDoc>().split()
+    val (synopsis, description, importance) = type.findAnnotation<UCloudApiDoc>().split()
     val deprecated = type.findAnnotation<Deprecated>() != null
     val maturity = run {
         val internalMaturity = type.findAnnotation<UCloudApiInternal>()
@@ -404,11 +407,11 @@ fun Class<*>.documentation(): Documentation {
         }
     }
 
-    return Documentation(deprecated, maturity, synopsis, description)
+    return Documentation(deprecated, maturity, synopsis, description, importance)
 }
 
 fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
-    val (synopsis, description) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+    val (synopsis, description, importance) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
     val deprecated = annotations.filterIsInstance<Deprecated>().firstOrNull() != null
     val maturity = run {
         val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
@@ -423,86 +426,17 @@ fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
         }
     }
 
-    return Documentation(deprecated, maturity, synopsis, description)
+    return Documentation(deprecated, maturity, synopsis, description, importance)
 }
 
-data class SynopsisAndDescription(val synopsis: String?, val description: String?)
+data class SynopsisAndDescription(val synopsis: String?, val description: String?, val importance: Int)
 
 fun UCloudApiDoc?.split(): SynopsisAndDescription {
-    if (this == null) return SynopsisAndDescription(null, null)
+    if (this == null) return SynopsisAndDescription(null, null, 0)
     val normalized = documentation.trimIndent()
     return SynopsisAndDescription(
         normalized.substringBefore('\n'),
-        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() }
+        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() },
+        importance,
     )
-}
-
-@UCloudApiStable
-@UCloudApiDoc("Testing")
-enum class MyEnum {
-    @UCloudApiDoc("""
-        This is the first option
-        
-        Further explanation goes here
-    """)
-    A,
-    @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
-    @UCloudApiDoc("This one is in beta")
-    B,
-    @UCloudApiDoc("You should not use this")
-    @Deprecated("Do not use this")
-    C
-}
-
-@UCloudApiStable
-@UCloudApiDoc("Docs")
-data class SimpleClass(
-    val byte: Byte,
-    val short: Short,
-    @UCloudApiStable
-    @UCloudApiDoc("Int docs")
-    val int: Int,
-    val long: Long,
-    val float: Float,
-    val double: Double,
-    val string: String,
-    val void: Unit,
-    val any: Any,
-    val json: JsonObject,
-    val nullable: Any?,
-    val selfReference: SimpleClass?,
-)
-
-data class CollectionTest(
-    val listTest: List<Any?>,
-    val setTest: Set<Any?>,
-    val mapTest: Map<String, Any?>,
-)
-
-data class GenericUsageTest(
-    val request: BulkRequest<JsonObject>
-)
-
-sealed class MySealedClass {
-    abstract val myInt: Int
-    @SerialName("a")
-    class A(override val myInt: Int, val myText: String) : MySealedClass()
-
-    @SerialName("b")
-    class B(override val myInt: Int, val myBoolean: Boolean) : MySealedClass()
-}
-
-fun runGenerator() {
-    val visitedTypes = LinkedHashMap<String, GeneratedType>()
-    println(traverseType(MySealedClass::class.java, visitedTypes))
-
-    for ((key, value) in visitedTypes) {
-        println(key)
-        println(value)
-        println("================================================================================")
-    }
-}
-
-fun main() {
-    runGenerator()
 }

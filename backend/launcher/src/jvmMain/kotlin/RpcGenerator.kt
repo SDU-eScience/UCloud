@@ -2,6 +2,9 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.Files
+import kotlin.reflect.full.declaredMembers
+import kotlin.reflect.full.isSubtypeOf
+import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.javaType
 import kotlin.reflect.jvm.javaField
 
@@ -25,6 +28,15 @@ fun generateCalls(
     visitedTypes: LinkedHashMap<String, GeneratedType>
 ): List<GeneratedRemoteProcedureCall> {
     val containerDocs = calls::class.java.documentation()
+    calls::class.members.forEach {
+        try {
+            if (it.returnType.isSubtypeOf(CallDescription::class.starProjectedType) && it.name != "call") {
+                it.call(calls)
+            }
+        } catch (ex: Throwable) {
+            println("Unexpected failure: ${calls} ${it}. ${ex.stackTraceToString()}")
+        }
+    }
     val allCalls = ArrayList(calls.callContainer)
     return allCalls.map { generateCall(it, calls, visitedTypes, containerDocs) }
 }
@@ -62,25 +74,4 @@ private fun generateCall(
             description ?: fieldDocs?.description
         )
     )
-}
-
-fun main() {
-    val visitedTypes = LinkedHashMap<String, GeneratedType>()
-    val visitedCalls = generateCalls(Files, visitedTypes)
-
-    println("================================================================================")
-    println("Calls")
-    println("================================================================================")
-    for (call in visitedCalls) {
-        println(call)
-    }
-
-    println("================================================================================")
-    println("Types")
-    println("================================================================================")
-    for ((key, value) in visitedTypes) {
-        println(key)
-        println(value)
-        println("================================================================================")
-    }
 }

@@ -428,4 +428,4 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 const isAnyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.notifications.loading;
 
-export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);
+export default connect(mapStateToProps, mapDispatchToProps)(Header);
