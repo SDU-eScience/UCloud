@@ -152,7 +152,8 @@ interface ResourceStatus<P : Product, Support : ProductSupport> {
 }
 
 @UCloudApiDoc(
-    """A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and a
+    [provider](/backend/provider-service/README.md).
 
 `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
 include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For

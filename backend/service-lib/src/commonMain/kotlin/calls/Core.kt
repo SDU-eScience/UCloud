@@ -65,6 +65,10 @@ abstract class CallDescriptionContainer(val namespace: String) {
     val callContainer: List<CallDescription<*, *, *>>
         get() = _callContainer
 
+    open fun examples() {
+        // Empty by default
+    }
+
     fun <Request : Any, Success : Any, Error : Any> call(
         name: String,
         handler: (CallDescription<Request, Success, Error>.() -> Unit),

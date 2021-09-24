@@ -4,15 +4,14 @@ import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Card} from "@/ui-components";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
-import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, LOGIN_PAGE_PRODUCTS} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
-import * as Heading from "@/ui-components/Heading";
 
 import bg2 from "@/Assets/Images/bg2.svg";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
@@ -235,7 +234,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
     return (
         <LoginWrapper>
-            <Flex mr="45px">
+            <Flex>
                 <LoginBox width="315px">
                     {enabledWayf && !challengeId && !isPasswordReset ? (
                         <a href={`/auth/saml/login?service=${service}`}>
@@ -553,44 +552,5 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </BackgroundImage>
     </>);
 }
-
-export function LoginSelection(): JSX.Element {
-    return (
-        <LoginWrapper selection>
-            <Flex justifyContent="center">
-                <CenteredGrid>
-                    {LOGIN_PAGE_PRODUCTS.map(product => (
-                        <Card
-                            key={product.name}
-                            width={1}
-                            height={"110px"}
-                            maxWidth="345px"
-                            backgroundColor="#1a62ca"
-                            boxShadow="sm"
-                            borderWidth={0}
-                            borderRadius={6}
-                        >
-                            <Flex alignItems="center" justifyContent="center" color="#fff" my="8px"><Heading.h4>{product.name}</Heading.h4></Flex>
-                            <Flex justifyContent="center">
-                                <a href={product.site}>
-                                    <Button mb="8px" width="300px" color="green">
-                                        <LoginTextSpan>Login</LoginTextSpan>
-                                    </Button>
-                                </a>
-                            </Flex>
-                        </Card>
-                    ))}
-                </CenteredGrid>
-            </Flex>
-        </LoginWrapper >
-    );
-}
-
-const CenteredGrid = styled.div`
-    display: inline-grid;
-    grid-template-columns: 345px 345px;
-    grid-template-rows: 110px;
-    grid-gap: 16px;
-`;
 
 export default LoginPage;

@@ -447,7 +447,7 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 export function useFrameHidden(): boolean {
     const [frameHidden] = useGlobal("frameHidden", false);
     const legacyHide =
-        ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
+        ["/app/login", "/app/login/wayf"].includes(window.location.pathname) ||
         window.location.search === "?dav=true" ||
         window.location.search.indexOf("?hide-frame") === 0;
     return legacyHide || frameHidden;

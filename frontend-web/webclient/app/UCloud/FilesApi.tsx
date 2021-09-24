@@ -504,7 +504,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return "File system is read-only";
                     }
                     return selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
+                        && selected.every(f => f.specification.product)
+                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
                 },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(

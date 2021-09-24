@@ -363,8 +363,11 @@ data class JobsRetrieveUtilizationRequest(val jobId: String)
 
 @Serializable
 data class JobsRetrieveUtilizationResponse(
+    @UCloudApiDoc("The total capacity of the entire compute system")
     val capacity: CpuAndMemory,
+    @UCloudApiDoc("The capacity currently in use, by running jobs, of the entire compute system")
     val usedCapacity: CpuAndMemory,
+    @UCloudApiDoc("The system of the queue")
     val queueStatus: QueueStatus,
 )
 
