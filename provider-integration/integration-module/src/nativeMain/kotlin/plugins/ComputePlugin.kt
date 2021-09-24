@@ -42,9 +42,10 @@ interface ComputePlugin : Plugin {
 
     fun PluginContext.verify(jobs: List<Job>) {}
 
-    fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
-        throw RPCException("Utilization is not supported by this cluster", HttpStatusCode.BadRequest)
-    }
+    fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse 
+    // {
+    //     throw RPCException("Utilization is not supported by this cluster", HttpStatusCode.BadRequest)
+    // }
 
 
     fun PluginContext.openInteractiveSessionBulk(

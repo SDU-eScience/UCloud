@@ -85,8 +85,6 @@ fun manageHeader(job:Job):String {
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
     // remove whitespaces
     var fileBody = job_content.value.lines().map{it.trim()}.toMutableList()
-
-    //TODO: add --hold once interactive job is running 
     val headerSuffix = 
                         """
                             #
@@ -188,7 +186,8 @@ fun PluginContext.getStatus(id: String) : JobState {
                 enabled = true,
                 logs = true,
                 timeExtension = true,
-                terminal = true
+                terminal = true,
+                utilization = true
             )
         )
     }
@@ -205,8 +204,6 @@ fun PluginContext.getStatus(id: String) : JobState {
                 }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
                 println(req)
-
-
 
                 (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
 
@@ -276,7 +273,6 @@ fun PluginContext.getStatus(id: String) : JobState {
         runBlocking {
 
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch").addArg("/data/${job.id}/job.sbatch").addEnv("SLURM_CONF", "/etc/slurm/slurm.conf").execute()
-
         if ( code != 0 ) throw RPCException("Unhandled exception when creating job: $stderr", HttpStatusCode.BadRequest)
 
         var slurmId = stdout
@@ -286,7 +282,7 @@ fun PluginContext.getStatus(id: String) : JobState {
         val request_product = job.specification?.product as ProductReference
         val product = compute!!.firstOrNull{ it.id == request_product.id } as ProductReferenceWithoutProvider
         val job_partition = "normal" //product!!.id 
-        ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(SlurmJob(job.id, slurmId.trim(), job_partition )) as JsonObject ) ).orThrow<Unit>()
+        ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition )   ) as JsonObject ) ).orThrow<Unit>()
         sleep(2)
 
         JobsControl.update.call(
@@ -301,15 +297,15 @@ fun PluginContext.getStatus(id: String) : JobState {
 
         sleep(5)
 
-        JobsControl.update.call(
-            bulkRequestOf(
-                JobsControlUpdateRequestItem(
-                    job.id,
-                    JobState.RUNNING,
-                    "The job is RUNNING"
-                )
-            ), client
-        ).orThrow()    
+        // JobsControl.update.call(
+        //     bulkRequestOf(
+        //         JobsControlUpdateRequestItem(
+        //             job.id,
+        //             JobState.RUNNING,
+        //             "The job is RUNNING"
+        //         )
+        //     ), client
+        // ).orThrow()    
 
 
         }
@@ -351,6 +347,80 @@ fun PluginContext.getStatus(id: String) : JobState {
             ).orThrow()
         }
     }
+
+    override fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
+            // squeue --format '%A|%m|%C|%T' --noheader --states running,pending --noconvert
+            // 26|50M|1|PENDING
+            // 27|50M|1|PENDING
+
+            //get pending cpu/mem jobs
+            val (_, jobs, _) = CmdBuilder("/usr/bin/squeue")
+                                    .addArg("--format","%A|%m|%C|%T")
+                                    .addArg("--noheader")
+                                    .addArg("--noconvert")
+                                    .addArg("--states", "running,pending")
+                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                    .execute()
+
+            val mList = jobs.lines().map{
+                it.trimIndent()
+                it.trim()
+                it.split("|")
+            }.toList()
+
+            var usedCpu = 0;
+            var usedMem = 0;
+            var pendingJobs = 0;
+            var runningJobs = 0;
+
+            mList.forEach{ line -> 
+
+                    if(  line[3].equals("PENDING") ) {
+                       pendingJobs++
+                    }
+
+                    if(  line[3].equals("RUNNING")  ) {
+                        usedCpu = usedCpu + line[2].toInt()
+                        usedMem = usedMem + line[1].replace("M", "").toInt()
+                        runningJobs++
+                    }
+
+            }
+
+            //println("$usedCpu $usedMem $pendingJobs $runningJobs")
+
+
+            // sinfo --format='%n|%c|%m' --noconvert --noheader
+            // c1|1|1000
+            // c2|1|1000
+
+            //get cluster overall cpu/mem
+            val (_, nodes, _) = CmdBuilder("/usr/bin/sinfo")
+                                    .addArg("--format","%n|%c|%m")
+                                    .addArg("--noheader")
+                                    .addArg("--noconvert")
+                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                    .execute()
+
+            val nList = nodes.lines().map{
+                it.trimIndent()
+                it.trim()
+                it.split("|")
+            }.toList()
+
+            var clusterCpu = 0;
+            var clusterMem = 0;
+
+            nList.forEach{ line -> 
+                        clusterCpu = clusterCpu + line[1].toInt()
+                        clusterMem = clusterMem + line[2].replace("M", "").toInt()
+            }
+
+            //println("$clusterCpu $clusterMem")
+
+        return JobsProviderUtilizationResponse(   CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()), CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()), QueueStatus(runningJobs, pendingJobs)  ) 
+    }
+
 
 
     override fun PluginContext.extend(request: JobsProviderExtendRequestItem) {
@@ -439,8 +509,6 @@ fun PluginContext.getStatus(id: String) : JobState {
 
                                         break@thisLoop
 
-
-
                         }
 
 
@@ -455,6 +523,9 @@ fun PluginContext.getStatus(id: String) : JobState {
 
 
     }
+
+
+
 
 
 

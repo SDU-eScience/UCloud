@@ -16,7 +16,9 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
 
-import platform.posix.* // delete later
+import dk.sdu.cloud.plugins.* //delete later
+import dk.sdu.cloud.utils.*
+
 
 class ComputeController(
     private val controllerContext: ControllerContext,
@@ -206,14 +208,92 @@ class ComputeController(
 
         implement(jobs.retrieveUtilization) {
             if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            TODO("Issue #2425")
-            /*
-            with(controllerContext.pluginContext) {
-                with(computePlugin) {
-                    OutgoingCallResponse.Ok(retrieveClusterUtilization())
-                }
+            //TODO("Issue #2425")
+
+
+            //TODO: find a way to call the plugin from SampleComputePlugin
+
+            //val mPlugin = plugins as ProductBasedPlugins
+            //val samplePlugin = mPlugin.plugins["sample"]
+            // with(controllerContext.pluginContext) {
+            //     with(samplePlugin) {
+            //          OutgoingCallResponse.Ok(this!!.retrieveClusterUtilization())
+            //    }
+            // }
+
+
+
+            // squeue --format '%A|%m|%C|%T' --noheader --states running,pending --noconvert
+            // 26|50M|1|PENDING
+            // 27|50M|1|PENDING
+
+            //get pending cpu/mem jobs
+            val (_, jobs, _) = CmdBuilder("/usr/bin/squeue")
+                                    .addArg("--format","%A|%m|%C|%T")
+                                    .addArg("--noheader")
+                                    .addArg("--noconvert")
+                                    .addArg("--states", "running,pending")
+                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                    .execute()
+
+            val mList = jobs.lines().map{
+                it.trimIndent()
+                it.trim()
+                it.split("|")
+            }.toList()
+
+            var usedCpu = 0;
+            var usedMem = 0;
+            var pendingJobs = 0;
+            var runningJobs = 0;
+
+            mList.forEach{ line -> 
+
+                    if(  line[3].equals("PENDING") ) {
+                       pendingJobs++
+                    }
+
+                    if(  line[3].equals("RUNNING")  ) {
+                        usedCpu = usedCpu + line[2].toInt()
+                        usedMem = usedMem + line[1].replace("M", "").toInt()
+                        runningJobs++
+                    }
+
             }
-             */
+
+            //println("$usedCpu $usedMem $pendingJobs $runningJobs")
+
+
+            // sinfo --format='%n|%c|%m' --noconvert --noheader
+            // c1|1|1000
+            // c2|1|1000
+
+            //get cluster overall cpu/mem
+            val (_, nodes, _) = CmdBuilder("/usr/bin/sinfo")
+                                    .addArg("--format","%n|%c|%m")
+                                    .addArg("--noheader")
+                                    .addArg("--noconvert")
+                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                    .execute()
+
+            val nList = nodes.lines().map{
+                it.trimIndent()
+                it.trim()
+                it.split("|")
+            }.toList()
+
+            var clusterCpu = 0;
+            var clusterMem = 0;
+
+            nList.forEach{ line -> 
+                        clusterCpu = clusterCpu + line[1].toInt()
+                        clusterMem = clusterMem + line[2].replace("M", "").toInt()
+            }
+
+            //println("$clusterCpu $clusterMem")
+
+           OutgoingCallResponse.Ok( JobsProviderUtilizationResponse(   CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()), CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()), QueueStatus(runningJobs, pendingJobs))   )
+
         }
 
         implement(jobs.suspend) {

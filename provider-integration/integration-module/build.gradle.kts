@@ -53,6 +53,7 @@ kotlin {
         else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
     }
 
+
     nativeTarget.apply {
         binaries {
             executable {
@@ -61,8 +62,9 @@ kotlin {
         }
 
         compilations["main"].dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0")
             implementation("dk.sdu.cloud:integration-module-support:2021.2.0-storage0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
         }
 
         compilations["main"].cinterops {
@@ -124,6 +126,8 @@ kotlin {
             languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
             languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
         }
+
+
     }
 }
 
