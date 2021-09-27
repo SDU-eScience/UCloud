@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.AccountingController
-import dk.sdu.cloud.accounting.rpc.Docs
 import dk.sdu.cloud.accounting.rpc.FavoritesController
 import dk.sdu.cloud.accounting.rpc.GroupController
 import dk.sdu.cloud.accounting.rpc.IntegrationController
@@ -103,7 +102,6 @@ class Server(
             configureControllers(
                 AccountingController(accountingService, depositNotifications),
                 ProductController(productService),
-                Docs(),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),
                 GrantController(grantApplicationService, comments, settings, templates),

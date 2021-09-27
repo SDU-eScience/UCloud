@@ -334,6 +334,7 @@ sealed class FileMetadataOrDeleted {
 @UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
+@UCloudApiOwnedBy(FileMetadata::class)
 data class FileMetadataDocument(
     override val id: String,
     val specification: Spec,
@@ -343,6 +344,7 @@ data class FileMetadataDocument(
 ) : FileMetadataOrDeleted(){
     @Serializable
     @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
@@ -356,12 +358,14 @@ data class FileMetadataDocument(
 
     @Serializable
     @UCloudApiDoc("The current status of a metadata document", importance = 95)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Status(
         val approval: ApprovalStatus,
     )
 
     @Serializable
     @UCloudApiDoc("The approval status of a metadata document", importance = 94)
+    @UCloudApiOwnedBy(FileMetadata::class)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
@@ -490,6 +494,7 @@ data class FileCollection(
 }
 
 @Serializable
+@UCloudApiOwnedBy(FileCollections::class)
 data class FSSupport(
     override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),

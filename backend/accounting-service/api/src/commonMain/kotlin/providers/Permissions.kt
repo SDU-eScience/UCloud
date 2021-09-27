@@ -3,6 +3,7 @@ package dk.sdu.cloud.provider.api
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -20,6 +21,7 @@ import kotlinx.serialization.encoding.Encoder
     """
 )
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiOwnedBy(Resources::class)
 enum class Permission(val canBeGranted: Boolean) {
     @UCloudApiDoc(
         """
@@ -74,6 +76,7 @@ data class UpdatedAcl(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class UpdatedAclWithResource<Res : Resource<*, *>>(
     val resource: Res,
     val added: List<ResourceAclEntry>,

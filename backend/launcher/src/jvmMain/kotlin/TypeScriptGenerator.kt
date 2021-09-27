@@ -139,8 +139,12 @@ fun generateTypeScriptCode(
                     }
 
                     else -> {
-                        println("Cannot generate implementation for ${call.namespace}.${call.name}")
-                        appendLine("throw Error('Missing implementation for ${call.namespace}.${call.name}');")
+                        if (call.name.contains("upload")) {
+                            appendLine("throw Error('Uploads are not supported from this interface');")
+                        } else {
+                            println("Cannot generate implementation for ${call.namespace}.${call.name}")
+                            appendLine("throw Error('Missing implementation for ${call.namespace}.${call.name}');")
+                        }
                     }
                 }
                 appendLine()

@@ -598,6 +598,7 @@ verification API to cleanup these resources later.
 """
 )
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
         if (items.size > 1_000 || items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -617,4 +618,5 @@ fun <T : Any> bulkResponseOf(vararg items: T): BulkResponse<T> {
 }
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class BulkResponse<T>(val responses: List<T>)

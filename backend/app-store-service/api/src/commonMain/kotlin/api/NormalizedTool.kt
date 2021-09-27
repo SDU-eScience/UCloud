@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -30,6 +31,7 @@ data class ToolReference(
 ) : WithNameAndVersion
 
 @Serializable
+@UCloudApiOwnedBy(ToolStore::class)
 data class Tool(
     val owner: String,
     val createdAt: Long,

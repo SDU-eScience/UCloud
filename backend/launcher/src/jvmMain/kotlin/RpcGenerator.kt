@@ -121,8 +121,12 @@ fun GeneratedTypeReference.attachOwner(
         is GeneratedTypeReference.Array -> valueType.attachOwner(owner, visitedTypes)
         is GeneratedTypeReference.Dictionary -> valueType.attachOwner(owner, visitedTypes)
         is GeneratedTypeReference.Structure -> {
+            if (!name.startsWith("dk.sdu.cloud.")) return
+
             this.generics.forEach { it.attachOwner(owner, visitedTypes) }
-            val typePackageName = this.name.substringBeforeLast('.')
+            val typePackageName = this.name.split(".")
+                .filter { it.firstOrNull()?.isLowerCase() == true }
+                .joinToString(".")
             val generatedStructure = visitedTypes[this.name]
             if (generatedStructure != null) {
                 if (generatedStructure is GeneratedType.Struct) {
@@ -133,10 +137,19 @@ fun GeneratedTypeReference.attachOwner(
                     generatedStructure.baseProperties.forEach {
                         it.type.attachOwner(generatedStructure.owner ?: owner, visitedTypes)
                     }
+
+                    generatedStructure.options.forEach {
+                        it.attachOwner(generatedStructure.owner ?: owner, visitedTypes)
+                    }
                 }
 
+                // NOTE(Dan): If we have a conflict between a provider and a non-provider API we will always pick the
+                // non-provider API.
+                val isProviderApi = owner.java.canonicalName.contains("provider", ignoreCase = true)
+                val isControlApi = owner.java.canonicalName.contains("control", ignoreCase = true)
                 if (typePackageName == packageName && !generatedStructure.hasExplicitOwner) {
-                    if (generatedStructure.owner != null && generatedStructure.owner != owner) {
+                    val hasConflict = generatedStructure.owner != null && generatedStructure.owner != owner
+                    if (hasConflict && !isProviderApi && !isControlApi) {
                         println(
                             "Ambiguous owner of ${this.name}. " +
                                 "You can fix this by attaching " +
@@ -145,7 +158,7 @@ fun GeneratedTypeReference.attachOwner(
                         )
                     }
 
-                    generatedStructure.owner = owner
+                    if (!hasConflict) generatedStructure.owner = owner
                 }
             }
         }
