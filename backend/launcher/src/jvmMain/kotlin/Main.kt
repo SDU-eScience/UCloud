@@ -75,7 +75,7 @@ val services = setOf<Service>(
 
 suspend fun main(args: Array<String>) {
     if (args.contains("--run-script") && args.contains("api-gen")) {
-        runOpenApiGenerator(args)
+        generateCode()
         exitProcess(0)
     }
 

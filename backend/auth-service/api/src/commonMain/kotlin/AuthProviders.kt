@@ -85,9 +85,9 @@ object AuthProviders : CallDescriptionContainer("auth.providers") {
         documentation {
             summary = "Signs an access-token to be used by a UCloud service"
             description = """
-                This RPC signs an access-token which will be used by authorized UCloud services to act as an
-                orchestrator of resources.
-            """.trimIndent()
+                    This RPC signs an access-token which will be used by authorized UCloud services to act as an
+                    orchestrator of resources.
+                """.trimIndent()
         }
     }
 
@@ -99,9 +99,9 @@ object AuthProviders : CallDescriptionContainer("auth.providers") {
         documentation {
             summary = "Generates an RSA key pair useful for JWT signatures"
             description = """
-                Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
-                way by the authentication service.
-            """.trimIndent()
+                    Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
+                    way by the authentication service.
+                """.trimIndent()
         }
     }
 }

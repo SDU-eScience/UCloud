@@ -89,7 +89,7 @@ class NetworkIPService(
                     request: BulkRequest<FirewallAndId>
                 ): List<RequestWithRefOrResource<FirewallAndId, NetworkIP>> {
                     return request.items.zip(
-                        retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Edit))
+                        retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT))
                             .map { ProductRefOrResource.SomeResource(it) }
                     )
                 }

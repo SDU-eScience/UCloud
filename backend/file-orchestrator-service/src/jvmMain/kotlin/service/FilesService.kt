@@ -95,7 +95,7 @@ class FilesService(
         ctx: DBContext?
     ): PageV2<UFile> {
         val path = request.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.Read)
+        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.READ)
         verifyReadRequest(request.flags, resolvedCollection.status.resolvedSupport!!.support)
         return coroutineScope {
             val browseJob = async {
@@ -188,7 +188,7 @@ class FilesService(
         asProvider: Boolean
     ): UFile {
         val path = flags?.path ?: id
-        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.Read)
+        val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.READ)
         verifyReadRequest(flags ?: UFileIncludeFlags(), resolvedCollection.status.resolvedSupport!!.support)
 
         return coroutineScope {
@@ -227,7 +227,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Admin,
+            Permission.ADMIN,
             { it.filesApi.updateAcl },
             { extractPathMetadata(it.id).collection },
             { req, coll -> UpdatedAclWithResource(dummyResource(req.id, coll), req.added, req.deleted) },
@@ -251,7 +251,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Edit,
+            Permission.EDIT,
             { it.filesApi.delete },
             { extractPathMetadata(it.id).collection },
             { req, coll -> dummyResource(req.id, coll) },
@@ -301,10 +301,10 @@ class FilesService(
                     actorAndProject: ActorAndProject,
                     request: BulkRequest<FilesMoveRequestItem>
                 ): List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>> {
-                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.EDIT) {
                         extractPathMetadata(it.oldId).collection
                     }
-                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.EDIT) {
                         extractPathMetadata(it.newId).collection
                     }
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
@@ -398,10 +398,10 @@ class FilesService(
                     actorAndProject: ActorAndProject,
                     request: BulkRequest<FilesCopyRequestItem>
                 ): List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>> {
-                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Read) {
+                    val oldCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.READ) {
                         extractPathMetadata(it.oldId).collection
                     }
-                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.Edit) {
+                    val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.EDIT) {
                         extractPathMetadata(it.newId).collection
                     }
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
@@ -475,7 +475,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Edit,
+            Permission.EDIT,
             { it.filesApi.createUpload },
             { extractPathMetadata(it.id).collection },
             { req, coll ->
@@ -504,7 +504,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Read,
+            Permission.READ,
             { it.filesApi.createDownload },
             { extractPathMetadata(it.id).collection },
             { req, coll -> FilesProviderCreateDownloadRequestItem(coll, req.id) },
@@ -526,7 +526,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Edit,
+            Permission.EDIT,
             { it.filesApi.createFolder },
             { extractPathMetadata(it.id).collection },
             { req, coll -> FilesProviderCreateFolderRequestItem(coll, req.id, req.conflictPolicy) },
@@ -553,7 +553,7 @@ class FilesService(
         return bulkProxyEdit(
             actorAndProject,
             request,
-            Permission.Edit,
+            Permission.EDIT,
             { it.filesApi.trash },
             { extractPathMetadata(it.id).collection },
             { req, coll -> FilesProviderTrashRequestItem(coll, req.id) },

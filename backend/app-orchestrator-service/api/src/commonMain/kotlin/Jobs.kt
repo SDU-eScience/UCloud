@@ -505,14 +505,14 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         documentation {
             summary = "Request job cancellation and destruction"
             description = """
-                This call will request the cancellation of the associated jobs. This will make sure that the jobs
-                are eventually stopped and resources are released. If the job is running a virtual machine, then the
-                virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
-                deleted only temporary data from the job will be deleted.
-                
-                This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
-                be followed using the ${docCallRef(::retrieve)}, ${docCallRef(::browse)}, ${docCallRef(::follow)} calls.
-            """.trimIndent()
+                    This call will request the cancellation of the associated jobs. This will make sure that the jobs
+                    are eventually stopped and resources are released. If the job is running a virtual machine, then the
+                    virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
+                    deleted only temporary data from the job will be deleted.
+                    
+                    This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
+                    be followed using the ${docCallRef(::retrieve)}, ${docCallRef(::browse)}, ${docCallRef(::follow)} calls.
+                """.trimIndent()
         }
     }
 
@@ -541,20 +541,20 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         documentation {
             summary = "Extend the duration of one or more jobs"
             description = """
-                This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
-                the current deadline of a job. Note that not all providers support this features. Providers which
-                do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
-                when not supported it will send back a 400 bad request.
-                
-                This call makes no guarantee that all jobs are extended in a single transaction. If the provider
-                supports it, then all requests made against a single provider should be made in a single transaction.
-                Clients can determine if their extension request against a specific target was successful by checking
-                if the time remaining of the job has been updated.
-                
-                This call will return 2XX if all jobs have successfully been extended. The job will fail with a
-                status code from the provider one the first extension which fails. UCloud will not attempt to extend
-                more jobs after the first failure.
-            """.trimIndent()
+                    This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
+                    the current deadline of a job. Note that not all providers support this features. Providers which
+                    do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
+                    when not supported it will send back a 400 bad request.
+                    
+                    This call makes no guarantee that all jobs are extended in a single transaction. If the provider
+                    supports it, then all requests made against a single provider should be made in a single transaction.
+                    Clients can determine if their extension request against a specific target was successful by checking
+                    if the time remaining of the job has been updated.
+                    
+                    This call will return 2XX if all jobs have successfully been extended. The job will fail with a
+                    status code from the provider one the first extension which fails. UCloud will not attempt to extend
+                    more jobs after the first failure.
+                """.trimIndent()
         }
     }
 
@@ -564,10 +564,10 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         documentation {
             summary = "Suspend a job"
             description = """
-                Suspends the job, putting it in a paused state. Not all compute backends support this operation.
-                For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
-                without deleting any data.
-            """.trimIndent()
+                    Suspends the job, putting it in a paused state. Not all compute backends support this operation.
+                    For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
+                    without deleting any data.
+                """.trimIndent()
         }
     }
 

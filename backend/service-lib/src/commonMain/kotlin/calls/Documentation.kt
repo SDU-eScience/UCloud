@@ -17,6 +17,12 @@ annotation class UCloudApiDoc(
     val importance: Int = 0,
 )
 
+data class UCloudApiDocC(
+    @Language("markdown", "", "") val documentation: String,
+    val inherit: Boolean = false,
+    val importance: Int = 0,
+)
+
 expect annotation class Language(
     val value: String,
     val prefix: String,
@@ -125,6 +131,26 @@ var CallDescriptionContainer.description: String?
             attributes[containerDescription] = value
         }
     }
+
+@UCloudApiDoc("RpcDocumentationOverride allows the developer to override documentation of an inherited call")
+data class RpcDocumentationOverride(
+    val call: CallDescription<*, *, *>,
+    val docs: UCloudApiDocC
+)
+
+private val docOverridesKey = AttributeKey<MutableMap<String, RpcDocumentationOverride>>("docOverrides")
+val CallDescriptionContainer.docOverrides: Map<String, RpcDocumentationOverride>
+    get() = attributes.getOrNull(docOverridesKey) ?: emptyMap()
+
+fun CallDescriptionContainer.document(call: CallDescription<*, *, *>, documentation: UCloudApiDocC) {
+    val overrides = attributes.getOrNull(docOverridesKey) ?: run {
+        val newMap = HashMap<String, RpcDocumentationOverride>()
+        attributes[docOverridesKey] = newMap
+        newMap
+    }
+
+    overrides[call.fullName] = RpcDocumentationOverride(call, documentation)
+}
 
 private val useCasesKey = AttributeKey<MutableList<UseCase>>("useCases")
 val CallDescriptionContainer.useCases: List<UseCase>

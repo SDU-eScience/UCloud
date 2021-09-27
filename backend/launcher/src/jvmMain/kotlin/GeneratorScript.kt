@@ -95,7 +95,7 @@ fun Chapter.addPaths(path: List<Chapter.Node> = emptyList()) {
     children.forEach { it.addPaths(newPath) }
 }
 
-fun main() {
+fun generateCode() {
 //    makeSureEverythingIsLoaded()
 
     val structure = Chapter.Node(
@@ -368,7 +368,7 @@ fun main() {
         val chapter = stack.pollFirst() ?: break
         when (chapter) {
             is Chapter.Feature -> {
-                chapter.container.examples()
+                chapter.container.documentation()
                 val nextSection = stack.peek()
                 val types = LinkedHashMap<String, GeneratedType>()
                 val calls = generateCalls(chapter.container, types)
@@ -382,6 +382,8 @@ fun main() {
                     chapter.title,
                     chapter.container,
                 )
+
+                generateTypeScriptCode(types, calls, chapter.title, chapter.container)
             }
 
             is Chapter.Node -> {

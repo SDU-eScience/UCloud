@@ -440,3 +440,13 @@ fun UCloudApiDoc?.split(): SynopsisAndDescription {
         importance,
     )
 }
+
+fun UCloudApiDocC?.split(): SynopsisAndDescription {
+    if (this == null) return SynopsisAndDescription(null, null, 0)
+    val normalized = documentation.trimIndent()
+    return SynopsisAndDescription(
+        normalized.substringBefore('\n'),
+        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() },
+        importance,
+    )
+}

@@ -90,7 +90,7 @@ abstract class ResourceService<
         return paginatedQuery(
             browseQuery,
             actorAndProject,
-            listOf(Permission.Read),
+            listOf(Permission.READ),
             request.flags,
             request,
             request.normalize(),
@@ -117,7 +117,7 @@ abstract class ResourceService<
 
         val (resourceParams, resourceQuery) = accessibleResources(
             actorAndProject.actor,
-            if (asProvider) listOf(Permission.Provider) else listOf(Permission.Read),
+            if (asProvider) listOf(Permission.PROVIDER) else listOf(Permission.READ),
             resourceId = convertedId,
             projectFilter = "",
             flags = flags,
@@ -207,9 +207,9 @@ abstract class ResourceService<
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.Provider) {
+                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER) {
                         // Admin isn't enough if we are looking for Provider
-                        if (Permission.Provider !in (it.permissions?.myself ?: emptyList())) {
+                        if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
                         }
                     }
@@ -395,7 +395,7 @@ abstract class ResourceService<
                             retrieveBulk(
                                 actorAndProject,
                                 generatedIds.map { it.toString() },
-                                listOf(Permission.Edit),
+                                listOf(Permission.EDIT),
                                 ctx = session,
                                 includeUnconfirmed = true
                             )
@@ -490,7 +490,7 @@ abstract class ResourceService<
                         request: BulkRequest<UpdatedAcl>
                     ): List<RequestWithRefOrResource<UpdatedAcl, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Admin))
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -666,7 +666,7 @@ abstract class ResourceService<
                         request: BulkRequest<FindByStringId>
                     ): List<RequestWithRefOrResource<FindByStringId, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Edit))
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -733,7 +733,7 @@ abstract class ResourceService<
     ) {
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
-            val resources = retrieveBulk(actorAndProject, ids, listOf(Permission.Provider), includeUnconfirmed = true)
+            val resources = retrieveBulk(actorAndProject, ids, listOf(Permission.PROVIDER), includeUnconfirmed = true)
 
             session
                 .sendPreparedStatement(
@@ -903,7 +903,7 @@ abstract class ResourceService<
         val allResources = retrieveBulk(
             actorAndProject,
             ids,
-            listOf(Permission.Provider),
+            listOf(Permission.PROVIDER),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = true),
             includeUnconfirmed = true,
         ).associateBy { it.id }
@@ -951,7 +951,7 @@ abstract class ResourceService<
     ): PageV2<Res> {
         val search = browseQuery(request.flags, request.query)
         return paginatedQuery(
-            search, actorAndProject, listOf(Permission.Read), request.flags,
+            search, actorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx
         )
     }

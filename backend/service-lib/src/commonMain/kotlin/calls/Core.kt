@@ -65,7 +65,7 @@ abstract class CallDescriptionContainer(val namespace: String) {
     val callContainer: List<CallDescription<*, *, *>>
         get() = _callContainer
 
-    open fun examples() {
+    open fun documentation() {
         // Empty by default
     }
 
@@ -92,7 +92,9 @@ abstract class CallDescriptionContainer(val namespace: String) {
             this
         )
         callDescription.handler()
-        _callContainer.add(callDescription)
+        if (!_callContainer.any { it.fullName == callDescription.fullName }) {
+            _callContainer.add(callDescription)
+        }
         onBuildHandlers.forEach { it(callDescription) }
         return callDescription
     }

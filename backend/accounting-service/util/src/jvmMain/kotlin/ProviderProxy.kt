@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -90,7 +89,7 @@ abstract class BulkProxyInstructions<Comms : ProviderComms, Support : ProductSup
                         service.retrieveBulk(
                             actorAndProject,
                             request.items.map { requestToId(it) },
-                            listOf(Permission.Edit)
+                            listOf(Permission.EDIT)
                         ).map { ProductRefOrResource.SomeResource(it) }
                     )
                 }

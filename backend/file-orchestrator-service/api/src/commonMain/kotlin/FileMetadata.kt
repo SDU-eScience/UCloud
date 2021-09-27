@@ -114,13 +114,13 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
         documentation {
             summary = "Browses metadata documents"
             description = """
-                Browses in all accessible metadata documents of a user. These are potentially filtered via the flags
-                provided in the request, such as filtering for specific templates. This endpoint should consider any
-                `FileCollection` that the user has access to in the currently active project. Note that this endpoint
-                can only return information about the metadata documents and not the file contents itself. Clients
-                should generally present the output of this has purely metadata documents, they can link to the real
-                files if needed. This should eventually result in either a `browse` or `retrieve` call in the files API.
-            """.trimIndent()
+                    Browses in all accessible metadata documents of a user. These are potentially filtered via the flags
+                    provided in the request, such as filtering for specific templates. This endpoint should consider any
+                    `FileCollection` that the user has access to in the currently active project. Note that this endpoint
+                    can only return information about the metadata documents and not the file contents itself. Clients
+                    should generally present the output of this has purely metadata documents, they can link to the real
+                    files if needed. This should eventually result in either a `browse` or `retrieve` call in the files API.
+                """.trimIndent()
         }
     }
 
