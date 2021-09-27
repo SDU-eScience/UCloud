@@ -97,7 +97,7 @@ class JobMonitoringService(
                             jobOrchestrator.retrieveBulk(
                                 actorAndProject = ActorAndProject(Actor.System, null),
                                 it.toList(),
-                                permissionOneOf = listOf(Permission.Read)
+                                permissionOneOf = listOf(Permission.READ)
                             )
                         }
 
@@ -184,7 +184,7 @@ class JobMonitoringService(
             val available = ingressService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 ingress,
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 requireAll = false,
                 ctx = session
             )
@@ -202,7 +202,7 @@ class JobMonitoringService(
             val available = networkIPService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 networkIPs,
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 ctx = session
             )
             if (available.size != ingress.size) {
@@ -220,7 +220,7 @@ class JobMonitoringService(
             val available = licenseService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 licenses,
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 ctx = session
             )
             if (available.size != licenses.size) {
@@ -275,7 +275,7 @@ class JobMonitoringService(
         val canAccess = fileCollectionService.retrieveBulk(
             ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
             files,
-            if (readOnly) listOf(Permission.Read) else listOf(Permission.Edit),
+            if (readOnly) listOf(Permission.READ) else listOf(Permission.EDIT),
             requireAll = false,
             ctx = session
         )

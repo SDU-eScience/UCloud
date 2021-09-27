@@ -308,39 +308,6 @@ of bytes.
         }
     }
 
-    /*
-    val delete = call<FilesDeleteRequest, FilesDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-
-        documentation {
-            summary = "Deletes a file permanently from the file-system"
-            description = """
-                Deletes a file permanently from the file-system.
-                
-                This operation is permanent and cannot be undone. User interfaces should prefer using
-                ${docCallRef(::trash)} if it is supported by the provider.
-                
-                If the referenced file is a directory then this will delete all files recursively. This operation may
-                fail half-way through which will leave the file-system in an inconsistent state. It is the user's
-                responsibility to clean up this state.
-                
-                This is a long running task. As a result, this operation might respond with a status code which indicate
-                that it will continue in the background. Progress of this job can be followed using the task API.
-            """.trimIndent()
-
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
-
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
-        }
-    }
-     */
-
     val createUpload = call<FilesCreateUploadRequest, FilesCreateUploadResponse, CommonErrorMessage>("createUpload") {
         httpCreate(baseContext, "upload")
 
@@ -412,35 +379,6 @@ of bytes.
             }
         }
     }
-
-    /*
-    val updateAcl = call<FilesUpdateAclRequest, FilesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
-
-        documentation {
-            summary = "Updates the permissions of a file"
-            /*
-            description = """
-                Updates the permissions of a file.
-                
-                Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
-                or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag. 
-            """.trimIndent()
-
-             */
-
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
-
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
-        }
-    }
-     */
 
     val trash = call<FilesTrashRequest, FilesTrashResponse, CommonErrorMessage>("trash") {
         httpUpdate(baseContext, "trash")
