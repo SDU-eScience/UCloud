@@ -1,7 +1,10 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encodeToString
 import java.io.File
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -358,5 +361,69 @@ private fun tsSafeIdentifier(name: String): String {
         "delete" -> "remove"
         "new" -> "new_" // not ideal but will be deprecated anyway
         else -> name
+    }
+}
+
+fun UseCase.typescript(): String {
+    return buildString {
+        var lastActor: String? = null
+
+        appendLine("```typescript")
+        for (node in nodes) {
+            when (node) {
+                is UseCaseNode.Actor -> {
+                    // Do nothing
+                }
+                is UseCaseNode.Call<*, *, *> -> {
+                    if (lastActor != node.actor.name) {
+                        appendLine("// Authenticated as ${node.actor.name}")
+                        lastActor = node.actor.name
+                    }
+
+                    if (node.name != null) {
+                        append("const ")
+                        append(node.name)
+                        append(" = ")
+                    }
+                    append("await callAPI(")
+                    append(node.call.containerRef.typescriptApiName())
+                    append(".")
+                    append(node.call.field?.name ?: node.call.name)
+                    appendLine("(")
+                    appendLine(
+                        prettyMapper.encodeToString(
+                            node.call.requestType as KSerializer<Any>, node.request
+                        ).prependIndent("    ")
+                    )
+                    appendLine(");")
+                    appendLine()
+                    appendLine("/*")
+                    if (node.name != null) {
+                        append(node.name)
+                        append(" = ")
+                    }
+                    when (val response = node.response) {
+                        is IngoingCallResponse.Error -> {
+                            appendLine(response.statusCode.toString())
+                        }
+                        is IngoingCallResponse.Ok -> {
+                            appendLine(
+                                prettyMapper.encodeToString(node.call.successType as KSerializer<Any>, response.result)
+                            )
+                        }
+                    }
+                    appendLine("*/")
+                }
+                is UseCaseNode.Comment -> {
+                    appendLine("/* ${node.comment} */")
+                }
+                is UseCaseNode.SourceCode -> {
+                    if (node.language == UseCaseNode.Language.TYPESCRIPT) {
+                        appendLine(node.code)
+                    }
+                }
+            }
+        }
+        appendLine("```")
     }
 }

@@ -207,153 +207,160 @@ fun generateMarkdown(
             outs.appendLine(
                 summary(
                     "<b>Communication Flow:</b> TypeScript",
-                    buildString {
-                        appendLine("```typescript")
-                        appendLine("// TODO")
-                        appendLine("```")
-                    }
+                    useCase.typescript()
+                )
+            )
+
+            outs.appendLine(
+                summary(
+                    "<b>Communication Flow:</b> Curl",
+                    useCase.curl()
                 )
             )
         }
 
-        outs.println()
-        outs.println("## Remote Procedure Calls")
-        outs.println()
-        for (call in calls) {
-            outs.println("### `${call.name}`")
+        if (calls.isNotEmpty()) {
             outs.println()
-            outs.println(apiMaturityBadge(call.doc.maturity))
-            outs.println(rolesBadge(call.roles))
-            outs.println(deprecatedBadge(call.doc.deprecated))
+            outs.println("## Remote Procedure Calls")
             outs.println()
-            if (call.doc.synopsis != null) outs.println("_${call.doc.synopsis}_")
-            outs.println()
+            for (call in calls) {
+                outs.println("### `${call.name}`")
+                outs.println()
+                outs.println(apiMaturityBadge(call.doc.maturity))
+                outs.println(rolesBadge(call.roles))
+                outs.println(deprecatedBadge(call.doc.deprecated))
+                outs.println()
+                if (call.doc.synopsis != null) outs.println("_${call.doc.synopsis}_")
+                outs.println()
 
-            outs.println("| Request | Response | Error |")
-            outs.println("|---------|----------|-------|")
-            outs.print("|")
-            outs.print("`${call.requestType.kotlin()}`")
-            outs.print("|")
-            outs.print("`${call.responseType.kotlin()}`")
-            outs.print("|")
-            outs.print("`${call.errorType.kotlin()}`")
-            outs.println("|")
+                outs.println("| Request | Response | Error |")
+                outs.println("|---------|----------|-------|")
+                outs.print("|")
+                outs.print("`${call.requestType.kotlin()}`")
+                outs.print("|")
+                outs.print("`${call.responseType.kotlin()}`")
+                outs.print("|")
+                outs.print("`${call.errorType.kotlin()}`")
+                outs.println("|")
 
-            outs.println()
-            if (call.doc.description != null) outs.println(call.doc.description)
-            outs.println()
+                outs.println()
+                if (call.doc.description != null) outs.println(call.doc.description)
+                outs.println()
+            }
         }
 
-        outs.println()
-        outs.println("## Data Models")
-        outs.println()
+        if (types.values.isNotEmpty()) {
+            outs.println()
+            outs.println("## Data Models")
+            outs.println()
 
-        val sortedTypes = ArrayList(types.values).sortedWith(
-            Comparator
-                .comparingInt<GeneratedType> {
-                    if (it.name.contains("Request")) {
-                        1
-                    } else if (it.name.contains("Response")) {
-                        2
-                    } else {
-                        0
+            val sortedTypes = ArrayList(types.values).sortedWith(
+                Comparator
+                    .comparingInt<GeneratedType> {
+                        if (it.name.contains("Request")) {
+                            1
+                        } else if (it.name.contains("Response")) {
+                            2
+                        } else {
+                            0
+                        }
+                    }
+                    .thenComparing<Int> { -1 * it.doc.importance }
+                    .thenComparing<String> { it.name }
+            )
+            for (type in sortedTypes) {
+                if (type.owner != container::class) continue
+
+                outs.println("### `${simplifyName(type.name)}`")
+
+                outs.println()
+                outs.println(apiMaturityBadge(type.doc.maturity))
+                outs.println(deprecatedBadge(type.doc.deprecated))
+                outs.println()
+
+                if (type.doc.synopsis != null) outs.println("_${type.doc.synopsis}_")
+                outs.println()
+                outs.println("```kotlin")
+                outs.print(type.kotlin())
+                outs.println("```")
+                if (type.doc.description != null) outs.println(type.doc.description)
+                outs.println()
+
+                fun generateProperties(properties: List<GeneratedType.Property>): String = buildString {
+                    for (property in properties) {
+                        appendLine(summary(
+                            buildString {
+                                append("<code>")
+                                append(property.name)
+                                append("</code>: ")
+                                append("<code>")
+                                append(property.type.kotlin())
+                                append("</code>")
+                                if (property.doc.synopsis != null) {
+                                    append(" ")
+                                    append(property.doc.synopsis)
+                                }
+                            },
+                            buildString {
+                                if (property.doc.maturity != type.doc.maturity) {
+                                    appendLine(apiMaturityBadge(property.doc.maturity))
+                                }
+                                appendLine(deprecatedBadge(property.doc.deprecated))
+                                appendLine()
+
+                                if (property.doc.description != null) appendLine(property.doc.description)
+                            }
+                        ))
                     }
                 }
-                .thenComparing<Int> { -1 * it.doc.importance }
-                .thenComparing<String> { it.name }
-        )
-        for (type in sortedTypes) {
-            if (type.owner != container::class) continue
 
-            outs.println("### `${simplifyName(type.name)}`")
-
-            outs.println()
-            outs.println(apiMaturityBadge(type.doc.maturity))
-            outs.println(deprecatedBadge(type.doc.deprecated))
-            outs.println()
-
-            if (type.doc.synopsis != null) outs.println("_${type.doc.synopsis}_")
-            outs.println()
-            outs.println("```kotlin")
-            outs.print(type.kotlin())
-            outs.println("```")
-            if (type.doc.description != null) outs.println(type.doc.description)
-            outs.println()
-
-            fun generateProperties(properties: List<GeneratedType.Property>): String = buildString {
-                for (property in properties) {
-                    appendLine(summary(
+                val details = when (type) {
+                    is GeneratedType.Enum -> {
                         buildString {
-                            append("<code>")
-                            append(property.name)
-                            append("</code>: ")
-                            append("<code>")
-                            append(property.type.kotlin())
-                            append("</code>")
-                            if (property.doc.synopsis != null) {
-                                append(" ")
-                                append(property.doc.synopsis)
-                            }
-                        },
-                        buildString {
-                            if (property.doc.maturity != type.doc.maturity) {
-                                appendLine(apiMaturityBadge(property.doc.maturity))
-                            }
-                            appendLine(deprecatedBadge(property.doc.deprecated))
-                            appendLine()
+                            for (option in type.options) {
+                                appendLine(
+                                    summary(
+                                        buildString {
+                                            append("<code>")
+                                            append(option.name)
+                                            append("</code>")
+                                            if (option.doc.synopsis != null) {
+                                                append(" ")
+                                                append(option.doc.synopsis)
+                                            }
+                                        },
+                                        buildString {
+                                            if (option.doc.maturity != type.doc.maturity) {
+                                                appendLine(apiMaturityBadge(option.doc.maturity))
+                                            }
+                                            appendLine(deprecatedBadge(option.doc.deprecated))
+                                            appendLine()
 
-                            if (property.doc.description != null) appendLine(property.doc.description)
-                        }
-                    ))
-                }
-            }
-
-            val details = when (type) {
-                is GeneratedType.Enum -> {
-                    buildString {
-                        for (option in type.options) {
-                            appendLine(
-                                summary(
-                                    buildString {
-                                        append("<code>")
-                                        append(option.name)
-                                        append("</code>")
-                                        if (option.doc.synopsis != null) {
-                                            append(" ")
-                                            append(option.doc.synopsis)
+                                            if (option.doc.description != null) appendLine(option.doc.description)
                                         }
-                                    },
-                                    buildString {
-                                        if (option.doc.maturity != type.doc.maturity) {
-                                            appendLine(apiMaturityBadge(option.doc.maturity))
-                                        }
-                                        appendLine(deprecatedBadge(option.doc.deprecated))
-                                        appendLine()
-
-                                        if (option.doc.description != null) appendLine(option.doc.description)
-                                    }
+                                    )
                                 )
-                            )
+                            }
+                        }
+                    }
+                    is GeneratedType.Struct -> {
+                        generateProperties(type.properties)
+                    }
+                    is GeneratedType.TaggedUnion -> {
+                        if (type.baseProperties.isNotEmpty()) {
+                            generateProperties(type.baseProperties)
+                        } else {
+                            null
                         }
                     }
                 }
-                is GeneratedType.Struct -> {
-                    generateProperties(type.properties)
-                }
-                is GeneratedType.TaggedUnion -> {
-                    if (type.baseProperties.isNotEmpty()) {
-                        generateProperties(type.baseProperties)
-                    } else {
-                        null
-                    }
-                }
+
+                if (details != null) outs.println(summary("<b>Properties</b>", details))
+
+                outs.println()
+                outs.println("---")
+                outs.println()
             }
-
-            if (details != null) outs.println(summary("<b>Properties</b>", details))
-
-            outs.println()
-            outs.println("---")
-            outs.println()
         }
     }
 }
