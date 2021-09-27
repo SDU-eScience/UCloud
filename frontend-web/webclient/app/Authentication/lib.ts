@@ -16,7 +16,7 @@ interface CallParameters {
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
  */
-export default class HttpClient {
+export class HttpClient {
     private readonly context: string;
     private readonly serviceName: string;
     private readonly authContext: string;

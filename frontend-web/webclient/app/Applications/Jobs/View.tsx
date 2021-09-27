@@ -26,7 +26,7 @@ import {ProjectName} from "@/Project";
 import {getProjectNames} from "@/Utilities/ProjectUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
-import JobsApi, {Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
+import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
