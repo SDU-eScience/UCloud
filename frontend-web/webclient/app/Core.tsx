@@ -19,7 +19,6 @@ import JobVnc from "@/Applications/Jobs/Vnc";
 import LandingPage from "@/Project/Grant/LandingPage";
 import LicenseServers from "@/Admin/LicenseServers";
 import LoginPage from "@/Login/Login";
-import LoginSelection from "@/Login/LoginSelection";
 import NewsList from "@/NewsPost/NewsList";
 import NewsManagement from "@/Admin/NewsManagement";
 import OutgoingApplications from "@/Project/Grant/OutgoingApplications";
@@ -62,7 +61,6 @@ import {History} from "history";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import CONF from "../site.config.json";
 import JobRouter from "@/Applications/Jobs/NewApi";
 import {Debugger} from "@/Debug/Debugger";
 import Header from "@/Navigation/Header";
@@ -90,10 +88,6 @@ const Core = (): JSX.Element => (
             <React.Suspense fallback={<div>Loading</div>}>
                 <Switch>
                     <Route exact path="/login" component={LoginPage} />
-                    {inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
-                        <Route exact path="/login/selection" component={LoginSelection} /> :
-                        <Route exact path="/login/selection" component={LoginPage} />
-                    }
                     <Route exact path="/loginSuccess" component={LoginSuccess} />
                     <Route exact path="/login/wayf" component={Wayf} />
                     <Route exact path="/" component={requireAuth(Dashboard)} />
@@ -101,11 +95,11 @@ const Core = (): JSX.Element => (
                     <Route exact path={"/debugger"} component={Debugger} />
 
                     <Route path={"/drives"}><FileCollectionsRouter /></Route>
-                    <Route path={"/files"}><FilesRouter /></Route>
-                    <Route path={"/metadata"}><MetadataNamespacesRouter /></Route>
+                    <Route path={"/files"} component={requireAuth(FilesRouter)} />
+                    <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
                     <Route path={"/shares"}>
                         <ShareRouter />
-                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
                     </Route>
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
@@ -116,13 +110,13 @@ const Core = (): JSX.Element => (
                         component={requireAuth(ApplicationView)}
                     />
 
-                    <Route exact path="/applications/shell/:jobId/:rank" component={JobShell} />
-                    <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
-                    <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
-                    <Route path="/public-links"><IngressRouter /></Route>
-                    <Route path="/jobs"><JobRouter /></Route>
-                    <Route path="/licenses"><LicenseRouter /></Route>
-                    <Route path="/public-ips"><NetworkIPsRouter /></Route>
+                    <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)} />
+                    <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)} />
+                    <Route exact path="/applications/vnc/:jobId/:rank" component={requireAuth(JobVnc)} />
+                    <Route path="/public-links" component={requireAuth(IngressRouter)} />
+                    <Route path="/jobs" component={requireAuth(JobRouter)} />
+                    <Route path="/licenses" component={requireAuth(LicenseRouter)} />
+                    <Route path="/public-ips" component={requireAuth(NetworkIPsRouter)} />
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
