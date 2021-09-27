@@ -227,7 +227,11 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                 return GeneratedTypeReference.Structure(qualifiedName)
             }
 
-            if (type == Unit::class.java || type == Any::class.java) {
+            if (type == Unit::class.java) {
+                return GeneratedTypeReference.Void()
+            }
+
+            if (type == Any::class.java) {
                 return GeneratedTypeReference.Any()
             }
 
