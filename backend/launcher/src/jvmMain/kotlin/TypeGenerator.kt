@@ -86,7 +86,7 @@ sealed class GeneratedType {
     data class TaggedUnion(
         override val name: String,
         override val doc: Documentation,
-        val baseProperties: List<Property>,
+        var baseProperties: List<Property>,
         val generics: List<String>,
         val options: List<GeneratedTypeReference>,
         override val hasExplicitOwner: Boolean,
@@ -96,7 +96,7 @@ sealed class GeneratedType {
     data class Struct(
         override val name: String,
         override val doc: Documentation,
-        val properties: List<Property>,
+        var properties: List<Property>,
         val generics: List<String>,
         override val hasExplicitOwner: Boolean,
         override var owner: KClass<out CallDescriptionContainer>?,

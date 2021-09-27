@@ -1,9 +1,9 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.file.orchestrator.api.Files
 import kotlin.reflect.KClass
-import kotlin.reflect.full.declaredMembers
+import kotlin.reflect.KTypeParameter
+import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.javaType
@@ -13,9 +13,9 @@ data class ResponseExample(val statusCode: Int, val description: String)
 data class UseCaseReference(val usecase: String, val description: String)
 
 data class GeneratedRemoteProcedureCall(
-    val requestType: GeneratedTypeReference,
-    val responseType: GeneratedTypeReference,
-    val errorType: GeneratedTypeReference,
+    var requestType: GeneratedTypeReference,
+    var responseType: GeneratedTypeReference,
+    var errorType: GeneratedTypeReference,
     val namespace: String,
     val name: String,
     val roles: Set<Role>,
@@ -39,8 +39,76 @@ fun generateCalls(
             println("Unexpected failure: ${calls} ${it}. ${ex.stackTraceToString()}")
         }
     }
+
+    val genericReplacements = calls::class.generateGenericReplacements().replaceGenerics()
+
     val allCalls = ArrayList(calls.callContainer)
-    return allCalls.map { generateCall(it, calls, visitedTypes, containerDocs) }
+    val result = allCalls.map { generateCall(it, calls, visitedTypes, containerDocs) }
+    for ((name, type) in visitedTypes) {
+        when (type) {
+            is GeneratedType.Enum -> {
+                // Do nothing
+            }
+
+            is GeneratedType.Struct -> {
+                type.properties = type.properties.replaceGenerics(genericReplacements)
+            }
+
+            is GeneratedType.TaggedUnion -> {
+                type.baseProperties = type.baseProperties.replaceGenerics(genericReplacements)
+            }
+        }
+    }
+
+    for (call in result) {
+        call.requestType = call.requestType.replaceGeneric(genericReplacements)
+        call.responseType = call.responseType.replaceGeneric(genericReplacements)
+        call.errorType = call.errorType.replaceGeneric(genericReplacements)
+    }
+    return result
+}
+
+fun GeneratedTypeReference.replaceGeneric(replacements: Map<String, GeneratedTypeReference>): GeneratedTypeReference {
+    return if (this is GeneratedTypeReference.Structure) {
+        val replacedRoot = replacements.getOrDefault(name, this) as GeneratedTypeReference.Structure
+        GeneratedTypeReference.Structure(replacedRoot.name, generics.map { it.replaceGeneric(replacements) }, nullable)
+    } else {
+        this
+    }
+}
+
+fun List<GeneratedType.Property>.replaceGenerics(
+    replacements: Map<String, GeneratedTypeReference>
+): List<GeneratedType.Property> {
+    return map { GeneratedType.Property(it.name, it.doc, it.type.replaceGeneric(replacements)) }
+}
+
+fun HashMap<KTypeParameter, KTypeProjection>.replaceGenerics(): HashMap<String, GeneratedTypeReference> {
+    val result = HashMap<String, GeneratedTypeReference>()
+    for ((key, value) in entries) {
+        val type = GeneratedTypeReference.Structure(
+            (value.type?.classifier as? KClass<*>)?.java?.canonicalName
+                ?: error("Cannot generate generic replacement for $key $value")
+        )
+        result[key.name] = type
+    }
+    return result
+}
+
+fun KClass<*>.generateGenericReplacements(
+    builder: HashMap<KTypeParameter, KTypeProjection> = HashMap()
+): HashMap<KTypeParameter, KTypeProjection> {
+    val superType = supertypes.firstOrNull() ?: return builder
+
+    val args = superType.arguments
+    val superTypeClassifier = superType.classifier as KClass<*>
+    val typeParams = superTypeClassifier.typeParameters
+
+    typeParams.zip(args).forEach { (param, value) ->
+        builder[param] = value
+    }
+
+    return superTypeClassifier.generateGenericReplacements(builder)
 }
 
 fun GeneratedTypeReference.attachOwner(
