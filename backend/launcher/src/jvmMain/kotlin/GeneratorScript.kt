@@ -27,6 +27,7 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.favorite.api.ProjectFavorites
 import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.Resources
 import dk.sdu.cloud.redis.cleaner.api.RedisCleaner
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import dk.sdu.cloud.support.api.SupportDescriptions
@@ -234,6 +235,7 @@ fun generateCode() {
                 "Core",
                 listOf(
                     Chapter.Feature("Core Types", CoreTypes),
+                    Chapter.Feature("Resources", Resources),
                     Chapter.Node(
                         "Users",
                         listOf(
@@ -347,9 +349,9 @@ fun generateCode() {
 
         when (chapter) {
             is Chapter.Feature -> {
-                chapter.container.documentation()
                 val nextSection = stack.peek()
                 if (firstPass) {
+                    chapter.container.documentation()
                     callsByFeature[chapter] = generateCalls(chapter.container, types)
                 } else {
                     val calls = callsByFeature.getValue(chapter)

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import java.lang.reflect.*
 import java.math.BigDecimal
@@ -154,7 +155,11 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
             return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
         }
 
-        JsonObject::class.java -> {
+        JsonElement::class.java -> {
+            return GeneratedTypeReference.Any(nullable = true)
+        }
+
+        JsonObject::class.java-> {
             return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
         }
 

@@ -40,10 +40,11 @@ fun generateCalls(
         }
     }
 
-    val genericReplacements = calls::class.generateGenericReplacements().replaceGenerics()
+    val genericReplacements = calls::class.generateGenericReplacements().replaceGenerics(calls, visitedTypes)
 
     val allCalls = ArrayList(calls.callContainer)
     val result = allCalls.map { generateCall(it, calls, visitedTypes, containerDocs) }
+    /*
     for ((name, type) in visitedTypes) {
         when (type) {
             is GeneratedType.Enum -> {
@@ -59,6 +60,7 @@ fun generateCalls(
             }
         }
     }
+     */
 
     for (call in result) {
         call.requestType = call.requestType.replaceGeneric(genericReplacements)
@@ -83,13 +85,18 @@ fun List<GeneratedType.Property>.replaceGenerics(
     return map { GeneratedType.Property(it.name, it.doc, it.type.replaceGeneric(replacements)) }
 }
 
-fun HashMap<KTypeParameter, KTypeProjection>.replaceGenerics(): HashMap<String, GeneratedTypeReference> {
+fun HashMap<KTypeParameter, KTypeProjection>.replaceGenerics(
+    calls: CallDescriptionContainer,
+    visitedTypes: LinkedHashMap<String, GeneratedType>
+): HashMap<String, GeneratedTypeReference> {
     val result = HashMap<String, GeneratedTypeReference>()
     for ((key, value) in entries) {
-        val type = GeneratedTypeReference.Structure(
-            (value.type?.classifier as? KClass<*>)?.java?.canonicalName
-                ?: error("Cannot generate generic replacement for $key $value")
-        )
+        val type = traverseType(
+            (value.type?.classifier as? KClass<*>)?.java
+                ?: error("Cannot generate generic replacement for $key $value"),
+            visitedTypes
+        ) as GeneratedTypeReference.Structure
+        type.attachOwner(calls::class, visitedTypes)
         result[key.name] = type
     }
     return result
