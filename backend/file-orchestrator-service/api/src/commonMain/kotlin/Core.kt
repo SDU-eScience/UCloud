@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
@@ -126,6 +127,7 @@ This value is `true` by default """)
 
 @Serializable
 @UCloudApiDoc("A file in UCloud", importance = 500)
+@UCloudApiOwnedBy(Files::class)
 data class UFile(
     @UCloudApiDoc(
         """

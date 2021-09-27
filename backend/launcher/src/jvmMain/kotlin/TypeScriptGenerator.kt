@@ -41,7 +41,7 @@ fun generateTypeScriptCode(
         )
 
         for ((qualifiedName, type) in types) {
-            if (type.owner != container) continue
+            if (type.owner != container::class) continue
             w.appendLine(type.typescript())
         }
 

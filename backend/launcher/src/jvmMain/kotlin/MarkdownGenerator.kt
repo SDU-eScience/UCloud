@@ -263,7 +263,7 @@ fun generateMarkdown(
                 .thenComparing<String> { it.name }
         )
         for (type in sortedTypes) {
-            if (type.owner != container) continue
+            if (type.owner != container::class) continue
 
             outs.println("### `${simplifyName(type.name)}`")
 
