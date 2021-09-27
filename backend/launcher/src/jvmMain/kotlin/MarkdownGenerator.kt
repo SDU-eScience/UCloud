@@ -431,7 +431,7 @@ data class TypeReferenceWithDocLinks(val nodes: List<Node>) {
             append("<code>")
             for (node in nodes) {
                 if (node.link != null) append("<a href='${node.link}'>")
-                append(node.text)
+                append(node.text.replace("<", "&lt;").replace(">", "&gt;"))
                 if (node.link != null) append("</a>")
             }
             append("</code>")
