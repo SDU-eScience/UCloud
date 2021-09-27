@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.*
+import io.ktor.http.*
 import java.io.File
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -40,13 +41,138 @@ fun generateTypeScriptCode(
         )
 
         for ((qualifiedName, type) in types) {
+            if (type.owner != container) continue
             w.appendLine(type.typescript())
         }
 
-        for (call in calls) {
+        w.appendLine("class ${container.typescriptIdentifier()} {")
+        for ((index, call) in calls.withIndex()) {
+            val http = call.realCall.httpOrNull ?: continue
 
+            if (index != 0) {
+                w.appendLine()
+                w.appendLine()
+            }
+            w.append(buildString {
+                append("public ")
+                append(tsSafeIdentifier(call.name))
+                appendLine("(")
+                append("    request")
+                append(call.requestType.typescript())
+                appendLine()
+                append("): APICallParameters<")
+                append(call.requestType.typescript(addColon = false))
+                append(", ")
+                append(call.responseType.typescript(addColon = false))
+                appendLine("> {")
+
+                val method = when (http.method) {
+                    HttpMethod.Get -> "'GET'"
+                    HttpMethod.Post -> "'POST'"
+                    HttpMethod.Delete -> "'DELETE'"
+                    HttpMethod.Put -> "'PUT'"
+                    HttpMethod.Patch -> "'PATCH'"
+                    HttpMethod.Options -> "'OPTIONS'"
+                    HttpMethod.Head -> "'HEAD'"
+                    else -> null
+                }
+
+                when {
+                    method != null && http.params != null && http.body == null && http.headers == null -> {
+                        // Simple-case: Bind everything from query parameters
+                        append(buildString {
+                            appendLine("return {")
+
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(true))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+                            appendLine("    parameters: request,")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
+                    }
+
+                    method != null && http.params == null && http.body != null && http.headers == null -> {
+                        // Simple-case: Bind everything to the body
+                        append(buildString {
+                            appendLine("return {")
+
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(false))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+                            appendLine("    parameters: request,")
+                            appendLine("    payload: request,")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
+                    }
+
+                    method != null && http.params == null && http.body == null && http.headers == null -> {
+                        // Simple-case: Everything is null
+                        append(buildString {
+                            appendLine("return {")
+
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(false))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
+                    }
+
+                    else -> {
+                        println("Cannot generate implementation for ${call.namespace}.${call.name}")
+                        appendLine("throw Error('Missing implementation for ${call.namespace}.${call.name}');")
+                    }
+                }
+                appendLine()
+                appendLine("}")
+            }.prependIndent("    ").trimEnd())
         }
+        w.appendLine()
+        w.appendLine("}")
+        w.appendLine()
+        w.appendLine("export default new ${container.typescriptIdentifier()};")
     }
+}
+
+fun HttpRequest<*, *, *>.pathToTypescript(usesParams: Boolean): String {
+    return buildString {
+        if (usesParams) append("buildQueryString(")
+        append('"' + path.basePath.removeSuffix("/") + '"')
+        for (segment in path.segments) {
+            when (segment) {
+                is HttpPathSegment.Simple -> {
+                    append(" + \"/")
+                    append(segment.text)
+                    append('"')
+                }
+            }
+        }
+        if (usesParams) append(", request);")
+    }
+}
+
+fun CallDescriptionContainer.typescriptIdentifier(): String {
+    return namespace.split(".").joinToString("") { it.replaceFirstChar { it.uppercaseChar() } } + "Api"
 }
 
 fun GeneratedTypeReference.typescript(addColon: Boolean = true): String {

@@ -263,9 +263,8 @@ fun generateMarkdown(
                 .thenComparing<String> { it.name }
         )
         for (type in sortedTypes) {
-            if (!type.name.contains(".api.")) continue
-            val packageName = container::class.java.canonicalName.substringBeforeLast('.')
-            if (!type.name.startsWith("$packageName.")) continue
+            if (type.owner != container) continue
+
             outs.println("### `${simplifyName(type.name)}`")
 
             outs.println()

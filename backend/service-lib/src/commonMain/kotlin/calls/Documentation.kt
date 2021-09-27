@@ -2,7 +2,14 @@ package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
+
+@Retention
+@Target(AnnotationTarget.CLASS)
+annotation class UCloudApiOwnedBy(
+    val owner: KClass<out CallDescriptionContainer>
+)
 
 /**
  * The [UCloudApiDoc] annotation is used to annotate request/response types and their properties

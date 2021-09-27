@@ -67,11 +67,15 @@ data class Documentation(
 sealed class GeneratedType {
     abstract val name: String
     abstract val doc: Documentation
+    abstract val hasExplicitOwner: Boolean
+    abstract var owner: KClass<out CallDescriptionContainer>?
 
     data class Enum(
         override val name: String,
         override val doc: Documentation,
-        val options: List<EnumOption>
+        val options: List<EnumOption>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class EnumOption(
@@ -84,7 +88,9 @@ sealed class GeneratedType {
         override val doc: Documentation,
         val baseProperties: List<Property>,
         val generics: List<String>,
-        val options: List<GeneratedTypeReference>
+        val options: List<GeneratedTypeReference>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class Struct(
@@ -92,6 +98,8 @@ sealed class GeneratedType {
         override val doc: Documentation,
         val properties: List<Property>,
         val generics: List<String>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class Property(
@@ -191,6 +199,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
             val existing = visitedTypes[qualifiedName]
             if (existing != null) return GeneratedTypeReference.Structure(qualifiedName)
             val doc = type.documentation()
+            val owner = type.findAnnotation<UCloudApiOwnedBy>()?.owner
 
             if (type.isArray) {
                 val componentType = traverseType(type.componentType, visitedTypes)
@@ -205,7 +214,9 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                         val name = (it as Enum<*>).name
                         val field = type.getField(name)
                         GeneratedType.EnumOption(name, field.documentation(doc.maturity))
-                    }
+                    },
+                    owner != null,
+                    owner
                 )
 
                 return GeneratedTypeReference.Structure(qualifiedName)
@@ -217,7 +228,8 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
             // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
             // so it doesn't have to be correct.
-            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList())
+            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList(),
+                owner != null, owner)
 
             val properties = ArrayList<GeneratedType.Property>()
             val generics = ArrayList<String>()
@@ -353,12 +365,13 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     }
 
                     visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(qualifiedName, doc, properties,
-                        generics, options)
+                        generics, options, owner != null, owner)
 
                     return GeneratedTypeReference.Structure(qualifiedName)
                 }
 
-                visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics)
+                visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics,
+                    owner != null, owner)
                 return GeneratedTypeReference.Structure(qualifiedName)
             } else {
                 TODO("Non-primitive and non-kotlin class $type ${type::class}")

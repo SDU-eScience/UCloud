@@ -162,6 +162,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiOwnedBy(Wallets::class)
 sealed class WalletOwner {
     @Serializable
     @SerialName("user")

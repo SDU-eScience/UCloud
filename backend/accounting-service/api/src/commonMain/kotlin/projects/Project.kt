@@ -1,8 +1,10 @@
 package dk.sdu.cloud.project.api
 
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiOwnedBy(Projects::class)
 data class Project(
     val id: String,
     val title: String,
@@ -18,6 +20,7 @@ data class ProjectGroup(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Projects::class)
 data class ProjectMember(
     val username: String,
     val role: ProjectRole,
@@ -25,6 +28,7 @@ data class ProjectMember(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Projects::class)
 enum class ProjectRole(val uiFriendly: String) {
     PI("PI"),
     ADMIN("Admin"),

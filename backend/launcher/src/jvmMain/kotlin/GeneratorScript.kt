@@ -363,6 +363,7 @@ fun generateCode() {
 
     var previousSection: Chapter? = null
     val stack = LinkedList<Chapter?>(listOf(structure))
+    val types = LinkedHashMap<String, GeneratedType>()
 
     while (true) {
         val chapter = stack.pollFirst() ?: break
@@ -370,7 +371,6 @@ fun generateCode() {
             is Chapter.Feature -> {
                 chapter.container.documentation()
                 val nextSection = stack.peek()
-                val types = LinkedHashMap<String, GeneratedType>()
                 val calls = generateCalls(chapter.container, types)
 
                 generateMarkdown(
