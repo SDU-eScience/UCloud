@@ -8,8 +8,10 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.search.aggregations.Aggregation
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval
+import org.elasticsearch.search.aggregations.metrics.Cardinality
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 import org.joda.time.LocalDateTime
@@ -53,8 +55,40 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
         }.map { it["key"] }
     }
 
-    fun avarageUserActivity() {
+    fun activeUsers(start: Long, end: Long): Long {
+        val searchRequest = SearchRequest("http_logs*")
+        searchRequest.source(
+            SearchSourceBuilder()
+                .query(
+                    QueryBuilders
+                        .boolQuery()
+                        .must(
+                            QueryBuilders.wildcardQuery(
+                                "token.principal.username.keyword",
+                                "*"
+                            )
+                        )
+                        .mustNot(
+                            QueryBuilders.wildcardQuery(
+                                "token.principal.role",
+                                "SERVICE"
+                            )
+                        )
+                        .filter(
+                            QueryBuilders.rangeQuery("@timestamp")
+                                .gte(start)
+                                .lte(end)
+                        )
+                ).aggregation(
+                    AggregationBuilders
+                        .cardinality("UserCount")
+                        .field("token.principal.username.keyword")
+                )
 
+
+        )
+        val searchResponse = elasticHighLevelClient.search(searchRequest, RequestOptions.DEFAULT)
+        return searchResponse.aggregations.get<Cardinality>("UserCount").value
     }
 
     fun activityPeriod(users: List<UCloudUser>) {

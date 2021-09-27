@@ -13,6 +13,7 @@ import dk.sdu.cloud.ucloud.data.extraction.services.ElasticDataService
 import dk.sdu.cloud.ucloud.data.extraction.services.PostgresDataService
 import dk.sdu.cloud.ucloud.data.extraction.services.UserActivityReport
 import org.apache.http.util.Args
+import org.joda.time.LocalDate
 import org.joda.time.LocalDateTime
 import org.joda.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
@@ -91,6 +92,22 @@ class Server(override val micro: Micro) : CommonServer {
                     args.contains("--activityPeriod") -> {
                         userActivityReport.activityPeriod()
                         exitProcess(0)
+                    }
+                    args.contains("--usersActive") -> {
+                        val currentMonth = LocalDate.now().withDayOfMonth(1)
+                        var startDate = LocalDate.parse("2021-03-01")
+                        var endDate = startDate.plusMonths(1)
+                        while (startDate != currentMonth) {
+
+                            val start = startDate.toDate().time
+                            val end = endDate.toDate().time
+                            println("${startDate}->${endDate}: Users Active = ${userActivityReport.elasticDataService.activeUsers(start, end)}")
+
+                            startDate = endDate
+                            endDate = startDate.plusMonths(1)
+                        }
+
+                        exitProcess(1)
                     }
                     else -> {
                         println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
