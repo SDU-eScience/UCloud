@@ -18,6 +18,7 @@ import kotlinx.atomicfu.atomicArrayOfNulls
 
 import dk.sdu.cloud.plugins.* //delete later
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.plugins.compute.*
 
 
 class ComputeController(
@@ -269,25 +270,33 @@ class ComputeController(
             // c2|1|1000
 
             //get cluster overall cpu/mem
-            val (_, nodes, _) = CmdBuilder("/usr/bin/sinfo")
-                                    .addArg("--format","%n|%c|%m")
-                                    .addArg("--noheader")
-                                    .addArg("--noconvert")
-                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
-                                    .execute()
+            // val (_, nodes, _) = CmdBuilder("/usr/bin/sinfo")
+            //                         .addArg("--format","%n|%c|%m")
+            //                         .addArg("--noheader")
+            //                         .addArg("--noconvert")
+            //                         .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+            //                         .execute()
 
-            val nList = nodes.lines().map{
-                it.trimIndent()
-                it.trim()
-                it.split("|")
-            }.toList()
+            // val nList = nodes.lines().map{
+            //     it.trimIndent()
+            //     it.trim()
+            //     it.split("|")
+            // }.toList()
+
+            // var clusterCpu = 0;
+            // var clusterMem = 0;
+
+            // nList.forEach{ line -> 
+            //             clusterCpu = clusterCpu + line[1].toInt()
+            //             clusterMem = clusterMem + line[2].replace("M", "").toInt()
+            // }
 
             var clusterCpu = 0;
             var clusterMem = 0;
 
-            nList.forEach{ line -> 
-                        clusterCpu = clusterCpu + line[1].toInt()
-                        clusterMem = clusterMem + line[2].replace("M", "").toInt()
+            compute?.forEach{ product -> 
+                clusterCpu = clusterCpu + product?.cpu!!.toInt()
+                clusterMem = clusterMem + product?.mem!!.toInt()
             }
 
             //println("$clusterCpu $clusterMem")
