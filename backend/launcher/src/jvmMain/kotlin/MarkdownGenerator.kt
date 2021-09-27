@@ -236,11 +236,11 @@ fun generateMarkdown(
                 outs.println("| Request | Response | Error |")
                 outs.println("|---------|----------|-------|")
                 outs.print("|")
-                outs.print("`${call.requestType.kotlin()}`")
+                outs.print(call.requestType.kotlinWithLink().toMarkdown())
                 outs.print("|")
-                outs.print("`${call.responseType.kotlin()}`")
+                outs.print(call.responseType.kotlinWithLink().toMarkdown())
                 outs.print("|")
-                outs.print("`${call.errorType.kotlin()}`")
+                outs.print(call.errorType.kotlinWithLink().toMarkdown())
                 outs.println("|")
 
                 outs.println()
@@ -420,34 +420,64 @@ fun GeneratedType.kotlin(): String {
 }
 
 fun GeneratedTypeReference.kotlin(): String {
-    val baseValue = when (this) {
-        is GeneratedTypeReference.Any -> "Any"
-        is GeneratedTypeReference.Array -> "List<${valueType.kotlin()}>"
-        is GeneratedTypeReference.Bool -> "Boolean"
-        is GeneratedTypeReference.ConstantString -> "String /* \"${value}\" */"
-        is GeneratedTypeReference.Dictionary -> "JsonObject"
-        is GeneratedTypeReference.Float32 -> "Float"
-        is GeneratedTypeReference.Float64 -> "Double"
-        is GeneratedTypeReference.Int16 -> "Short"
-        is GeneratedTypeReference.Int32 -> "Int"
-        is GeneratedTypeReference.Int64 -> "Long"
-        is GeneratedTypeReference.Int8 -> "Byte"
-        is GeneratedTypeReference.Structure -> buildString {
-            append(simplifyName(name))
+    return kotlinWithLink().nodes.joinToString("") { it.text }
+}
+
+data class TypeReferenceWithDocLinks(val nodes: List<Node>) {
+    data class Node(var text: String, val link: String? = null)
+
+    fun toMarkdown(): String {
+        return buildString {
+            append("<code>")
+            for (node in nodes) {
+                if (node.link != null) append("<a href='${node.link}'>")
+                append(node.text)
+                if (node.link != null) append("</a>")
+            }
+            append("</code>")
+        }
+    }
+}
+
+fun GeneratedTypeReference.kotlinWithLink(): TypeReferenceWithDocLinks {
+    val baseValue: List<Pair<String, String?>> = when (this) {
+        is GeneratedTypeReference.Any -> listOf("Any" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/")
+        is GeneratedTypeReference.Array -> buildList {
+            add("List" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/")
+            add("<" to null)
+            valueType.kotlinWithLink().nodes.forEach { add(it.text to it.link) }
+            add(">" to null)
+        }
+        is GeneratedTypeReference.Bool -> listOf(
+            "Boolean" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/"
+        )
+        is GeneratedTypeReference.ConstantString -> listOf(
+            "String /* \"${value}\" */" to null
+        )
+        is GeneratedTypeReference.Dictionary -> listOf("JsonObject" to "https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html")
+        is GeneratedTypeReference.Float32 -> listOf("Float" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-float/")
+        is GeneratedTypeReference.Float64 -> listOf("Double" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-double/")
+        is GeneratedTypeReference.Int16 -> listOf("Short" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-short/")
+        is GeneratedTypeReference.Int32 -> listOf("Int" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/")
+        is GeneratedTypeReference.Int64 -> listOf("Long" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/")
+        is GeneratedTypeReference.Int8 -> listOf("Byte" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/")
+        is GeneratedTypeReference.Structure -> buildList {
+            add(simplifyName(name) to null)
             if (generics.isNotEmpty()) {
-                append("<")
+                add("<" to null)
                 for ((index, generic) in generics.withIndex()) {
-                    if (index != 0) append(", ")
-                    append(generic.kotlin())
+                    if (index != 0) add(", " to null)
+                    generic.kotlinWithLink().nodes.forEach { add(it.text to it.link) }
                 }
-                append(">")
+                add(">" to null)
             }
         }
-        is GeneratedTypeReference.Text -> "String"
-        is GeneratedTypeReference.Void -> "Unit"
+        is GeneratedTypeReference.Text -> listOf("String" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/")
+        is GeneratedTypeReference.Void -> listOf("Unit" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/")
     }
 
-    return if (nullable) "$baseValue?" else baseValue
+    val combinedList = if (nullable) baseValue + ("?" to null) else baseValue
+    return TypeReferenceWithDocLinks(combinedList.map { TypeReferenceWithDocLinks.Node(it.first, it.second) })
 }
 
 fun generateKotlinFromValue(
