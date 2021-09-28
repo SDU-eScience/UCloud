@@ -5,8 +5,8 @@ services:
     volumes:
     - ${PWD}/backend/launcher/envoy-compose.yml:/envoy.yaml
     command:
-      - -c
-      - /envoy.yaml
+    - -c
+    - /envoy.yaml
     ports:
     - 9000:9000
     - 9901:9901

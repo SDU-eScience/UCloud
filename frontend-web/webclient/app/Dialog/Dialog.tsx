@@ -1,9 +1,9 @@
-import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import * as ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
+import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 
-export const Dialog: React.FunctionComponent = () => {
+export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
     const [dialogs, setDialogs] = useState<IDialog[]>([]);
 
     useEffect(() => {
@@ -16,7 +16,7 @@ export const Dialog: React.FunctionComponent = () => {
     const current = dialogs.length > 0 ? dialogs[0] : null;
     return (
         <ReactModal
-            isOpen={!!current}
+            isOpen={current != null}
             shouldCloseOnEsc
             ariaHideApp={false}
             onRequestClose={() => dialogStore.failure()}
@@ -34,7 +34,7 @@ export const Dialog: React.FunctionComponent = () => {
                 }
             }}
         >
-            {current?.element}
+            {current?.element ?? null}
         </ReactModal>
     );
 };
