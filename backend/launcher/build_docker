@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 name=launcher
-version=`cat ../../version.txt`
+version=`cat ../version.txt`
 
 set -e
 set -x

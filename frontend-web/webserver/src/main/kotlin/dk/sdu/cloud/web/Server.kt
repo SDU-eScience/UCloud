@@ -68,7 +68,7 @@ class Server {
             routing {
                 static("/assets") {
                     if (staticContent != null) {
-                        files(staticContent)
+                        files(File(staticContent, "assets"))
                     }
                 }
 
