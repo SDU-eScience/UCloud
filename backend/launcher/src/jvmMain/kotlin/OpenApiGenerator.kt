@@ -166,7 +166,7 @@ private fun writeSpecification(
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
 //    generateTypeScriptCode(output, doc, typeRegistry)
-    generateSpringMvcCode()
+//    generateSpringMvcCode()
     // injectMarkdownDocs(doc, typeRegistry)
 }
 

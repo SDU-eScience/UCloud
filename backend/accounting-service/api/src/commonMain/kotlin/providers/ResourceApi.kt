@@ -14,6 +14,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 @Suppress("EnumEntryName")
+@UCloudApiOwnedBy(Resources::class)
 enum class SortDirection {
     ascending,
     descending
@@ -25,6 +26,7 @@ interface SortFlags {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     override val itemsPerPage: Int? = null,
@@ -36,6 +38,7 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
 ) : WithPaginationRequestV2, SortFlags
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     val query: String,
@@ -48,12 +51,14 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
 ) : WithPaginationRequestV2, SortFlags
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     val id: String,
 )
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class SupportByProvider<P : Product, S : ProductSupport>(
     val productsByProvider: Map<String, List<ResolvedSupport<P, S>>>
 )

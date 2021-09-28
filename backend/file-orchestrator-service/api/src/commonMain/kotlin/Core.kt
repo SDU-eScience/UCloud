@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
@@ -126,6 +127,7 @@ This value is `true` by default """)
 
 @Serializable
 @UCloudApiDoc("A file in UCloud", importance = 500)
+@UCloudApiOwnedBy(Files::class)
 data class UFile(
     @UCloudApiDoc(
         """
@@ -332,6 +334,7 @@ sealed class FileMetadataOrDeleted {
 @UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
+@UCloudApiOwnedBy(FileMetadata::class)
 data class FileMetadataDocument(
     override val id: String,
     val specification: Spec,
@@ -341,6 +344,7 @@ data class FileMetadataDocument(
 ) : FileMetadataOrDeleted(){
     @Serializable
     @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
@@ -354,12 +358,14 @@ data class FileMetadataDocument(
 
     @Serializable
     @UCloudApiDoc("The current status of a metadata document", importance = 95)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Status(
         val approval: ApprovalStatus,
     )
 
     @Serializable
     @UCloudApiDoc("The approval status of a metadata document", importance = 94)
+    @UCloudApiOwnedBy(FileMetadata::class)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
@@ -488,6 +494,7 @@ data class FileCollection(
 }
 
 @Serializable
+@UCloudApiOwnedBy(FileCollections::class)
 data class FSSupport(
     override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),

@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -29,6 +30,7 @@ interface ResourceIncludeFlags {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class SimpleResourceIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -91,6 +93,7 @@ An update will typically contain information similar to the `status` field, for 
 - Bindings to related `Resource`s.
 """
 )
+@UCloudApiOwnedBy(Resources::class)
 interface ResourceUpdate {
     @UCloudApiDoc("A timestamp referencing when UCloud received this update")
     val timestamp: Long
@@ -100,22 +103,18 @@ interface ResourceUpdate {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceUpdateAndId<U : ResourceUpdate>(
     val id: String,
     val update: U
 )
 
 @Serializable
-data class SpecificationAndPermissions<S : ResourceSpecification>(
-    val specification: S,
-    val owner: ResourceOwner,
-    val permissions: List<ResourceAclEntry>
-)
-
-@Serializable
+@UCloudApiOwnedBy(Resources::class)
 open class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 sealed class AclEntity {
     @Serializable
     @SerialName("project_group")

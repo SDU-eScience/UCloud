@@ -14,6 +14,7 @@ const val UCLOUD_PROVIDER = "ucloud"
 typealias ProductArea = ProductType
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 enum class ProductType {
     STORAGE,
     COMPUTE,
@@ -23,6 +24,7 @@ enum class ProductType {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 data class ProductCategory(
     val id: ProductCategoryId,
     val productType: ProductType,
@@ -33,11 +35,13 @@ data class ProductCategory(
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 enum class ChargeType {
     ABSOLUTE,
     DIFFERENTIAL_QUOTA
 }
 
+@UCloudApiOwnedBy(Products::class)
 enum class ProductPriceUnit {
     @UCloudApiDoc("""
         Used for resources which either: are charged once for the entire life-time (`ChargeType.ABSOLUTE`) or
@@ -105,6 +109,7 @@ enum class ProductPriceUnit {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 data class ProductCategoryId(
     val name: String,
     val provider: String
@@ -114,6 +119,7 @@ data class ProductCategoryId(
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc("Contains a unique reference to a [Product](/backend/accounting-service/README.md)")
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
@@ -125,6 +131,7 @@ data class ProductReference(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 sealed class Product {
     abstract val category: ProductCategoryId
     abstract val pricePerUnit: Long

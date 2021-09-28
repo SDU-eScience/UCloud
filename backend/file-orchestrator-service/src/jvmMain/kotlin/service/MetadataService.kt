@@ -82,7 +82,7 @@ class MetadataService(
             collections.retrieveBulk(
                 actorAndProject,
                 collectionIds,
-                listOf(Permission.Edit),
+                listOf(Permission.EDIT),
                 ctx = session,
                 useProject = true
             )
@@ -195,7 +195,7 @@ class MetadataService(
             collections.retrieveBulk(
                 actorAndProject,
                 listOf(extractPathMetadata(normalizedPath).collection),
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 ctx = session
             )
             session
@@ -255,7 +255,7 @@ class MetadataService(
             collections.retrieveBulk(
                 actorAndProject,
                 listOf(extractPathMetadata(parent).collection),
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 ctx = session
             )
             val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
@@ -333,7 +333,7 @@ class MetadataService(
                     request.items.map { extractPathMetadata(it.newFileId).collection }).toSet()
 
                 // NOTE(Dan): Admin is required because approval status is copied as is.
-                collections.retrieveBulk(actorAndProject, allCollections, listOf(Permission.Admin), ctx = session)
+                collections.retrieveBulk(actorAndProject, allCollections, listOf(Permission.ADMIN), ctx = session)
             }
 
             session.sendPreparedStatement(
@@ -411,7 +411,7 @@ class MetadataService(
             }
 
             val collectionsAffected = deletionResult.map { extractPathMetadata(it.path).collection }
-            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Edit), ctx = session)
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.EDIT), ctx = session)
 
             if (deletionResult.any { !it.approvalRequired }) {
                 session.sendPreparedStatement(
@@ -522,7 +522,7 @@ class MetadataService(
             }
 
             val collectionsAffected = pathsAffected.map { extractPathMetadata(it).collection }
-            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.Admin), ctx = session)
+            collections.retrieveBulk(actorAndProject, collectionsAffected, listOf(Permission.ADMIN), ctx = session)
         }
     }
 

@@ -207,154 +207,160 @@ fun generateMarkdown(
             outs.appendLine(
                 summary(
                     "<b>Communication Flow:</b> TypeScript",
-                    buildString {
-                        appendLine("```typescript")
-                        appendLine("// TODO")
-                        appendLine("```")
-                    }
+                    useCase.typescript()
+                )
+            )
+
+            outs.appendLine(
+                summary(
+                    "<b>Communication Flow:</b> Curl",
+                    useCase.curl()
                 )
             )
         }
 
-        outs.println()
-        outs.println("## Remote Procedure Calls")
-        outs.println()
-        for (call in calls) {
-            outs.println("### `${call.name}`")
+        if (calls.isNotEmpty()) {
             outs.println()
-            outs.println(apiMaturityBadge(call.doc.maturity))
-            outs.println(rolesBadge(call.roles))
-            outs.println(deprecatedBadge(call.doc.deprecated))
+            outs.println("## Remote Procedure Calls")
             outs.println()
-            if (call.doc.synopsis != null) outs.println("_${call.doc.synopsis}_")
-            outs.println()
+            for (call in calls) {
+                outs.println("### `${call.name}`")
+                outs.println()
+                outs.println(apiMaturityBadge(call.doc.maturity))
+                outs.println(rolesBadge(call.roles))
+                outs.println(deprecatedBadge(call.doc.deprecated))
+                outs.println()
+                if (call.doc.synopsis != null) outs.println("_${call.doc.synopsis}_")
+                outs.println()
 
-            outs.println("| Request | Response | Error |")
-            outs.println("|---------|----------|-------|")
-            outs.print("|")
-            outs.print("`${call.requestType.kotlin()}`")
-            outs.print("|")
-            outs.print("`${call.responseType.kotlin()}`")
-            outs.print("|")
-            outs.print("`${call.errorType.kotlin()}`")
-            outs.println("|")
+                outs.println("| Request | Response | Error |")
+                outs.println("|---------|----------|-------|")
+                outs.print("|")
+                outs.print(call.requestType.kotlinWithLink().toMarkdown())
+                outs.print("|")
+                outs.print(call.responseType.kotlinWithLink().toMarkdown())
+                outs.print("|")
+                outs.print(call.errorType.kotlinWithLink().toMarkdown())
+                outs.println("|")
 
-            outs.println()
-            if (call.doc.description != null) outs.println(call.doc.description)
-            outs.println()
+                outs.println()
+                if (call.doc.description != null) outs.println(call.doc.description)
+                outs.println()
+            }
         }
 
-        outs.println()
-        outs.println("## Data Models")
-        outs.println()
+        if (types.values.isNotEmpty()) {
+            outs.println()
+            outs.println("## Data Models")
+            outs.println()
 
-        val sortedTypes = ArrayList(types.values).sortedWith(
-            Comparator
-                .comparingInt<GeneratedType> {
-                    if (it.name.contains("Request")) {
-                        1
-                    } else if (it.name.contains("Response")) {
-                        2
-                    } else {
-                        0
+            val sortedTypes = ArrayList(types.values).sortedWith(
+                Comparator
+                    .comparingInt<GeneratedType> {
+                        if (it.name.contains("Request")) {
+                            1
+                        } else if (it.name.contains("Response")) {
+                            2
+                        } else {
+                            0
+                        }
+                    }
+                    .thenComparing<Int> { -1 * it.doc.importance }
+                    .thenComparing<String> { it.name }
+            )
+            for (type in sortedTypes) {
+                if (type.owner != container::class) continue
+
+                outs.println("### `${simplifyName(type.name)}`")
+
+                outs.println()
+                outs.println(apiMaturityBadge(type.doc.maturity))
+                outs.println(deprecatedBadge(type.doc.deprecated))
+                outs.println()
+
+                if (type.doc.synopsis != null) outs.println("_${type.doc.synopsis}_")
+                outs.println()
+                outs.println("```kotlin")
+                outs.print(type.kotlin())
+                outs.println("```")
+                if (type.doc.description != null) outs.println(type.doc.description)
+                outs.println()
+
+                fun generateProperties(properties: List<GeneratedType.Property>): String = buildString {
+                    for (property in properties) {
+                        appendLine(summary(
+                            buildString {
+                                append("<code>")
+                                append(property.name)
+                                append("</code>: ")
+                                append("<code>")
+                                append(property.type.kotlin())
+                                append("</code>")
+                                if (property.doc.synopsis != null) {
+                                    append(" ")
+                                    append(property.doc.synopsis)
+                                }
+                            },
+                            buildString {
+                                if (property.doc.maturity != type.doc.maturity) {
+                                    appendLine(apiMaturityBadge(property.doc.maturity))
+                                }
+                                appendLine(deprecatedBadge(property.doc.deprecated))
+                                appendLine()
+
+                                if (property.doc.description != null) appendLine(property.doc.description)
+                            }
+                        ))
                     }
                 }
-                .thenComparing<Int> { -1 * it.doc.importance }
-                .thenComparing<String> { it.name }
-        )
-        for (type in sortedTypes) {
-            if (!type.name.contains(".api.")) continue
-            val packageName = container::class.java.canonicalName.substringBeforeLast('.')
-            if (!type.name.startsWith("$packageName.")) continue
-            outs.println("### `${simplifyName(type.name)}`")
 
-            outs.println()
-            outs.println(apiMaturityBadge(type.doc.maturity))
-            outs.println(deprecatedBadge(type.doc.deprecated))
-            outs.println()
-
-            if (type.doc.synopsis != null) outs.println("_${type.doc.synopsis}_")
-            outs.println()
-            outs.println("```kotlin")
-            outs.print(type.kotlin())
-            outs.println("```")
-            if (type.doc.description != null) outs.println(type.doc.description)
-            outs.println()
-
-            fun generateProperties(properties: List<GeneratedType.Property>): String = buildString {
-                for (property in properties) {
-                    appendLine(summary(
+                val details = when (type) {
+                    is GeneratedType.Enum -> {
                         buildString {
-                            append("<code>")
-                            append(property.name)
-                            append("</code>: ")
-                            append("<code>")
-                            append(property.type.kotlin())
-                            append("</code>")
-                            if (property.doc.synopsis != null) {
-                                append(" ")
-                                append(property.doc.synopsis)
-                            }
-                        },
-                        buildString {
-                            if (property.doc.maturity != type.doc.maturity) {
-                                appendLine(apiMaturityBadge(property.doc.maturity))
-                            }
-                            appendLine(deprecatedBadge(property.doc.deprecated))
-                            appendLine()
+                            for (option in type.options) {
+                                appendLine(
+                                    summary(
+                                        buildString {
+                                            append("<code>")
+                                            append(option.name)
+                                            append("</code>")
+                                            if (option.doc.synopsis != null) {
+                                                append(" ")
+                                                append(option.doc.synopsis)
+                                            }
+                                        },
+                                        buildString {
+                                            if (option.doc.maturity != type.doc.maturity) {
+                                                appendLine(apiMaturityBadge(option.doc.maturity))
+                                            }
+                                            appendLine(deprecatedBadge(option.doc.deprecated))
+                                            appendLine()
 
-                            if (property.doc.description != null) appendLine(property.doc.description)
-                        }
-                    ))
-                }
-            }
-
-            val details = when (type) {
-                is GeneratedType.Enum -> {
-                    buildString {
-                        for (option in type.options) {
-                            appendLine(
-                                summary(
-                                    buildString {
-                                        append("<code>")
-                                        append(option.name)
-                                        append("</code>")
-                                        if (option.doc.synopsis != null) {
-                                            append(" ")
-                                            append(option.doc.synopsis)
+                                            if (option.doc.description != null) appendLine(option.doc.description)
                                         }
-                                    },
-                                    buildString {
-                                        if (option.doc.maturity != type.doc.maturity) {
-                                            appendLine(apiMaturityBadge(option.doc.maturity))
-                                        }
-                                        appendLine(deprecatedBadge(option.doc.deprecated))
-                                        appendLine()
-
-                                        if (option.doc.description != null) appendLine(option.doc.description)
-                                    }
+                                    )
                                 )
-                            )
+                            }
+                        }
+                    }
+                    is GeneratedType.Struct -> {
+                        generateProperties(type.properties)
+                    }
+                    is GeneratedType.TaggedUnion -> {
+                        if (type.baseProperties.isNotEmpty()) {
+                            generateProperties(type.baseProperties)
+                        } else {
+                            null
                         }
                     }
                 }
-                is GeneratedType.Struct -> {
-                    generateProperties(type.properties)
-                }
-                is GeneratedType.TaggedUnion -> {
-                    if (type.baseProperties.isNotEmpty()) {
-                        generateProperties(type.baseProperties)
-                    } else {
-                        null
-                    }
-                }
+
+                if (details != null) outs.println(summary("<b>Properties</b>", details))
+
+                outs.println()
+                outs.println("---")
+                outs.println()
             }
-
-            if (details != null) outs.println(summary("<b>Properties</b>", details))
-
-            outs.println()
-            outs.println("---")
-            outs.println()
         }
     }
 }
@@ -414,34 +420,64 @@ fun GeneratedType.kotlin(): String {
 }
 
 fun GeneratedTypeReference.kotlin(): String {
-    val baseValue = when (this) {
-        is GeneratedTypeReference.Any -> "Any"
-        is GeneratedTypeReference.Array -> "List<${valueType.kotlin()}>"
-        is GeneratedTypeReference.Bool -> "Boolean"
-        is GeneratedTypeReference.ConstantString -> "String /* \"${value}\" */"
-        is GeneratedTypeReference.Dictionary -> "JsonObject"
-        is GeneratedTypeReference.Float32 -> "Float"
-        is GeneratedTypeReference.Float64 -> "Double"
-        is GeneratedTypeReference.Int16 -> "Short"
-        is GeneratedTypeReference.Int32 -> "Int"
-        is GeneratedTypeReference.Int64 -> "Long"
-        is GeneratedTypeReference.Int8 -> "Byte"
-        is GeneratedTypeReference.Structure -> buildString {
-            append(simplifyName(name))
+    return kotlinWithLink().nodes.joinToString("") { it.text }
+}
+
+data class TypeReferenceWithDocLinks(val nodes: List<Node>) {
+    data class Node(var text: String, val link: String? = null)
+
+    fun toMarkdown(): String {
+        return buildString {
+            append("<code>")
+            for (node in nodes) {
+                if (node.link != null) append("<a href='${node.link}'>")
+                append(node.text.replace("<", "&lt;").replace(">", "&gt;"))
+                if (node.link != null) append("</a>")
+            }
+            append("</code>")
+        }
+    }
+}
+
+fun GeneratedTypeReference.kotlinWithLink(): TypeReferenceWithDocLinks {
+    val baseValue: List<Pair<String, String?>> = when (this) {
+        is GeneratedTypeReference.Any -> listOf("Any" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/")
+        is GeneratedTypeReference.Array -> buildList {
+            add("List" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/")
+            add("<" to null)
+            valueType.kotlinWithLink().nodes.forEach { add(it.text to it.link) }
+            add(">" to null)
+        }
+        is GeneratedTypeReference.Bool -> listOf(
+            "Boolean" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/"
+        )
+        is GeneratedTypeReference.ConstantString -> listOf(
+            "String /* \"${value}\" */" to null
+        )
+        is GeneratedTypeReference.Dictionary -> listOf("JsonObject" to "https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html")
+        is GeneratedTypeReference.Float32 -> listOf("Float" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-float/")
+        is GeneratedTypeReference.Float64 -> listOf("Double" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-double/")
+        is GeneratedTypeReference.Int16 -> listOf("Short" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-short/")
+        is GeneratedTypeReference.Int32 -> listOf("Int" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/")
+        is GeneratedTypeReference.Int64 -> listOf("Long" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/")
+        is GeneratedTypeReference.Int8 -> listOf("Byte" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/")
+        is GeneratedTypeReference.Structure -> buildList {
+            add(simplifyName(name) to null)
             if (generics.isNotEmpty()) {
-                append("<")
+                add("<" to null)
                 for ((index, generic) in generics.withIndex()) {
-                    if (index != 0) append(", ")
-                    append(generic.kotlin())
+                    if (index != 0) add(", " to null)
+                    generic.kotlinWithLink().nodes.forEach { add(it.text to it.link) }
                 }
-                append(">")
+                add(">" to null)
             }
         }
-        is GeneratedTypeReference.Text -> "String"
-        is GeneratedTypeReference.Void -> "Unit"
+        is GeneratedTypeReference.Text -> listOf("String" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/")
+        is GeneratedTypeReference.Void -> listOf("Unit" to "https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/")
     }
 
-    return if (nullable) "$baseValue?" else baseValue
+    val combinedList = if (nullable) baseValue + ("?" to null) else baseValue
+    return TypeReferenceWithDocLinks(combinedList.map { TypeReferenceWithDocLinks.Node(it.first, it.second) })
 }
 
 fun generateKotlinFromValue(

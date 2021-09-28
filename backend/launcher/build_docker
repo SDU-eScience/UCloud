@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 
-if [ $# -lt 1 ]; then
-    echo "Usage: ./build_docker <version>"
-    exit 1
-fi
-
 name=launcher
-version=$1
+version=`cat ../version.txt`
 
 set -e
 set -x

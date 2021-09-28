@@ -282,7 +282,7 @@ fun runInstaller(configDir: File) {
                                                     (dtype, id, created_at, modified_at, role, first_names, last_name, 
                                                     orc_id,phone_number, title, hashed_password, salt, org_id, email)
                                                 values
-                                                    ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev',
+                                                    ('PASSWORD', 'admin@dev', now(), now(), 'SERVICE', 'Admin', 'Dev',
                                                     null, null, null, E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev')
                                             """
                                         )

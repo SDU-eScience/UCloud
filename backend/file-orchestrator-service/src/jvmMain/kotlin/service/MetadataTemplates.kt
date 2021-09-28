@@ -159,7 +159,7 @@ class MetadataTemplateNamespaces(
                 retrieveBulk(
                     actorAndProject,
                     request.items.map { it.namespaceId },
-                    listOf(Permission.Edit),
+                    listOf(Permission.EDIT),
                     ctx = session
                 )
             } catch (ex: RPCException) {
@@ -206,7 +206,7 @@ class MetadataTemplateNamespaces(
         return (ctx ?: db).withSession(remapExceptions = true) { session ->
             val (nsParams, nsQuery) = accessibleResources(
                 actorAndProject.actor,
-                listOf(Permission.Read),
+                listOf(Permission.READ),
                 request.id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound),
                 projectFilter = actorAndProject.project
             )
@@ -235,7 +235,7 @@ class MetadataTemplateNamespaces(
     suspend fun retrieveTemplate(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FileMetadataTemplateAndVersion>,
-        permissionOneOf: Collection<Permission> = listOf(Permission.Read),
+        permissionOneOf: Collection<Permission> = listOf(Permission.READ),
         ctx: DBContext? = null
     ): BulkResponse<FileMetadataTemplate> {
         return (ctx ?: db).withSession<BulkResponse<FileMetadataTemplate>>(remapExceptions = true) { session ->
@@ -287,7 +287,7 @@ class MetadataTemplateNamespaces(
             create = { session ->
                 val (nsParams, nsQuery) = accessibleResources(
                     actorAndProject.actor,
-                    listOf(Permission.Read),
+                    listOf(Permission.READ),
                     request.id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound),
                     projectFilter = actorAndProject.project
                 )

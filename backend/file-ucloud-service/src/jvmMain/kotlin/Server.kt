@@ -102,7 +102,7 @@ class Server(
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
-        useTestingSizes = micro.developmentModeEnabled
+//        useTestingSizes = micro.developmentModeEnabled
 
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker),

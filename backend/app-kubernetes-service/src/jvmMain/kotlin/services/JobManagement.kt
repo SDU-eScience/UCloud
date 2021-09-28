@@ -16,6 +16,8 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.tellMeEverything
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.file.ucloud.services.NativeFS
@@ -33,6 +35,8 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.collections.ArrayList
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -141,29 +145,43 @@ class JobManagement(
     }
 
     suspend fun create(verifiedJob: Job) {
-        if (maintenance.isPaused()) {
-            throw RPCException(
-                "UCloud does not currently accept new jobs",
-                HttpStatusCode.BadRequest,
-                "CLUSTER_PAUSED"
+        try {
+            if (maintenance.isPaused()) {
+                throw RPCException(
+                    "UCloud does not currently accept new jobs",
+                    HttpStatusCode.BadRequest,
+                    "CLUSTER_PAUSED"
+                )
+            }
+
+            jobCache.cacheJob(verifiedJob)
+            val builder = VolcanoJob()
+            val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
+            builder.metadata = ObjectMeta(
+                name = k8.nameAllocator.jobIdToJobName(verifiedJob.id),
+                namespace = namespace
             )
+            builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
+            plugins.forEach {
+                k8.debug?.tellMeEverything("Running plugin (onCreate): ${it.javaClass.simpleName}")
+                with(it) {
+                    with(k8) {
+                        onCreate(verifiedJob, builder)
+                    }
+                }
+            }
+
+            k8.debug?.tellMeEverything("Creating resource")
+            @Suppress("BlockingMethodInNonBlockingContext")
+            k8.client.createResource(
+                KubernetesResources.volcanoJob.withNamespace(namespace),
+                defaultMapper.encodeToString(builder)
+            )
+            k8.debug?.tellMeEverything("Resource has been created!")
+        } catch (ex: Throwable) {
+            log.warn(ex.stackTraceToString())
+            throw ex
         }
-
-        jobCache.cacheJob(verifiedJob)
-        val builder = VolcanoJob()
-        val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
-        builder.metadata = ObjectMeta(
-            name = k8.nameAllocator.jobIdToJobName(verifiedJob.id),
-            namespace = namespace
-        )
-        builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
-        plugins.forEach { with(it) { with(k8) { onCreate(verifiedJob, builder) } } }
-
-        @Suppress("BlockingMethodInNonBlockingContext")
-        k8.client.createResource(
-            KubernetesResources.volcanoJob.withNamespace(namespace),
-            defaultMapper.encodeToString(builder)
-        )
     }
 
     suspend fun cleanup(jobId: String) {

@@ -1782,8 +1782,7 @@ create or replace function "grant".resource_request_to_json(
     select jsonb_build_object(
         'productCategory', product_category_in.category,
         'productProvider', product_category_in.provider,
-        'creditsRequested', request_in.credits_requested,
-        'quotaRequested', request_in.quota_requested_bytes
+        'balanceRequested', request_in.credits_requested,
     );
 $$;
 

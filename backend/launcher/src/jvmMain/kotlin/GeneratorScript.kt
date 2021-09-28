@@ -10,11 +10,7 @@ import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.audit.ingestion.api.Auditing
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
-import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
-import dk.sdu.cloud.calls.server.OutgoingCallResponse
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFileCollections
@@ -23,9 +19,6 @@ import dk.sdu.cloud.file.ucloud.api.UCloudShares
 import dk.sdu.cloud.grant.api.Gifts
 import dk.sdu.cloud.grant.api.Grants
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.micro.PlaceholderServiceDescription
-import dk.sdu.cloud.micro.ServiceRegistry
-import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.password.reset.api.PasswordResetDescriptions
@@ -34,47 +27,13 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.favorite.api.ProjectFavorites
 import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.Resources
 import dk.sdu.cloud.redis.cleaner.api.RedisCleaner
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import dk.sdu.cloud.support.api.SupportDescriptions
 import dk.sdu.cloud.task.api.Tasks
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.collections.LinkedHashMap
-
-private fun makeSureEverythingIsLoaded() {
-    val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
-    val knownCalls = ArrayList<CallDescription<*, *, *>>()
-    reg.rootMicro.server.attachRequestInterceptor(object : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
-        override val companion = HttpCall.Companion
-        override fun addCallListenerForCall(call: CallDescription<*, *, *>) {
-            knownCalls.add(call)
-        }
-
-        override suspend fun <R : Any> parseRequest(ctx: HttpCall, call: CallDescription<R, *, *>): R {
-            error("Will not parse")
-        }
-
-        override suspend fun <R : Any, S : Any, E : Any> produceResponse(
-            ctx: HttpCall,
-            call: CallDescription<R, S, E>,
-            callResult: OutgoingCallResponse<S, E>,
-        ) {
-            error("Will not respond")
-        }
-    })
-
-    services.forEach { objectInstance ->
-        try {
-            Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
-            reg.register(objectInstance)
-        } catch (ex: Throwable) {
-            Launcher.log.error("Caught error: ${ex.stackTraceToString()}")
-        }
-    }
-
-    reg.start(wait = false)
-}
 
 sealed class Chapter {
     abstract val title: String
@@ -95,9 +54,7 @@ fun Chapter.addPaths(path: List<Chapter.Node> = emptyList()) {
     children.forEach { it.addPaths(newPath) }
 }
 
-fun main() {
-//    makeSureEverythingIsLoaded()
-
+fun generateCode() {
     val structure = Chapter.Node(
         "UCloud Developer Guide",
         listOf(
@@ -277,6 +234,8 @@ fun main() {
             Chapter.Node(
                 "Core",
                 listOf(
+                    Chapter.Feature("Core Types", CoreTypes),
+                    Chapter.Feature("Resources", Resources),
                     Chapter.Node(
                         "Users",
                         listOf(
@@ -363,25 +322,51 @@ fun main() {
 
     var previousSection: Chapter? = null
     val stack = LinkedList<Chapter?>(listOf(structure))
+    val types = LinkedHashMap<String, GeneratedType>()
+    val callsByFeature = HashMap<Chapter.Feature, List<GeneratedRemoteProcedureCall>>()
+    var firstPass = true
 
     while (true) {
-        val chapter = stack.pollFirst() ?: break
+        val chapter = stack.pollFirst()
+        if (chapter == null) {
+            if (firstPass) {
+                stack.add(structure)
+                firstPass = false
+
+                var didFail = false
+                for ((name, type) in types) {
+                    if (type.owner == null && name.startsWith("dk.sdu.cloud.")) {
+                        println("$name has no owner. You can fix this by attaching @UCloudApiOwnedBy(XXX::class)")
+                        didFail = true
+                    }
+                }
+                if (didFail) break
+                continue
+            } else {
+                break
+            }
+        }
+
         when (chapter) {
             is Chapter.Feature -> {
-                chapter.container.examples()
                 val nextSection = stack.peek()
-                val types = LinkedHashMap<String, GeneratedType>()
-                val calls = generateCalls(chapter.container, types)
+                if (firstPass) {
+                    chapter.container.documentation()
+                    callsByFeature[chapter] = generateCalls(chapter.container, types)
+                } else {
+                    val calls = callsByFeature.getValue(chapter)
+                    generateMarkdown(
+                        previousSection,
+                        nextSection,
+                        chapter.path,
+                        types,
+                        calls,
+                        chapter.title,
+                        chapter.container,
+                    )
 
-                generateMarkdown(
-                    previousSection,
-                    nextSection,
-                    chapter.path,
-                    types,
-                    calls,
-                    chapter.title,
-                    chapter.container,
-                )
+                    generateTypeScriptCode(types, calls, chapter.title, chapter.container)
+                }
             }
 
             is Chapter.Node -> {

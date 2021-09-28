@@ -132,6 +132,7 @@ data class CreateTagsRequest(
 typealias DeleteTagsRequest = CreateTagsRequest
 
 @Serializable
+@UCloudApiOwnedBy(ToolStore::class)
 data class UploadApplicationLogoRequest(
     val name: String,
 )
@@ -147,10 +148,12 @@ data class AdvancedSearchRequest(
 
 
 @Serializable
+@UCloudApiOwnedBy(ToolStore::class)
 data class ClearLogoRequest(val name: String)
 typealias ClearLogoResponse = Unit
 
 @Serializable
+@UCloudApiOwnedBy(ToolStore::class)
 data class FetchLogoRequest(val name: String)
 typealias FetchLogoResponse = Unit
 

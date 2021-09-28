@@ -49,6 +49,10 @@ data class LookupAdminsResponse(
 
 @Serializable
 data class LookupAdminsBulkRequest(val projectId: List<String>)
+
+@Serializable
+data class Pair<A, B>(val first: A, val second: B)
+
 @Serializable
 data class LookupAdminsBulkResponse(
     val admins: List<Pair<String, List<ProjectMember>>>

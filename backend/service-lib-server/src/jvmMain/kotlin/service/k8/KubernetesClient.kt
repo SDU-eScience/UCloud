@@ -93,8 +93,7 @@ sealed class KubernetesConfigurationSource {
 
                 val authenticationMethod = when {
                     cluster.cluster.certificateAuthorityData != null -> {
-                        log.warn("NOT YET IMPLEMENTED: CUSTOM CERTIFICATE AUTHORITY DATA")
-                        log.info("Falling back to proxy method")
+                        log.debug("Using kubectl proxy method")
                         KubernetesAuthenticationMethod.Proxy(context, kubeConfigFile.absolutePath)
                     }
 

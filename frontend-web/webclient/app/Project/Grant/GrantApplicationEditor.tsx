@@ -278,7 +278,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 );
 
                 if (existing) {
-                    existing.requestedBalance = request.creditsRequested;
+                    existing.requestedBalance = request.balanceRequested;
                 }
             }
         }
@@ -511,7 +511,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 }
 
                 return {
-                    creditsRequested,
+                    balanceRequested: creditsRequested,
                     productCategory: wb.metadata.category.name,
                     productProvider: wb.metadata.category.provider
                 } as ResourceRequest;
@@ -594,7 +594,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             let timeout = 0;
             if (state.editingApplication !== undefined) {
                 for (const resource of state.editingApplication.requestedResources) {
-                    const credits = resource.creditsRequested;
+                    const credits = resource.balanceRequested;
 
                     // TODO(Dan): The following code is a terrible idea.
                     // This code is in here only because we did not notice the error until it was already in production

@@ -2,6 +2,7 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -9,6 +10,7 @@ import kotlin.math.ceil
 import kotlin.math.min
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class Page<out T>(
     val itemsInTotal: Int,
     val itemsPerPage: Int,
@@ -45,6 +47,7 @@ fun WithPaginationRequest.normalizeWithFullReadEnabled(
 }
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
@@ -121,6 +124,7 @@ val NormalizedPaginationRequest.offset: Int
 Every page contains the items from the current result set, along with information which allows the client to fetch
 additional information.""")
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class PageV2<out T>(
     @UCloudApiDoc("The expected items per page, this is extracted directly from the request")
     val itemsPerPage: Int,
@@ -135,6 +139,7 @@ check if the end of results has been reached is by checking i `next == null`."""
 )
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class NormalizedPaginationRequestV2(
     val itemsPerPage: Int,
     val next: String?,
@@ -143,6 +148,7 @@ data class NormalizedPaginationRequestV2(
 )
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class PaginationRequestV2(
     override val itemsPerPage: Int,
     override val next: String? = null,
@@ -211,6 +217,7 @@ interface WithPaginationRequestV2 {
 }
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 enum class PaginationRequestV2Consistency {
     @UCloudApiDoc("Consistency is preferred but not required. An inconsistent snapshot might be returned.")
     PREFER,

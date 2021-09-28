@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import java.lang.reflect.*
 import java.math.BigDecimal
@@ -67,11 +68,15 @@ data class Documentation(
 sealed class GeneratedType {
     abstract val name: String
     abstract val doc: Documentation
+    abstract val hasExplicitOwner: Boolean
+    abstract var owner: KClass<out CallDescriptionContainer>?
 
     data class Enum(
         override val name: String,
         override val doc: Documentation,
-        val options: List<EnumOption>
+        val options: List<EnumOption>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class EnumOption(
@@ -82,16 +87,20 @@ sealed class GeneratedType {
     data class TaggedUnion(
         override val name: String,
         override val doc: Documentation,
-        val baseProperties: List<Property>,
+        var baseProperties: List<Property>,
         val generics: List<String>,
-        val options: List<GeneratedTypeReference>
+        val options: List<GeneratedTypeReference>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class Struct(
         override val name: String,
         override val doc: Documentation,
-        val properties: List<Property>,
+        var properties: List<Property>,
         val generics: List<String>,
+        override val hasExplicitOwner: Boolean,
+        override var owner: KClass<out CallDescriptionContainer>?,
     ) : GeneratedType()
 
     data class Property(
@@ -146,7 +155,11 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
             return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
         }
 
-        JsonObject::class.java -> {
+        JsonElement::class.java -> {
+            return GeneratedTypeReference.Any(nullable = true)
+        }
+
+        JsonObject::class.java-> {
             return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
         }
 
@@ -191,6 +204,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
             val existing = visitedTypes[qualifiedName]
             if (existing != null) return GeneratedTypeReference.Structure(qualifiedName)
             val doc = type.documentation()
+            val owner = type.findAnnotation<UCloudApiOwnedBy>()?.owner
 
             if (type.isArray) {
                 val componentType = traverseType(type.componentType, visitedTypes)
@@ -205,19 +219,26 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                         val name = (it as Enum<*>).name
                         val field = type.getField(name)
                         GeneratedType.EnumOption(name, field.documentation(doc.maturity))
-                    }
+                    },
+                    owner != null,
+                    owner
                 )
 
                 return GeneratedTypeReference.Structure(qualifiedName)
             }
 
-            if (type == Unit::class.java || type == Any::class.java) {
+            if (type == Unit::class.java) {
+                return GeneratedTypeReference.Void()
+            }
+
+            if (type == Any::class.java) {
                 return GeneratedTypeReference.Any()
             }
 
             // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
             // so it doesn't have to be correct.
-            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList())
+            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList(),
+                owner != null, owner)
 
             val properties = ArrayList<GeneratedType.Property>()
             val generics = ArrayList<String>()
@@ -353,12 +374,13 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     }
 
                     visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(qualifiedName, doc, properties,
-                        generics, options)
+                        generics, options, owner != null, owner)
 
                     return GeneratedTypeReference.Structure(qualifiedName)
                 }
 
-                visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics)
+                visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics,
+                    owner != null, owner)
                 return GeneratedTypeReference.Structure(qualifiedName)
             } else {
                 TODO("Non-primitive and non-kotlin class $type ${type::class}")
@@ -432,6 +454,16 @@ fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
 data class SynopsisAndDescription(val synopsis: String?, val description: String?, val importance: Int)
 
 fun UCloudApiDoc?.split(): SynopsisAndDescription {
+    if (this == null) return SynopsisAndDescription(null, null, 0)
+    val normalized = documentation.trimIndent()
+    return SynopsisAndDescription(
+        normalized.substringBefore('\n'),
+        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() },
+        importance,
+    )
+}
+
+fun UCloudApiDocC?.split(): SynopsisAndDescription {
     if (this == null) return SynopsisAndDescription(null, null, 0)
     val normalized = documentation.trimIndent()
     return SynopsisAndDescription(

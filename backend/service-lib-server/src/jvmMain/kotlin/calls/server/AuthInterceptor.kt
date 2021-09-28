@@ -35,7 +35,7 @@ class AuthInterceptor(
                 val bearer = readAuthenticationToken(context)
 
                 if (bearer == null && tokenMustValidate) {
-                    log.debug("Missing bearer token (required)")
+                    log.trace("Missing bearer token (required)")
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
 
@@ -43,7 +43,7 @@ class AuthInterceptor(
                     val validatedToken = tokenValidator.validateOrNull(bearer)
 
                     if (validatedToken == null && tokenMustValidate) {
-                        log.debug("Invalid bearer token (required)")
+                        log.trace("Invalid bearer token (required)")
                         throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                     } else if (validatedToken != null) {
                         val token = tokenValidator.decodeToken(validatedToken)

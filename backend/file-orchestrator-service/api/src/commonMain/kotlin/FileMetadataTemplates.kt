@@ -52,6 +52,7 @@ data class FileMetadataTemplateNamespace(
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("""A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`""")
 @Serializable
+@UCloudApiOwnedBy(FileMetadata::class)
 data class FileMetadataTemplate(
     @UCloudApiDoc("The ID of the namespace that this template belongs to")
     val namespaceId: String,
@@ -83,6 +84,7 @@ data class FileMetadataTemplateSupport(
 
 @Serializable
 @UCloudApiDoc("Determines how the metadata template is namespaces")
+@UCloudApiOwnedBy(FileMetadata::class)
 enum class FileMetadataTemplateNamespaceType {
     @UCloudApiDoc(
         """The template is namespaced to all collaborators

@@ -1,4 +1,5 @@
 package dk.sdu.cloud
+/*
 
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
@@ -232,4 +233,7 @@ private fun GenerationContext.generateOp(
     }
 }
 
+
+
+ */
 const val PROVIDER_ID_PLACEHOLDER = "PROVIDERID"

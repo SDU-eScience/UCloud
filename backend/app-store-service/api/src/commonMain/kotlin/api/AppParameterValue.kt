@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.WithStringId
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.*
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -25,6 +22,7 @@ comprehensive guide):
   used as a resource.
 """)
 @Serializable
+@UCloudApiOwnedBy(AppStore::class)
 sealed class AppParameterValue {
     @UCloudApiDoc(
         """A reference to a UCloud file

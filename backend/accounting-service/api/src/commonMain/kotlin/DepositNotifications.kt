@@ -31,13 +31,13 @@ object DepositNotifications : CallDescriptionContainer("accounting.depositnotifi
         documentation {
             summary = "Pulls the database for more `DepositNotification`s"
             description = """
-                This request fetches a new batch of `DepositNotification`s. The provider should aim to handle all
-                notifications as soon as possible. Once a notification has been handled, the provider should call
-                `DepositNotifications.markAsRead` with the appropriate `id`s. A good provider implementation should
-                be able to handle receiving the same notification twice.
-                
-                It is recommended that a provider calls this endpoint immediately after starting.
-            """.trimIndent()
+                    This request fetches a new batch of `DepositNotification`s. The provider should aim to handle all
+                    notifications as soon as possible. Once a notification has been handled, the provider should call
+                    `DepositNotifications.markAsRead` with the appropriate `id`s. A good provider implementation should
+                    be able to handle receiving the same notification twice.
+                    
+                    It is recommended that a provider calls this endpoint immediately after starting.
+                """.trimIndent()
         }
     }
 
@@ -61,10 +61,10 @@ open class DepositNotificationsProvider(
         documentation {
             summary = "Request from UCloud that the provider pulls for more notifications"
             description = """
-                The provider is supposed to call `DepositNotifications.retrieve` as soon as possible after receiving
-                this call. A 200 OK response can be sent immediately to this request, without dealing with any
-                notifications.
-            """.trimIndent()
+                    The provider is supposed to call `DepositNotifications.retrieve` as soon as possible after receiving
+                    this call. A 200 OK response can be sent immediately to this request, without dealing with any
+                    notifications.
+                """.trimIndent()
         }
     }
 }

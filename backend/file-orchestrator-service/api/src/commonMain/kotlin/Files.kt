@@ -143,7 +143,7 @@ of bytes.
 """
     }
 
-    override fun examples() {
+    override fun documentation() {
         useCase(
             "Renaming a file",
             trigger = "User-initiated action, typically though the user-interface",
@@ -200,15 +200,9 @@ of bytes.
                 ))
             }
         )
-    }
 
-    /*
-    val browse = call<FilesBrowseRequest, FilesBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
-
-        documentation {
-            summary = "Browse files of a directory"
-            description = """
+        document(browse, UCloudApiDocC(
+            """
                 Browses the contents of a directory.
                 
                 The results will be returned using the standard pagination API of UCloud. Consistency is slightly
@@ -217,43 +211,32 @@ of bytes.
                 subsequent requests. For example, a client might list all file names in the initial request and use
                 this list for all subsequent requests and retrieve additional information about the files. If the files
                 no longer exist then the provider should simply not include these results.
-            """.trimIndent()
+            """
+        ))
 
-            error {
-                statusCode = HttpStatusCode.BadRequest
-                description = "File at the requested path is not a directory"
-            }
-
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "The requested file does not exist or you do not have sufficient permissions"
-            }
-        }
-    }
-
-    val retrieve = call<FilesRetrieveRequest, FilesRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-
-        documentation {
-            summary = "Retrieves information about a single file"
-            /*
-            description = """
+        document(retrieve, UCloudApiDocC(
+            """
                 Retrieves information about a single file.
                 
                 This file can be of any type. Clients can request additional information about the file using the
                 `include*` flags of the request. Note that not all providers support all information. Clients can query
                 this information using ${docCallRef(FileCollections::browse)} or 
                 ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
-            """.trimIndent()
-             */
+            """
+        ))
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "The requested file does not exist or you do not have sufficient permissions"
-            }
-        }
+        document(delete, UCloudApiDocC(
+            """
+                Permanently deletes one or more files
+                
+                This call will recursively delete files if needed. It is possible that a provider might fail to
+                completely delete the entire sub-tree. This can, for example, happen because of a crash or because the
+                file-system is unable to delete a given file. This will lead the file-system in an inconsistent state.
+                It is not guaranteed that the provider will be able to detect this error scenario. A client of the
+                API can check if the file has been deleted by calling `retrieve` on the file.
+            """
+        ))
     }
-     */
 
     val move = call<FilesMoveRequest, FilesMoveResponse, CommonErrorMessage>("move") {
         httpUpdate(baseContext, "move")
@@ -261,15 +244,15 @@ of bytes.
         documentation {
             summary = "Move a file from one path to another"
             description = """
-                Moves a file from one path to another.
-                
-                The file can be of any type. This request is also used for 'renames' of a file. This is simply
-                considered a move within a single directory. This operation handles conflicts depending on the supplied
-                `WriteConflictPolicy`.
-                
-                This is a long running task. As a result, this operation might respond with a status code which indicate
-                that it will continue in the background. Progress of this job can be followed using the task API.
-            """.trimIndent()
+                    Moves a file from one path to another.
+                    
+                    The file can be of any type. This request is also used for 'renames' of a file. This is simply
+                    considered a move within a single directory. This operation handles conflicts depending on the supplied
+                    `WriteConflictPolicy`.
+                    
+                    This is a long running task. As a result, this operation might respond with a status code which indicate
+                    that it will continue in the background. Progress of this job can be followed using the task API.
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.BadRequest
@@ -294,19 +277,19 @@ of bytes.
         documentation {
             summary = "Copies a file from one path to another"
             description = """
-                Copies a file from one path to another.
-                
-                The file can be of any type. If a directory is chosen then this will recursively copy all of its
-                children. This request might fail half-way through. This can potentially lead to a situation where
-                a partial file is left on the file-system. It is left to the user to clean up this file.
-                
-                This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
-                
-                This is a long running task. As a result, this operation might respond with a status code which indicate
-                that it will continue in the background. Progress of this job can be followed using the task API.
-                
-                TODO What happens with metadata, acls and extended attributes?
-            """.trimIndent()
+                    Copies a file from one path to another.
+                    
+                    The file can be of any type. If a directory is chosen then this will recursively copy all of its
+                    children. This request might fail half-way through. This can potentially lead to a situation where
+                    a partial file is left on the file-system. It is left to the user to clean up this file.
+                    
+                    This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
+                    
+                    This is a long running task. As a result, this operation might respond with a status code which indicate
+                    that it will continue in the background. Progress of this job can be followed using the task API.
+                    
+                    TODO What happens with metadata, acls and extended attributes?
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.BadRequest
@@ -325,50 +308,17 @@ of bytes.
         }
     }
 
-    /*
-    val delete = call<FilesDeleteRequest, FilesDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-
-        documentation {
-            summary = "Deletes a file permanently from the file-system"
-            description = """
-                Deletes a file permanently from the file-system.
-                
-                This operation is permanent and cannot be undone. User interfaces should prefer using
-                ${docCallRef(::trash)} if it is supported by the provider.
-                
-                If the referenced file is a directory then this will delete all files recursively. This operation may
-                fail half-way through which will leave the file-system in an inconsistent state. It is the user's
-                responsibility to clean up this state.
-                
-                This is a long running task. As a result, this operation might respond with a status code which indicate
-                that it will continue in the background. Progress of this job can be followed using the task API.
-            """.trimIndent()
-
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
-
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
-        }
-    }
-     */
-
     val createUpload = call<FilesCreateUploadRequest, FilesCreateUploadResponse, CommonErrorMessage>("createUpload") {
         httpCreate(baseContext, "upload")
 
         documentation {
             summary = "Creates an upload session between the user and the provider"
             description = """
-                Creates an upload session between the user and the provider.
-                
-                The returned endpoint will accept an upload from the user which will create a file at a location
-                specified in this request.
-            """.trimIndent()
+                    Creates an upload session between the user and the provider.
+                    
+                    The returned endpoint will accept an upload from the user which will create a file at a location
+                    specified in this request.
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -389,10 +339,10 @@ of bytes.
         documentation {
             summary = "Creates a download session between the user and the provider"
             description = """
-                Creates a download session between the user and the provider.
-                
-                The returned endpoint will respond with a download to the user.
-            """.trimIndent()
+                    Creates a download session between the user and the provider.
+                    
+                    The returned endpoint will respond with a download to the user.
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -412,11 +362,11 @@ of bytes.
         documentation {
             summary = "Creates a folder"
             description = """
-                Creates a folder at a specified location.
-                
-                This folder will automatically create parent directories if needed. This request may fail half-way
-                through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
-            """.trimIndent()
+                    Creates a folder at a specified location.
+                    
+                    This folder will automatically create parent directories if needed. This request may fail half-way
+                    through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.NotFound
@@ -429,35 +379,6 @@ of bytes.
             }
         }
     }
-
-    /*
-    val updateAcl = call<FilesUpdateAclRequest, FilesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
-
-        documentation {
-            summary = "Updates the permissions of a file"
-            /*
-            description = """
-                Updates the permissions of a file.
-                
-                Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
-                or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag. 
-            """.trimIndent()
-
-             */
-
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
-
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
-        }
-    }
-     */
 
     val trash = call<FilesTrashRequest, FilesTrashResponse, CommonErrorMessage>("trash") {
         httpUpdate(baseContext, "trash")
@@ -465,18 +386,18 @@ of bytes.
         documentation {
             summary = "Moves a file to the trash"
             description = """
-                Moves a file to the trash.
-                
-                This operation acts as a non-permanent delete for users. Users will be able to restore the file from
-                trash later, if needed. It is up to the provider to determine if the trash should be automatically
-                deleted and where this trash should be stored.
-                
-                Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
-                or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
-                
-                This is a long running task. As a result, this operation might respond with a status code which indicate
-                that it will continue in the background. Progress of this job can be followed using the task API.
-            """.trimIndent()
+                    Moves a file to the trash.
+                    
+                    This operation acts as a non-permanent delete for users. Users will be able to restore the file from
+                    trash later, if needed. It is up to the provider to determine if the trash should be automatically
+                    deleted and where this trash should be stored.
+                    
+                    Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
+                    or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
+                    
+                    This is a long running task. As a result, this operation might respond with a status code which indicate
+                    that it will continue in the background. Progress of this job can be followed using the task API.
+                """.trimIndent()
 
             error {
                 statusCode = HttpStatusCode.NotFound

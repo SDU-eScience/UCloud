@@ -17,6 +17,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
@@ -69,6 +70,7 @@ class Server(
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro)
 
+        val debug = micro.featureOrNull(DebugSystem)
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         k8Dependencies = K8Dependencies(
             if (integrationTestingIsKubernetesReady) KubernetesClient()
@@ -77,7 +79,8 @@ class Server(
             micro.backgroundScope,
             serviceClient,
             nameAllocator,
-            DockerImageSizeQuery()
+            DockerImageSizeQuery(),
+            debug,
         )
 
         val jobCache = VerifiedJobCache(k8Dependencies)

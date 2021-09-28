@@ -158,7 +158,7 @@ class ShareService(
         collections.retrieveBulk(
             actorAndProject,
             collIds,
-            listOf(Permission.Admin),
+            listOf(Permission.ADMIN),
             ctx = session
         )
 
@@ -207,7 +207,7 @@ class ShareService(
         val allCollections = collections.retrieveBulk(
             ActorAndProject(Actor.System, null),
             expectedCollectionIds + setOf(providerCollection),
-            listOf(Permission.Read),
+            listOf(Permission.READ),
             ctx = session
         )
 
@@ -252,7 +252,7 @@ class ShareService(
         request: BulkRequest<FindByStringId>
     ) {
         db.withSession { session ->
-            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Read),
+            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
                 ctx = session)
 
             if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
@@ -305,7 +305,7 @@ class ShareService(
         request: BulkRequest<FindByStringId>
     ) {
         db.withSession { session ->
-            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Read),
+            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
                 ctx = session)
 
             if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
@@ -358,7 +358,7 @@ class ShareService(
         val allCollections = collections.retrieveBulk(
             ActorAndProject(Actor.System, null),
             collectionsToDelete,
-            listOf(Permission.Admin),
+            listOf(Permission.ADMIN),
             ctx = session
         )
 
@@ -380,7 +380,7 @@ class ShareService(
     ) {
         db.withSession { session ->
             val ids = request.items.map { it.id }.toSet()
-            val sharesById = retrieveBulk(actorAndProject, ids, listOf(Permission.Admin), ctx = session)
+            val sharesById = retrieveBulk(actorAndProject, ids, listOf(Permission.ADMIN), ctx = session)
                 .associateBy { it.id }
 
             val rejectedShare = sharesById.values.find { it.status.state == Share.State.REJECTED }
