@@ -111,7 +111,7 @@ class IMConfiguration(
                 )
             }
 
-            val plugins = Json.decodeFromString<Plugins>(
+            val plugins = Json{ignoreUnknownKeys = true}.decodeFromString<Plugins>(
                 NativeFile.open("$CONFIG_PATH/plugins.json", readOnly = true).readText()
             )
 

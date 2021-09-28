@@ -291,12 +291,12 @@ class ComputeController(
             //             clusterMem = clusterMem + line[2].replace("M", "").toInt()
             // }
 
-            var clusterCpu = 0;
-            var clusterMem = 0;
+            var clusterCpu:Int = 0;
+            var clusterMem:Int = 0;
 
             compute?.forEach{ product -> 
-                clusterCpu = clusterCpu + product?.cpu!!.toInt()
-                clusterMem = clusterMem + product?.mem!!.toInt()
+                clusterCpu = clusterCpu + product.get("cpu").toString().toInt()
+                clusterMem = clusterMem + product.get("mem").toString().toInt()
             }
 
             //println("$clusterCpu $clusterMem")

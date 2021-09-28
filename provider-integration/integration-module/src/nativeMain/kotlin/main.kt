@@ -26,6 +26,7 @@ import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
+
 sealed class ServerMode {
     object User : ServerMode()
     object Server : ServerMode()
@@ -72,6 +73,7 @@ private fun readSelfExecutablePath(): String {
     }
 }
 
+
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     val serverMode = when {
@@ -83,6 +85,9 @@ fun main(args: Array<String>) {
     val ownExecutable = readSelfExecutablePath()
     //signal(SIGCHLD, SIG_IGN) // Automatically reap children - commenting out as currently interferes with execve.kt
     signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
+
+
+
 
     runBlocking {
         val config = try {
@@ -192,6 +197,8 @@ fun main(args: Array<String>) {
 
         envoyConfig?.start(config.server?.port)
 
+        dk.sdu.cloud.plugins.compute.runMonitoringLoop() // move later
+
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {
                 val server = H2OServer(rpcServerPort!!)
@@ -208,8 +215,13 @@ fun main(args: Array<String>) {
             is ServerMode.Plugin -> {
                 cli!!.execute(serverMode.name)
             }
+
         }
+
+
     }
+
+    
 }
 
 private fun H2OServer.configureControllers(vararg controllers: Controller) {
