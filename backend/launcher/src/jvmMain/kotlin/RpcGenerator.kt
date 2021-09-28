@@ -194,8 +194,8 @@ private fun generateCall(
 
     val field = call.field
     val defaultMaturity = containerDocs.maturity
-    val overriddenDocs = container.docOverrides[call.fullName]?.docs?.split()
-    val fieldDocs = field?.javaField?.documentation(defaultMaturity)
+    val overriddenDocs = container.docOverrides[call.fullName]?.docs?.split(container::class.java.packageName)
+    val fieldDocs = field?.javaField?.documentation(container::class.java.packageName, defaultMaturity)
 
     return GeneratedRemoteProcedureCall(
         requestType,

@@ -3,11 +3,26 @@ package dk.sdu.cloud
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.TYPE_REF_LINK
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiDocC
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiInternal
+import dk.sdu.cloud.calls.UCloudApiMaturity
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.UCloudApiStable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import java.lang.reflect.*
+import java.lang.reflect.Field
+import java.lang.reflect.GenericArrayType
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
+import java.lang.reflect.TypeVariable
+import java.lang.reflect.WildcardType
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.reflect.KClass
@@ -54,6 +69,16 @@ sealed class GeneratedTypeReference {
 
     data class Void(override var nullable: Boolean = false) : GeneratedTypeReference()
     data class Any(override var nullable: Boolean = false) : GeneratedTypeReference()
+}
+
+fun GeneratedTypeReference.packageNameOrNull(): String? {
+    return when (this) {
+        is GeneratedTypeReference.Structure -> {
+            name.split(".").filter { it.firstOrNull()?.isUpperCase() == false }.joinToString(".")
+        }
+
+        else -> null
+    }
 }
 
 
@@ -159,7 +184,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
             return GeneratedTypeReference.Any(nullable = true)
         }
 
-        JsonObject::class.java-> {
+        JsonObject::class.java -> {
             return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
         }
 
@@ -218,7 +243,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     type.enumConstants.map {
                         val name = (it as Enum<*>).name
                         val field = type.getField(name)
-                        GeneratedType.EnumOption(name, field.documentation(doc.maturity))
+                        GeneratedType.EnumOption(name, field.documentation(type.packageName, doc.maturity))
                     },
                     owner != null,
                     owner
@@ -237,8 +262,10 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
             // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
             // so it doesn't have to be correct.
-            visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, emptyList(), emptyList(),
-                owner != null, owner)
+            visitedTypes[qualifiedName] = GeneratedType.Struct(
+                qualifiedName, doc, emptyList(), emptyList(),
+                owner != null, owner
+            )
 
             val properties = ArrayList<GeneratedType.Property>()
             val generics = ArrayList<String>()
@@ -272,7 +299,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     val propType = traverseType(prop.type.javaType, visitedTypes)
 
                     val (synopsis, description, importance) =
-                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split(propType.packageNameOrNull())
 
                     var propName = prop.name!!
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
@@ -322,7 +349,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     val propType = traverseType(prop.returnType.javaType, visitedTypes)
 
                     val (synopsis, description, importance) =
-                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split(propType.packageNameOrNull())
 
                     var propName = prop.name
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
@@ -373,14 +400,18 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                         traverseType(it.java, visitedTypes)
                     }
 
-                    visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(qualifiedName, doc, properties,
-                        generics, options, owner != null, owner)
+                    visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(
+                        qualifiedName, doc, properties,
+                        generics, options, owner != null, owner
+                    )
 
                     return GeneratedTypeReference.Structure(qualifiedName)
                 }
 
-                visitedTypes[qualifiedName] = GeneratedType.Struct(qualifiedName, doc, properties, generics,
-                    owner != null, owner)
+                visitedTypes[qualifiedName] = GeneratedType.Struct(
+                    qualifiedName, doc, properties, generics,
+                    owner != null, owner
+                )
                 return GeneratedTypeReference.Structure(qualifiedName)
             } else {
                 TODO("Non-primitive and non-kotlin class $type ${type::class}")
@@ -414,7 +445,7 @@ inline fun <reified T : Annotation> Class<*>.findAnnotation(): T? {
 
 fun Class<*>.documentation(): Documentation {
     val type = this
-    val (synopsis, description, importance) = type.findAnnotation<UCloudApiDoc>().split()
+    val (synopsis, description, importance) = type.findAnnotation<UCloudApiDoc>().split(packageName)
     val deprecated = type.findAnnotation<Deprecated>() != null
     val maturity = run {
         val internalMaturity = type.findAnnotation<UCloudApiInternal>()
@@ -432,8 +463,9 @@ fun Class<*>.documentation(): Documentation {
     return Documentation(deprecated, maturity, synopsis, description, importance)
 }
 
-fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
-    val (synopsis, description, importance) = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split()
+fun Field.documentation(currentPackage: String, defaultMaturity: UCloudApiMaturity): Documentation {
+    val (synopsis, description, importance) = annotations.filterIsInstance<UCloudApiDoc>()
+        .firstOrNull().split(currentPackage)
     val deprecated = annotations.filterIsInstance<Deprecated>().firstOrNull() != null
     val maturity = run {
         val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
@@ -453,22 +485,123 @@ fun Field.documentation(defaultMaturity: UCloudApiMaturity): Documentation {
 
 data class SynopsisAndDescription(val synopsis: String?, val description: String?, val importance: Int)
 
-fun UCloudApiDoc?.split(): SynopsisAndDescription {
+fun UCloudApiDoc?.split(currentPackage: String?): SynopsisAndDescription {
     if (this == null) return SynopsisAndDescription(null, null, 0)
     val normalized = documentation.trimIndent()
     return SynopsisAndDescription(
-        normalized.substringBefore('\n'),
-        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() },
+        processDocumentation(currentPackage, normalized.substringBefore('\n')),
+        processDocumentation(currentPackage, normalized.substringAfter('\n', "").trim()).takeIf { it.isNotEmpty() },
         importance,
     )
 }
 
-fun UCloudApiDocC?.split(): SynopsisAndDescription {
+fun UCloudApiDocC?.split(currentPackage: String?): SynopsisAndDescription {
     if (this == null) return SynopsisAndDescription(null, null, 0)
     val normalized = documentation.trimIndent()
     return SynopsisAndDescription(
-        normalized.substringBefore('\n'),
-        normalized.substringAfter('\n', "").trim().takeIf { it.isNotEmpty() },
+        processDocumentation(currentPackage, normalized.substringBefore('\n')),
+        processDocumentation(currentPackage, normalized.substringAfter('\n', "").trim()).takeIf { it.isNotEmpty() },
         importance,
     )
+}
+
+fun processDocumentation(currentPackage: String?, docString: String): String {
+    var phase = 0
+    var docString = docString
+    var isRunning = true
+    while (isRunning) {
+        fun replaceTags(
+            token: String,
+            replacement: (String) -> String
+        ) {
+            docString = buildString {
+                var cursor = 0
+                while (cursor < docString.length) {
+                    val nextTypeRef = docString.indexOf(token, cursor)
+                    if (nextTypeRef == -1) {
+                        append(docString.substring(cursor))
+                        cursor = docString.length
+                    } else {
+                        append(docString.substring(cursor, nextTypeRef))
+                        val refStartIdx = nextTypeRef + token.length + 1
+                        if (refStartIdx >= docString.length) {
+                            throw IllegalStateException("Unable to parse documentation in $currentPackage:\n${docString}")
+                        }
+
+                        var (refEndOfToken, addWhitespace) = docString.findEndOfIdentifier(refStartIdx)
+                        if (refEndOfToken == -1) refEndOfToken = docString.length
+                        val token = docString.substring(refStartIdx, refEndOfToken).trim()
+                        cursor = refEndOfToken
+
+                        append(replacement(token))
+                        if (addWhitespace) append(' ')
+                    }
+                }
+            }
+        }
+
+
+        when (phase) {
+            0 -> {
+                replaceTags(TYPE_REF) { token ->
+                    if (currentPackage == null) {
+                        "`${token}`"
+                    } else {
+                        val qualifiedName = if (!token.startsWith("dk.sdu.cloud.")) {
+                            "$currentPackage.$token"
+                        } else {
+                            token
+                        }
+
+                        "[`${token}`](/Docs/Reference/${qualifiedName}.md)"
+                    }
+                }
+            }
+
+            1 -> {
+                replaceTags(CALL_REF) { token ->
+                    "[`${token}`](/Docs/Reference/${token}.md)"
+                }
+            }
+
+            2 -> {
+                replaceTags(TYPE_REF_LINK) { token ->
+                    if (currentPackage == null) {
+                        "#"
+                    } else {
+                        val qualifiedName = if (!token.startsWith("dk.sdu.cloud.")) {
+                            "$currentPackage.$token"
+                        } else {
+                            token
+                        }
+
+                        "/Docs/Reference/${qualifiedName}.md"
+                    }
+                }
+            }
+
+            else -> {
+                isRunning = false
+            }
+        }
+
+        phase++
+    }
+
+    return docString
+}
+
+private fun CharSequence.findEndOfIdentifier(startIndex: Int): Pair<Int, Boolean> {
+    var cursor = startIndex
+    val stringLength = length
+    while (cursor < stringLength) {
+        val nextChar = get(cursor++)
+        if (nextChar == '\n' || nextChar.isWhitespace()) {
+            return Pair(cursor - 1, true)
+        }
+        if (!nextChar.isJavaIdentifierPart()) {
+            return Pair(cursor - 1, false)
+        }
+    }
+    return Pair(-1, false)
 }

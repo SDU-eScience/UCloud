@@ -4,7 +4,6 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import java.io.File
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -24,7 +23,7 @@ fun generateTypeScriptCode(
     title: String,
     container: CallDescriptionContainer
 ) {
-    val baseDirectory = File("../frontend-web/webclient/app/UCloudTest").takeIf { it.exists() }
+    val baseDirectory = File("../../frontend-web/webclient/app/UCloudTest").takeIf { it.exists() }
         ?: File("/opt/frontend/app/UCloudTest").takeIf { it.exists() }
 
     if (baseDirectory == null) {

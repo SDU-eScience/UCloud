@@ -1,9 +1,15 @@
 package dk.sdu.cloud.calls
 
+import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
+
+
+const val TYPE_REF = "#TYPEREF#="
+const val CALL_REF = "#CALLREF#="
+const val TYPE_REF_LINK = "#TYPEREFLINK#="
 
 @Retention
 @Target(AnnotationTarget.CLASS)
@@ -39,23 +45,15 @@ expect annotation class Language(
 interface UCloudCallDoc<R : Any, S : Any, E : Any> {
     val summary: String?
     val description: String?
-    val examples: ArrayList<Example<R, S, E>>
-    val errors: ArrayList<Error<E>>
+    val responseExamples: ArrayList<ResponseExample>
+    val useCaseReferences: ArrayList<UseCaseReference>
 
-    interface Example<R : Any, S : Any, E : Any>{
-        val name: String
-        val summary: String?
-        val description: String?
-        val statusCode: HttpStatusCode
-        val request: R?
-        val response: S?
-        val error: E?
-    }
+    data class UseCaseReference(val id: String, val description: String)
 
-    interface Error<E> {
-        val statusCode: HttpStatusCode
-        val description: String?
-    }
+    data class ResponseExample(
+        val statusCode: HttpStatusCode,
+        val description: String
+    )
 
     companion object {
         internal val key = AttributeKey<UCloudCallDoc<*, *, *>>("call-doc")
@@ -66,24 +64,8 @@ class UCloudCallDocBuilder<R : Any, S : Any, E : Any> : UCloudCallDoc<R, S, E> {
     override var summary: String? = null
     @Language("markdown", "", "")
     override var description: String? = null
-    override val examples = ArrayList<UCloudCallDoc.Example<R, S, E>>()
-    override val errors = ArrayList<UCloudCallDoc.Error<E>>()
-
-    class ExampleBuilder<R : Any, S : Any, E : Any>(override var name: String) : UCloudCallDoc.Example<R, S, E> {
-        override var summary: String? = null
-        @Language("markdown", "", "")
-        override var description: String? = null
-        override var statusCode: HttpStatusCode = HttpStatusCode.OK
-        override var request: R? = null
-        override var response: S? = null
-        override var error: E? = null
-    }
-
-    class ErrorBuilder<E> : UCloudCallDoc.Error<E> {
-        override var statusCode: HttpStatusCode = HttpStatusCode.BadRequest
-        @Language("markdown", "", "")
-        override var description: String? = null
-    }
+    override val responseExamples = ArrayList<UCloudCallDoc.ResponseExample>()
+    override val useCaseReferences = ArrayList<UCloudCallDoc.UseCaseReference>()
 }
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.documentation(
@@ -96,15 +78,12 @@ val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.docOrNull: UCloudCallDo
     @Suppress("UNCHECKED_CAST")
     get() = attributes.getOrNull(UCloudCallDoc.key) as UCloudCallDoc<R, S, E>?
 
-fun <R : Any, S : Any, E : Any> UCloudCallDocBuilder<R, S, E>.example(
-    name: String,
-    handler: UCloudCallDocBuilder.ExampleBuilder<R, S, E>.() -> Unit
-) {
-    examples.add(UCloudCallDocBuilder.ExampleBuilder<R, S, E>(name).also(handler))
+fun UCloudCallDocBuilder<*, *, *>.responseExample(statusCode: HttpStatusCode, description: String) {
+    responseExamples.add(UCloudCallDoc.ResponseExample(statusCode, description))
 }
 
-fun <E : Any> UCloudCallDocBuilder<*, *, E>.error(handler: UCloudCallDocBuilder.ErrorBuilder<E>.() -> Unit) {
-    errors.add(UCloudCallDocBuilder.ErrorBuilder<E>().also(handler))
+fun UCloudCallDocBuilder<*, *, *>.useCaseReference(useCaseId: String, description: String) {
+    useCaseReferences.add(UCloudCallDoc.UseCaseReference(useCaseId, description))
 }
 
 expect fun CallDescriptionContainer.docCallRef(
@@ -164,6 +143,7 @@ val CallDescriptionContainer.useCases: List<UseCase>
     get() = attributes.getOrNull(useCasesKey) ?: emptyList()
 
 fun CallDescriptionContainer.useCase(
+    id: String,
     title: String,
     frequencyOfUse: UseCase.FrequencyOfUse = UseCase.FrequencyOfUse.COMMON,
     trigger: String? = null,
@@ -171,7 +151,7 @@ fun CallDescriptionContainer.useCase(
     postConditions: List<String> = emptyList(),
     flow: MutableList<UseCaseNode>.() -> Unit,
 ) {
-    val useCase = UseCase(title, frequencyOfUse, trigger, preConditions, postConditions,
+    val useCase = UseCase(id, title, frequencyOfUse, trigger, preConditions, postConditions,
         ArrayList<UseCaseNode>().apply(flow))
 
     val allUseCases = attributes.getOrNull(useCasesKey) ?: run {
@@ -184,6 +164,7 @@ fun CallDescriptionContainer.useCase(
 }
 
 data class UseCase(
+    val id: String,
     val title: String,
     val frequencyOfUse: FrequencyOfUse,
     val trigger: String?,
@@ -197,6 +178,51 @@ data class UseCase(
         RARE,
         ONE_TIME
     }
+}
+
+fun MutableList<UseCaseNode>.actor(name: String, description: String): UseCaseNode.Actor {
+    return UseCaseNode.Actor(name, description).also { add(it) }
+}
+
+fun <R : Any, S : Any> MutableList<UseCaseNode>.success(
+    call: CallDescription<R, S, *>,
+    request: R,
+    response: S,
+    actor: UseCaseNode.Actor,
+    name: String? = null,
+) {
+    add(UseCaseNode.Call(
+        call,
+        request,
+        IngoingCallResponse.Ok(
+            response,
+            HttpStatusCode.OK,
+            FakeOutgoingCall
+        ),
+        actor,
+        name,
+    ))
+}
+
+fun <R : Any, E : Any> MutableList<UseCaseNode>.failure(
+    call: CallDescription<R, *, E>,
+    request: R,
+    error: E?,
+    status: HttpStatusCode,
+    actor: UseCaseNode.Actor,
+    name: String? = null,
+) {
+    add(UseCaseNode.Call(
+        call,
+        request,
+        IngoingCallResponse.Error(
+            error,
+            status,
+            FakeOutgoingCall
+        ),
+        actor,
+        name
+    ))
 }
 
 sealed class UseCaseNode {

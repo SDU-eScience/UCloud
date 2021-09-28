@@ -143,8 +143,11 @@ of bytes.
 """
     }
 
+    private val renameFileUseCase = "rename_file"
+    private val copyFileToSelfUseCase = "copy_file_to_self"
     override fun documentation() {
         useCase(
+            renameFileUseCase,
             "Renaming a file",
             trigger = "User-initiated action, typically though the user-interface",
             preConditions = listOf(
@@ -155,24 +158,20 @@ of bytes.
                 "The file is moved to /123/my/new_file"
             ),
             flow = {
-                val user = UseCaseNode.Actor("user", "An authenticated user")
-                add(user)
-                add(UseCaseNode.Call(
+                val user = actor("user", "An authenticated user")
+                success(
                     move,
                     bulkRequestOf(
                         FilesMoveRequestItem("/123/my/file", "/123/my/new_file", WriteConflictPolicy.REJECT)
                     ),
-                    IngoingCallResponse.Ok(
-                        FilesMoveResponse(listOf(LongRunningTask.Complete())),
-                        HttpStatusCode.OK,
-                        FakeOutgoingCall
-                    ),
+                    FilesMoveResponse(listOf(LongRunningTask.Complete())),
                     user
-                ))
+                )
             }
         )
 
         useCase(
+            copyFileToSelfUseCase,
             "Copying a file to itself",
             trigger = "Use-initiated action, typically through the user-interface",
             preConditions = listOf(
@@ -184,20 +183,15 @@ of bytes.
                 "A new file present at '/123/my/file (1)'"
             ),
             flow = {
-                val user = UseCaseNode.Actor("user", "An authenticated user")
-                add(user)
-                add(UseCaseNode.Call(
+                val user = actor("user", "An authenticated user")
+                success(
                     copy,
                     bulkRequestOf(
                         FilesCopyRequestItem("/123/my/file", "/123/my/file", WriteConflictPolicy.RENAME)
                     ),
-                    IngoingCallResponse.Ok(
-                        FilesMoveResponse(listOf(LongRunningTask.Complete())),
-                        HttpStatusCode.OK,
-                        FakeOutgoingCall
-                    ),
+                    FilesMoveResponse(listOf(LongRunningTask.Complete())),
                     user
-                ))
+                )
             }
         )
 
@@ -254,20 +248,22 @@ of bytes.
                     that it will continue in the background. Progress of this job can be followed using the task API.
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.BadRequest
-                description = "The operation couldn't be completed because of the write conflict policy"
-            }
+            responseExample(
+                HttpStatusCode.BadRequest,
+                "The operation couldn't be completed because of the write conflict policy"
+            )
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
+
+            useCaseReference(renameFileUseCase, "Example of using `move` to rename a file")
         }
     }
 
@@ -291,20 +287,22 @@ of bytes.
                     TODO What happens with metadata, acls and extended attributes?
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.BadRequest
-                description = "The operation couldn't be completed because of the write conflict policy"
-            }
+            responseExample(
+                HttpStatusCode.BadRequest,
+                "The operation couldn't be completed because of the write conflict policy"
+            )
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
+
+            useCaseReference(copyFileToSelfUseCase, "Example of duplicating a file")
         }
     }
 
@@ -320,15 +318,15 @@ of bytes.
                     specified in this request.
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
         }
     }
 
@@ -344,15 +342,15 @@ of bytes.
                     The returned endpoint will respond with a download to the user.
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
         }
     }
 
@@ -368,15 +366,15 @@ of bytes.
                     through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
         }
     }
 
@@ -399,20 +397,20 @@ of bytes.
                     that it will continue in the background. Progress of this job can be followed using the task API.
                 """.trimIndent()
 
-            error {
-                statusCode = HttpStatusCode.NotFound
-                description = "Either the oldPath or newPath exists or you lack permissions"
-            }
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
 
-            error {
-                statusCode = HttpStatusCode.Forbidden
-                description = "You lack permissions to perform this operation"
-            }
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
 
-            error {
-                statusCode = HttpStatusCode.BadRequest
-                description = "This operation is not supported by the provider"
-            }
+            responseExample(
+                HttpStatusCode.BadRequest,
+                "This operation is not supported by the provider"
+            )
         }
     }
 

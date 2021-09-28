@@ -1,12 +1,6 @@
 package dk.sdu.cloud
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
@@ -15,20 +9,12 @@ import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.server
 import io.ktor.http.*
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Transient
-import kotlinx.serialization.json.JsonObject
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
-import java.math.BigDecimal
-import java.math.BigInteger
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
 import kotlin.reflect.javaType
-import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.jvmName
 import kotlin.system.exitProcess
 
 data class CallExtension(
@@ -136,14 +122,6 @@ private fun writeSpecification(
                 if (callId.contains(".")) {
                     // Hack: Delete anything after '.' to allow versioning in call ids
                     callId = callId.substringBefore('.')
-                }
-
-                doc?.examples?.groupBy { it.statusCode }?.forEach { (code, examples) ->
-                    // TODO Implement the example
-                }
-
-                doc?.errors?.forEach { err ->
-                    // TODO Implement the error
                 }
 
                 if (call.successClass.javaType != Unit::class) {
