@@ -146,7 +146,6 @@ class JobManagement(
 
     suspend fun create(verifiedJob: Job) {
         try {
-            k8.debug?.tellMeEverything("Creating job", defaultMapper.encodeToJsonElement(verifiedJob) as JsonObject)
             if (maintenance.isPaused()) {
                 throw RPCException(
                     "UCloud does not currently accept new jobs",
@@ -155,7 +154,6 @@ class JobManagement(
                 )
             }
 
-            k8.debug?.tellMeEverything("Caching job")
             jobCache.cacheJob(verifiedJob)
             val builder = VolcanoJob()
             val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
@@ -165,7 +163,7 @@ class JobManagement(
             )
             builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
             plugins.forEach {
-                k8.debug?.tellMeEverything("Running plugin: ${it.javaClass.simpleName}")
+                k8.debug?.tellMeEverything("Running plugin (onCreate): ${it.javaClass.simpleName}")
                 with(it) {
                     with(k8) {
                         onCreate(verifiedJob, builder)
