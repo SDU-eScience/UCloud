@@ -340,7 +340,7 @@ fun generateCode() {
                         didFail = true
                     }
                 }
-//                if (didFail) break
+                if (didFail) break
                 continue
             } else {
                 break

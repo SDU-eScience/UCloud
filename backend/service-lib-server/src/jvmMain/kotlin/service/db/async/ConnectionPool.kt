@@ -14,6 +14,7 @@ import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.feature
+import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -86,7 +87,7 @@ class AsyncDBSessionFactory(
     config: DatabaseConfig,
     private val debug: DebugSystem? = null
 ) : DBSessionFactory<AsyncDBConnection>, DBContext() {
-    constructor(micro: Micro) : this(micro.databaseConfig, micro.feature(DebugSystem))
+    constructor(micro: Micro) : this(micro.databaseConfig, micro.featureOrNull(DebugSystem))
 
     private val schema = config.defaultSchema
 

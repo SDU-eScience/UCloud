@@ -59,7 +59,7 @@ kotlin {
     }
 }
 
-version = "2021.2.0-storage0"
+version = rootProject.file("./version.txt").readText().trim()
 group = "dk.sdu.cloud"
 
 publishing {
