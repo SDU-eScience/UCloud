@@ -318,7 +318,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
         settingsCopy.automaticApproval.maxResources.push({
             productProvider: category.provider,
             productCategory: category.name,
-            creditsRequested: parsedValue * 1000000
+            balanceRequested: parsedValue * 1000000
         });
         await runWork(uploadGrantRequestSettings(settingsCopy));
         setEditingLimit(null);
@@ -335,7 +335,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                     mr => mr.productCategory === it.name &&
                         mr.productProvider === it.provider
                 )
-                ?.creditsRequested ?? 0;
+                ?.balanceRequested ?? 0;
             return <React.Fragment key={key}>
                 <form onSubmit={(e) => updateApprovalLimit(it, e)}>
                     <Label htmlFor={key}>

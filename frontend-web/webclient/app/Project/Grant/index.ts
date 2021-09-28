@@ -40,8 +40,7 @@ export interface GrantRecipientNew {
 export interface ResourceRequest {
     productCategory: string;
     productProvider: string;
-    creditsRequested?: number;
-    quotaRequested?: number;
+    balanceRequested?: number;
 }
 
 export enum GrantApplicationStatus {
