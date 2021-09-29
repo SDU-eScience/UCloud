@@ -16,7 +16,7 @@ import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {setActivePage} from "@/Navigation/Redux/StatusActions";
-import {ProjectRole, useProjectId, useProjectManagementStatus, UserInProject, viewProject} from "@/Project";
+import {ProjectRole, useProjectId, UserInProject, viewProject} from "@/Project";
 import {useGlobalCloudAPI} from "@/Authentication/DataHook";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
@@ -214,7 +214,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     if (useFrameHidden()) return null;
 
     const projectId = useProjectId();
-    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+    const [projectDetails, fetchProjectDetails] = useGlobalCloudAPI<UserInProject>(
         "projectManagementDetails",
         {noop: true},
         {

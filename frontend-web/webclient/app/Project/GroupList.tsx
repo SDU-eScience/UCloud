@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Pagination from "@/Pagination";
 import {Button, Text, List, Icon, Flex, Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Operation} from "Types";
+import {Operation} from "@/Types";
 import {useHistory} from "react-router";
 import GroupView from "./GroupView";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
