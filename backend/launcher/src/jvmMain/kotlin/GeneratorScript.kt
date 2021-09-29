@@ -36,13 +36,22 @@ import java.util.*
 import kotlin.collections.LinkedHashMap
 
 sealed class Chapter {
+    abstract val id: String
     abstract val title: String
     abstract var path: List<Chapter.Node>
 
-    data class Node(override val title: String, val children: List<Chapter>) : Chapter() {
+    data class Node(
+        override val id: String,
+        override val title: String,
+        val children: List<Chapter>
+    ) : Chapter() {
         override var path: List<Chapter.Node> = emptyList()
     }
-    data class Feature(override val title: String, val container: CallDescriptionContainer) : Chapter() {
+    data class Feature(
+        override val id: String,
+        override val title: String,
+        val container: CallDescriptionContainer
+    ) : Chapter() {
         override var path: List<Chapter.Node> = emptyList()
     }
 }
@@ -56,96 +65,115 @@ fun Chapter.addPaths(path: List<Chapter.Node> = emptyList()) {
 
 fun generateCode() {
     val structure = Chapter.Node(
+        "developer-guide",
         "UCloud Developer Guide",
         listOf(
             Chapter.Node(
-                "Accounting And Project Management",
+                "accounting-and-projects",
+                "Accounting and Project Management",
                 listOf(
                     Chapter.Node(
-                        "Project Management",
+                        "projects",
+                        "Projects",
                         listOf(
-                            Chapter.Feature("Projects", Projects),
-                            Chapter.Feature("Members", ProjectMembers),
-                            Chapter.Feature("Groups", ProjectGroups),
-                            Chapter.Feature("Favorites", ProjectFavorites)
+                            Chapter.Feature("projects", "Projects", Projects),
+                            Chapter.Feature("members", "Members", ProjectMembers),
+                            Chapter.Feature("groups", "Groups", ProjectGroups),
+                            Chapter.Feature("favorites", "Favorites", ProjectFavorites)
                         )
                     ),
-                    Chapter.Feature("Providers", Providers),
-                    Chapter.Feature("Products", Products),
+                    Chapter.Feature("providers", "Providers", Providers),
+                    Chapter.Feature("products", "Products", Products),
                     Chapter.Node(
+                        "accounting",
                         "Accounting",
                         listOf(
-                            Chapter.Feature("Wallets", Wallets),
-                            Chapter.Feature("Allocations", Accounting),
-                            Chapter.Feature("Visualization of Usage", Visualization)
+                            Chapter.Feature("wallets", "Wallets", Wallets),
+                            Chapter.Feature("allocations", "Allocations", Accounting),
+                            Chapter.Feature("visualization", "Visualization of Usage", Visualization)
                         )
                     ),
                     Chapter.Node(
+                        "grants",
                         "Grants",
                         listOf(
-                            Chapter.Feature("Allocation Process", Grants),
-                            Chapter.Feature("Gifts", Gifts)
+                            Chapter.Feature("grants", "Allocation Process", Grants),
+                            Chapter.Feature("gifts", "Gifts", Gifts)
                         )
                     )
                 )
             ),
             Chapter.Node(
+                "orchestration",
                 "Orchestration of Resources",
                 listOf(
                     Chapter.Node(
+                        "storage",
                         "Storage",
                         listOf(
-                            Chapter.Feature("Drives (FileCollection)", FileCollections),
-                            Chapter.Feature("Files", Files),
-                            Chapter.Feature("Shares", Shares),
+                            Chapter.Feature("filecollections", "Drives (FileCollection)", FileCollections),
+                            Chapter.Feature("files", "Files", Files),
+                            Chapter.Feature("shares", "Shares", Shares),
                             Chapter.Node(
+                                "metadata",
                                 "Metadata",
                                 listOf(
-                                    Chapter.Feature("Templates", FileMetadataTemplateNamespaces),
-                                    Chapter.Feature("Documents", FileMetadata)
+                                    Chapter.Feature("templates", "Templates", FileMetadataTemplateNamespaces),
+                                    Chapter.Feature("documents", "Documents", FileMetadata)
                                 )
                             ),
                             Chapter.Node(
+                                "providers",
                                 "Provider APIs",
                                 listOf(
                                     Chapter.Node(
+                                        "drives",
                                         "Drives (FileCollection)",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 FileCollectionsProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 FileCollectionsControl
                                             )
                                         )
                                     ),
                                     Chapter.Node(
+                                        "files",
                                         "Files",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 FilesProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 FilesControl
                                             )
                                         )
                                     ),
                                     Chapter.Feature(
+                                        "upload",
                                         "Upload Protocol",
                                         ChunkedUploadProtocol(PROVIDER_ID_PLACEHOLDER, "/placeholder")
                                     ),
                                     Chapter.Node(
+                                        "shares",
                                         "Shares",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 SharesProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 SharesControl
                                             )
@@ -156,70 +184,85 @@ fun generateCode() {
                         )
                     ),
                     Chapter.Node(
+                        "compute",
                         "Compute",
                         listOf(
                             Chapter.Node(
+                                "appstore",
                                 "Application Store",
                                 listOf(
-                                    Chapter.Feature("Tools", ToolStore),
-                                    Chapter.Feature("Applications", AppStore)
+                                    Chapter.Feature("tools", "Tools", ToolStore),
+                                    Chapter.Feature("apps", "Applications", AppStore)
                                 )
                             ),
-                            Chapter.Feature("Jobs", Jobs),
-                            Chapter.Feature("Public IPs (NetworkIP)", NetworkIPs),
-                            Chapter.Feature("Public Links (Ingress)", Ingresses),
-                            Chapter.Feature("Software Licenses", Licenses),
+                            Chapter.Feature("jobs", "Jobs", Jobs),
+                            Chapter.Feature("ips", "Public IPs (NetworkIP)", NetworkIPs),
+                            Chapter.Feature("ingress", "Public Links (Ingress)", Ingresses),
+                            Chapter.Feature("license", "Software Licenses", Licenses),
                             Chapter.Node(
+                                "providers",
                                 "Provider APIs",
                                 listOf(
                                     Chapter.Node(
+                                        "jobs",
                                         "Jobs",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 JobsProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 JobsControl
                                             )
                                         )
                                     ),
-                                    Chapter.Feature("Shells", Shells(PROVIDER_ID_PLACEHOLDER)),
+                                    Chapter.Feature("shells", "Shells", Shells(PROVIDER_ID_PLACEHOLDER)),
                                     Chapter.Node(
+                                        "ips",
                                         "Public IPs (NetworkIP)",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 NetworkIPProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 NetworkIPControl
                                             )
                                         )
                                     ),
                                     Chapter.Node(
+                                        "ingress",
                                         "Public Links (Ingress)",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 IngressProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 IngressControl
                                             )
                                         )
                                     ),
                                     Chapter.Node(
+                                        "licenses",
                                         "Software Licenses",
                                         listOf(
                                             Chapter.Feature(
+                                                "ingoing",
                                                 "Ingoing API",
                                                 LicenseProvider(PROVIDER_ID_PLACEHOLDER)
                                             ),
                                             Chapter.Feature(
+                                                "outgoing",
                                                 "Outgoing API",
                                                 LicenseControl
                                             )
@@ -232,86 +275,97 @@ fun generateCode() {
                 )
             ),
             Chapter.Node(
+                "core",
                 "Core",
                 listOf(
-                    Chapter.Feature("Core Types", CoreTypes),
-                    Chapter.Feature("Resources", Resources),
+                    Chapter.Feature("types", "Core Types", CoreTypes),
+                    Chapter.Feature("resources", "Resources", Resources),
                     Chapter.Node(
+                        "users",
                         "Users",
                         listOf(
-                            Chapter.Feature("User Creation", UserDescriptions),
+                            Chapter.Feature("creation", "User Creation", UserDescriptions),
                             Chapter.Node(
+                                "authentication",
                                 "Authentication",
                                 listOf(
-                                    Chapter.Feature("Users", AuthDescriptions),
-                                    Chapter.Feature("Providers", AuthProviders),
-                                    Chapter.Feature("Password Reset", PasswordResetDescriptions)
+                                    Chapter.Feature("users", "Users", AuthDescriptions),
+                                    Chapter.Feature("providers", "Providers", AuthProviders),
+                                    Chapter.Feature("password-reset", "Password Reset", PasswordResetDescriptions)
                                 )
                             ),
-                            Chapter.Feature("SLAs", ServiceLicenseAgreement),
-                            Chapter.Feature("2FA", TwoFactorAuthDescriptions),
-                            Chapter.Feature("Avatars", AvatarDescriptions),
+                            Chapter.Feature("slas", "SLAs", ServiceLicenseAgreement),
+                            Chapter.Feature("2fa", "2FA", TwoFactorAuthDescriptions),
+                            Chapter.Feature("avatars", "Avatars", AvatarDescriptions),
                         )
                     ),
                     Chapter.Node(
+                        "monitoring",
                         "Monitoring and Alerting",
                         listOf(
-                            Chapter.Feature("Auditing", Auditing),
-                            Chapter.Feature("Alerting", Alerting),
-                            Chapter.Feature("Activity", Activity),
+                            Chapter.Feature("auditing", "Auditing", Auditing),
+                            Chapter.Feature("alerting", "Alerting", Alerting),
+                            Chapter.Feature("activity", "Activity", Activity),
                             Chapter.Node(
+                                "scripts",
                                 "Scripts",
                                 listOf(
-                                    Chapter.Feature("Redis Cleanup", RedisCleaner),
-                                    Chapter.Feature("Elastic Cleanup", ElasticManagement)
+                                    Chapter.Feature("redis", "Redis Cleanup", RedisCleaner),
+                                    Chapter.Feature("elastic", "Elastic Cleanup", ElasticManagement)
                                 )
                             )
                         )
                     ),
                     Chapter.Node(
+                        "communication",
                         "Communication",
                         listOf(
-                            Chapter.Feature("News", News),
-                            Chapter.Feature("Notifications", NotificationDescriptions),
-                            Chapter.Feature("Tasks", Tasks),
-                            Chapter.Feature("Support", SupportDescriptions),
-                            Chapter.Feature("Slack", SlackDescriptions),
-                            Chapter.Feature("Mail", MailDescriptions),
+                            Chapter.Feature("news", "News", News),
+                            Chapter.Feature("notifications", "Notifications", NotificationDescriptions),
+                            Chapter.Feature("tasks", "Tasks", Tasks),
+                            Chapter.Feature("support", "Support", SupportDescriptions),
+                            Chapter.Feature("slack", "Slack", SlackDescriptions),
+                            Chapter.Feature("mail", "Mail", MailDescriptions),
                         )
                     )
                 )
             ),
             Chapter.Node(
+                "built-in-provider",
                 "Built-in Provider",
                 listOf(
                     Chapter.Node(
+                        "storage",
                         "UCloud/Storage",
                         listOf(
-                            Chapter.Feature("File Collections", UCloudFileCollections),
-                            Chapter.Feature("Files", UCloudFiles),
-                            Chapter.Feature("Shares", UCloudShares)
+                            Chapter.Feature("file-collections", "File Collections", UCloudFileCollections),
+                            Chapter.Feature("files", "Files", UCloudFiles),
+                            Chapter.Feature("shares", "Shares", UCloudShares)
                         )
                     ),
                     Chapter.Node(
+                        "compute",
                         "UCloud/Compute",
                         listOf(
-                            Chapter.Feature("Jobs", KubernetesCompute),
-                            Chapter.Feature("Public Links (Ingress)", KubernetesIngresses),
+                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
+                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
                             Chapter.Node(
+                                "ips",
                                 "Public IPs (NetworkIP)",
                                 listOf(
-                                    Chapter.Feature("Feature", KubernetesNetworkIP),
-                                    Chapter.Feature("Maintenance", KubernetesNetworkIPMaintenance)
+                                    Chapter.Feature("feature", "Feature", KubernetesNetworkIP),
+                                    Chapter.Feature("maintenance", "Maintenance", KubernetesNetworkIPMaintenance)
                                 )
                             ),
                             Chapter.Node(
+                                "licenses",
                                 "Software Licenses",
                                 listOf(
-                                    Chapter.Feature("Feature", KubernetesLicenses),
-                                    Chapter.Feature("Maintenance", KubernetesLicenseMaintenance)
+                                    Chapter.Feature("feature", "Feature", KubernetesLicenses),
+                                    Chapter.Feature("maintenance", "Maintenance", KubernetesLicenseMaintenance)
                                 )
                             ),
-                            Chapter.Feature("Maintenance", Maintenance)
+                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
                         )
                     )
                 )
@@ -361,6 +415,7 @@ fun generateCode() {
                         chapter.path,
                         types,
                         calls,
+                        chapter.id,
                         chapter.title,
                         chapter.container,
                     )

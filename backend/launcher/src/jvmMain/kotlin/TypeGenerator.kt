@@ -553,14 +553,14 @@ fun processDocumentation(currentPackage: String?, docString: String): String {
                             token
                         }
 
-                        "[`${token}`](/Docs/Reference/${qualifiedName}.md)"
+                        "[`${simplifyName(token)}`](/docs/reference/${qualifiedName}.md)"
                     }
                 }
             }
 
             1 -> {
                 replaceTags(CALL_REF) { token ->
-                    "[`${token}`](/Docs/Reference/${token}.md)"
+                    "[`${token}`](/docs/reference/${token}.md)"
                 }
             }
 
@@ -575,7 +575,7 @@ fun processDocumentation(currentPackage: String?, docString: String): String {
                             token
                         }
 
-                        "/Docs/Reference/${qualifiedName}.md"
+                        "/docs/reference/${qualifiedName}.md"
                     }
                 }
             }
@@ -599,7 +599,7 @@ private fun CharSequence.findEndOfIdentifier(startIndex: Int): Pair<Int, Boolean
         if (nextChar == '\n' || nextChar.isWhitespace()) {
             return Pair(cursor - 1, true)
         }
-        if (!nextChar.isJavaIdentifierPart()) {
+        if (nextChar != '.' && !nextChar.isJavaIdentifierPart()) {
             return Pair(cursor - 1, false)
         }
     }

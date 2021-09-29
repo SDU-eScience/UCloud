@@ -12,7 +12,7 @@ import kotlin.reflect.full.memberProperties
 
 val outputFolder by lazy {
     if (File("../../backend").exists() && File("../../frontend-web").exists()) {
-        File("../../Docs").apply {
+        File("../../docs").apply {
             deleteRecursively()
             mkdirs()
         }
@@ -94,22 +94,25 @@ fun generateMarkdown(
     path: List<Chapter.Node>,
     types: LinkedHashMap<String, GeneratedType>,
     calls: List<GeneratedRemoteProcedureCall>,
+    id: String,
     title: String,
     container: CallDescriptionContainer,
 ) {
     val outputFile = File(
         outputFolder,
-        path.joinToString("/") { it.title.replace("/", "_") } + "/" + title + ".md"
+        path.joinToString("/") { it.id.replace("/", "_") } + "/" + id + ".md"
     )
-    val referenceFolder = File(outputFolder, "Reference").also { it.mkdirs() }
+    val referenceFolder = File(outputFolder, "reference").also { it.mkdirs() }
 
     outputFile.parentFile.mkdirs()
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()
         val synopsis = container.description?.substringBefore('\n', "")?.takeIf { it.isNotEmpty() }
+            ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.synopsis
         val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
+            ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.description
         outs.println("# $title")
         outs.println()
@@ -246,7 +249,7 @@ fun generateMarkdownForRemoteProcedureCall(
         outs.println("| Example |")
         outs.println("|---------|")
         for (example in useCaseExamples) {
-            outs.println("| [${example.description}](/Docs/Reference/${call.namespace}_${example.id}.md) |")
+            outs.println("| [${example.description}](/docs/reference/${call.namespace}_${example.id}.md) |")
         }
         outs.println()
     }
@@ -583,7 +586,7 @@ fun GeneratedTypeReference.kotlinWithLink(
                     null
                 } else {
                     if (visitedType.owner != owner::class) {
-                        "/Docs/Reference/${name}.md"
+                        "/docs/reference/${name}.md"
                     } else {
                         "#${simplifyName(name).lowercase()}"
                     }
@@ -669,6 +672,22 @@ fun generateKotlinFromValue(
                 append(value.name)
             }
         }
+
+        is Map<*, *> -> {
+            buildString {
+                append("mapOf(")
+                var idx = 0
+                for ((k, v) in value) {
+                    if (idx != 0) append(", ")
+                    append(generateKotlinFromValue(k))
+                    append(" to ")
+                    append(generateKotlinFromValue(v))
+                    idx++
+                }
+                append(")")
+            }
+        }
+
         else -> {
             buildString {
                 append(simplifyName(value::class.java.canonicalName))

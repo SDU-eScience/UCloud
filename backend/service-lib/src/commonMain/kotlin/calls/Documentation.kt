@@ -180,8 +180,16 @@ data class UseCase(
     }
 }
 
+fun MutableList<UseCaseNode>.basicUser(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("user", "An authenticated user")
+}
+
 fun MutableList<UseCaseNode>.actor(name: String, description: String): UseCaseNode.Actor {
     return UseCaseNode.Actor(name, description).also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.comment(comment: String) {
+    add(UseCaseNode.Comment(comment))
 }
 
 fun <R : Any, S : Any> MutableList<UseCaseNode>.success(
