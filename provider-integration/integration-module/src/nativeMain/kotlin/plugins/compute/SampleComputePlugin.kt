@@ -68,7 +68,10 @@ data class SlurmJob(
     val partition: String = "normal",
     val status: Int = 1
 )
-    
+
+
+typealias UcloudState =  JobState
+data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )    
 
 val compute : List<JsonObject>?  by lazy {
 
@@ -149,11 +152,14 @@ fun manageHeader(job:Job):String {
 }
 
 
+
+
+
 class SampleComputePlugin : ComputePlugin {
 
-fun PluginContext.getStatus(id: String) : JobState {
+fun PluginContext.getStatus(id: String) : Status {
 
-    var ucloudStatus: JobState = JobState.IN_QUEUE
+    var imStatus: Status = Status( id, UcloudState.IN_QUEUE, "PENDING", "Job is pending")
 
     runBlocking {
 
@@ -187,18 +193,25 @@ fun PluginContext.getStatus(id: String) : JobState {
 
         val slurmStatus = if (code == 0) stdout.trim() else sacct.stdout.lines().get(0).split("|").get(1)
         
-        ucloudStatus =   when (slurmStatus) {
-                                "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "REQUEUE_HOLD", "REQUEUED", "RESIZING", "SUSPENDED"   -> JobState.IN_QUEUE
-                                "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT", "STOPPED"                                    -> JobState.RUNNING
-                                "COMPLETED", "CANCELLED", "FAILED", "OUT_OF_MEMORY"                                                             -> JobState.SUCCESS
-                                "BOOT_FAIL", "NODE_FAIL", "PREEMPTED", "REVOKED"                                                                -> JobState.FAILURE
-                                "DEADLINE", "TIMEOUT"                                                                                           -> JobState.EXPIRED
+        imStatus =   when (slurmStatus) {
+                                "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "SUSPENDED"                                           -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is queued" )
+                                "REQUEUE_HOLD"                                                                                                  -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is held for requeue" )  
+                                "REQUEUED"                                                                                                      -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is requeued" ) 
+                                "RESIZING"                                                                                                      -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is resizing" ) 
+                                "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT"                                               -> Status( id, JobState.RUNNING, slurmStatus, "Job is running" )
+                                "STOPPED"                                                                                                       -> Status( id, JobState.RUNNING, slurmStatus, "Job is stopped" )
+                                "COMPLETED", "CANCELLED", "FAILED"                                                                              -> Status( id, JobState.SUCCESS, slurmStatus, "Job is success" )
+                                "OUT_OF_MEMORY"                                                                                                 -> Status( id, JobState.SUCCESS, slurmStatus, "Out of memory" )
+                                "BOOT_FAIL", "NODE_FAIL"                                                                                        -> Status( id, JobState.FAILURE, slurmStatus, "Job is failed" )
+                                "REVOKED"                                                                                                       -> Status( id, JobState.FAILURE, slurmStatus, "Job is revoked" )
+                                "PREEMPTED"                                                                                                     -> Status( id, JobState.FAILURE, slurmStatus, "Preempted" )
+                                "DEADLINE", "TIMEOUT"                                                                                           -> Status( id, JobState.EXPIRED, slurmStatus, "Job is expired" )
                                 else -> throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest)
                             }
         
     }
 
-     return ucloudStatus
+     return imStatus
 
 }
 
@@ -316,9 +329,8 @@ fun PluginContext.getStatus(id: String) : JobState {
 
         mkdir("/data/${job.id}", "0770".toUInt(8) )
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-        println("STAAAART")
         val sbatch_content = manageHeader(job)
-        println("this is sbnatch" + sbatch_content)
+
 
         
         NativeFile.open(path="/data/${job.id}/job.req", readOnly = false).writeText(job_content.value)
@@ -401,6 +413,8 @@ fun PluginContext.getStatus(id: String) : JobState {
                 client
             ).orThrow()
         }
+
+        //TODO: mark job inactive in db
     }
 
     override fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
@@ -500,20 +514,8 @@ fun PluginContext.getStatus(id: String) : JobState {
             val stdErr = NativeFile.open(path="/data/${job.id}/std.err", readOnly = true)
 
     thisLoop@ while ( isActive() ) {
-                val mState = getStatus(job.id)
-                when ( mState ) {
-
-                        JobState.IN_QUEUE -> {
-
-                                        runBlocking {
-                                            JobsControl.update.call(
-                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has been queued!" )),
-                                                client
-                                            ).orThrow()
-                                        }
-
-                        }
-
+                val mState:Status = getStatus(job.id)
+                when ( mState.ucloudStatus ) {
 
                         JobState.RUNNING -> {
 
@@ -525,51 +527,15 @@ fun PluginContext.getStatus(id: String) : JobState {
 
                         }
 
-
-                        JobState.SUCCESS -> {
-
-                                        runBlocking {
-                                            JobsControl.update.call(
-                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has successfully finished!" )),
-                                                client
-                                            ).orThrow()
-                                        }
-
-                                        break@thisLoop
-
-                        }
-
-
-                        JobState.FAILURE -> {
-
-                                        runBlocking {
-                                            JobsControl.update.call(
-                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has failed!" )),
-                                                client
-                                            ).orThrow()
-                                        }
-
-                                        break@thisLoop
-
-                        }
-
-                        JobState.EXPIRED -> {
-
-                                        runBlocking {
-                                            JobsControl.update.call(
-                                                bulkRequestOf( JobsControlUpdateRequestItem(job.id, mState, "The job has expired!" )),
-                                                client
-                                            ).orThrow()
-                                        }
-
-                                        break@thisLoop
-
-                        }
-
-
                         else -> {   
-                                    throw RPCException("Unknown job state", HttpStatusCode.BadRequest)
-                                    break@thisLoop
+                                        runBlocking {
+                                            JobsControl.update.call(
+                                                bulkRequestOf( JobsControlUpdateRequestItem(mState.id, mState.ucloudStatus, mState.message)),
+                                                client
+                                            ).orThrow()
+                                        }
+
+                                        break@thisLoop
                         }
                 }
 
@@ -593,8 +559,8 @@ fun runMonitoringLoop() {
             val terminalStates = listOf("COMPLETED", "CANCELLED", "FAILED", "OUT_OF_MEMORY","BOOT_FAIL", "NODE_FAIL", "PREEMPTED", "REVOKED", "DEADLINE", "TIMEOUT"  )
 
             while(true) {
-                            
-                println("RunMonitoringLoop")
+                 println("RunMonitoringLoop")
+                 sleep(5)
 
                 var jobs:MutableList<SlurmJob> = mutableListOf()
                 
@@ -613,8 +579,10 @@ fun runMonitoringLoop() {
                                     )
                 }
 
+
                 // --ids 7.batch,8.batch ...
                 var ids = jobs.fold( "", { acc, item ->   StringBuilder().append(acc).append(item.slurmId).append(".batch,").toString() }  )
+
 
                 //println(ids)
 
@@ -627,11 +595,9 @@ fun runMonitoringLoop() {
                                     .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
                                     .execute()
 
-                var slurmJobs = stdout.lines()
+                var slurmJobs = if ( !stdout.trim().isEmpty() ) stdout.lines() else continue
 
-               
                 //println(slurmJobs)
-
 
 
                 slurmJobs.forEach{ job ->
@@ -643,20 +609,22 @@ fun runMonitoringLoop() {
                         val timeRunning: Duration = end - start
                         //TODO: charge time
 
-                            runBlocking {
-                                            JobsControl.chargeCredits.call(
-                                                bulkRequestOf( ResourceChargeCredits (job.id, lastTs, timeRunning.inHours )),
-                                                client
-                                            ).orThrow()
-                            }
+                            //runBlocking {
+                                            // JobsControl.chargeCredits.call(
+                                            //     bulkRequestOf( ResourceChargeCredits (job.id, lastTs, timeRunning.inHours )),
+                                            //     client
+                                            // ).orThrow()
+                          //  }
 
-                    } 
+
+                        //TODO: update table job_mapping.status = 0 where slurmId in ( list ) 
+
+                    }
     
-                }
-                
+                }       
 
 
-                sleep(5)
+               
 
             }
 
