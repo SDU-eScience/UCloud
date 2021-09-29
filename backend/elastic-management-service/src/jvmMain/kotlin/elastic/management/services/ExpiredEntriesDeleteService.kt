@@ -57,10 +57,11 @@ class ExpiredEntriesDeleteService(
         val currentDate = LocalDate.now()
         val daysToSave = 180
 
+        val dateToDelete = currentDate.minusDays(daysToSave.toLong()).toString().replace("-", ".")
         val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${currentDate.minusDays(daysToSave.toLong())}*"
+            "development_default-${dateToDelete}*"
         else
-            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}*"
+            "kubernetes-production-${dateToDelete}*"
 
         if (!indexExists(indexToDelete, elastic)) {
             log.info("no index with the name $indexToDelete")

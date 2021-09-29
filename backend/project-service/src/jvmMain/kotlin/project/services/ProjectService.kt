@@ -175,13 +175,14 @@ class ProjectService(
     ) {
         try {
             confirmUsersExist(invitesTo)
+            val actuallyInvited = mutableSetOf<String>()
             ctx.withSession { session ->
                 requireRole(session, inviteFrom, projectId, ProjectRole.ADMINS)
 
                 invitesTo.map { member ->
                     val existingRole = findRoleOfMember(session, projectId, member)
                     if (existingRole != null) {
-                        throw ProjectException.AlreadyMember()
+                        return@map
                     }
 
                     session.insert(ProjectInvite) {
@@ -189,9 +190,10 @@ class ProjectService(
                         set(ProjectInvite.projectId, projectId)
                         set(ProjectInvite.username, member)
                     }
+                    actuallyInvited.add(member)
                 }
             }
-            sendInviteNotifications(ctx, projectId, inviteFrom, invitesTo)
+            sendInviteNotifications(ctx, projectId, inviteFrom, actuallyInvited)
 
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {

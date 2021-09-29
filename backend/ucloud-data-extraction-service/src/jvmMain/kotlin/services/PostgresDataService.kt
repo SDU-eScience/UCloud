@@ -182,7 +182,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 AND initiated_by = :username
                                 AND account_id = :projectid 
                                 AND original_account_id = :projectid
-                                AND transaction_comment NOT LIKE 'Transf%'
+                                AND (transaction_comment NOT LIKE 'Transf%' or transaction_comment is null )
                         """
                         ).rows
                         .firstOrNull()
@@ -304,7 +304,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     OR account_id = :kutype1
                                     OR account_id = :ructype1
                                 )
-                           AND transaction_comment NOT LIKE 'Transf%'
+                           AND (transaction_comment NOT LIKE 'Transf%' or transaction_comment is null)
                         """
                         ).rows
                         .firstOrNull()

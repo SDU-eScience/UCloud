@@ -8,8 +8,8 @@ class UserActivityReport(val elasticDataService: ElasticDataService, val postgre
         elasticDataService.maxSimultaneousUsers(startDate, endDate)
     }
 
-    fun averageUserActivity() {
-        elasticDataService.avarageUserActivity()
+    fun userActivity(start: Long, end: Long): Long {
+        return elasticDataService.activeUsers(start, end)
     }
 
     fun activityPeriod() {
