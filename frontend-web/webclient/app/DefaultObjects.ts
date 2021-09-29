@@ -3,7 +3,7 @@ import {Notification} from "@/Notifications";
 import * as ProjectRedux from "@/Project/Redux";
 import {Reducer} from "redux";
 import {SimpleSearchStateProps} from "@/Search";
-import {SidebarOption} from "Types";
+import {SidebarOption} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Upload} from "@/Files/Upload";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
