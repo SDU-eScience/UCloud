@@ -18,8 +18,9 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {Box, Icon, List} from "@/ui-components";
+import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operations} from "@/ui-components/Operation";
 import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import {StickyBox} from "@/ui-components/StickyBox";
@@ -30,7 +31,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {ResourceFilter} from "@/Resource/Filter";
+import {EnumOption, ResourceFilter} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
@@ -40,6 +41,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
+import {EnumFilterWidget} from "@/Resource/Filter";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -78,16 +80,15 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     onSelect?: (resource: Res) => void;
 }
 
-export const ResourceBrowse = <Res extends Resource, CB = undefined>(
-    {
-        onSelect, api, ...props
-    }: PropsWithChildren<ResourceBrowseProps<Res, CB>>
-): ReactElement | null => {
+export function ResourceBrowse<Res extends Resource, CB = undefined>({
+    onSelect, api, ...props
+}: PropsWithChildren<ResourceBrowseProps<Res, CB>>): ReactElement | null {
 
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
         {noop: true},
         {productsByProvider: {}}
     );
+
     const includeOthers = !props.embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
@@ -121,6 +122,18 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         },
         [props.onRename]
     );
+
+    const sortDirections: EnumOption[] = sortDirection === "descending" ? [{
+        icon: "sortAscending",
+        title: "Ascending",
+        value: "ascending",
+        helpText: "Increasing in value, e.g. 1, 2, 3..."
+    }] : [{
+        icon: "sortDescending",
+        title: "Descending",
+        value: "descending",
+        helpText: "Decreasing in value, e.g. 3, 2, 1..."
+    }];
 
     const products: Product[] = useMemo(() => {
         const allProducts: Product[] = [];
@@ -243,9 +256,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
-    const operations: Operation<Res, ResourceBrowseCallbacks<Res>>[] = useMemo(() => {
-        return api.retrieveOperations();
-    }, [callbacks, api]);
+    const operations = useMemo(() => api.retrieveOperations(), [callbacks, api]);
 
     const onSortUpdated = useCallback((dir, column) => {
         setSortColumn(column);
@@ -256,10 +267,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
-        renderer.MainTitle = ({resource}) => {
+        renderer.MainTitle = function mainTitle({resource}) {
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onProductSelected={onProductSelected}/>
+                    <ProductSelector products={products} onProductSelected={onProductSelected} />
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -272,17 +283,17 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle resource={resource}/> : null;
+                return NormalMainTitle ? <NormalMainTitle resource={resource} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
-                    <ListRowStat icon={"calendar"}>{dateToString(timestampUnixMs())}</ListRowStat>}
+                    <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
                 {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
                 {props.showProduct === false || !selectedProduct ? null : <>
                     <ListRowStat
-                        icon={"cubeSolid"}>{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
+                        icon="cubeSolid">{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
                 </>}
             </> : <>
                 {props.showCreatedAt === false ? null :
@@ -291,7 +302,7 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                     <div className="tooltip">
                         <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
                         <div className="tooltip-content centered">
-                            <UserBox username={resource.owner.createdBy}/>
+                            <UserBox username={resource.owner.createdBy} />
                         </div>
                     </div>
                 }
@@ -301,12 +312,12 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
                         <div className="tooltip-content">
-                            <ProductBox resource={resource} productType={api.productType}/>
+                            <ProductBox resource={resource} productType={api.productType} />
                         </div>
                     </div>
                 }
             </>}
-            {RemainingStats ? <RemainingStats resource={resource}/> : null}
+            {RemainingStats ? <RemainingStats resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
@@ -314,39 +325,49 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
         props.showProduct]);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
-        return <List childPadding={"8px"} bordered={false} onContextMenu={preventDefault}>
-            {!isCreating ? null :
-                <ItemRow
-                    renderer={modifiedRenderer as ItemRenderer<unknown>}
-                    itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
-                    operations={operations} callbacks={callbacks}
+        return <>
+            <Spacer left={null} right={
+                <EnumFilterWidget
+                    expanded={false} propertyName="direction" title="Sort direction" facedownChevron
+                    id={0} onExpand={doNothing} properties={filters} options={sortDirections}
+                    onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
+                    icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
                 />
-            }
-            {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
-                <>
-                    No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
-                    to create a new one.
-                </>
-            }
-            {items.map(it =>
-                <ItemRow
-                    key={it.id}
-                    navigate={() => {
-                        if (props.navigateToChildren) {
-                            const result = props.navigateToChildren?.(history, it)
-                            if (result === "properties") {
+            } />
+            <List onContextMenu={preventDefault}>
+                {!isCreating ? null :
+                    <ItemRow
+                        renderer={modifiedRenderer as ItemRenderer<unknown>}
+                        itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
+                        operations={operations} callbacks={callbacks}
+                    />
+                }
+                {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
+                    <>
+                        No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
+                        to create a new one.
+                    </>
+                }
+                {items.map(it =>
+                    <ItemRow
+                        key={it.id}
+                        navigate={() => {
+                            if (props.navigateToChildren) {
+                                const result = props.navigateToChildren?.(history, it)
+                                if (result === "properties") {
+                                    viewProperties(it);
+                                }
+                            } else {
                                 viewProperties(it);
                             }
-                        } else {
-                            viewProperties(it);
-                        }
-                    }}
-                    renderer={modifiedRenderer as ItemRenderer<unknown>} callbacks={callbacks} operations={operations}
-                    item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
-                    renaming={renaming}
-                />
-            )}
-        </List>
+                        }}
+                        renderer={modifiedRenderer as ItemRenderer<unknown>} callbacks={callbacks} operations={operations}
+                        item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
+                        renaming={renaming}
+                    />
+                )}
+            </List>
+        </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
         viewProperties]);
 
@@ -359,10 +380,10 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
 
     const main = !inlineInspecting ? <>
         <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-                        setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded}/>
+            setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
-                        closeProperties={closeProperties} {...props.propsForInlineResources} />
+            closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     if (props.embedded) {
@@ -372,15 +393,15 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
                         {props.header}
                         <ResourceFilter
                             embedded
                             pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters}/>
+                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
                     </>
                 }
             </StickyBox>
@@ -395,21 +416,21 @@ export const ResourceBrowse = <Res extends Resource, CB = undefined>(
                 inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
 
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
-                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
-                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        onApplyFilters={reloadRef.current}
-                                        readOnlyProperties={props.additionalFilters}/>
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            onApplyFilters={reloadRef.current}
+                            readOnlyProperties={props.additionalFilters} />
                     </>
             }
         />
     }
 };
 
-function UserBox(props: { username: string }) {
+function UserBox(props: {username: string}) {
     const avatars = useAvatars();
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
@@ -435,7 +456,7 @@ function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceS
     const {resource} = props;
     const {product} = resource.specification;
     return <div className="product-box">
-        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)}/> : null}
+        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
         <span>{product.id} / {product.category}</span>
         <div><b>ID:</b> {product.id}</div>
         <div><b>Category:</b> {product.category}</div>

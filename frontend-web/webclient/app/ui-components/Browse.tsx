@@ -57,6 +57,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
         fetchResources(props.generateCall());
         if (props.onReload) props.onReload();
     }, [props.generateCall, props.onReload, hasPreloadedResources]);
+
     if (props.reloadRef) props.reloadRef.current = reload;
 
     const loadMore = useCallback(() => {
@@ -293,7 +294,9 @@ export function StandardList<T, CB = EmptyObject>(
             reloadRef={reloadRef} loadingRef={loadingRef}
             hide={props.hide} setRefreshFunction={isMainContainer}
             preloadedResources={props.preloadedResources} />,
-        [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]);
+        [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]
+    );
+
     if (isMainContainer) {
         useTitle(titlePlural);
         useLoading(commandLoading || loadingRef.current);
