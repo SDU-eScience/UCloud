@@ -45,7 +45,7 @@ class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecificati
     IngressFlags, IngressStatus, IngressSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
-    page = SidebarPages.Runs;
+    page = SidebarPages.Resources;
     productType = "INGRESS" as const;
 
     renderer: ItemRenderer<Ingress> = {

@@ -222,7 +222,7 @@ export const initSidebar = (): SidebarReduxObject => ({
     options: []
 });
 
-export function useSearch(onSearch: (query: string) => void) {
+export function useSearch(onSearch: (query: string) => void): void {
     const [, setOnSearch] = useGlobal("onSearch", doNothing);
     useEffect(() => {
         setOnSearch(() => onSearch);
@@ -232,7 +232,7 @@ export function useSearch(onSearch: (query: string) => void) {
     }, [setOnSearch, onSearch]);
 }
 
-export function useSearchPlaceholder(searchPlaceholder: string) {
+export function useSearchPlaceholder(searchPlaceholder: string): void {
     const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", "");
     useEffect(() => {
         setSearchPlaceholder(searchPlaceholder);
