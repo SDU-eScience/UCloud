@@ -1,0 +1,57 @@
+# `FilesProviderCreateFolderRequestItem`
+
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+
+```kotlin
+data class FilesProviderCreateFolderRequestItem(
+    val resolvedCollection: FileCollection,
+    val id: String,
+    val conflictPolicy: WriteConflictPolicy,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>resolvedCollection</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md'>FileCollection</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>conflictPolicy</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy.md'>WriteConflictPolicy</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
