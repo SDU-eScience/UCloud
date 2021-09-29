@@ -42,8 +42,8 @@ export const FilesBrowse: React.FunctionComponent<{
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-            props.embedded === true &&
-            props.forceNavigationToPage !== true,
+        props.embedded === true &&
+        props.forceNavigationToPage !== true,
         []
     );
 
@@ -124,12 +124,12 @@ export const FilesBrowse: React.FunctionComponent<{
             <BreadCrumbsBase embedded={props.embedded ?? false}>
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it}
-                          onClick={() => {
-                              navigateToPath(
-                                  history,
-                                  "/" + joinToString(components.slice(0, idx + 1), "/")
-                              );
-                          }}
+                        onClick={() => {
+                            navigateToPath(
+                                history,
+                                "/" + joinToString(components.slice(0, idx + 1), "/")
+                            );
+                        }}
                     >
                         {it}
                     </span>
@@ -164,6 +164,9 @@ export const FilesBrowse: React.FunctionComponent<{
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}
         onRename={onRename}
+        emptyPage={<>
+            No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.
+        </>}
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={breadcrumbsComponent}
@@ -190,7 +193,7 @@ const DriveDropdown: React.FunctionComponent = props => {
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
-                <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
+                <Icon mt="8px" mr="6px" name="hdd" size="24px" />
                 <Icon
                     size="12px"
                     mr="8px"
@@ -205,13 +208,13 @@ const DriveDropdown: React.FunctionComponent = props => {
 }
 
 const DriveInDropdown = styled.div`
-  padding: 0 17px;
-  width: 450px;
-  overflow-x: hidden;
+    padding: 0 17px;
+    width: 450px;
+    overflow-x: hidden;
 
-  &:hover {
-    background-color: var(--lightBlue);
-  }
+    &:hover {
+        background-color: var(--lightBlue);
+    }
 `;
 
 export default Router;
