@@ -52,6 +52,11 @@ import {
     UsageChart,
     usageExplainer
 } from "@/Accounting";
+import {Job, api as JobsApi} from "@/UCloud/JobsApi";
+import {ItemRow} from "@/ui-components/Browse";
+import {JobBrowse} from "@/Applications/Jobs/NewApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {useToggleSet} from "@/Utilities/ToggleSet";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -61,6 +66,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         page: 0,
         withHidden: false,
     }), emptyPage);
+
+    const [recentRuns, fetchRuns] = useCloudAPI<PageV2<Job>>({noop: true}, emptyPage);
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
@@ -108,6 +115,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
+        fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT"}));
     }
 
     const {
@@ -129,6 +137,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     itemsPerPage: 10
                 }))}
             />
+
+            <DashboardRuns runs={recentRuns} />
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -172,14 +182,14 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             isLoading={props.favoriteFiles.loading}
             icon="starFilled"
             title="Favorites"
+            minWidth="100%"
         >
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    <Text>
+                    <Text width="100%">
                         As you as add favorites, they will appear here.
-
                         <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>View files</Button>
+                            <Button fullWidth mt={8}>Explore files</Button>
                         </Link>
                     </Text>
                 </NoResultsCardBody>
@@ -248,7 +258,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
             />
         }
     >
-        {props.notifications.length === 0 ?
+        {props.notifications.length !== 0 ? null :
             <NoResultsCardBody title={"No notifications"}>
                 <Text>
                     As you as use UCloud notifications will appear here.
@@ -258,9 +268,8 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                     </Link>
                 </Text>
             </NoResultsCardBody>
-            : null
         }
-        <List>
+        <List childPadding="8px">
             {props.notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
                     <NotificationEntry notification={n} onAction={props.onNotificationAction} />
@@ -349,6 +358,43 @@ function DashboardProjectUsage(props: {charts: UsageChart[]}): JSX.Element | nul
             </Table>
         </HighlightedCard>
     );
+}
+
+function DashboardRuns({runs}: {
+    runs: APICallState<UCloud.PageV2<Job>>;
+}): JSX.Element {
+    const history = useHistory();
+    const toggle = useToggleSet([]);
+    return <HighlightedCard
+        color="gray"
+        title="Recent Runs"
+        icon="results"
+        isLoading={runs.loading}
+    >
+        {runs.data.items.length === 0 ? (
+            <NoResultsCardBody title={"No available resources"}>
+                <Text>
+                    No runs found.
+                    <Link to="">
+                    </Link>
+                </Text>
+            </NoResultsCardBody>
+        ) :
+            <List>
+                {runs.data.items.map(job =>
+                    <ItemRow
+                        key={job.id}
+                        item={job}
+                        navigate={() => history.push(`/applications/properties/${job.id}`)}
+                        renderer={JobsApi.renderer}
+                        toggleSet={toggle}
+                        operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}
+                        callbacks={{}}
+                        itemTitle={JobsApi.title}
+                    />
+                )}
+            </List>}
+    </HighlightedCard>;
 }
 
 function DashboardResources({products, loading}: {
