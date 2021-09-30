@@ -1,4 +1,4 @@
-import {defineConfig, ProxyOptions, UserConfigExport} from "vite";
+import {defineConfig, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
 import path from "path";
 import {DEV_SITE} from "./site.config.json";
