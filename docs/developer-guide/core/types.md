@@ -3,6 +3,66 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#data-models'>1. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#commonerrormessage'><code>CommonErrorMessage</code></a></td>
+<td>A generic error message</td>
+</tr>
+<tr>
+<td><a href='#findbylongid'><code>FindByLongId</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbystringid'><code>FindByStringId</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#page'><code>Page</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#pagev2'><code>PageV2</code></a></td>
+<td>Represents a single 'page' of results</td>
+</tr>
+<tr>
+<td><a href='#role'><code>Role</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#securityprincipal'><code>SecurityPrincipal</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#paginationrequest'><code>PaginationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#paginationrequestv2consistency'><code>PaginationRequestV2Consistency</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#bulkrequest'><code>BulkRequest</code></a></td>
+<td>A base type for requesting a bulk operation.</td>
+</tr>
+<tr>
+<td><a href='#bulkresponse'><code>BulkResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Data Models
 

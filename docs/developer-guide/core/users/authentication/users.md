@@ -3,10 +3,138 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#listusersessions'><code>listUserSessions</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#passwordlogin'><code>passwordLogin</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#bulkinvalidate'><code>bulkInvalidate</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#claim'><code>claim</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#invalidatesessions'><code>invalidateSessions</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#logout'><code>logout</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#refresh'><code>refresh</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#requestonetimetokenwithaudience'><code>requestOneTimeTokenWithAudience</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#tokenextension'><code>tokenExtension</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#weblogout'><code>webLogout</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#webrefresh'><code>webRefresh</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#accesstoken'><code>AccessToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#accesstokenandcsrf'><code>AccessTokenAndCsrf</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#claimonetimetoken'><code>ClaimOneTimeToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#onetimeaccesstoken'><code>OneTimeAccessToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#optionalauthenticationtokens'><code>OptionalAuthenticationTokens</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#session'><code>Session</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#bulkinvalidaterequest'><code>BulkInvalidateRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listusersessionsrequest'><code>ListUserSessionsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#requestonetimetoken'><code>RequestOneTimeToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#tokenextensionrequest'><code>TokenExtensionRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `refresh`
+### `listUserSessions`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#listusersessionsrequest'>ListUserSessionsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#session'>Session</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `passwordLogin`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
@@ -15,20 +143,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#accesstoken'>AccessToken</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `webRefresh`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#accesstokenandcsrf'>AccessTokenAndCsrf</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -45,6 +160,32 @@
 
 
 
+### `claim`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#claimonetimetoken'>ClaimOneTimeToken</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|
+
+
+
+### `invalidateSessions`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `logout`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -58,7 +199,7 @@
 
 
 
-### `webLogout`
+### `refresh`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
@@ -67,20 +208,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `claim`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#claimonetimetoken'>ClaimOneTimeToken</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#accesstoken'>AccessToken</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -110,7 +238,7 @@
 
 
 
-### `passwordLogin`
+### `webLogout`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
@@ -123,29 +251,16 @@
 
 
 
-### `listUserSessions`
+### `webRefresh`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#listusersessionsrequest'>ListUserSessionsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#session'>Session</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `invalidateSessions`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#accesstokenandcsrf'>AccessTokenAndCsrf</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

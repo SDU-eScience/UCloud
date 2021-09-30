@@ -35,6 +35,193 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 ---
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#example-renaming-a-file'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-renaming-a-file'>Renaming a file</a></td></tr>
+<tr><td><a href='#example-copying-a-file-to-itself'>Copying a file to itself</a></td></tr>
+<tr><td><a href='#example-uploading-a-file'>Uploading a file</a></td></tr>
+<tr><td><a href='#example-downloading-a-file'>Downloading a file</a></td></tr>
+<tr><td><a href='#example-creating-a-folder'>Creating a folder</a></td></tr>
+<tr><td><a href='#example-moving-multiple-files-to-trash'>Moving multiple files to trash</a></td></tr>
+<tr><td><a href='#example-browsing-the-contents-of-a-folder'>Browsing the contents of a folder</a></td></tr>
+<tr><td><a href='#example-retrieving-a-single-file'>Retrieving a single file</a></td></tr>
+<tr><td><a href='#example-deleting-a-file-permanently'>Deleting a file permanently</a></td></tr>
+<tr><td><a href='#example-retrieving-a-list-of-products-supported-by-accessible-providers'>Retrieving a list of products supported by accessible providers</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browse'><code>browse</code></a></td>
+<td>Browses the contents of a directory.</td>
+</tr>
+<tr>
+<td><a href='#retrieve'><code>retrieve</code></a></td>
+<td>Retrieves information about a single file.</td>
+</tr>
+<tr>
+<td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
+<td>Retrieve product support for all accessible providers</td>
+</tr>
+<tr>
+<td><a href='#copy'><code>copy</code></a></td>
+<td>Copies a file from one path to another</td>
+</tr>
+<tr>
+<td><a href='#createdownload'><code>createDownload</code></a></td>
+<td>Creates a download session between the user and the provider</td>
+</tr>
+<tr>
+<td><a href='#createfolder'><code>createFolder</code></a></td>
+<td>Creates one or more folders</td>
+</tr>
+<tr>
+<td><a href='#createupload'><code>createUpload</code></a></td>
+<td>Creates an upload session between the user and the provider</td>
+</tr>
+<tr>
+<td><a href='#delete'><code>delete</code></a></td>
+<td>Permanently deletes one or more files</td>
+</tr>
+<tr>
+<td><a href='#move'><code>move</code></a></td>
+<td>Move a file from one path to another</td>
+</tr>
+<tr>
+<td><a href='#trash'><code>trash</code></a></td>
+<td>Moves a file to the trash</td>
+</tr>
+<tr>
+<td><a href='#updateacl'><code>updateAcl</code></a></td>
+<td>Updates the ACL of a single file.</td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>3. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#ufile'><code>UFile</code></a></td>
+<td>A [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  is a resource for storing, retrieving and organizing data in UCloud</td>
+</tr>
+<tr>
+<td><a href='#ufilestatus'><code>UFileStatus</code></a></td>
+<td>General system-level stats about a file</td>
+</tr>
+<tr>
+<td><a href='#fileiconhint'><code>FileIconHint</code></a></td>
+<td>A hint to clients about which icon should be used in user-interfaces when representing a `UFile`</td>
+</tr>
+<tr>
+<td><a href='#filetype'><code>FileType</code></a></td>
+<td>The type of a `UFile`</td>
+</tr>
+<tr>
+<td><a href='#ufilespecification'><code>UFileSpecification</code></a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href='#filemetadataordeleted.deleted'><code>FileMetadataOrDeleted.Deleted</code></a></td>
+<td>Indicates that the metadata document has been deleted is no longer in use</td>
+</tr>
+<tr>
+<td><a href='#filemetadatahistory'><code>FileMetadataHistory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadataordeleted'><code>FileMetadataOrDeleted</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbypath'><code>FindByPath</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#longrunningtask'><code>LongRunningTask</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#longrunningtask.complete'><code>LongRunningTask.Complete</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#longrunningtask.continuesinbackground'><code>LongRunningTask.ContinuesInBackground</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ufileincludeflags'><code>UFileIncludeFlags</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadprotocol'><code>UploadProtocol</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#writeconflictpolicy'><code>WriteConflictPolicy</code></a></td>
+<td>A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)</td>
+</tr>
+<tr>
+<td><a href='#filescopyrequestitem'><code>FilesCopyRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filescreatedownloadrequestitem'><code>FilesCreateDownloadRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filescreatefolderrequestitem'><code>FilesCreateFolderRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filescreateuploadrequestitem'><code>FilesCreateUploadRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesmoverequestitem'><code>FilesMoveRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filescreatedownloadresponseitem'><code>FilesCreateDownloadResponseItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filescreateuploadresponseitem'><code>FilesCreateUploadResponseItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 ## Example: Renaming a file
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -1481,38 +1668,64 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 
 ## Remote Procedure Calls
 
-### `move`
+### `browse`
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
-_Move a file from one path to another_
+_Browses the contents of a directory._
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filesmoverequestitem'>FilesMoveRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#longrunningtask'>LongRunningTask</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ufile'>UFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-The file can be of any type. This request is also used for 'renames' of a file. This is simply
-considered a move within a single directory. This operation handles conflicts depending on the supplied
-`WriteConflictPolicy`.
+The results will be returned using the standard pagination API of UCloud. Consistency is slightly
+relaxed for this endpoint as it is typically hard to enforce for filesystems. Provider's are heavily
+encouraged to try and find all files on the first request and return information about them in
+subsequent requests. For example, a client might list all file names in the initial request and use
+this list for all subsequent requests and retrieve additional information about the files. If the files
+no longer exist then the provider should simply not include these results.
 
-This is a long running task. As a result, this operation might respond with a status code which indicate
-that it will continue in the background. Progress of this job can be followed using the task API.
 
-__Errors:__
+### `retrieve`
 
-| Status Code | Description |
-|-------------|-------------|
-| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
-__Examples:__
 
-| Example |
-|---------|
-| [Example of using `move` to rename a file](/docs/reference/files_rename_file.md) |
+_Retrieves information about a single file._
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='#ufile'>UFile</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This file can be of any type. Clients can request additional information about the file using the
+`include*` flags of the request. Note that not all providers support all information. Clients can query
+this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)) or 
+[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)) with the `includeSupport` flag.
+
+
+### `retrieveProducts`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+_Retrieve product support for all accessible providers_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FSSupport.md'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint will determine all providers that which the authenticated user has access to, in the current
+workspace. A user has access to a product, and thus a provider, if the product is either free or if the
+user has been granted credits to use the product.
+
+See also:
+
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
+- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
 
 
 ### `copy`
@@ -1553,35 +1766,6 @@ __Examples:__
 | Example |
 |---------|
 | [Example of duplicating a file](/docs/reference/files_copy_file_to_self.md) |
-
-
-### `createUpload`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Creates an upload session between the user and the provider_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filescreateuploadrequestitem'>FilesCreateUploadRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#filescreateuploadresponseitem'>FilesCreateUploadResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-The returned endpoint will accept an upload from the user which will create a file at a location
-specified in this request.
-
-__Errors:__
-
-| Status Code | Description |
-|-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
-
-__Examples:__
-
-| Example |
-|---------|
-| [Uploading a file with the chunked protocol](/docs/reference/files_upload.md) |
 
 
 ### `createDownload`
@@ -1641,6 +1825,88 @@ __Examples:__
 | [Creating a folder](/docs/reference/files_create_folder.md) |
 
 
+### `createUpload`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+_Creates an upload session between the user and the provider_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filescreateuploadrequestitem'>FilesCreateUploadRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#filescreateuploadresponseitem'>FilesCreateUploadResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+The returned endpoint will accept an upload from the user which will create a file at a location
+specified in this request.
+
+__Errors:__
+
+| Status Code | Description |
+|-------------|-------------|
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+
+__Examples:__
+
+| Example |
+|---------|
+| [Uploading a file with the chunked protocol](/docs/reference/files_upload.md) |
+
+
+### `delete`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+_Permanently deletes one or more files_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This call will recursively delete files if needed. It is possible that a provider might fail to
+completely delete the entire sub-tree. This can, for example, happen because of a crash or because the
+file-system is unable to delete a given file. This will lead the file-system in an inconsistent state.
+It is not guaranteed that the provider will be able to detect this error scenario. A client of the
+API can check if the file has been deleted by calling `retrieve` on the file.
+
+
+### `move`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+_Move a file from one path to another_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filesmoverequestitem'>FilesMoveRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#longrunningtask'>LongRunningTask</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+The file can be of any type. This request is also used for 'renames' of a file. This is simply
+considered a move within a single directory. This operation handles conflicts depending on the supplied
+`WriteConflictPolicy`.
+
+This is a long running task. As a result, this operation might respond with a status code which indicate
+that it will continue in the background. Progress of this job can be followed using the task API.
+
+__Errors:__
+
+| Status Code | Description |
+|-------------|-------------|
+| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+
+__Examples:__
+
+| Example |
+|---------|
+| [Example of using `move` to rename a file](/docs/reference/files_rename_file.md) |
+
+
 ### `trash`
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
@@ -1676,85 +1942,6 @@ __Examples:__
 | Example |
 |---------|
 | [Moving files to trash](/docs/reference/files_move_to_trash.md) |
-
-
-### `browse`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Browses the contents of a directory._
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ufile'>UFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-The results will be returned using the standard pagination API of UCloud. Consistency is slightly
-relaxed for this endpoint as it is typically hard to enforce for filesystems. Provider's are heavily
-encouraged to try and find all files on the first request and return information about them in
-subsequent requests. For example, a client might list all file names in the initial request and use
-this list for all subsequent requests and retrieve additional information about the files. If the files
-no longer exist then the provider should simply not include these results.
-
-
-### `retrieve`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Retrieves information about a single file._
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='#ufile'>UFile</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This file can be of any type. Clients can request additional information about the file using the
-`include*` flags of the request. Note that not all providers support all information. Clients can query
-this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)) or 
-[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)) with the `includeSupport` flag.
-
-
-### `delete`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Permanently deletes one or more files_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This call will recursively delete files if needed. It is possible that a provider might fail to
-completely delete the entire sub-tree. This can, for example, happen because of a crash or because the
-file-system is unable to delete a given file. This will lead the file-system in an inconsistent state.
-It is not guaranteed that the provider will be able to detect this error scenario. A client of the
-API can check if the file has been deleted by calling `retrieve` on the file.
-
-
-### `retrieveProducts`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Retrieve product support for all accessible providers_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FSSupport.md'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will determine all providers that which the authenticated user has access to, in the current
-workspace. A user has access to a product, and thus a provider, if the product is either free or if the
-user has been granted credits to use the product.
-
-See also:
-
-- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
-- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
 
 
 ### `updateAcl`

@@ -3,6 +3,81 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#charge'><code>charge</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#check'><code>check</code></a></td>
+<td>Checks if one or more wallets are able to carry a charge</td>
+</tr>
+<tr>
+<td><a href='#deposit'><code>deposit</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#rootdeposit'><code>rootDeposit</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#transfer'><code>transfer</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateallocation'><code>updateAllocation</code></a></td>
+<td>Update an existing allocation</td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#chargewalletrequestitem'><code>ChargeWalletRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deposittowalletrequestitem'><code>DepositToWalletRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#rootdepositrequestitem'><code>RootDepositRequestItem</code></a></td>
+<td>See `DepositToWalletRequestItem`</td>
+</tr>
+<tr>
+<td><a href='#transfertowalletrequestitem'><code>TransferToWalletRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateallocationrequestitem'><code>UpdateAllocationRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
@@ -19,6 +94,22 @@
 
 
 
+### `check`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+_Checks if one or more wallets are able to carry a charge_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#chargewalletrequestitem'>ChargeWalletRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+Checks if one or more charges would succeed without lacking credits. This will not generate a
+transaction message, and as a result, the description will never be used.
+
+
 ### `deposit`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -29,6 +120,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#deposittowalletrequestitem'>DepositToWalletRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `rootDeposit`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#rootdepositrequestitem'>RootDepositRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -64,35 +168,6 @@ this value.
 
 The constraints that are in place during a standard creation are still in place when updating the
 values. This means that the new start and end dates _must_ overlap with the values of all ancestors.
-
-
-### `check`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-_Checks if one or more wallets are able to carry a charge_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#chargewalletrequestitem'>ChargeWalletRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Checks if one or more charges would succeed without lacking credits. This will not generate a
-transaction message, and as a result, the description will never be used.
-
-
-### `rootDeposit`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#rootdepositrequestitem'>RootDepositRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
 
 
 

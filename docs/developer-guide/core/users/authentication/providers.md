@@ -3,10 +3,97 @@
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#retrievepublickey'><code>retrievePublicKey</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#claim'><code>claim</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#generatekeypair'><code>generateKeyPair</code></a></td>
+<td>Generates an RSA key pair useful for JWT signatures</td>
+</tr>
+<tr>
+<td><a href='#refresh'><code>refresh</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#refreshasorchestrator'><code>refreshAsOrchestrator</code></a></td>
+<td>Signs an access-token to be used by a UCloud service</td>
+</tr>
+<tr>
+<td><a href='#register'><code>register</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#renew'><code>renew</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#publickeyandrefreshtoken'><code>PublicKeyAndRefreshToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#refreshtoken'><code>RefreshToken</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#authprovidersrefreshasproviderrequestitem'><code>AuthProvidersRefreshAsProviderRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#authprovidersregisterrequestitem'><code>AuthProvidersRegisterRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#authprovidersgeneratekeypairresponse'><code>AuthProvidersGenerateKeyPairResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#authprovidersregisterresponseitem'><code>AuthProvidersRegisterResponseItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#authprovidersretrievepublickeyresponse'><code>AuthProvidersRetrievePublicKeyResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `register`
+### `retrievePublicKey`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
@@ -15,7 +102,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#authprovidersregisterrequestitem'>AuthProvidersRegisterRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#authprovidersregisterresponseitem'>AuthProvidersRegisterResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#authprovidersretrievepublickeyresponse'>AuthProvidersRetrievePublicKeyResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -32,17 +119,20 @@
 
 
 
-### `renew`
+### `generateKeyPair`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
+_Generates an RSA key pair useful for JWT signatures_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#publickeyandrefreshtoken'>PublicKeyAndRefreshToken</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#authprovidersgeneratekeypairresponse'>AuthProvidersGenerateKeyPairResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
+way by the authentication service.
 
 
 ### `refresh`
@@ -55,19 +145,6 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#refreshtoken'>RefreshToken</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.auth.api.AccessToken.md'>AccessToken</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrievePublicKey`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#authprovidersretrievepublickeyresponse'>AuthProvidersRetrievePublicKeyResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -87,20 +164,30 @@ This RPC signs an access-token which will be used by authorized UCloud services 
 orchestrator of resources.
 
 
-### `generateKeyPair`
+### `register`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
-_Generates an RSA key pair useful for JWT signatures_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#authprovidersgeneratekeypairresponse'>AuthProvidersGenerateKeyPairResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#authprovidersregisterrequestitem'>AuthProvidersRegisterRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#authprovidersregisterresponseitem'>AuthProvidersRegisterResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
-way by the authentication service.
+
+
+### `renew`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#publickeyandrefreshtoken'>PublicKeyAndRefreshToken</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
 
 
 

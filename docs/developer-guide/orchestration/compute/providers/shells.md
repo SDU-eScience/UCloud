@@ -3,6 +3,73 @@
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#open'><code>open</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#shellrequest'><code>ShellRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellrequest.initialize'><code>ShellRequest.Initialize</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellrequest.input'><code>ShellRequest.Input</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellrequest.resize'><code>ShellRequest.Resize</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellresponse'><code>ShellResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellresponse.acknowledged'><code>ShellResponse.Acknowledged</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellresponse.data'><code>ShellResponse.Data</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#shellresponse.initialized'><code>ShellResponse.Initialized</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 

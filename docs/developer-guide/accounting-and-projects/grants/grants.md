@@ -29,10 +29,309 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
 4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]           
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browseprojects'><code>browseProjects</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchdescription'><code>fetchDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingoingapplications'><code>ingoingApplications</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#isenabled'><code>isEnabled</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#outgoingapplications'><code>outgoingApplications</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#readrequestsettings'><code>readRequestSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#readtemplates'><code>readTemplates</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveaffiliations'><code>retrieveAffiliations</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#approveapplication'><code>approveApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#closeapplication'><code>closeApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#commentonapplication'><code>commentOnApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deletecomment'><code>deleteComment</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#editapplication'><code>editApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#rejectapplication'><code>rejectApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#setenabledstatus'><code>setEnabledStatus</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#submitapplication'><code>submitApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#transferapplication'><code>transferApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploaddescription'><code>uploadDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadrequestsettings'><code>uploadRequestSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadtemplates'><code>uploadTemplates</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#viewapplication'><code>viewApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#application'><code>Application</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationstatus'><code>ApplicationStatus</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationwithcomments'><code>ApplicationWithComments</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#automaticapprovalsettings'><code>AutomaticApprovalSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#comment'><code>Comment</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createapplication'><code>CreateApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantapplicationfilter'><code>GrantApplicationFilter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantrecipient'><code>GrantRecipient</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantrecipient.existingproject'><code>GrantRecipient.ExistingProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantrecipient.newproject'><code>GrantRecipient.NewProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantrecipient.personalproject'><code>GrantRecipient.PersonalProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectapplicationsettings'><code>ProjectApplicationSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectwithtitle'><code>ProjectWithTitle</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#usercriteria'><code>UserCriteria</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#usercriteria.anyone'><code>UserCriteria.Anyone</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#usercriteria.emaildomain'><code>UserCriteria.EmailDomain</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#approveapplicationrequest'><code>ApproveApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#browseprojectsrequest'><code>BrowseProjectsRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#closeapplicationrequest'><code>CloseApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#commentonapplicationrequest'><code>CommentOnApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deletecommentrequest'><code>DeleteCommentRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#editapplicationrequest'><code>EditApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchdescriptionrequest'><code>FetchDescriptionRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchlogorequest'><code>FetchLogoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsretrieveaffiliationsrequest'><code>GrantsRetrieveAffiliationsRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#grantsretrieveproductsrequest'><code>GrantsRetrieveProductsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingoingapplicationsrequest'><code>IngoingApplicationsRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#isenabledrequest'><code>IsEnabledRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#outgoingapplicationsrequest'><code>OutgoingApplicationsRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#readrequestsettingsrequest'><code>ReadRequestSettingsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#readtemplatesrequest'><code>ReadTemplatesRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#rejectapplicationrequest'><code>RejectApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#resourcerequest'><code>ResourceRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#setenabledstatusrequest'><code>SetEnabledStatusRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#transferapplicationrequest'><code>TransferApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploaddescriptionrequest'><code>UploadDescriptionRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadlogorequest'><code>UploadLogoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadtemplatesrequest'><code>UploadTemplatesRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#viewapplicationrequest'><code>ViewApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchdescriptionresponse'><code>FetchDescriptionResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsretrieveproductsresponse'><code>GrantsRetrieveProductsResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#isenabledresponse'><code>IsEnabledResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `uploadDescription`
+### `browseProjects`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -41,7 +340,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#uploaddescriptionrequest'>UploadDescriptionRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#browseprojectsrequest'>BrowseProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -58,19 +357,6 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `uploadLogo`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#uploadlogorequest'>UploadLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `fetchLogo`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -84,7 +370,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `uploadTemplates`
+### `ingoingApplications`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -93,11 +379,11 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#uploadtemplatesrequest'>UploadTemplatesRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#ingoingapplicationsrequest'>IngoingApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#application'>Application</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `uploadRequestSettings`
+### `isEnabled`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -106,7 +392,20 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#projectapplicationsettings'>ProjectApplicationSettings</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#isenabledrequest'>IsEnabledRequest</a></code>|<code><a href='#isenabledresponse'>IsEnabledResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `outgoingApplications`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#outgoingapplicationsrequest'>OutgoingApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#application'>Application</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -136,7 +435,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `submitApplication`
+### `retrieveAffiliations`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -145,7 +444,46 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createapplication'>CreateApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#grantsretrieveaffiliationsrequest'>GrantsRetrieveAffiliationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveProducts`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#grantsretrieveproductsrequest'>GrantsRetrieveProductsRequest</a></code>|<code><a href='#grantsretrieveproductsresponse'>GrantsRetrieveProductsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `approveApplication`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#approveapplicationrequest'>ApproveApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `closeApplication`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#closeapplicationrequest'>CloseApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -175,7 +513,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `approveApplication`
+### `editApplication`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -184,7 +522,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#approveapplicationrequest'>ApproveApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#editapplicationrequest'>EditApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -201,7 +539,20 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `editApplication`
+### `setEnabledStatus`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#setenabledstatusrequest'>SetEnabledStatusRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `submitApplication`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -210,20 +561,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#editapplicationrequest'>EditApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `closeApplication`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#closeapplicationrequest'>CloseApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#createapplication'>CreateApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -240,7 +578,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 
 
-### `ingoingApplications`
+### `uploadDescription`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -249,37 +587,11 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#ingoingapplicationsrequest'>IngoingApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#application'>Application</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#uploaddescriptionrequest'>UploadDescriptionRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `outgoingApplications`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#outgoingapplicationsrequest'>OutgoingApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#application'>Application</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `setEnabledStatus`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#setenabledstatusrequest'>SetEnabledStatusRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `isEnabled`
+### `uploadLogo`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -288,24 +600,11 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#isenabledrequest'>IsEnabledRequest</a></code>|<code><a href='#isenabledresponse'>IsEnabledResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#uploadlogorequest'>UploadLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `browseProjects`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#browseprojectsrequest'>BrowseProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieveAffiliations`
+### `uploadRequestSettings`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -314,11 +613,11 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#grantsretrieveaffiliationsrequest'>GrantsRetrieveAffiliationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#projectapplicationsettings'>ProjectApplicationSettings</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `retrieveProducts`
+### `uploadTemplates`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
@@ -327,7 +626,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#grantsretrieveproductsrequest'>GrantsRetrieveProductsRequest</a></code>|<code><a href='#grantsretrieveproductsresponse'>GrantsRetrieveProductsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#uploadtemplatesrequest'>UploadTemplatesRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

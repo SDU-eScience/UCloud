@@ -3,34 +3,179 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#getuserinfo'><code>getUserInfo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupemail'><code>lookupEmail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuid'><code>lookupUID</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuserwithemail'><code>lookupUserWithEmail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupusers'><code>lookupUsers</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveprincipal'><code>retrievePrincipal</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#changepassword'><code>changePassword</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#changepasswordwithreset'><code>changePasswordWithReset</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#closeiterator'><code>closeIterator</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createnewuser'><code>createNewUser</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchnextiterator'><code>fetchNextIterator</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#openuseriterator'><code>openUserIterator</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateuserinfo'><code>updateUserInfo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#authenticationtokens'><code>AuthenticationTokens</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#person'><code>Person</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#person.bypassword'><code>Person.ByPassword</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#person.bywayf'><code>Person.ByWAYF</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#principal'><code>Principal</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#providerprincipal'><code>ProviderPrincipal</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#serviceprincipal'><code>ServicePrincipal</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#userlookup'><code>UserLookup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#changepasswordrequest'><code>ChangePasswordRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#changepasswordwithresetrequest'><code>ChangePasswordWithResetRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createsingleuserrequest'><code>CreateSingleUserRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#getprincipalrequest'><code>GetPrincipalRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupemailrequest'><code>LookupEmailRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuidrequest'><code>LookupUIDRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuserwithemailrequest'><code>LookupUserWithEmailRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupusersrequest'><code>LookupUsersRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateuserinforequest'><code>UpdateUserInfoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#getuserinforesponse'><code>GetUserInfoResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupemailresponse'><code>LookupEmailResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuidresponse'><code>LookupUIDResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupuserwithemailresponse'><code>LookupUserWithEmailResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#lookupusersresponse'><code>LookupUsersResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
-
-### `createNewUser`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#createsingleuserrequest'>CreateSingleUserRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#authenticationtokens'>AuthenticationTokens</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `updateUserInfo`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#updateuserinforequest'>UpdateUserInfoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
 
 ### `getUserInfo`
 
@@ -42,6 +187,58 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#getuserinforesponse'>GetUserInfoResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `lookupEmail`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#lookupemailrequest'>LookupEmailRequest</a></code>|<code><a href='#lookupemailresponse'>LookupEmailResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `lookupUID`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#lookupuidrequest'>LookupUIDRequest</a></code>|<code><a href='#lookupuidresponse'>LookupUIDResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `lookupUserWithEmail`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#lookupuserwithemailrequest'>LookupUserWithEmailRequest</a></code>|<code><a href='#lookupuserwithemailresponse'>LookupUserWithEmailResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `lookupUsers`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#lookupusersrequest'>LookupUsersRequest</a></code>|<code><a href='#lookupusersresponse'>LookupUsersResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -84,7 +281,7 @@
 
 
 
-### `lookupUsers`
+### `closeIterator`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
@@ -93,24 +290,11 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#lookupusersrequest'>LookupUsersRequest</a></code>|<code><a href='#lookupusersresponse'>LookupUsersResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `lookupEmail`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#lookupemailrequest'>LookupEmailRequest</a></code>|<code><a href='#lookupemailresponse'>LookupEmailResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `lookupUserWithEmail`
+### `createNewUser`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
@@ -119,33 +303,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#lookupuserwithemailrequest'>LookupUserWithEmailRequest</a></code>|<code><a href='#lookupuserwithemailresponse'>LookupUserWithEmailResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `lookupUID`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#lookupuidrequest'>LookupUIDRequest</a></code>|<code><a href='#lookupuidresponse'>LookupUIDResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `openUserIterator`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#createsingleuserrequest'>CreateSingleUserRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#authenticationtokens'>AuthenticationTokens</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -162,7 +320,7 @@
 
 
 
-### `closeIterator`
+### `openUserIterator`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
@@ -171,7 +329,20 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateUserInfo`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#updateuserinforequest'>UpdateUserInfoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

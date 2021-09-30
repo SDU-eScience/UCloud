@@ -3,21 +3,131 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#activityfeed'><code>activityFeed</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listbypath'><code>listByPath</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#activityevent'><code>ActivityEvent</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.allfilesusedbyapplication'><code>ActivityEvent.AllFilesUsedByApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.copy'><code>ActivityEvent.Copy</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.deleted'><code>ActivityEvent.Deleted</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.directorycreated'><code>ActivityEvent.DirectoryCreated</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.download'><code>ActivityEvent.Download</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.favorite'><code>ActivityEvent.Favorite</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.moved'><code>ActivityEvent.Moved</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.projectaclentry'><code>ActivityEvent.ProjectAclEntry</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.reclassify'><code>ActivityEvent.Reclassify</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.rightsanduser'><code>ActivityEvent.RightsAndUser</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.sharedwith'><code>ActivityEvent.SharedWith</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.singlefileusedbyapplication'><code>ActivityEvent.SingleFileUsedByApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.updateprojectacl'><code>ActivityEvent.UpdateProjectAcl</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.updatedacl'><code>ActivityEvent.UpdatedAcl</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityevent.uploaded'><code>ActivityEvent.Uploaded</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityeventtype'><code>ActivityEventType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activityforfrontend'><code>ActivityForFrontend</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activity.browsebyuser.request'><code>Activity.BrowseByUser.Request</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listactivitybypathrequest'><code>ListActivityByPathRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#activity.browsebyuser.response'><code>Activity.BrowseByUser.Response</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
-
-### `listByPath`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#listactivitybypathrequest'>ListActivityByPathRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#activityforfrontend'>ActivityForFrontend</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
 
 ### `activityFeed`
 
@@ -29,6 +139,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#activity.browsebyuser.request'>Activity.BrowseByUser.Request</a></code>|<code><a href='#activity.browsebyuser.response'>Activity.BrowseByUser.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `listByPath`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#listactivitybypathrequest'>ListActivityByPathRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#activityforfrontend'>ActivityForFrontend</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

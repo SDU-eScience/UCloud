@@ -39,6 +39,208 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
 ---
 
+## Table of Contents
+<details>
+<summary>
+<a href='#example-creating-a-simple-batch-job'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-creating-a-simple-batch-job'>Creating a simple batch job</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browse'><code>browse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#follow'><code>follow</code></a></td>
+<td>Follow the progress of a job</td>
+</tr>
+<tr>
+<td><a href='#retrieve'><code>retrieve</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveutilization'><code>retrieveUtilization</code></a></td>
+<td>Retrieve information about how busy the provider's cluster currently is</td>
+</tr>
+<tr>
+<td><a href='#search'><code>search</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#create'><code>create</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#extend'><code>extend</code></a></td>
+<td>Extend the duration of one or more jobs</td>
+</tr>
+<tr>
+<td><a href='#openinteractivesession'><code>openInteractiveSession</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#suspend'><code>suspend</code></a></td>
+<td>Suspend a job</td>
+</tr>
+<tr>
+<td><a href='#terminate'><code>terminate</code></a></td>
+<td>Request job cancellation and destruction</td>
+</tr>
+<tr>
+<td><a href='#updateacl'><code>updateAcl</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>3. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#computesupport'><code>ComputeSupport</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#computesupport.docker'><code>ComputeSupport.Docker</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#computesupport.virtualmachine'><code>ComputeSupport.VirtualMachine</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#cpuandmemory'><code>CpuAndMemory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#exportedparameters'><code>ExportedParameters</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#interactivesessiontype'><code>InteractiveSessionType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#job'><code>Job</code></a></td>
+<td>A `Job` in UCloud is the core abstraction used to describe a unit of computation.</td>
+</tr>
+<tr>
+<td><a href='#jobbindkind'><code>JobBindKind</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobbinding'><code>JobBinding</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobincludeflags'><code>JobIncludeFlags</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#joboutput'><code>JobOutput</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobspecification'><code>JobSpecification</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobstate'><code>JobState</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobstatus'><code>JobStatus</code></a></td>
+<td>Describes the current state of the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#jobslog'><code>JobsLog</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#opensession'><code>OpenSession</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#opensession.shell'><code>OpenSession.Shell</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#opensession.vnc'><code>OpenSession.Vnc</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#opensession.web'><code>OpenSession.Web</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#opensessionwithprovider'><code>OpenSessionWithProvider</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#queuestatus'><code>QueueStatus</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#exportedparametersrequest'><code>ExportedParametersRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsextendrequestitem'><code>JobsExtendRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsopeninteractivesessionrequestitem'><code>JobsOpenInteractiveSessionRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsretrieveutilizationrequest'><code>JobsRetrieveUtilizationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsfollowresponse'><code>JobsFollowResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsretrieveutilizationresponse'><code>JobsRetrieveUtilizationResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 ## Example: Creating a simple batch job
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -717,41 +919,17 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ## Remote Procedure Calls
 
-### `terminate`
+### `browse`
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
-_Request job cancellation and destruction_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This call will request the cancellation of the associated jobs. This will make sure that the jobs
-are eventually stopped and resources are released. If the job is running a virtual machine, then the
-virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
-deleted only temporary data from the job will be deleted.
-
-This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
-be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jobs.browse`](/docs/reference/jobs.browse.md)), [`jobs.follow`](/docs/reference/jobs.follow.md)) calls.
-
-
-### `retrieveUtilization`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Retrieve information about how busy the provider's cluster currently is_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#jobsretrieveutilizationrequest'>JobsRetrieveUtilizationRequest</a></code>|<code><a href='#jobsretrieveutilizationresponse'>JobsRetrieveUtilizationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will return information about how busy a cluster is. This endpoint is only used for
-informational purposes. UCloud does not use this information for any accounting purposes.
 
 
 ### `follow`
@@ -772,6 +950,74 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 - State changes from UCloud. For example transition from [`IN_QUEUE`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md) to
   [`RUNNING`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
 - If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
+
+
+
+### `retrieve`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='#job'>Job</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveProducts`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md'>Product.Compute</a>, <a href='#computesupport'>ComputeSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveUtilization`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+_Retrieve information about how busy the provider's cluster currently is_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#jobsretrieveutilizationrequest'>JobsRetrieveUtilizationRequest</a></code>|<code><a href='#jobsretrieveutilizationresponse'>JobsRetrieveUtilizationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint will return information about how busy a cluster is. This endpoint is only used for
+informational purposes. UCloud does not use this information for any accounting purposes.
+
+
+### `search`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `create`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobspecification'>JobSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -802,6 +1048,19 @@ status code from the provider one the first extension which fails. UCloud will n
 more jobs after the first failure.
 
 
+### `openInteractiveSession`
+
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsopeninteractivesessionrequestitem'>JobsOpenInteractiveSessionRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#opensessionwithprovider'>OpenSessionWithProvider</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `suspend`
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
@@ -819,82 +1078,25 @@ For compute backends which deals with Virtual Machines this will shutdown the Vi
 without deleting any data.
 
 
-### `openInteractiveSession`
+### `terminate`
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Request job cancellation and destruction_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsopeninteractivesessionrequestitem'>JobsOpenInteractiveSessionRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#opensessionwithprovider'>OpenSessionWithProvider</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This call will request the cancellation of the associated jobs. This will make sure that the jobs
+are eventually stopped and resources are released. If the job is running a virtual machine, then the
+virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
+deleted only temporary data from the job will be deleted.
 
-
-### `create`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobspecification'>JobSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `search`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `browse`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieve`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='#job'>Job</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieveProducts`
-
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md'>Product.Compute</a>, <a href='#computesupport'>ComputeSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
+This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
+be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jobs.browse`](/docs/reference/jobs.browse.md)), [`jobs.follow`](/docs/reference/jobs.follow.md)) calls.
 
 
 ### `updateAcl`

@@ -3,21 +3,107 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browse'><code>browse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#browsesuballocations'><code>browseSubAllocations</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieverecipient'><code>retrieveRecipient</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#push'><code>push</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#allocationselectorpolicy'><code>AllocationSelectorPolicy</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sortsuballocationsby'><code>SortSubAllocationsBy</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#suballocation'><code>SubAllocation</code></a></td>
+<td>A parent allocator's view of a `WalletAllocation`</td>
+</tr>
+<tr>
+<td><a href='#wallet'><code>Wallet</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletallocation'><code>WalletAllocation</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletowner'><code>WalletOwner</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletowner.project'><code>WalletOwner.Project</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletowner.user'><code>WalletOwner.User</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#pushwalletchangerequestitem'><code>PushWalletChangeRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletbrowserequest'><code>WalletBrowseRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#walletsbrowsesuballocationsrequest'><code>WalletsBrowseSubAllocationsRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#walletsretrieverecipientrequest'><code>WalletsRetrieveRecipientRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletsretrieverecipientresponse'><code>WalletsRetrieveRecipientResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
-
-### `push`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#pushwalletchangerequestitem'>PushWalletChangeRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
 
 ### `browse`
 
@@ -55,6 +141,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#walletsretrieverecipientrequest'>WalletsRetrieveRecipientRequest</a></code>|<code><a href='#walletsretrieverecipientresponse'>WalletsRetrieveRecipientResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `push`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#pushwalletchangerequestitem'>PushWalletChangeRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

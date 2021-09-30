@@ -105,6 +105,32 @@ fun generateMarkdown(
     val referenceFolder = File(outputFolder, "reference").also { it.mkdirs() }
 
     outputFile.parentFile.mkdirs()
+    val sortedCalls = calls.sortedWith(
+        Comparator
+            .comparingInt<GeneratedRemoteProcedureCall> {
+                when (it.realCall.authDescription.access) {
+                    AccessRight.READ -> 1
+                    AccessRight.READ_WRITE -> 2
+                }
+            }
+            .thenComparingInt { -1 * it.doc.importance }
+            .thenComparing<String> { it.name }
+    )
+
+    val sortedTypes = ArrayList(types.values).filter { it.owner == container::class }.sortedWith(
+        Comparator
+            .comparingInt<GeneratedType> {
+                if (it.name.contains("Request")) {
+                    1
+                } else if (it.name.contains("Response")) {
+                    2
+                } else {
+                    0
+                }
+            }
+            .thenComparing<Int> { -1 * it.doc.importance }
+            .thenComparing<String> { it.name }
+    )
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()
@@ -127,6 +153,72 @@ fun generateMarkdown(
             outs.println()
         }
 
+        outs.println("## Table of Contents")
+        var counter = 1
+        if (container.useCases.isNotEmpty()) {
+            outs.println(
+                summary(
+                    "<a href='#example-${container.useCases.first().title.replace(" ", "-").lowercase()}'>" +
+                        "${counter++}. Examples" +
+                        "</a>",
+                    buildString {
+                        appendLine("<table><thead><tr>")
+                        appendLine("<th>Description</th>")
+                        appendLine("</tr></thread>")
+                        appendLine("<tbody>")
+                        for (useCase in container.useCases) {
+                            appendLine("<tr><td><a href='#example-${useCase.title.replace(" ", "-").lowercase()}'>${useCase.title}</a></td></tr>")
+                        }
+                        appendLine("</tbody></table>")
+                    }
+                )
+            )
+        }
+        if (sortedCalls.isNotEmpty()) {
+            outs.println(
+                summary(
+                    "<a href='#remote-procedure-calls'>" +
+                        "${counter++}. Remote Procedure Calls" +
+                        "</a>",
+                    buildString {
+                        appendLine("<table><thead><tr>")
+                        appendLine("<th>Name</th>")
+                        appendLine("<th>Description</th>")
+                        appendLine("</tr></thread>")
+                        appendLine("<tbody>")
+                        for (call in sortedCalls) {
+                            appendLine("<tr>")
+                            appendLine("<td><a href='#${call.name.lowercase()}'><code>${call.name}</code></a></td>")
+                            appendLine("<td>${call.doc.synopsis ?: "<i>No description</i>"}</td>")
+                            appendLine("</tr>")
+                        }
+                        appendLine("</tbody></table>")
+                    }
+                )
+            )
+        }
+        if (sortedTypes.isNotEmpty()) {
+            outs.println(summary(
+                "<a href='#data-models'>" +
+                    "${counter++}. Data Models" +
+                    "</a>",
+                buildString {
+                    appendLine("<table><thead><tr>")
+                    appendLine("<th>Name</th>")
+                    appendLine("<th>Description</th>")
+                    appendLine("</tr></thread>")
+                    appendLine("<tbody>")
+                    for (type in sortedTypes) {
+                        appendLine("<tr>")
+                        appendLine("<td><a href='#${simplifyName(type.name).lowercase()}'><code>${simplifyName(type.name)}</code></a></td>")
+                        appendLine("<td>${type.doc.synopsis ?: "<i>No description</i>"}</td>")
+                        appendLine("</tr>")
+                    }
+                    appendLine("</tbody></table>")
+                }
+            ))
+        }
+
         for (useCase in container.useCases) {
             outs.println("## Example: ${useCase.title}")
             val content = generateMarkdownForExample(useCase)
@@ -136,11 +228,11 @@ fun generateMarkdown(
                 .writeText("# Example: ${useCase.title}\n\n$content")
         }
 
-        if (calls.isNotEmpty()) {
+        if (sortedCalls.isNotEmpty()) {
             outs.println()
             outs.println("## Remote Procedure Calls")
             outs.println()
-            for (call in calls) {
+            for (call in sortedCalls) {
                 outs.println("### `${call.name}`")
                 outs.println()
                 val content = generateMarkdownForRemoteProcedureCall(container, types, call)
@@ -151,28 +243,12 @@ fun generateMarkdown(
             }
         }
 
-        if (types.values.isNotEmpty()) {
+        if (sortedTypes.isNotEmpty()) {
             outs.println()
             outs.println("## Data Models")
             outs.println()
 
-            val sortedTypes = ArrayList(types.values).sortedWith(
-                Comparator
-                    .comparingInt<GeneratedType> {
-                        if (it.name.contains("Request")) {
-                            1
-                        } else if (it.name.contains("Response")) {
-                            2
-                        } else {
-                            0
-                        }
-                    }
-                    .thenComparing<Int> { -1 * it.doc.importance }
-                    .thenComparing<String> { it.name }
-            )
             for (type in sortedTypes) {
-                if (type.owner != container::class) continue
-
                 outs.println("### `${simplifyName(type.name)}`")
                 val content = generateMarkdownForType(container, types, type)
                 outs.println(content)

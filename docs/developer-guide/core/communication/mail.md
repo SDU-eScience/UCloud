@@ -3,19 +3,182 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#retrieveemailsettings'><code>retrieveEmailSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#send'><code>send</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendbulk'><code>sendBulk</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendsupport'><code>sendSupport</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#toggleemailsettings'><code>toggleEmailSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#emailsettings'><code>EmailSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#emailsettingsitem'><code>EmailSettingsItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail'><code>Mail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantappautoapprovetoadminsmail'><code>Mail.GrantAppAutoApproveToAdminsMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationapprovemail'><code>Mail.GrantApplicationApproveMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationapprovemailtoadmins'><code>Mail.GrantApplicationApproveMailToAdmins</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationrejectedmail'><code>Mail.GrantApplicationRejectedMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationstatuschangedtoadmin'><code>Mail.GrantApplicationStatusChangedToAdmin</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationupdatedmail'><code>Mail.GrantApplicationUpdatedMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationupdatedmailtoadmins'><code>Mail.GrantApplicationUpdatedMailToAdmins</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.grantapplicationwithdrawnmail'><code>Mail.GrantApplicationWithdrawnMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.lowfundsmail'><code>Mail.LowFundsMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.newcommentonapplicationmail'><code>Mail.NewCommentOnApplicationMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.newgrantapplicationmail'><code>Mail.NewGrantApplicationMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.projectinvitemail'><code>Mail.ProjectInviteMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.resetpasswordmail'><code>Mail.ResetPasswordMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.stilllowfundsmail'><code>Mail.StillLowFundsMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.transferapplicationmail'><code>Mail.TransferApplicationMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.userleftmail'><code>Mail.UserLeftMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.userremovedmail'><code>Mail.UserRemovedMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.userremovedmailtouser'><code>Mail.UserRemovedMailToUser</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.userrolechangemail'><code>Mail.UserRoleChangeMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#mail.verificationremindermail'><code>Mail.VerificationReminderMail</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveemailsettingsrequest'><code>RetrieveEmailSettingsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendbulkrequest'><code>SendBulkRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendrequest'><code>SendRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendsupportemailrequest'><code>SendSupportEmailRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveemailsettingsresponse'><code>RetrieveEmailSettingsResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `sendSupport`
+### `retrieveEmailSettings`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#sendsupportemailrequest'>SendSupportEmailRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#retrieveemailsettingsrequest'>RetrieveEmailSettingsRequest</a></code>|<code><a href='#retrieveemailsettingsresponse'>RetrieveEmailSettingsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -45,6 +208,19 @@
 
 
 
+### `sendSupport`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#sendsupportemailrequest'>SendSupportEmailRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `toggleEmailSettings`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -55,19 +231,6 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#emailsettingsitem'>EmailSettingsItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieveEmailSettings`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#retrieveemailsettingsrequest'>RetrieveEmailSettingsRequest</a></code>|<code><a href='#retrieveemailsettingsresponse'>RetrieveEmailSettingsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

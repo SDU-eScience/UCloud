@@ -10,6 +10,7 @@ enum class ToolBackend {
     SINGULARITY,
     DOCKER,
     VIRTUAL_MACHINE,
+    NATIVE,
 }
 ```
 
@@ -43,6 +44,17 @@ enum class ToolBackend {
 <details>
 <summary>
 <code>VIRTUAL_MACHINE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>NATIVE</code>
 </summary>
 
 

@@ -3,6 +3,118 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#example-browse-all-available-components'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-browse-all-available-components'>Browse all available components</a></td></tr>
+<tr><td><a href='#example-browse-products-by-type'>Browse products by type</a></td></tr>
+<tr><td><a href='#example-retrieve-a-single-product'>Retrieve a single product</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browse'><code>browse</code></a></td>
+<td>Browse a set of products</td>
+</tr>
+<tr>
+<td><a href='#retrieve'><code>retrieve</code></a></td>
+<td>Retrieve a single product</td>
+</tr>
+<tr>
+<td><a href='#create'><code>create</code></a></td>
+<td>Creates a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  in UCloud</td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>3. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#chargetype'><code>ChargeType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product'><code>Product</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product.compute'><code>Product.Compute</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product.ingress'><code>Product.Ingress</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product.license'><code>Product.License</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product.networkip'><code>Product.NetworkIP</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#product.storage'><code>Product.Storage</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productcategoryid'><code>ProductCategoryId</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productpriceunit'><code>ProductPriceUnit</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productreference'><code>ProductReference</code></a></td>
+<td>Contains a unique reference to a [Product](/backend/accounting-service/README.md)</td>
+</tr>
+<tr>
+<td><a href='#producttype'><code>ProductType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productsbrowserequest'><code>ProductsBrowseRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#productsretrieverequest'><code>ProductsRetrieveRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 ## Example: Browse all available components
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -523,6 +635,48 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 
 ## Remote Procedure Calls
 
+### `browse`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+
+
+_Browse a set of products_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+
+__Examples:__
+
+| Example |
+|---------|
+| [Browse in the full product catalogue](/docs/reference/products_browse.md) |
+| [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
+
+
+### `retrieve`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+
+
+_Retrieve a single product_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#productsretrieverequest'>ProductsRetrieveRequest</a></code>|<code><a href='#product'>Product</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+__Examples:__
+
+| Example |
+|---------|
+| [Retrieving a single product by ID](/docs/reference/products_retrieve.md) |
+
+
 ### `create`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -550,48 +704,6 @@ As a result, you cannot create a new [`Product`](/docs/reference/dk.sdu.cloud.ac
 
 If the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  already exists, then a new `version` of it is created. Version numbers are
 always sequential and the incoming version number is always ignored by UCloud.
-
-
-### `retrieve`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
-
-
-_Retrieve a single product_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#productsretrieverequest'>ProductsRetrieveRequest</a></code>|<code><a href='#product'>Product</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-__Examples:__
-
-| Example |
-|---------|
-| [Retrieving a single product by ID](/docs/reference/products_retrieve.md) |
-
-
-### `browse`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
-
-
-_Browse a set of products_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
-
-__Examples:__
-
-| Example |
-|---------|
-| [Browse in the full product catalogue](/docs/reference/products_browse.md) |
-| [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
 
 
 

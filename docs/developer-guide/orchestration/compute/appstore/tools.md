@@ -3,19 +3,118 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbyname'><code>findByName</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbynameandversion'><code>findByNameAndVersion</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listall'><code>listAll</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#clearlogo'><code>clearLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#create'><code>create</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#findbynameandpagination'><code>FindByNameAndPagination</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbynameandversion'><code>FindByNameAndVersion</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#nameandversion'><code>NameAndVersion</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#normalizedtooldescription'><code>NormalizedToolDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#simpleduration'><code>SimpleDuration</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#tool'><code>Tool</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#toolbackend'><code>ToolBackend</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#clearlogorequest'><code>ClearLogoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchlogorequest'><code>FetchLogoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadapplicationlogorequest'><code>UploadApplicationLogoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `findByNameAndVersion`
+### `fetchLogo`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#findbynameandversion'>FindByNameAndVersion</a></code>|<code><a href='#tool'>Tool</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#fetchlogorequest'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -32,6 +131,19 @@
 
 
 
+### `findByNameAndVersion`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#findbynameandversion'>FindByNameAndVersion</a></code>|<code><a href='#tool'>Tool</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `listAll`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -42,6 +154,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#tool'>Tool</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `clearLogo`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#clearlogorequest'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -68,32 +193,6 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#uploadapplicationlogorequest'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `clearLogo`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#clearlogorequest'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `fetchLogo`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#fetchlogorequest'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -567,6 +666,7 @@ enum class ToolBackend {
     SINGULARITY,
     DOCKER,
     VIRTUAL_MACHINE,
+    NATIVE,
 }
 ```
 
@@ -600,6 +700,17 @@ enum class ToolBackend {
 <details>
 <summary>
 <code>VIRTUAL_MACHINE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>NATIVE</code>
 </summary>
 
 

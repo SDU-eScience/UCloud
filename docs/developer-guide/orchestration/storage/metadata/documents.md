@@ -3,46 +3,154 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#browse'><code>browse</code></a></td>
+<td>Browses metadata documents</td>
+</tr>
+<tr>
+<td><a href='#retrieveall'><code>retrieveAll</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#approve'><code>approve</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#create'><code>create</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#delete'><code>delete</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#movemetadata'><code>moveMetadata</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#reject'><code>reject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#filemetadatadocument'><code>FileMetadataDocument</code></a></td>
+<td>A metadata document which conforms to a `FileMetadataTemplate`</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.spec'><code>FileMetadataDocument.Spec</code></a></td>
+<td>Specification of a FileMetadataDocument</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.status'><code>FileMetadataDocument.Status</code></a></td>
+<td>The current status of a metadata document</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.approvalstatus'><code>FileMetadataDocument.ApprovalStatus</code></a></td>
+<td>The approval status of a metadata document</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.approvalstatus.approved'><code>FileMetadataDocument.ApprovalStatus.Approved</code></a></td>
+<td>The metadata change has been approved by an admin in the workspace</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.approvalstatus.pending'><code>FileMetadataDocument.ApprovalStatus.Pending</code></a></td>
+<td>The metadata document has not yet been approved</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.approvalstatus.rejected'><code>FileMetadataDocument.ApprovalStatus.Rejected</code></a></td>
+<td>The metadata document has been rejected by an admin of the workspace</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadocument.approvalstatus.notrequired'><code>FileMetadataDocument.ApprovalStatus.NotRequired</code></a></td>
+<td>The metadata document does not require approval</td>
+</tr>
+<tr>
+<td><a href='#filemetadataattached'><code>FileMetadataAttached</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadatatemplate'><code>FileMetadataTemplate</code></a></td>
+<td>A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`</td>
+</tr>
+<tr>
+<td><a href='#filemetadatatemplatenamespacetype'><code>FileMetadataTemplateNamespaceType</code></a></td>
+<td>Determines how the metadata template is namespaces</td>
+</tr>
+<tr>
+<td><a href='#filemetadataaddrequestitem'><code>FileMetadataAddRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadatabrowserequest'><code>FileMetadataBrowseRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#filemetadatadeleterequestitem'><code>FileMetadataDeleteRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadatamoverequestitem'><code>FileMetadataMoveRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadataretrieveallrequest'><code>FileMetadataRetrieveAllRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filemetadataretrieveallresponse'><code>FileMetadataRetrieveAllResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `create`
+### `browse`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Browses metadata documents_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadataaddrequestitem'>FileMetadataAddRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#filemetadatabrowserequest'>FileMetadataBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#filemetadataattached'>FileMetadataAttached</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-
-
-### `moveMetadata`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadatamoverequestitem'>FileMetadataMoveRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `delete`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadatadeleterequestitem'>FileMetadataDeleteRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
+Browses in all accessible metadata documents of a user. These are potentially filtered via the flags
+provided in the request, such as filtering for specific templates. This endpoint should consider any
+`FileCollection` that the user has access to in the currently active project. Note that this endpoint
+can only return information about the metadata documents and not the file contents itself. Clients
+should generally present the output of this has purely metadata documents, they can link to the real
+files if needed. This should eventually result in either a `browse` or `retrieve` call in the files API.
 
 
 ### `retrieveAll`
@@ -71,6 +179,45 @@
 
 
 
+### `create`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadataaddrequestitem'>FileMetadataAddRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `delete`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadatadeleterequestitem'>FileMetadataDeleteRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `moveMetadata`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filemetadatamoverequestitem'>FileMetadataMoveRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `reject`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -82,26 +229,6 @@
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-
-
-### `browse`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Browses metadata documents_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#filemetadatabrowserequest'>FileMetadataBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#filemetadataattached'>FileMetadataAttached</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Browses in all accessible metadata documents of a user. These are potentially filtered via the flags
-provided in the request, such as filtering for specific templates. This endpoint should consider any
-`FileCollection` that the user has access to in the currently active project. Note that this endpoint
-can only return information about the metadata documents and not the file contents itself. Clients
-should generally present the output of this has purely metadata documents, they can link to the real
-files if needed. This should eventually result in either a `browse` or `retrieve` call in the files API.
 
 
 

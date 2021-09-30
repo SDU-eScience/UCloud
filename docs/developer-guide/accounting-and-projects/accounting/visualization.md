@@ -3,21 +3,91 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#retrievebreakdown'><code>retrieveBreakdown</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveusage'><code>retrieveUsage</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#breakdownchart'><code>BreakdownChart</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#linechart'><code>LineChart</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#linechart.line'><code>LineChart.Line</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#linechart.point'><code>LineChart.Point</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#piechart'><code>PieChart</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#piechart.point'><code>PieChart.Point</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#usagechart'><code>UsageChart</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#visualizationretrievebreakdownrequest'><code>VisualizationRetrieveBreakdownRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#visualizationretrieveusagerequest'><code>VisualizationRetrieveUsageRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#visualizationretrievebreakdownresponse'><code>VisualizationRetrieveBreakdownResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#visualizationretrieveusageresponse'><code>VisualizationRetrieveUsageResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
-
-### `retrieveUsage`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#visualizationretrieveusagerequest'>VisualizationRetrieveUsageRequest</a></code>|<code><a href='#visualizationretrieveusageresponse'>VisualizationRetrieveUsageResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
 
 ### `retrieveBreakdown`
 
@@ -29,6 +99,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#visualizationretrievebreakdownrequest'>VisualizationRetrieveBreakdownRequest</a></code>|<code><a href='#visualizationretrievebreakdownresponse'>VisualizationRetrieveBreakdownResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveUsage`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#visualizationretrieveusagerequest'>VisualizationRetrieveUsageRequest</a></code>|<code><a href='#visualizationretrieveusageresponse'>VisualizationRetrieveUsageResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

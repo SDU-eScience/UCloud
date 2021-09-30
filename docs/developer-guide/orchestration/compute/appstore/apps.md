@@ -3,36 +3,373 @@
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#advancedsearch'><code>advancedSearch</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#create'><code>create</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbyname'><code>findByName</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbynameandversion'><code>findByNameAndVersion</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbysupportedfileextension'><code>findBySupportedFileExtension</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findlatestbytool'><code>findLatestByTool</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#haspermission'><code>hasPermission</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ispublic'><code>isPublic</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listacl'><code>listAcl</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listall'><code>listAll</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievefavorites'><code>retrieveFavorites</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#searchapps'><code>searchApps</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#searchtags'><code>searchTags</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#clearlogo'><code>clearLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createtag'><code>createTag</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#delete'><code>delete</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#removetag'><code>removeTag</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#setpublic'><code>setPublic</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#togglefavorite'><code>toggleFavorite</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateacl'><code>updateAcl</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#data-models'>2. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#accessentity'><code>AccessEntity</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appparametervalue'><code>AppParameterValue</code></a></td>
+<td>An `AppParameterValue` is value which is supplied to a parameter of an `Application`.</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.blockstorage'><code>AppParameterValue.BlockStorage</code></a></td>
+<td>A reference to block storage (Not yet implemented)</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.bool'><code>AppParameterValue.Bool</code></a></td>
+<td>A boolean value (true or false)</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.file'><code>AppParameterValue.File</code></a></td>
+<td>A reference to a UCloud file</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.floatingpoint'><code>AppParameterValue.FloatingPoint</code></a></td>
+<td>A floating point value</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.ingress'><code>AppParameterValue.Ingress</code></a></td>
+<td>A reference to an HTTP ingress, registered locally at the provider</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.integer'><code>AppParameterValue.Integer</code></a></td>
+<td>An integral value</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.license'><code>AppParameterValue.License</code></a></td>
+<td>A reference to a software license, registered locally at the provider</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.network'><code>AppParameterValue.Network</code></a></td>
+<td>A reference to block storage (Not yet implemented)</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.peer'><code>AppParameterValue.Peer</code></a></td>
+<td>A reference to a separate UCloud `Job`</td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.text'><code>AppParameterValue.Text</code></a></td>
+<td>A textual value</td>
+</tr>
+<tr>
+<td><a href='#application'><code>Application</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationaccessright'><code>ApplicationAccessRight</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationinvocationdescription'><code>ApplicationInvocationDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationmetadata'><code>ApplicationMetadata</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter'><code>ApplicationParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.bool'><code>ApplicationParameter.Bool</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.enumoption'><code>ApplicationParameter.EnumOption</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.enumeration'><code>ApplicationParameter.Enumeration</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.floatingpoint'><code>ApplicationParameter.FloatingPoint</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.ingress'><code>ApplicationParameter.Ingress</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.inputdirectory'><code>ApplicationParameter.InputDirectory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.inputfile'><code>ApplicationParameter.InputFile</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.integer'><code>ApplicationParameter.Integer</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.licenseserver'><code>ApplicationParameter.LicenseServer</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.networkip'><code>ApplicationParameter.NetworkIP</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.peer'><code>ApplicationParameter.Peer</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.text'><code>ApplicationParameter.Text</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationsummarywithfavorite'><code>ApplicationSummaryWithFavorite</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationtype'><code>ApplicationType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationwithextension'><code>ApplicationWithExtension</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationwithfavoriteandtags'><code>ApplicationWithFavoriteAndTags</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#booleanflagparameter'><code>BooleanFlagParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#containerdescription'><code>ContainerDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#detailedaccessentity'><code>DetailedAccessEntity</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#detailedentitywithpermission'><code>DetailedEntityWithPermission</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#environmentvariableparameter'><code>EnvironmentVariableParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findapplicationandoptionaldependencies'><code>FindApplicationAndOptionalDependencies</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findbysupportedfileextension'><code>FindBySupportedFileExtension</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#invocationparameter'><code>InvocationParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#project'><code>Project</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#toolreference'><code>ToolReference</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#variableinvocationparameter'><code>VariableInvocationParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#vncdescription'><code>VncDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#webdescription'><code>WebDescription</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#wordinvocationparameter'><code>WordInvocationParameter</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#aclentryrequest'><code>ACLEntryRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#advancedsearchrequest'><code>AdvancedSearchRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appsearchrequest'><code>AppSearchRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createtagsrequest'><code>CreateTagsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deleteapprequest'><code>DeleteAppRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#favoriterequest'><code>FavoriteRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#findlatestbytoolrequest'><code>FindLatestByToolRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#haspermissionrequest'><code>HasPermissionRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ispublicrequest'><code>IsPublicRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#listaclrequest'><code>ListAclRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#setpublicrequest'><code>SetPublicRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#tagsearchrequest'><code>TagSearchRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateaclrequest'><code>UpdateAclRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ispublicresponse'><code>IsPublicResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Remote Procedure Calls
 
-### `toggleFavorite`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#favoriterequest'>FavoriteRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieveFavorites`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `searchTags`
+### `advancedSearch`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
 ![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
@@ -41,20 +378,33 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#tagsearchrequest'>TagSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#advancedsearchrequest'>AdvancedSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `searchApps`
+### `create`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#appsearchrequest'>AppSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `fetchLogo`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.FetchLogoRequest.md'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -71,45 +421,6 @@
 
 
 
-### `isPublic`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#ispublicrequest'>IsPublicRequest</a></code>|<code><a href='#ispublicresponse'>IsPublicResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `setPublic`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#setpublicrequest'>SetPublicRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `advancedSearch`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#advancedsearchrequest'>AdvancedSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `findByNameAndVersion`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
@@ -120,45 +431,6 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#findapplicationandoptionaldependencies'>FindApplicationAndOptionalDependencies</a></code>|<code><a href='#applicationwithfavoriteandtags'>ApplicationWithFavoriteAndTags</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `hasPermission`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#haspermissionrequest'>HasPermissionRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `listAcl`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#listaclrequest'>ListAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#detailedentitywithpermission'>DetailedEntityWithPermission</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `updateAcl`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#updateaclrequest'>UpdateAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -188,6 +460,45 @@
 
 
 
+### `hasPermission`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#haspermissionrequest'>HasPermissionRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `isPublic`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#ispublicrequest'>IsPublicRequest</a></code>|<code><a href='#ispublicresponse'>IsPublicResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `listAcl`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#listaclrequest'>ListAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#detailedentitywithpermission'>DetailedEntityWithPermission</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `listAll`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
@@ -201,68 +512,42 @@
 
 
 
-### `create`
+### `retrieveFavorites`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `delete`
+### `searchApps`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)
+![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#deleteapprequest'>DeleteAppRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appsearchrequest'>AppSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `createTag`
+### `searchTags`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `removeTag`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `uploadLogo`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest.md'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#tagsearchrequest'>TagSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -279,16 +564,94 @@
 
 
 
-### `fetchLogo`
+### `createTag`
 
 ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.FetchLogoRequest.md'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `delete`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#deleteapprequest'>DeleteAppRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `removeTag`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `setPublic`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#setpublicrequest'>SetPublicRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `toggleFavorite`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#favoriterequest'>FavoriteRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateAcl`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#updateaclrequest'>UpdateAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `uploadLogo`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest.md'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

@@ -3,6 +3,106 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+## Table of Contents
+<details>
+<summary>
+<a href='#data-models'>1. Data Models</a>
+</summary>
+
+<table><thead><tr>
+<th>Name</th>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr>
+<td><a href='#resolvedsupport'><code>ResolvedSupport</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#resourcechargecredits'><code>ResourceChargeCredits</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sortdirection'><code>SortDirection</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#supportbyprovider'><code>SupportByProvider</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobupdate'><code>JobUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#filecollection.update'><code>FileCollection.Update</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#filemetadatatemplatenamespace.update'><code>FileMetadataTemplateNamespace.Update</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#share.update'><code>Share.Update</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#aclentity'><code>AclEntity</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#aclentity.projectgroup'><code>AclEntity.ProjectGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#aclentity.user'><code>AclEntity.User</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#permission'><code>Permission</code></a></td>
+<td>Base type for all permissions of the UCloud authorization model</td>
+</tr>
+<tr>
+<td><a href='#providerupdate'><code>ProviderUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#resourceaclentry'><code>ResourceAclEntry</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#resourceupdate'><code>ResourceUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#resourceupdateandid'><code>ResourceUpdateAndId</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updatedaclwithresource'><code>UpdatedAclWithResource</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#resourcebrowserequest'><code>ResourceBrowseRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#resourceretrieverequest'><code>ResourceRetrieveRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#resourcesearchrequest'><code>ResourceSearchRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#resourcechargecreditsresponse'><code>ResourceChargeCreditsResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+</tbody></table>
+
+
+</details>
+
 
 ## Data Models
 
