@@ -1,14 +1,50 @@
 # Jobs
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 
+_Jobs in UCloud are the core abstraction used to describe units of computation._
+
+## Rationale
+
+
+The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
+in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
+['nodes'](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md). The type of applications determine
+what the job does:
+ 
+- __Batch__ applications provide support for long running computational workloads (typically containerized)
+- __Web__ applications provide support for applications which expose a graphical web-interface
+- __VNC__ applications provide support for interactive remote desktop workloads
+- __Virtual machine__ applications provide support for more advanced workloads which aren't easily
+  containerized or require special privileges
+
+Every [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is created from a [`specification`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobSpecification.md). The specification
+contains [input parameters](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md), such as files
+and application flags, and additional resources. Zero or more resources can be connected to an application,
+and provide services such as:
+
+- Networking between multiple [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s
+- [Storage](/docs/developer-guide/orchestration/storage/files.md)
+- [Public links](/docs/developer-guide/orchestration/compute/ingress.md)
+- [Public IPs](/docs/developer-guide/orchestration/compute/ips.md)
+- [Software licenses](/docs/developer-guide/orchestration/compute/license.md)
+
+---
+
+__📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+
+| End-User | Provider (Ingoing) | Control (Outgoing) |
+|----------|--------------------|--------------------|
+| [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) | [`JobsProvider`](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md) | [`JobsControl`](/docs/developer-guide/orchestration/compute/providers/jobs/outgoing.md) |
+
+---
 
 
 ## Remote Procedure Calls
 
-### `delete`
+### `terminate`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -29,21 +65,23 @@ be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jo
 
 ### `retrieveUtilization`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
-_Retrieve utilization information from cluster_
+_Retrieve information about how busy the provider's cluster currently is_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#jobsretrieveutilizationrequest'>JobsRetrieveUtilizationRequest</a></code>|<code><a href='#jobsretrieveutilizationresponse'>JobsRetrieveUtilizationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint will return information about how busy a cluster is. This endpoint is only used for
+informational purposes. UCloud does not use this information for any accounting purposes.
 
 
 ### `follow`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -53,11 +91,18 @@ _Follow the progress of a job_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#jobsfollowresponse'>JobsFollowResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Opens a WebSocket subscription to receive updates about a job. These updates include:
+
+- Messages from the provider. For example an update describing state changes or future maintenance.
+- State changes from UCloud. For example transition from [`IN_QUEUE`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md) to
+  [`RUNNING`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
+- If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
+
 
 
 ### `extend`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -84,7 +129,7 @@ more jobs after the first failure.
 
 ### `suspend`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -101,7 +146,7 @@ without deleting any data.
 
 ### `openInteractiveSession`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -114,7 +159,7 @@ without deleting any data.
 
 ### `create`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -127,7 +172,7 @@ without deleting any data.
 
 ### `search`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -140,7 +185,7 @@ without deleting any data.
 
 ### `browse`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -153,7 +198,7 @@ without deleting any data.
 
 ### `retrieve`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -166,7 +211,7 @@ without deleting any data.
 
 ### `retrieveProducts`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
@@ -179,7 +224,7 @@ without deleting any data.
 
 ### `updateAcl`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 

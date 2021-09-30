@@ -481,13 +481,45 @@ sealed class OpenSession {
     ) : OpenSession()
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus, Product.Compute,
     ComputeSupport>("jobs") {
     init {
         title = "Jobs"
         description = """
-            This is a test description
+            Jobs in UCloud are the core abstraction used to describe units of computation.
+            
+            The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
+            in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
+            ['nodes']($TYPE_REF_LINK dk.sdu.cloud.accounting.api.Product.Compute). The type of applications determine
+            what the job does:
+             
+            - __Batch__ applications provide support for long running computational workloads (typically containerized)
+            - __Web__ applications provide support for applications which expose a graphical web-interface
+            - __VNC__ applications provide support for interactive remote desktop workloads
+            - __Virtual machine__ applications provide support for more advanced workloads which aren't easily
+              containerized or require special privileges
+            
+            Every $TYPE_REF Job is created from a [`specification`]($TYPE_REF_LINK JobSpecification). The specification
+            contains [input parameters]($TYPE_REF_LINK dk.sdu.cloud.app.store.api.ApplicationParameter), such as files
+            and application flags, and additional resources. Zero or more resources can be connected to an application,
+            and provide services such as:
+            
+            - Networking between multiple $TYPE_REF Job s
+            - [Storage](/docs/developer-guide/orchestration/storage/files.md)
+            - [Public links](/docs/developer-guide/orchestration/compute/ingress.md)
+            - [Public IPs](/docs/developer-guide/orchestration/compute/ips.md)
+            - [Software licenses](/docs/developer-guide/orchestration/compute/license.md)
+            
+            ---
+
+            __📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+
+            | End-User | Provider (Ingoing) | Control (Outgoing) |
+            |----------|--------------------|--------------------|
+            | [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) | [`JobsProvider`](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md) | [`JobsControl`](/docs/developer-guide/orchestration/compute/providers/jobs/outgoing.md) |
+
+            ---
         """.trimIndent()
 
         serializerLookupTable = mapOf(
@@ -501,11 +533,19 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport>()
 
+    override fun documentation() {
+        document(create, UCloudApiDocC(
+            """
+                
+            """
+        ))
+    }
+
     override val create get() = super.create!!
     override val delete: Nothing? = null
     override val search get() = super.search!!
 
-    val terminate = call<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>("delete") {
+    val terminate = call<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>("terminate") {
         httpUpdate(baseContext, "terminate")
 
         documentation {
@@ -528,7 +568,11 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         httpRetrieve(baseContext, "utilization")
 
         documentation {
-            summary = "Retrieve utilization information from cluster"
+            summary = "Retrieve information about how busy the provider's cluster currently is"
+            description = """
+                This endpoint will return information about how busy a cluster is. This endpoint is only used for
+                informational purposes. UCloud does not use this information for any accounting purposes.
+            """.trimIndent()
         }
     }
 
@@ -538,6 +582,15 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
 
         documentation {
             summary = "Follow the progress of a job"
+            description = """
+                Opens a WebSocket subscription to receive updates about a job. These updates include:
+                
+                - Messages from the provider. For example an update describing state changes or future maintenance.
+                - State changes from UCloud. For example transition from [`IN_QUEUE`]($TYPE_REF_LINK JobState) to
+                  [`RUNNING`]($TYPE_REF_LINK JobState).
+                - If supported by the provider, `stdout` and `stderr` from the $TYPE_REF Job
+                
+            """.trimIndent()
         }
     }
 
@@ -547,20 +600,20 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         documentation {
             summary = "Extend the duration of one or more jobs"
             description = """
-                    This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
-                    the current deadline of a job. Note that not all providers support this features. Providers which
-                    do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
-                    when not supported it will send back a 400 bad request.
-                    
-                    This call makes no guarantee that all jobs are extended in a single transaction. If the provider
-                    supports it, then all requests made against a single provider should be made in a single transaction.
-                    Clients can determine if their extension request against a specific target was successful by checking
-                    if the time remaining of the job has been updated.
-                    
-                    This call will return 2XX if all jobs have successfully been extended. The job will fail with a
-                    status code from the provider one the first extension which fails. UCloud will not attempt to extend
-                    more jobs after the first failure.
-                """.trimIndent()
+                This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
+                the current deadline of a job. Note that not all providers support this features. Providers which
+                do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
+                when not supported it will send back a 400 bad request.
+                
+                This call makes no guarantee that all jobs are extended in a single transaction. If the provider
+                supports it, then all requests made against a single provider should be made in a single transaction.
+                Clients can determine if their extension request against a specific target was successful by checking
+                if the time remaining of the job has been updated.
+                
+                This call will return 2XX if all jobs have successfully been extended. The job will fail with a
+                status code from the provider one the first extension which fails. UCloud will not attempt to extend
+                more jobs after the first failure.
+            """.trimIndent()
         }
     }
 
@@ -570,10 +623,10 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         documentation {
             summary = "Suspend a job"
             description = """
-                    Suspends the job, putting it in a paused state. Not all compute backends support this operation.
-                    For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
-                    without deleting any data.
-                """.trimIndent()
+                Suspends the job, putting it in a paused state. Not all compute backends support this operation.
+                For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
+                without deleting any data.
+            """.trimIndent()
         }
     }
 
