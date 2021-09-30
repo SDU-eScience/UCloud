@@ -181,13 +181,6 @@ suspend fun main(args: Array<String>) {
                 userClient
             ).orThrow()
 
-            val cephfs = File("/mnt/cephfs")
-            if (cephfs.exists()) {
-                File(cephfs, "projects").mkdirs()
-                File(cephfs, "home").mkdirs()
-                File(cephfs, "collections").mkdirs()
-            }
-
             File(configDir, "ucloud-compute-config.yaml").writeText(
                 """
                     app:
