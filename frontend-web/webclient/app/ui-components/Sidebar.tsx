@@ -100,11 +100,11 @@ export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "24", space = "22px", textSize = 3, hover = true
 }: TextLabelProps): JSX.Element => (
-        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
-            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-            <Text fontSize={textSize}> {children} </Text>
-        </SidebarElementContainer>
-    );
+    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
+        <Text fontSize={textSize}> {children} </Text>
+    </SidebarElementContainer>
+);
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
@@ -132,7 +132,7 @@ interface SidebarElement {
 }
 
 const SidebarElement = ({icon, label, to, activePage}: SidebarElement): JSX.Element => (
-    <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
+    <SidebarLink to={to} active={enumToLabel(activePage) === label}>
         <SidebarTextLabel icon={icon}>{label}</SidebarTextLabel>
     </SidebarLink>
 );
@@ -155,6 +155,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Activity";
         case SidebarPages.Admin:
             return "Admin";
+        case SidebarPages.Resources:
+            return "Resources";
         default:
             return "";
     }
@@ -188,8 +190,9 @@ export const sideBarMenuElements: {
     general: {
         items: [
             {icon: "files", label: "Files", to: "/drives"},
-            {icon: "projects", label: "Projects", to: "/projects", show: (): boolean => Client.hasActiveProject},
-            {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
+            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
+            {icon: "dashboard", label: "Resources", to: "/public-ips"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/jobs"}
         ], predicate: () => Client.isLoggedIn
@@ -236,7 +239,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         "/"
     );
     const copyProjectPath = useCallback(() => {
-        copyToClipboard({ value: projectPath, message: "Project copied to clipboard!" });
+        copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
     }, [projectPath]);
 
     const sidebar = Object.keys(sideBarEntries)
@@ -277,10 +280,10 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         Open debugger
                     </Box>
                 </SidebarTextLabel>
-            </>: null}
+            </> : null}
             {!projectId ? null : <>
                 <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
-                                  title={projectPath}>
+                    title={projectPath}>
                     <Tooltip
                         left="-50%"
                         top="1"
@@ -368,6 +371,7 @@ export const enum SidebarPages {
     Shares,
     Projects,
     AppStore,
+    Resources,
     Runs,
     Publish,
     Activity,
@@ -382,7 +386,7 @@ export function useSidebarPage(page: SidebarPages): void {
         return () => {
             dispatch(setActivePage(SidebarPages.None));
         };
-    });
+    }, [page]);
 }
 
-export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);
+export default connect(mapStateToProps)(Sidebar);

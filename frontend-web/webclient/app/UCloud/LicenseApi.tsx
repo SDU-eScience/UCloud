@@ -14,8 +14,7 @@ import {JobBinding} from "@/UCloud/JobsApi";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductLicense} from "@/Accounting";
 
-export interface LicenseSpecification extends ResourceSpecification {
-}
+export type LicenseSpecification = ResourceSpecification;
 
 export type LicenseState = "READY" | "PREPARING" | "UNAVAILABLE";
 
@@ -44,7 +43,7 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";
-    page = SidebarPages.Runs;
+    page = SidebarPages.Resources;
     productType = "LICENSE" as const;
 
     renderer: ItemRenderer<License> = {
