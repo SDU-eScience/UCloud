@@ -41,7 +41,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
 import * as Pagination from "@/Pagination";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import ReactDatePicker from "react-datepicker";
 import {enGB} from "date-fns/locale";

@@ -7,7 +7,7 @@ import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useState} from "react";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
