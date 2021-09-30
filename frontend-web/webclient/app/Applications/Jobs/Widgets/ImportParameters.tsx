@@ -1,19 +1,13 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import * as ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon, Label} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
-import BaseLink from "@/ui-components/BaseLink";
-import {
-    getFilenameFromPath
-} from "@/Utilities/FileUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {emptyPage} from "@/DefaultObjects";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
