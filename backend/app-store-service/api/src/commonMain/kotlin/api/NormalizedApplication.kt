@@ -57,8 +57,8 @@ data class ApplicationInvocationDescription(
     val web: WebDescription? = null,
     val container: ContainerDescription? = null,
     val environment: Map<String, InvocationParameter>? = null,
-    private val allowAdditionalMounts: Boolean? = null,
-    private val allowAdditionalPeers: Boolean? = null,
+    internal val allowAdditionalMounts: Boolean? = null,
+    internal val allowAdditionalPeers: Boolean? = null,
     val allowMultiNode: Boolean = false,
     val fileExtensions: List<String> = emptyList(),
     val licenseServers: List<String> = emptyList()

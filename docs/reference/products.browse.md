@@ -4,9 +4,18 @@
 ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
 
 
+_Browse a set of products_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+
+__Examples:__
+
+| Example |
+|---------|
+| [Browse in the full product catalogue](/docs/reference/products_browse.md) |
+| [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
 

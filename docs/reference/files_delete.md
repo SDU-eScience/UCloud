@@ -79,12 +79,14 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
 #         }
 #     ]
 # }
+
 ```
 
 

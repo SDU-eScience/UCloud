@@ -29,7 +29,7 @@ fun badge(
     color: String,
     altText: String = "$label: $message",
 ): String {
-    return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
+    return "![$altText](https://img.shields.io/static/v1?label=$label&message=${message.replace(" ", "+")}&color=$color&style=flat-square)"
 }
 
 fun apiMaturityBadge(level: UCloudApiMaturity): String {

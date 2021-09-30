@@ -193,7 +193,8 @@ await callAPI(FilesApi.browse(
 # $accessToken is a valid access-token issued by UCloud
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includePermissions=null&includeTimestamps=true&includeSizes=null&includeUnixInfo=null&includeMetadata=null&filterCreatedBy=null&filterCreatedAfter=null&filterCreatedBefore=null&filterProvider=null&filterProductId=null&filterProductCategory=null&filterProviderIds=null&path=null&allowUnsupportedInclude=null&filterHiddenFiles=false&filterIds=null&itemsPerPage=null&next=null&consistency=null&itemsToSkip=null&sortBy=null&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 
+
 # {
 #     "itemsPerPage": 50,
 #     "items": [
@@ -236,6 +237,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #     ],
 #     "next": null
 # }
+
 ```
 
 

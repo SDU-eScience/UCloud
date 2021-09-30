@@ -131,6 +131,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -138,6 +139,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 ```
 
 
@@ -241,6 +243,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -248,6 +251,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 ```
 
 
@@ -357,6 +361,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -366,7 +371,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 # The user can now proceed to upload using the chunked protocol at the provided endpoint
+
 ```
 
 
@@ -458,6 +465,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -465,7 +473,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 # The user can now download the file through normal HTTP(s) GET at the provided endpoint
+
 ```
 
 
@@ -559,6 +569,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -566,6 +577,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 ```
 
 
@@ -669,6 +681,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -679,6 +692,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 ```
 
 
@@ -879,7 +893,8 @@ await callAPI(FilesApi.browse(
 # $accessToken is a valid access-token issued by UCloud
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includePermissions=null&includeTimestamps=true&includeSizes=null&includeUnixInfo=null&includeMetadata=null&filterCreatedBy=null&filterCreatedAfter=null&filterCreatedBefore=null&filterProvider=null&filterProductId=null&filterProductCategory=null&filterProviderIds=null&path=null&allowUnsupportedInclude=null&filterHiddenFiles=false&filterIds=null&itemsPerPage=null&next=null&consistency=null&itemsToSkip=null&sortBy=null&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 
+
 # {
 #     "itemsPerPage": 50,
 #     "items": [
@@ -922,6 +937,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #     ],
 #     "next": null
 # }
+
 ```
 
 
@@ -1102,7 +1118,8 @@ await callAPI(FilesApi.retrieve(
 # $accessToken is a valid access-token issued by UCloud
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includePermissions=null&includeTimestamps=true&includeSizes=null&includeUnixInfo=null&includeMetadata=null&filterCreatedBy=null&filterCreatedAfter=null&filterCreatedBefore=null&filterProvider=null&filterProductId=null&filterProductCategory=null&filterProviderIds=null&path=null&allowUnsupportedInclude=null&filterHiddenFiles=false&filterIds=null&id=/123/folder" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&id=/123/folder" 
+
 # {
 #     "id": "/123/folder",
 #     "specification": {
@@ -1139,6 +1156,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #     "updates": [
 #     ]
 # }
+
 ```
 
 
@@ -1225,12 +1243,14 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
 #         }
 #     ]
 # }
+
 ```
 
 
@@ -1397,6 +1417,7 @@ await callAPI(FilesApi.retrieveProducts(
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProducts" 
+
 # {
 #     "productsByProvider": {
 #         "ucloud": [
@@ -1450,6 +1471,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #         ]
 #     }
 # }
+
 ```
 
 

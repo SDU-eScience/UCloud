@@ -173,7 +173,8 @@ await callAPI(FilesApi.retrieve(
 # $accessToken is a valid access-token issued by UCloud
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includePermissions=null&includeTimestamps=true&includeSizes=null&includeUnixInfo=null&includeMetadata=null&filterCreatedBy=null&filterCreatedAfter=null&filterCreatedBefore=null&filterProvider=null&filterProductId=null&filterProductCategory=null&filterProviderIds=null&path=null&allowUnsupportedInclude=null&filterHiddenFiles=false&filterIds=null&id=/123/folder" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&id=/123/folder" 
+
 # {
 #     "id": "/123/folder",
 #     "specification": {
@@ -210,6 +211,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #     "updates": [
 #     ]
 # }
+
 ```
 
 

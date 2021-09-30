@@ -40,9 +40,6 @@ fun UseCase.curl(): String {
                         lastActor = node.actor.name
                     }
 
-                    if (node.name != null) {
-                        appendLine("# ${node.name} = ")
-                    }
                     append("curl ")
                     append("-X${http.method.value.uppercase()} ")
 
@@ -57,9 +54,9 @@ fun UseCase.curl(): String {
                     if (http.params != null) {
                         fun encodeElement(name: String, element: JsonElement): Map<String, String> {
                             return when (element) {
-                                is JsonPrimitive -> mapOf(name to element.content.encodeURLQueryComponent())
-
                                 JsonNull -> emptyMap()
+
+                                is JsonPrimitive -> mapOf(name to element.content.encodeURLQueryComponent())
 
                                 is JsonObject -> {
                                     element.entries.map {
@@ -98,11 +95,11 @@ fun UseCase.curl(): String {
                     }
 
                     appendLine()
+                    appendLine()
+
 
                     if (node.name != null) {
-                        append("# ")
-                        append(node.name)
-                        append(" = ")
+                        appendLine("# ${node.name} = ")
                     }
                     when (val response = node.response) {
                         is IngoingCallResponse.Error -> {
@@ -114,9 +111,11 @@ fun UseCase.curl(): String {
                                 .lines().forEach { appendLine("# $it") }
                         }
                     }
+                    appendLine()
                 }
                 is UseCaseNode.Comment -> {
                     node.comment.lines().forEach { appendLine("# $it") }
+                    appendLine()
                 }
                 is UseCaseNode.SourceCode -> {
                     // Do nothing

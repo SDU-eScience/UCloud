@@ -84,6 +84,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -91,7 +92,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 # The user can now download the file through normal HTTP(s) GET at the provided endpoint
+
 ```
 
 

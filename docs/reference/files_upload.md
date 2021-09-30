@@ -102,6 +102,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     ]
 }'
 
+
 # {
 #     "responses": [
 #         {
@@ -111,7 +112,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
+
 # The user can now proceed to upload using the chunked protocol at the provided endpoint
+
 ```
 
 

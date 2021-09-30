@@ -1,13 +1,13 @@
 package dk.sdu.cloud.app.orchestrator.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
@@ -533,12 +533,139 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport>()
 
+    private const val createUseCase = "create"
+
     override fun documentation() {
-        document(create, UCloudApiDocC(
-            """
-                
-            """
-        ))
+        useCase(
+            createUseCase,
+            "Creating a simple batch job",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "User has been granted credits for using the selected machine"
+            ),
+            postConditions = listOf(
+                "A Job is started in the user's workspace"
+            ),
+            flow = {
+                val user = basicUser()
+
+                comment("The user finds an interesting application from the catalogue")
+
+                val metadata = ApplicationMetadata(
+                    "a-batch-application",
+                    version = "1.0.0",
+                    authors = listOf("UCloud"),
+                    title = "A Batch Application",
+                    description = "This is a batch application",
+                    public = true
+                )
+                val tags = listOf("very-scientific")
+                val favorite = false
+                success(
+                    AppStore.listAll,
+                    PaginationRequest(50, 0),
+                    Page(
+                        1,
+                        50,
+                        0,
+                        listOf(
+                            ApplicationSummaryWithFavorite(
+                                metadata,
+                                favorite,
+                                tags
+                            ),
+                        )
+                    ),
+                    user,
+                    "applications"
+                )
+
+                comment("The user selects the first application ('batch' in version '1.0.0')")
+                comment("The user requests additional information about the application")
+
+                success(
+                    AppStore.findByNameAndVersion,
+                    FindApplicationAndOptionalDependencies("a-batch-application", "1.0.0"),
+                    ApplicationWithFavoriteAndTags(
+                        metadata,
+                        ApplicationInvocationDescription(
+                            ToolReference("batch-tool", "1.0.0", Tool(
+                                "user",
+                                1632979836013,
+                                1632979836013,
+                                NormalizedToolDescription(
+                                    NameAndVersion("batch-tool", "1.0.0"),
+                                    null,
+                                    1,
+                                    SimpleDuration(1, 0, 0),
+                                    emptyList(),
+                                    listOf("UCloud"),
+                                    "Batch tool",
+                                    "Batch tool",
+                                    ToolBackend.DOCKER,
+                                    "None",
+                                    "dreg.cloud.sdu.dk/batch/batch:1.0.0"
+                                )
+                            )),
+                            listOf(
+                                WordInvocationParameter("batch"),
+                                VariableInvocationParameter(listOf("var"))
+                            ),
+                            listOf(
+                                ApplicationParameter.Text("var", description = "An example input variable")
+                            ),
+                            listOf("*")
+                        ),
+                        favorite,
+                        tags,
+                    ),
+                    user,
+                    "application"
+                )
+
+                comment("The user looks for a suitable machine")
+
+                success(
+                    Products.browse,
+                    ProductsBrowseRequest(itemsPerPage = 50, filterArea = ProductType.COMPUTE),
+                    ProductsBrowseResponse(
+                        50,
+                        listOf(
+                            Product.Compute(
+                                "example-compute",
+                                1_000_000,
+                                ProductCategoryId("example-compute", "example"),
+                                "An example compute product",
+                                cpu = 10,
+                                memoryInGigs = 20,
+                                gpu = 0,
+                                unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
+                            ),
+                        ),
+                        null
+                    ),
+                    user,
+                    "machineTypes"
+                )
+
+                comment("The user starts the Job with input based on previous requests")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion(metadata.name, metadata.version),
+                            ProductReference("example-compute", "example-compute", "example"),
+                            parameters = mapOf(
+                                "var" to AppParameterValue.Text("Example")
+                            )
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("48920"))),
+                    user
+                )
+            }
+        )
     }
 
     override val create get() = super.create!!

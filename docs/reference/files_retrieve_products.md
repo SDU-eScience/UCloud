@@ -159,6 +159,7 @@ await callAPI(FilesApi.retrieveProducts(
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProducts" 
+
 # {
 #     "productsByProvider": {
 #         "ucloud": [
@@ -212,6 +213,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #         ]
 #     }
 # }
+
 ```
 
 
