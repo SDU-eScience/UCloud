@@ -3,6 +3,7 @@ import {useAsyncCommand} from "@/Authentication/DataHook";
 import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
+import styled from "styled-components";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
@@ -51,12 +52,12 @@ export function MembersList(props: Readonly<{
                         <div>
                             <Text bold>{member.username}</Text>
                             {member.memberOfAnyGroup !== false ? null : (
-                                <Text color={"red"}>
-                                    <Icon name={"warning"} size={20} mr={"6px"} />
+                                <Text color="red">
+                                    <Icon name="warning" size={20} mr="6px" />
                                     Not a member of any group
                                 </Text>
                             )}
-                        </div>:
+                        </div> :
                         <div>
                             <Text bold>{member.username}</Text>
                             Invited to join
@@ -130,11 +131,13 @@ export function MembersList(props: Readonly<{
 
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
-                            <ConfirmationButton
-                                icon={"close"}
-                                actionText={"Remove"}
-                                onAction={() => props.onRemoveMember(member.username)}
-                            /> :
+                            <ConfirmationButtonStyling>
+                                <ConfirmationButton
+                                    icon={"close"}
+                                    actionText="Remove"
+                                    onAction={() => props.onRemoveMember(member.username)}
+                                />
+                            </ConfirmationButtonStyling> :
                             <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
@@ -162,3 +165,16 @@ function roleToIcon(role: ProjectRole): "user" | "userAdmin" | "userPi" {
             return "user";
     }
 }
+const ConfirmationButtonStyling = styled(Box)`
+    margin-left: 3px;
+ 
+    & > button {
+        min-width: 175px;
+        font-size: 12px;
+    }
+
+    & ${Icon} {
+        height: 12px;
+        width: 12px;
+    }
+`;
