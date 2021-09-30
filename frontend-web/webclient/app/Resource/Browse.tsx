@@ -324,15 +324,19 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
         props.showProduct]);
 
+    const pageSize = useRef(0);
+
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <>
-            <Spacer left={null} right={
-                <EnumFilterWidget
-                    expanded={false} propertyName="direction" title="Sort direction" facedownChevron
-                    id={0} onExpand={doNothing} properties={filters} options={sortDirections}
-                    onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
-                    icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
-                />
+            <Spacer left={null} right={pageSize.current > 0 ?
+                <Box width="160px">
+                    <EnumFilterWidget
+                        expanded={false} propertyName="direction" title="Sort direction" facedownChevron
+                        id={0} onExpand={doNothing} properties={filters} options={sortDirections}
+                        onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
+                        icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
+                    />
+                </Box> : <Box height="27px" />
             } />
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
@@ -379,8 +383,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }
 
     const main = !inlineInspecting ? <>
-        <StandardBrowse generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded} />
+        <StandardBrowse pageSizeRef={pageSize} generateCall={generateFetch} pageRenderer={pageRenderer}
+            reloadRef={reloadRef} setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
@@ -428,7 +432,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             }
         />
     }
-};
+}
 
 function UserBox(props: {username: string}) {
     const avatars = useAvatars();

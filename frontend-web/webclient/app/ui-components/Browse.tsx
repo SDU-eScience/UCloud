@@ -34,6 +34,7 @@ interface BrowseProps<T> {
     setRefreshFunction?: boolean;
     hide?: boolean;
     toggleSet?: ToggleSetHook<T>;
+    pageSizeRef?: React.MutableRefObject<number>;
 }
 
 export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
@@ -50,6 +51,10 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 
     const isLoading = hasPreloadedResources ? false : remoteResources.loading;
     if (props.loadingRef) props.loadingRef.current = isLoading;
+
+    if (props.pageSizeRef && !props.preloadedResources) {
+        props.pageSizeRef.current = remoteResources.data.items.length;
+    }
 
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
