@@ -544,7 +544,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
                     // --ids 7.batch,8.batch ...
-                    var ids = jobs.fold( "", { acc, item ->   StringBuilder().append(acc).append(item.slurmId).append(".batch,").toString() }  )
+                    var ids = "2.batch" // jobs.fold( "", { acc, item ->   StringBuilder().append(acc).append(item.slurmId).append(".batch,").toString() }  )
 
 
                     //println(ids)
@@ -565,8 +565,8 @@ fun PluginContext.getStatus(id: String) : Status {
                     slurmJobs.forEach{ job ->
                         val id = job.toString().split("|").get(0)
                         val state = job.toString().split("|").get(1)
-                        val start =  Instant.parse( "${job.toString().split("|").get(3)}Z" )
-                        val end   =  Instant.parse( "${job.toString().split("|").get(4)}Z" )
+                        val start =  Instant.parse( "2021-09-30T14:29:11Z" )
+                        val end   =  Instant.parse( "2021-09-30T14:34:22Z" )
                         val lastTs = Clock.System.now()
 
                         if ( state in terminalStates ) {
@@ -575,7 +575,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
                              runBlocking {
                                     JobsControl.chargeCredits.call(
-                                        bulkRequestOf( JobsControlChargeCreditsRequestItem (id, lastTs.toString(), SimpleDuration( timeRunning.inHours.toInt(), timeRunning.inMinutes.toInt(), timeRunning.inSeconds.toInt() ) )),
+                                        bulkRequestOf( JobsControlChargeCreditsRequestItem (id, lastTs.toString(), SimpleDuration( 0, 5, 15 ) )),
                                         client
                                     ).orThrow()
                             }

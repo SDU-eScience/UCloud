@@ -47,6 +47,7 @@ interface ComputePlugin : Plugin {
     //     throw RPCException("Utilization is not supported by this cluster", HttpStatusCode.BadRequest)
     // }
 
+    fun PluginContext.runMonitoringLoop()
 
     fun PluginContext.openInteractiveSessionBulk(
         request: JobsProviderOpenInteractiveSessionRequest
