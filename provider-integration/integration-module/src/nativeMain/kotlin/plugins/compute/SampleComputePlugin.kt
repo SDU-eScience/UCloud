@@ -51,6 +51,9 @@ import kotlin.time.Duration
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 
+import dk.sdu.cloud.app.store.api.SimpleDuration
+
+
 
 //JsonElement.toString() returns "dtu-small" which is not equal to dtu-small due to extra quotes
 fun JsonElement?.getString() : String {
@@ -69,10 +72,14 @@ data class SlurmJob(
     val status: Int = 1
 )
 
+//TODO add SlurmConfiguration data class
+
 
 typealias UcloudState =  JobState
 data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )    
 
+
+//TOD: 
 val compute : List<JsonObject>?  by lazy {
 
 
@@ -100,7 +107,7 @@ fun manageHeader(job:Job):String {
         val product_cpu = product.get("cpu").getString()
         val product_mem = product.get("mem").getString()
         val product_gpu = product.get("gpu").getString()
-        val job_partition = product.get("partition").getString()
+        val job_partition = "normal" //product.get("partition").getString()
 
 
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
@@ -194,18 +201,18 @@ fun PluginContext.getStatus(id: String) : Status {
         val slurmStatus = if (code == 0) stdout.trim() else sacct.stdout.lines().get(0).split("|").get(1)
         
         imStatus =   when (slurmStatus) {
-                                "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "SUSPENDED"                                           -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is queued" )
-                                "REQUEUE_HOLD"                                                                                                  -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is held for requeue" )  
-                                "REQUEUED"                                                                                                      -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is requeued" ) 
-                                "RESIZING"                                                                                                      -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is resizing" ) 
-                                "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT"                                               -> Status( id, JobState.RUNNING, slurmStatus, "Job is running" )
-                                "STOPPED"                                                                                                       -> Status( id, JobState.RUNNING, slurmStatus, "Job is stopped" )
-                                "COMPLETED", "CANCELLED", "FAILED"                                                                              -> Status( id, JobState.SUCCESS, slurmStatus, "Job is success" )
-                                "OUT_OF_MEMORY"                                                                                                 -> Status( id, JobState.SUCCESS, slurmStatus, "Out of memory" )
-                                "BOOT_FAIL", "NODE_FAIL"                                                                                        -> Status( id, JobState.FAILURE, slurmStatus, "Job is failed" )
-                                "REVOKED"                                                                                                       -> Status( id, JobState.FAILURE, slurmStatus, "Job is revoked" )
-                                "PREEMPTED"                                                                                                     -> Status( id, JobState.FAILURE, slurmStatus, "Preempted" )
-                                "DEADLINE", "TIMEOUT"                                                                                           -> Status( id, JobState.EXPIRED, slurmStatus, "Job is expired" )
+                                "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "SUSPENDED"       -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is queued" )
+                                "REQUEUE_HOLD"                                                              -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is held for requeue" )  
+                                "REQUEUED"                                                                  -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is requeued" ) 
+                                "RESIZING"                                                                  -> Status( id, JobState.IN_QUEUE, slurmStatus, "Job is resizing" ) 
+                                "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT"           -> Status( id, JobState.RUNNING, slurmStatus, "Job is running" )
+                                "STOPPED"                                                                   -> Status( id, JobState.RUNNING, slurmStatus, "Job is stopped" )
+                                "COMPLETED", "CANCELLED", "FAILED"                                          -> Status( id, JobState.SUCCESS, slurmStatus, "Job is success" )
+                                "OUT_OF_MEMORY"                                                             -> Status( id, JobState.SUCCESS, slurmStatus, "Out of memory" )
+                                "BOOT_FAIL", "NODE_FAIL"                                                    -> Status( id, JobState.FAILURE, slurmStatus, "Job is failed" )
+                                "REVOKED"                                                                   -> Status( id, JobState.FAILURE, slurmStatus, "Job is revoked" )
+                                "PREEMPTED"                                                                 -> Status( id, JobState.FAILURE, slurmStatus, "Preempted" )
+                                "DEADLINE", "TIMEOUT"                                                       -> Status( id, JobState.EXPIRED, slurmStatus, "Job is expired" )
                                 else -> throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest)
                             }
         
@@ -249,7 +256,7 @@ fun PluginContext.getStatus(id: String) : Status {
                         ).useAndInvokeAndDiscard {
                                             bindString("ucloud_id", req.ucloudId)
                                             bindString("local_id", req.slurmId )
-                                            bindString("partition", req.partition )
+                                            bindString("normal", req.partition )
                                             bindInt("status", req.status )
                         }
                 }
@@ -347,7 +354,7 @@ fun PluginContext.getStatus(id: String) : Status {
         val ipcClient = ipcClient ?: error("No ipc client")
         val request_product = job.specification?.product as ProductReference
         val product = compute?.first{ it.get("id").getString() == request_product.id } as JsonObject
-        val job_partition = product.get("partition").getString()
+        val job_partition = "normal" //product.get("partition").getString()
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
 
         sleep(2)
@@ -385,7 +392,7 @@ fun PluginContext.getStatus(id: String) : Status {
         println("delete job")
         val request_product = job.specification?.product as ProductReference
         val product = compute?.first{ it.get("id").getString() == request_product.id } as JsonObject
-        val job_partition = product.get("partition").getString()
+        val job_partition = "normal"//product.get("partition").getString()
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
@@ -502,6 +509,95 @@ fun PluginContext.getStatus(id: String) : Status {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
+    override fun PluginContext.runMonitoringLoop() { 
+
+            val client = rpcClient ?: error("No client")
+
+            Log("RunMonitoringLoop")
+
+            // Worker.start(name = "Monitoring Loop Worker").execute(TransferMode.SAFE, {} ) { 
+
+
+                val terminalStates = listOf("COMPLETED", "CANCELLED", "FAILED", "OUT_OF_MEMORY","BOOT_FAIL", "NODE_FAIL", "PREEMPTED", "REVOKED", "DEADLINE", "TIMEOUT"  )
+
+
+                while(true) {
+                    println("RunMonitoringLoop")
+                    sleep(5)
+
+                    var jobs:MutableList<SlurmJob> = mutableListOf()
+                    
+                    (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
+
+                            connection.prepareStatement(
+                                                        """
+                                                            select * 
+                                                            from job_mapping 
+                                                            where status = 1
+                                                        """
+                                        ).useAndInvoke(
+                                            readRow = { 
+                                                jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  )
+                                            }
+                                        )
+                    }
+
+
+                    // --ids 7.batch,8.batch ...
+                    var ids = jobs.fold( "", { acc, item ->   StringBuilder().append(acc).append(item.slurmId).append(".batch,").toString() }  )
+
+
+                    //println(ids)
+
+                    val ( _ , stdout , _ ) = CmdBuilder("/usr/bin/sacct")
+                                        .addArg("--jobs",      ids )
+                                        .addArg("--allusers")
+                                        .addArg("--format", "jobid,state,exitcode,start,end")
+                                        .addArg("--noheader")
+                                        .addArg("--parsable2")
+                                        .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+                                        .execute()
+                    println(stdout.lines() )
+                    var slurmJobs = if ( !stdout.trim().isEmpty() ) stdout.lines() else continue
+
+
+
+                    slurmJobs.forEach{ job ->
+                        val id = job.toString().split("|").get(0)
+                        val state = job.toString().split("|").get(1)
+                        val start =  Instant.parse( "${job.toString().split("|").get(3)}Z" )
+                        val end   =  Instant.parse( "${job.toString().split("|").get(4)}Z" )
+                        val lastTs = Clock.System.now()
+
+                        if ( state in terminalStates ) {
+                            val timeRunning: Duration = end - start
+                            //TODO: charge time
+
+                             runBlocking {
+                                    JobsControl.chargeCredits.call(
+                                        bulkRequestOf( JobsControlChargeCreditsRequestItem (id, lastTs.toString(), SimpleDuration( timeRunning.inHours.toInt(), timeRunning.inMinutes.toInt(), timeRunning.inSeconds.toInt() ) )),
+                                        client
+                                    ).orThrow()
+                            }
+
+
+                            //TODO: update table job_mapping.status = 0 where slurmId in ( list ) 
+
+                        }
+        
+                    }       
+
+
+                
+
+                }
+
+            //}
+
+
+    }
+
+
 
     override fun ComputePlugin.FollowLogsContext.followLogs(job: Job) {
             val client = rpcClient ?: error("No client")
@@ -549,89 +645,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
 
-fun runMonitoringLoop() {
 
-        Log("RunMonitoringLoop")
-
-        Worker.start(name = "Monitoring Loop Worker").execute(TransferMode.SAFE, {} ) { 
-
-
-            val terminalStates = listOf("COMPLETED", "CANCELLED", "FAILED", "OUT_OF_MEMORY","BOOT_FAIL", "NODE_FAIL", "PREEMPTED", "REVOKED", "DEADLINE", "TIMEOUT"  )
-
-            while(true) {
-                 println("RunMonitoringLoop")
-                 sleep(5)
-
-                var jobs:MutableList<SlurmJob> = mutableListOf()
-                
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-
-                        connection.prepareStatement(
-                                                    """
-                                                        select * 
-                                                        from job_mapping 
-                                                        where status = 1
-                                                    """
-                                    ).useAndInvoke(
-                                        readRow = { 
-                                            jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  )
-                                        }
-                                    )
-                }
-
-
-                // --ids 7.batch,8.batch ...
-                var ids = jobs.fold( "", { acc, item ->   StringBuilder().append(acc).append(item.slurmId).append(".batch,").toString() }  )
-
-
-                //println(ids)
-
-                val ( _ , stdout , _ ) = CmdBuilder("/usr/bin/sacct")
-                                    .addArg("--jobs",      ids )
-                                    .addArg("--allusers")
-                                    .addArg("--format", "jobid,state,exitcode,start,end")
-                                    .addArg("--noheader")
-                                    .addArg("--parsable2")
-                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
-                                    .execute()
-
-                var slurmJobs = if ( !stdout.trim().isEmpty() ) stdout.lines() else continue
-
-                //println(slurmJobs)
-
-
-                slurmJobs.forEach{ job ->
-                    val state = job.toString().split("|").get(1)
-                    val start =  Instant.parse( "${job.toString().split("|").get(3)}Z" )
-                    val end   =  Instant.parse( "${job.toString().split("|").get(4)}Z" )
-
-                    if ( state in terminalStates ) {
-                        val timeRunning: Duration = end - start
-                        //TODO: charge time
-
-                            //runBlocking {
-                                            // JobsControl.chargeCredits.call(
-                                            //     bulkRequestOf( ResourceChargeCredits (job.id, lastTs, timeRunning.inHours )),
-                                            //     client
-                                            // ).orThrow()
-                          //  }
-
-
-                        //TODO: update table job_mapping.status = 0 where slurmId in ( list ) 
-
-                    }
-    
-                }       
-
-
-               
-
-            }
-
-        }
-
-
-}
 
 
 

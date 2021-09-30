@@ -10,6 +10,8 @@ import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
@@ -197,7 +199,20 @@ fun main(args: Array<String>) {
 
         envoyConfig?.start(config.server?.port)
 
-        dk.sdu.cloud.plugins.compute.runMonitoringLoop() // move later
+
+        data class MonitoringContext(val pluginContext: PluginContext, val plugin: ComputePlugin)
+        plugins.compute?.plugins?.values?.forEach { plugin ->
+            Worker
+                .start(name = "Monitoring Loop Worker")
+                .execute(TransferMode.SAFE, { MonitoringContext(pluginContext, plugin).freeze() }) { ctx ->
+                    with(ctx.pluginContext) {
+                        with(ctx.plugin) {
+                            runMonitoringLoop()
+                        }
+                    }
+                }
+        }
+   
 
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {
