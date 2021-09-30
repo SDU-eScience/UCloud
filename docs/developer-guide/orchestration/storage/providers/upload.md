@@ -58,7 +58,7 @@ _Uploads a new chunk to the file at a given offset_
 |<code><a href='#chunkeduploadprotocoluploadchunkrequest'>ChunkedUploadProtocolUploadChunkRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Uploads a new chunk to a file, specified by an upload session token. An upload session token can be
-created using the [`files.createUpload`](/docs/reference/files.createUpload.md)) call.
+created using the [`files.createUpload`](/docs/reference/files.createUpload.md)  call.
 
 A session MUST be live for at least 30 minutes after the last `uploadChunk`
 call was active. That is, since the last byte was transferred to this session or processed by the

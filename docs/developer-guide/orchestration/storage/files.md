@@ -482,7 +482,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -596,7 +598,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -969,7 +973,7 @@ PageV2(
             unixMode = null, 
             unixOwner = null, 
         ), 
-        updates = listOf(), 
+        updates = emptyList(), 
         providerGeneratedId = "/123/folder/file.txt", 
     )), 
     itemsPerPage = 50, 
@@ -1208,7 +1212,7 @@ UFile(
         unixMode = null, 
         unixOwner = null, 
     ), 
-    updates = listOf(), 
+    updates = emptyList(), 
     providerGeneratedId = "/123/folder", 
 )
 */
@@ -1702,8 +1706,8 @@ _Retrieves information about a single file._
 
 This file can be of any type. Clients can request additional information about the file using the
 `include*` flags of the request. Note that not all providers support all information. Clients can query
-this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)) or 
-[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)) with the `includeSupport` flag.
+this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)  or 
+[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)  with the `includeSupport` flag.
 
 
 ### `retrieveProducts`
@@ -1718,9 +1722,9 @@ _Retrieve product support for all accessible providers_
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FSSupport.md'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint will determine all providers that which the authenticated user has access to, in the current
-workspace. A user has access to a product, and thus a provider, if the product is either free or if the
-user has been granted credits to use the product.
+This endpoint will determine all providers that which the authenticated user has access to, in
+the current workspace. A user has access to a product, and thus a provider, if the product is
+either free or if the user has been granted credits to use the product.
 
 See also:
 

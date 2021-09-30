@@ -50,6 +50,8 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr></thread>
 <tbody>
 <tr><td><a href='#example-creating-a-simple-batch-job'>Creating a simple batch job</a></td></tr>
+<tr><td><a href='#example-following-the-progress-of-a-job'>Following the progress of a Job</a></td></tr>
+<tr><td><a href='#example-starting-an-interactive-terminal-session'>Starting an interactive terminal session</a></td></tr>
 </tbody></table>
 
 
@@ -67,7 +69,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td><i>No description</i></td>
+<td>Browses the catalogue of all Jobs</td>
 </tr>
 <tr>
 <td><a href='#follow'><code>follow</code></a></td>
@@ -75,11 +77,11 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#retrieve'><code>retrieve</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves a single Job</td>
 </tr>
 <tr>
 <td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve product support for all accessible providers</td>
 </tr>
 <tr>
 <td><a href='#retrieveutilization'><code>retrieveUtilization</code></a></td>
@@ -87,11 +89,11 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
-<td><i>No description</i></td>
+<td>Searches the catalogue of available resources</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td><i>No description</i></td>
+<td>Creates one or more resources</td>
 </tr>
 <tr>
 <td><a href='#extend'><code>extend</code></a></td>
@@ -111,7 +113,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
-<td><i>No description</i></td>
+<td>Updates the ACL attached to a resource</td>
 </tr>
 </tbody></table>
 
@@ -128,6 +130,26 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <th>Description</th>
 </tr></thread>
 <tbody>
+<tr>
+<td><a href='#job'><code>Job</code></a></td>
+<td>A `Job` in UCloud is the core abstraction used to describe a unit of computation.</td>
+</tr>
+<tr>
+<td><a href='#jobspecification'><code>JobSpecification</code></a></td>
+<td>A specification of a Job</td>
+</tr>
+<tr>
+<td><a href='#jobstate'><code>JobState</code></a></td>
+<td>A value describing the current state of a Job</td>
+</tr>
+<tr>
+<td><a href='#interactivesessiontype'><code>InteractiveSessionType</code></a></td>
+<td>A value describing a type of 'interactive' session</td>
+</tr>
+<tr>
+<td><a href='#jobincludeflags'><code>JobIncludeFlags</code></a></td>
+<td>Flags used to tweak read operations of Jobs</td>
+</tr>
 <tr>
 <td><a href='#computesupport'><code>ComputeSupport</code></a></td>
 <td><i>No description</i></td>
@@ -149,14 +171,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#interactivesessiontype'><code>InteractiveSessionType</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#job'><code>Job</code></a></td>
-<td>A `Job` in UCloud is the core abstraction used to describe a unit of computation.</td>
-</tr>
-<tr>
 <td><a href='#jobbindkind'><code>JobBindKind</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -165,19 +179,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#jobincludeflags'><code>JobIncludeFlags</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#joboutput'><code>JobOutput</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#jobspecification'><code>JobSpecification</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#jobstate'><code>JobState</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -258,7 +260,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </summary>
 
 ```kotlin
+
 /* The user finds an interesting application from the catalogue */
+
 val applications = AppStore.listAll.call(
     PaginationRequest(
         itemsPerPage = 50, 
@@ -288,8 +292,12 @@ applications = Page(
     pageNumber = 0, 
 )
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 val application = AppStore.findByNameAndVersion.call(
     FindApplicationAndOptionalDependencies(
         appName = "a-batch-application", 
@@ -308,7 +316,7 @@ application = ApplicationWithFavoriteAndTags(
         applicationType = ApplicationType.BATCH, 
         container = null, 
         environment = null, 
-        fileExtensions = listOf(), 
+        fileExtensions = emptyList(), 
         invocation = listOf(WordInvocationParameter(
             word = "batch", 
         ), VariableInvocationParameter(
@@ -320,7 +328,7 @@ application = ApplicationWithFavoriteAndTags(
             suffixVariable = "", 
             variableNames = listOf("var"), 
         )), 
-        licenseServers = listOf(), 
+        licenseServers = emptyList(), 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = null, 
@@ -352,7 +360,7 @@ application = ApplicationWithFavoriteAndTags(
                         version = "1.0.0", 
                     ), 
                     license = "None", 
-                    requiredModules = listOf(), 
+                    requiredModules = emptyList(), 
                     supportedProviders = null, 
                     title = "Batch tool", 
                 ), 
@@ -377,7 +385,9 @@ application = ApplicationWithFavoriteAndTags(
     tags = listOf("very-scientific"), 
 )
 */
+
 /* The user looks for a suitable machine */
+
 val machineTypes = Products.browse.call(
     ProductsBrowseRequest(
         consistency = null, 
@@ -423,7 +433,9 @@ machineTypes = PageV2(
     next = null, 
 )
 */
+
 /* The user starts the Job with input based on previous requests */
+
 Jobs.create.call(
     bulkRequestOf(JobSpecification(
         allowDuplicateJob = false, 
@@ -916,6 +928,502 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 </details>
 
 
+## Example: Following the progress of a Job
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>A running Job, with ID 123</li>
+</ul></td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+Jobs.follow.subscribe(
+    FindByStringId(
+        id = "123", 
+    ),
+    user,
+    handler = { /* will receive messages listed below */ }
+)
+
+/*
+JobsFollowResponse(
+    log = emptyList(), 
+    newStatus = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.IN_QUEUE, 
+    ), 
+    updates = emptyList(), 
+)
+*/
+
+/*
+JobsFollowResponse(
+    log = emptyList(), 
+    newStatus = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.RUNNING, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "The job is now running", 
+        timestamp = 1633007995287, 
+    )), 
+)
+*/
+
+/*
+JobsFollowResponse(
+    log = listOf(JobsLog(
+        rank = 0, 
+        stderr = null, 
+        stdout = "GNU bash, version 5.0.17(1)-release (x86_64-pc-linux-gnu)" + "\n" + 
+            "Copyright (C) 2019 Free Software Foundation, Inc." + "\n" + 
+            "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>" + "\n" + 
+            "" + "\n" + 
+            "This is free software; you are free to change and redistribute it." + "\n" + 
+            "There is NO WARRANTY, to the extent permitted by law.", 
+    )), 
+    newStatus = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.RUNNING, 
+    ), 
+    updates = emptyList(), 
+)
+*/
+
+/*
+JobsFollowResponse(
+    log = emptyList(), 
+    newStatus = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.SUCCESS, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.SUCCESS, 
+        status = "The job is no longer running", 
+        timestamp = 1633007995288, 
+    )), 
+)
+*/
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+
+```
+
+
+</details>
+
+
+## Example: Starting an interactive terminal session
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Trigger</th><td>User initiated by clicking on 'Open Terminal' of a running Job</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>A running Job with ID 123</li>
+<li>The provider must support the terminal functionality</li>
+</ul></td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+Jobs.retrieveProducts.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+SupportByProvider(
+    productsByProvider = mapOf("example" to listOf(ResolvedSupport(
+        product = Product.Compute(
+            category = ProductCategoryId(
+                id = "compute-example", 
+                name = "compute-example", 
+                provider = "example", 
+            ), 
+            chargeType = ChargeType.ABSOLUTE, 
+            cpu = 1, 
+            description = "An example machine", 
+            freeToUse = false, 
+            gpu = 0, 
+            hiddenInGrantApplications = false, 
+            memoryInGigs = 2, 
+            name = "compute-example", 
+            pricePerUnit = 1000000, 
+            priority = 0, 
+            productType = ProductType.COMPUTE, 
+            unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE, 
+            version = 1, 
+            balance = null, 
+            id = "compute-example", 
+        ), 
+        support = ComputeSupport(
+            docker = ComputeSupport.Docker(
+                enabled = true, 
+                logs = null, 
+                peers = null, 
+                terminal = true, 
+                timeExtension = null, 
+                utilization = null, 
+                vnc = null, 
+                web = null, 
+            ), 
+            product = ProductReference(
+                category = "compute-example", 
+                id = "compute-example", 
+                provider = "example", 
+            ), 
+            virtualMachine = ComputeSupport.VirtualMachine(
+                enabled = null, 
+                logs = null, 
+                suspension = null, 
+                terminal = null, 
+                timeExtension = null, 
+                utilization = null, 
+                vnc = null, 
+            ), 
+        ), 
+    ))), 
+)
+*/
+
+/* Note that the machine has support for the 'terminal' feature */
+
+Jobs.openInteractiveSession.call(
+    bulkRequestOf(JobsOpenInteractiveSessionRequestItem(
+        id = "123", 
+        rank = 1, 
+        sessionType = InteractiveSessionType.SHELL, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(OpenSessionWithProvider(
+        providerDomain = "provider.example.com", 
+        providerId = "example", 
+        session = OpenSession.Shell(
+            jobId = "123", 
+            rank = 1, 
+            sessionIdentifier = "a81ea644-58f5-44d9-8e94-89f81666c441", 
+        ), 
+    )), 
+)
+*/
+
+/* The session is now open and we can establish a shell connection directly with provider.example.com */
+
+Shells.open.subscribe(
+    ShellRequest.Initialize(
+        cols = 80, 
+        rows = 24, 
+        sessionIdentifier = "a81ea644-58f5-44d9-8e94-89f81666c441", 
+    ),
+    user,
+    handler = { /* will receive messages listed below */ }
+)
+
+/*
+ShellResponse.Data(
+    data = "user@machine:~$ ", 
+)
+*/
+
+Shells.open.call(
+    ShellRequest.Input(
+        data = "ls -1" + "\n" + 
+            "", 
+    ),
+    user
+).orThrow()
+
+/*
+ShellResponse.Data(
+    data = "ls -1" + "\n" + 
+        "", 
+)
+*/
+
+/*
+ShellResponse.Data(
+    data = "hello_world.txt" + "\n" + 
+        "", 
+)
+*/
+
+/*
+ShellResponse.Data(
+    data = "user@machine:~$ ", 
+)
+*/
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(JobsApi.retrieveProducts(
+    {
+    }
+);
+
+/*
+{
+    "productsByProvider": {
+        "example": [
+            {
+                "product": {
+                    "balance": null,
+                    "name": "compute-example",
+                    "pricePerUnit": 1000000,
+                    "category": {
+                        "name": "compute-example",
+                        "provider": "example"
+                    },
+                    "description": "An example machine",
+                    "priority": 0,
+                    "cpu": 1,
+                    "memoryInGigs": 2,
+                    "gpu": 0,
+                    "version": 1,
+                    "freeToUse": false,
+                    "unitOfPrice": "CREDITS_PER_MINUTE",
+                    "chargeType": "ABSOLUTE",
+                    "hiddenInGrantApplications": false,
+                    "productType": "COMPUTE"
+                },
+                "support": {
+                    "product": {
+                        "id": "compute-example",
+                        "category": "compute-example",
+                        "provider": "example"
+                    },
+                    "docker": {
+                        "enabled": true,
+                        "web": null,
+                        "vnc": null,
+                        "logs": null,
+                        "terminal": true,
+                        "peers": null,
+                        "timeExtension": null,
+                        "utilization": null
+                    },
+                    "virtualMachine": {
+                        "enabled": null,
+                        "logs": null,
+                        "vnc": null,
+                        "terminal": null,
+                        "timeExtension": null,
+                        "suspension": null,
+                        "utilization": null
+                    }
+                }
+            }
+        ]
+    }
+}
+*/
+/* Note that the machine has support for the 'terminal' feature */
+await callAPI(JobsApi.openInteractiveSession(
+    {
+        "items": [
+            {
+                "id": "123",
+                "rank": 1,
+                "sessionType": "SHELL"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "providerDomain": "provider.example.com",
+            "providerId": "example",
+            "session": {
+                "type": "shell",
+                "jobId": "123",
+                "rank": 1,
+                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+            }
+        }
+    ]
+}
+*/
+/* The session is now open and we can establish a shell connection directly with provider.example.com */
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProducts" 
+
+# {
+#     "productsByProvider": {
+#         "example": [
+#             {
+#                 "product": {
+#                     "balance": null,
+#                     "name": "compute-example",
+#                     "pricePerUnit": 1000000,
+#                     "category": {
+#                         "name": "compute-example",
+#                         "provider": "example"
+#                     },
+#                     "description": "An example machine",
+#                     "priority": 0,
+#                     "cpu": 1,
+#                     "memoryInGigs": 2,
+#                     "gpu": 0,
+#                     "version": 1,
+#                     "freeToUse": false,
+#                     "unitOfPrice": "CREDITS_PER_MINUTE",
+#                     "chargeType": "ABSOLUTE",
+#                     "hiddenInGrantApplications": false,
+#                     "productType": "COMPUTE"
+#                 },
+#                 "support": {
+#                     "product": {
+#                         "id": "compute-example",
+#                         "category": "compute-example",
+#                         "provider": "example"
+#                     },
+#                     "docker": {
+#                         "enabled": true,
+#                         "web": null,
+#                         "vnc": null,
+#                         "logs": null,
+#                         "terminal": true,
+#                         "peers": null,
+#                         "timeExtension": null,
+#                         "utilization": null
+#                     },
+#                     "virtualMachine": {
+#                         "enabled": null,
+#                         "logs": null,
+#                         "vnc": null,
+#                         "terminal": null,
+#                         "timeExtension": null,
+#                         "suspension": null,
+#                         "utilization": null
+#                     }
+#                 }
+#             }
+#         ]
+#     }
+# }
+
+# Note that the machine has support for the 'terminal' feature
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/interactiveSession" -d '{
+    "items": [
+        {
+            "id": "123",
+            "rank": 1,
+            "sessionType": "SHELL"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "providerDomain": "provider.example.com",
+#             "providerId": "example",
+#             "session": {
+#                 "type": "shell",
+#                 "jobId": "123",
+#                 "rank": 1,
+#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+#             }
+#         }
+#     ]
+# }
+
+# The session is now open and we can establish a shell connection directly with provider.example.com
+
+```
+
+
+</details>
+
+
 
 ## Remote Procedure Calls
 
@@ -925,11 +1433,16 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Browses the catalogue of all Jobs_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+The catalogue of all [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s works through the normal pagination and the return value can be
+adjusted through the [flags](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags.md). This can include filtering by a specific
+application or looking at [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s of a specific state, such as
+(`RUNNING`)[/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
 
 
 ### `follow`
@@ -959,6 +1472,7 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Retrieves a single Job_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -972,11 +1486,20 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Retrieve product support for all accessible providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md'>Product.Compute</a>, <a href='#computesupport'>ComputeSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint will determine all providers that which the authenticated user has access to, in
+the current workspace. A user has access to a product, and thus a provider, if the product is
+either free or if the user has been granted credits to use the product.
+
+See also:
+
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
+- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
 
 
 ### `retrieveUtilization`
@@ -1001,6 +1524,7 @@ informational purposes. UCloud does not use this information for any accounting 
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Searches the catalogue of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -1014,6 +1538,7 @@ informational purposes. UCloud does not use this information for any accounting 
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Creates one or more resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -1096,7 +1621,7 @@ virtual machine will be stopped and destroyed. Persistent storage attached to th
 deleted only temporary data from the job will be deleted.
 
 This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
-be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jobs.browse`](/docs/reference/jobs.browse.md)), [`jobs.follow`](/docs/reference/jobs.follow.md)) calls.
+be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md), [`jobs.browse`](/docs/reference/jobs.browse.md), [`jobs.follow`](/docs/reference/jobs.follow.md)  calls.
 
 
 ### `updateAcl`
@@ -1105,6 +1630,7 @@ be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jo
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Updates the ACL attached to a resource_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -1114,6 +1640,711 @@ be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jo
 
 
 ## Data Models
+
+### `Job`
+
+![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+
+
+_A `Job` in UCloud is the core abstraction used to describe a unit of computation._
+
+```kotlin
+data class Job(
+    val id: String,
+    val owner: ResourceOwner,
+    val updates: List<JobUpdate>,
+    val specification: JobSpecification,
+    val status: JobStatus,
+    val createdAt: Long,
+    val output: JobOutput?,
+    val permissions: ResourcePermissions?,
+    val acl: List<ResourceAclEntry>?,
+    val billing: ResourceBilling.Free,
+    val providerGeneratedId: String?,
+)
+```
+They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
+much bigger and more machines. In a simplified view, a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  describes the following information:
+
+- The `Application` which the provider should/is/has run (see [app-store](/docs/developer-guide/orchestration/compute/appstore/apps.md))
+- The [input parameters](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md) required by a `Job`
+- A reference to the appropriate [compute infrastructure](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), this
+  includes a reference to the _provider_
+
+A `Job` is started by a user request containing the `specification` of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md)  This information is verified by the UCloud
+orchestrator and passed to the provider referenced by the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  itself. Assuming that the provider accepts this
+information, the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+compute environment and how to launch the software
+correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
+
+At this point, the provider has acted on this information by placing the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in its own equivalent of
+a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
+the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
+is running, it will contact UCloud and place the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in the `RUNNING` state. This indicates to UCloud that log files
+can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
+are available.
+
+Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  has
+terminated successfully if no internal error occurred in UCloud and in the provider. This means that a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  whose
+software returns with a non-zero exit code is still considered successful. A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  might, for example, be placed
+in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
+state. Any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  which is in a terminal state can no longer receive any updates or change its state.
+
+At any point after the user submits the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they may request cancellation of the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md)  This will
+stop the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), delete any
+[ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> Unique identifier for this job.
+</summary>
+
+
+
+UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code> A reference to the owner of this job
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobUpdate.md'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
+</summary>
+
+
+
+The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
+
+
+</details>
+
+<details>
+<summary>
+<code>specification</code>: <code><code><a href='#jobspecification'>JobSpecification</a></code></code> The specification used to launch this job.
+</summary>
+
+
+
+This property is always available but must be explicitly requested.
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='#jobstatus'>JobStatus</a></code></code> A summary of the `Job`'s current status
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp referencing when the request for creation was received by UCloud
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>output</code>: <code><code><a href='#joboutput'>JobOutput</a>?</code></code> Information regarding the output of this job.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> Permissions assigned to this resource
+</summary>
+
+
+
+A null value indicates that permissions are not supported by this resource type.
+
+
+</details>
+
+<details>
+<summary>
+<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
+</summary>
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
+</summary>
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobSpecification`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+_A specification of a Job_
+
+```kotlin
+data class JobSpecification(
+    val application: NameAndVersion,
+    val product: ProductReference,
+    val name: String?,
+    val replicas: Int?,
+    val allowDuplicateJob: Boolean?,
+    val parameters: JsonObject?,
+    val resources: List<AppParameterValue>?,
+    val timeAllocation: SimpleDuration?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>application</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.NameAndVersion.md'>NameAndVersion</a></code></code> A reference to the application which this job should execute
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code> A reference to the product that this job will be executed on
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A name for this job assigned by the user.
+</summary>
+
+
+
+The name can help a user identify why and with which parameters a job was started. This value is suitable for display in user interfaces.
+
+
+</details>
+
+<details>
+<summary>
+<code>replicas</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> The number of replicas to start this job in
+</summary>
+
+
+
+The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`.
+
+
+</details>
+
+<details>
+<summary>
+<code>allowDuplicateJob</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Allows the job to be started even when a job is running in an identical configuration
+</summary>
+
+
+
+By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
+
+
+</details>
+
+<details>
+<summary>
+<code>parameters</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a>?</code></code> Parameters which are consumed by the job
+</summary>
+
+
+
+The available parameters are defined by the `application`. This attribute is not included by default unless `includeParameters` is specified.
+
+
+</details>
+
+<details>
+<summary>
+<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md'>AppParameterValue</a>&gt;?</code></code> Additional resources which are made available into the job
+</summary>
+
+
+
+This attribute is not included by default unless `includeParameters` is specified. Note: Not all resources can be attached to a job. UCloud supports the following parameter types as resources:
+
+ - `file`
+ - `peer`
+ - `network`
+ - `block_storage`
+ - `ingress`
+
+
+</details>
+
+<details>
+<summary>
+<code>timeAllocation</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.SimpleDuration.md'>SimpleDuration</a>?</code></code> Time allocation for the job
+</summary>
+
+
+
+This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobState`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+_A value describing the current state of a Job_
+
+```kotlin
+enum class JobState {
+    IN_QUEUE,
+    RUNNING,
+    CANCELING,
+    SUCCESS,
+    FAILURE,
+    EXPIRED,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>IN_QUEUE</code> Any job which has been submitted and not yet in a final state where the number of tasks running is less thanthe number of tasks requested
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>RUNNING</code> A job where all the tasks are running
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>CANCELING</code> A job which has been cancelled, either by user request or system request
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>SUCCESS</code> A job which has terminated. The job terminated with no _scheduler_ error.
+</summary>
+
+
+
+Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
+
+
+</details>
+
+<details>
+<summary>
+<code>FAILURE</code> A job which has terminated with a failure.
+</summary>
+
+
+
+Note: A job will fail _only_ if it is the scheduler's fault
+
+
+</details>
+
+<details>
+<summary>
+<code>EXPIRED</code> A job which has expired and was terminated as a result
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `InteractiveSessionType`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+_A value describing a type of 'interactive' session_
+
+```kotlin
+enum class InteractiveSessionType {
+    WEB,
+    VNC,
+    SHELL,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>WEB</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>VNC</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>SHELL</code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobIncludeFlags`
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+_Flags used to tweak read operations of Jobs_
+
+```kotlin
+data class JobIncludeFlags(
+    val filterApplication: String?,
+    val filterState: JobState?,
+    val includeParameters: Boolean?,
+    val includeApplication: Boolean?,
+    val includeProduct: Boolean?,
+    val includeOthers: Boolean?,
+    val includeUpdates: Boolean?,
+    val includeSupport: Boolean?,
+    val filterCreatedBy: String?,
+    val filterCreatedAfter: Long?,
+    val filterCreatedBefore: Long?,
+    val filterProvider: String?,
+    val filterProductId: String?,
+    val filterProductCategory: String?,
+    val filterProviderIds: String?,
+    val filterIds: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>filterApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterState</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeParameters</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.parameters` and `specification.resources`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.resolvedApplication`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeProduct</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.resolvedProduct`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeOthers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeUpdates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeSupport</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterCreatedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterCreatedAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterCreatedBefore</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterProviderIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the provider ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
 
 ### `ComputeSupport`
 
@@ -1515,262 +2746,6 @@ data class ExportedParameters(
 
 ---
 
-### `InteractiveSessionType`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-enum class InteractiveSessionType {
-    WEB,
-    VNC,
-    SHELL,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>WEB</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>VNC</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>SHELL</code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `Job`
-
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-
-
-_A `Job` in UCloud is the core abstraction used to describe a unit of computation._
-
-```kotlin
-data class Job(
-    val id: String,
-    val owner: ResourceOwner,
-    val updates: List<JobUpdate>,
-    val specification: JobSpecification,
-    val status: JobStatus,
-    val createdAt: Long,
-    val output: JobOutput?,
-    val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
-    val providerGeneratedId: String?,
-)
-```
-They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
-much bigger and more machines. In a simplified view, a `Job` describes the following information:
-
-- The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
-- The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
-  [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
-- A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
-  includes a reference to the _provider_
-- The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
-
-A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
-orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
-information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
-compute environment and how to launch the software
-correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
-
-At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
-a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-the `Job`
-is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
-can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
-are available.
-
-Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
-terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
-software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
-in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
-state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
-
-At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
-delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> Unique identifier for this job.
-</summary>
-
-
-
-UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
-
-
-</details>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code> A reference to the owner of this job
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobUpdate.md'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
-</summary>
-
-
-
-The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
-
-
-</details>
-
-<details>
-<summary>
-<code>specification</code>: <code><code><a href='#jobspecification'>JobSpecification</a></code></code> The specification used to launch this job.
-</summary>
-
-
-
-This property is always available but must be explicitly requested.
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='#jobstatus'>JobStatus</a></code></code> A summary of the `Job`'s current status
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp referencing when the request for creation was received by UCloud
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>output</code>: <code><code><a href='#joboutput'>JobOutput</a>?</code></code> Information regarding the output of this job.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> Permissions assigned to this resource
-</summary>
-
-
-
-A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `JobBindKind`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -1867,222 +2842,6 @@ data class JobBinding(
 
 ---
 
-### `JobIncludeFlags`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-data class JobIncludeFlags(
-    val filterApplication: String?,
-    val filterState: JobState?,
-    val includeParameters: Boolean?,
-    val includeApplication: Boolean?,
-    val includeProduct: Boolean?,
-    val includeOthers: Boolean?,
-    val includeUpdates: Boolean?,
-    val includeSupport: Boolean?,
-    val filterCreatedBy: String?,
-    val filterCreatedAfter: Long?,
-    val filterCreatedBefore: Long?,
-    val filterProvider: String?,
-    val filterProductId: String?,
-    val filterProductCategory: String?,
-    val filterProviderIds: String?,
-    val filterIds: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>filterApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterState</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeParameters</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.parameters` and `specification.resources`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.resolvedApplication`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeProduct</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.resolvedProduct`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeOthers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeUpdates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeSupport</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterCreatedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterCreatedAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterCreatedBefore</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterProviderIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the provider ID. The value is comma-separated.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `JobOutput`
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -2103,236 +2862,6 @@ data class JobOutput(
 <details>
 <summary>
 <code>outputFolder</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `JobSpecification`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-data class JobSpecification(
-    val application: NameAndVersion,
-    val product: ProductReference,
-    val name: String?,
-    val replicas: Int?,
-    val allowDuplicateJob: Boolean?,
-    val parameters: JsonObject?,
-    val resources: List<AppParameterValue>?,
-    val timeAllocation: SimpleDuration?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>application</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.NameAndVersion.md'>NameAndVersion</a></code></code> A reference to the application which this job should execute
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code> A reference to the product that this job will be executed on
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A name for this job assigned by the user.
-</summary>
-
-
-
-The name can help a user identify why and with which parameters a job was started. This value is suitable for display in user interfaces.
-
-
-</details>
-
-<details>
-<summary>
-<code>replicas</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> The number of replicas to start this job in
-</summary>
-
-
-
-The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowDuplicateJob</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Allows the job to be started even when a job is running in an identical configuration
-</summary>
-
-
-
-By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
-
-
-</details>
-
-<details>
-<summary>
-<code>parameters</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a>?</code></code> Parameters which are consumed by the job
-</summary>
-
-
-
-The available parameters are defined by the `application`. This attribute is not included by default unless `includeParameters` is specified.
-
-
-</details>
-
-<details>
-<summary>
-<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md'>AppParameterValue</a>&gt;?</code></code> Additional resources which are made available into the job
-</summary>
-
-
-
-This attribute is not included by default unless `includeParameters` is specified. Note: Not all resources can be attached to a job. UCloud supports the following parameter types as resources:
-
- - `file`
- - `peer`
- - `network`
- - `block_storage`
- - `ingress`
-
-
-</details>
-
-<details>
-<summary>
-<code>timeAllocation</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.SimpleDuration.md'>SimpleDuration</a>?</code></code> Time allocation for the job
-</summary>
-
-
-
-This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `JobState`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-enum class JobState {
-    IN_QUEUE,
-    RUNNING,
-    CANCELING,
-    SUCCESS,
-    FAILURE,
-    EXPIRED,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>IN_QUEUE</code> Any job which has been submitted and not yet in a final state where the number of tasks running is less thanthe number of tasks requested
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>RUNNING</code> A job where all the tasks are running
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>CANCELING</code> A job which has been cancelled, either by user request or system request
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>SUCCESS</code> A job which has terminated. The job terminated with no _scheduler_ error.
-</summary>
-
-
-
-Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
-
-
-</details>
-
-<details>
-<summary>
-<code>FAILURE</code> A job which has terminated with a failure.
-</summary>
-
-
-
-Note: A job will fail _only_ if it is the scheduler's fault
-
-
-</details>
-
-<details>
-<summary>
-<code>EXPIRED</code> A job which has expired and was terminated as a result
 </summary>
 
 

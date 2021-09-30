@@ -20,7 +20,7 @@ becomes available. Compute providers can push information to UCloud by using the
 
 The UCloud API will communicate with the provider and include a reference of the `Job` which the request is about. The
 `Job` model has several optional fields which are not always included. You can see which flags are set by UCloud when
-retrieving the `Job`. If you need additional data you may use [`jobs.control.retrieve`](/docs/reference/jobs.control.retrieve.md)) to fetch additional
+retrieving the `Job`. If you need additional data you may use [`jobs.control.retrieve`](/docs/reference/jobs.control.retrieve.md)  to fetch additional
 information about the job. The flags selected below should give the provider enough information that the rest can
 easily be cached locally. For example, providers can with great benefit choose to cache product and application
 information.
@@ -51,42 +51,42 @@ no longer have credit for the job).
             
 | ID | UCloud | - | Provider | Call | Message |
 |----|--------|---|----------|------|---------|
-| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | Start application with ID `FOO123` |
-| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | OK |
-| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed to `RUNNING` |
-| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [4] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [5] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [6] Request | UCloud | → | Provider | [`jobs.provider.ucloud.terminate`](/docs/reference/jobs.provider.ucloud.terminate.md)) | Delete `FOO123` |
-| [7] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 3 minutes of use |
-| [8] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed to `SUCCESS` |
+| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | Start application with ID `FOO123` |
+| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | OK |
+| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed to `RUNNING` |
+| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [4] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [5] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [6] Request | UCloud | → | Provider | [`jobs.provider.ucloud.terminate`](/docs/reference/jobs.provider.ucloud.terminate.md)  | Delete `FOO123` |
+| [7] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 3 minutes of use |
+| [8] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed to `SUCCESS` |
 
 ### Example: Missing credits
             
 | ID | UCloud | - | Provider | Call | Message |
 |----|--------|---|----------|------|---------|
-| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | Start application with ID `FOO123` |
-| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | OK |
-| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed to `RUNNING` |
-| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | 402 Payment Required |
-| [4] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed to `SUCCESS` with message 'Insufficient funds' |
+| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | Start application with ID `FOO123` |
+| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | OK |
+| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed to `RUNNING` |
+| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | 402 Payment Required |
+| [4] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed to `SUCCESS` with message 'Insufficient funds' |
 
 ### Example: UCloud and provider out-of-sync
 
 | ID | UCloud | - | Provider | Call | Message |
 |----|--------|---|----------|------|---------|
-| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | Start application with ID `FOO123` |
-| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)) | OK |
-| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed to `RUNNING` |
-| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | 402 Payment Required |           
-| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | Charge for 15 minutes of use |
-| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)) | 402 Payment Required |           
+| [1] Request | UCloud | → | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | Start application with ID `FOO123` |
+| [1] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.create`](/docs/reference/jobs.provider.ucloud.create.md)  | OK |
+| [2] Request | UCloud | ← | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed to `RUNNING` |
+| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | 402 Payment Required |           
+| [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | Charge for 15 minutes of use |
+| [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](/docs/reference/jobs.control.chargeCredits.md)  | 402 Payment Required |           
 | [4] Comment | | | | | `FOO123` disappears/crashes at provider - Provider did not notice and notify UCloud automatically |
-| [5] Request | UCloud | → | Provider | [`jobs.provider.ucloud.verify`](/docs/reference/jobs.provider.ucloud.verify.md)) | Verify that `FOO123` is running |
-| [5] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.verify`](/docs/reference/jobs.provider.ucloud.verify.md)) | OK |
-| [6] Request | UCloud | → | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)) | Proceed `FOO123` to `FAILURE` |
+| [5] Request | UCloud | → | Provider | [`jobs.provider.ucloud.verify`](/docs/reference/jobs.provider.ucloud.verify.md)  | Verify that `FOO123` is running |
+| [5] Response | UCloud | ← | Provider | [`jobs.provider.ucloud.verify`](/docs/reference/jobs.provider.ucloud.verify.md)  | OK |
+| [6] Request | UCloud | → | Provider | [`jobs.control.update`](/docs/reference/jobs.control.update.md)  | Proceed `FOO123` to `FAILURE` |
 
 
 ## Table of Contents

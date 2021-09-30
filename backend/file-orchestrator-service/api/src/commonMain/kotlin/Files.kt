@@ -577,21 +577,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             )
         )
 
-        document(retrieveProducts, UCloudApiDocC(
-            """
-            Retrieve product support for all accessible providers
-            
-            This endpoint will determine all providers that which the authenticated user has access to, in the current
-            workspace. A user has access to a product, and thus a provider, if the product is either free or if the
-            user has been granted credits to use the product.
-            
-            See also:
-            
-            - $TYPE_REF dk.sdu.cloud.accounting.api.Product
-            - [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
-            """
-        ))
-
         document(updateAcl, UCloudApiDocC(
             """
             Updates the ACL of a single file.

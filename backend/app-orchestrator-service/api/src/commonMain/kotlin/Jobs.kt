@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
@@ -45,6 +46,7 @@ data class ExportedParameters(
     val machineType: JsonObject,
 )
 
+@UCloudApiDoc("A value describing the current state of a Job", importance = 350)
 @Serializable
 enum class JobState {
     @UCloudApiDoc(
@@ -82,6 +84,7 @@ enum class JobState {
         }
 }
 
+@UCloudApiDoc("A value describing a type of 'interactive' session", importance = 300)
 @Serializable
 enum class InteractiveSessionType {
     WEB,
@@ -93,37 +96,36 @@ enum class InteractiveSessionType {
     """A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
 They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
-much bigger and more machines. In a simplified view, a `Job` describes the following information:
+much bigger and more machines. In a simplified view, a $TYPE_REF Job describes the following information:
 
-- The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
-- The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
-  [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
-- A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
+- The `Application` which the provider should/is/has run (see [app-store](/docs/developer-guide/orchestration/compute/appstore/apps.md))
+- The [input parameters]($TYPE_REF_LINK dk.sdu.cloud.app.store.api.ApplicationParameter) required by a `Job`
+- A reference to the appropriate [compute infrastructure]($TYPE_REF_LINK dk.sdu.cloud.accounting.api.Product), this
   includes a reference to the _provider_
-- The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
 
-A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
-orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
-information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+A `Job` is started by a user request containing the `specification` of a $TYPE_REF Job. This information is verified by the UCloud
+orchestrator and passed to the provider referenced by the $TYPE_REF Job itself. Assuming that the provider accepts this
+information, the $TYPE_REF Job is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software
 correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
 
-At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
+At this point, the provider has acted on this information by placing the $TYPE_REF Job in its own equivalent of
 a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-the `Job`
-is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+the $TYPE_REF Job
+is running, it will contact UCloud and place the $TYPE_REF Job in the `RUNNING` state. This indicates to UCloud that log files
 can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
 are available.
 
-Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
-terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
-software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
+Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A $TYPE_REF Job has
+terminated successfully if no internal error occurred in UCloud and in the provider. This means that a $TYPE_REF Job whose
+software returns with a non-zero exit code is still considered successful. A $TYPE_REF Job might, for example, be placed
 in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
-state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
+state. Any $TYPE_REF Job which is in a terminal state can no longer receive any updates or change its state.
 
-At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
-delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources)."""
+At any point after the user submits the $TYPE_REF Job, they may request cancellation of the $TYPE_REF Job. This will
+stop the $TYPE_REF Job, delete any
+[ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).""", importance = 500
 )
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -246,6 +248,7 @@ data class JobUpdate(
     override val timestamp: Long = 0L
 ) : ResourceUpdate
 
+@UCloudApiDoc("A specification of a Job", importance = 400)
 @Serializable
 data class JobSpecification(
     @UCloudApiDoc("A reference to the application which this job should execute")
@@ -330,6 +333,7 @@ data class JobOutput(
     val outputFolder: String? = null,
 )
 
+@UCloudApiDoc("Flags used to tweak read operations of Jobs", importance = 300)
 @Serializable
 data class JobIncludeFlags(
     val filterApplication: String? = null,
@@ -534,6 +538,8 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         Product.Compute, ComputeSupport>()
 
     private const val createUseCase = "create"
+    private const val followUseCase = "follow"
+    private const val terminalUseCase = "terminal"
 
     override fun documentation() {
         useCase(
@@ -589,24 +595,26 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                     ApplicationWithFavoriteAndTags(
                         metadata,
                         ApplicationInvocationDescription(
-                            ToolReference("batch-tool", "1.0.0", Tool(
-                                "user",
-                                1632979836013,
-                                1632979836013,
-                                NormalizedToolDescription(
-                                    NameAndVersion("batch-tool", "1.0.0"),
-                                    null,
-                                    1,
-                                    SimpleDuration(1, 0, 0),
-                                    emptyList(),
-                                    listOf("UCloud"),
-                                    "Batch tool",
-                                    "Batch tool",
-                                    ToolBackend.DOCKER,
-                                    "None",
-                                    "dreg.cloud.sdu.dk/batch/batch:1.0.0"
+                            ToolReference(
+                                "batch-tool", "1.0.0", Tool(
+                                    "user",
+                                    1632979836013,
+                                    1632979836013,
+                                    NormalizedToolDescription(
+                                        NameAndVersion("batch-tool", "1.0.0"),
+                                        null,
+                                        1,
+                                        SimpleDuration(1, 0, 0),
+                                        emptyList(),
+                                        listOf("UCloud"),
+                                        "Batch tool",
+                                        "Batch tool",
+                                        ToolBackend.DOCKER,
+                                        "None",
+                                        "dreg.cloud.sdu.dk/batch/batch:1.0.0"
+                                    )
                                 )
-                            )),
+                            ),
                             listOf(
                                 WordInvocationParameter("batch"),
                                 VariableInvocationParameter(listOf("var"))
@@ -666,6 +674,162 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                 )
             }
         )
+
+        useCase(
+            followUseCase,
+            "Following the progress of a Job",
+            preConditions = listOf(
+                "A running Job, with ID 123"
+            ),
+            flow = {
+                val user = basicUser()
+                subscription(follow, JobsFollowRequest("123"), user) {
+                    success(
+                        JobsFollowResponse(
+                            emptyList(),
+                            emptyList(),
+                            JobStatus(JobState.IN_QUEUE)
+                        )
+                    )
+                    success(
+                        JobsFollowResponse(
+                            listOf(
+                                JobUpdate(
+                                    JobState.RUNNING,
+                                    status = "The job is now running",
+                                    timestamp = Time.now()
+                                )
+                            ),
+                            emptyList(),
+                            JobStatus(JobState.RUNNING)
+                        )
+                    )
+                    success(
+                        JobsFollowResponse(
+                            emptyList(),
+                            listOf(
+                                JobsLog(
+                                    0,
+                                    """
+                                        GNU bash, version 5.0.17(1)-release (x86_64-pc-linux-gnu)
+                                        Copyright (C) 2019 Free Software Foundation, Inc.
+                                        License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+                                        This is free software; you are free to change and redistribute it.
+                                        There is NO WARRANTY, to the extent permitted by law.
+                                    """.trimIndent()
+                                )
+                            ),
+                            JobStatus(JobState.RUNNING)
+                        )
+                    )
+                    success(
+                        JobsFollowResponse(
+                            listOf(
+                                JobUpdate(
+                                    JobState.SUCCESS,
+                                    status = "The job is no longer running",
+                                    timestamp = Time.now()
+                                )
+                            ),
+                            emptyList(),
+                            JobStatus(JobState.SUCCESS)
+                        )
+                    )
+                }
+            }
+        )
+
+        useCase(
+            terminalUseCase,
+            "Starting an interactive terminal session",
+            trigger = "User initiated by clicking on 'Open Terminal' of a running Job",
+            preConditions = listOf(
+                "A running Job with ID 123",
+                "The provider must support the terminal functionality"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.Compute(
+                                        "compute-example",
+                                        1_000_000,
+                                        ProductCategoryId("compute-example", "example"),
+                                        "An example machine",
+                                        cpu = 1,
+                                        memoryInGigs = 2,
+                                        gpu = 0
+                                    ),
+                                    ComputeSupport(
+                                        ProductReference("compute-example", "compute-example", "example"),
+                                        ComputeSupport.Docker(
+                                            enabled = true,
+                                            terminal = true
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("Note that the machine has support for the 'terminal' feature")
+
+                success(
+                    openInteractiveSession,
+                    bulkRequestOf(
+                        JobsOpenInteractiveSessionRequestItem(
+                            "123",
+                            1,
+                            InteractiveSessionType.SHELL
+                        )
+                    ),
+                    BulkResponse(
+                        listOf(
+                            OpenSessionWithProvider(
+                                "provider.example.com",
+                                "example",
+                                OpenSession.Shell("123", 1, "a81ea644-58f5-44d9-8e94-89f81666c441")
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("The session is now open and we can establish a shell connection directly with " +
+                    "provider.example.com")
+
+                val shellSession = Shells("example")
+                subscription(shellSession.open, ShellRequest.Initialize("a81ea644-58f5-44d9-8e94-89f81666c441"), user) {
+                    success(ShellResponse.Data("user@machine:~$ "))
+                    request(ShellRequest.Input("ls -1\n"))
+                    success(ShellResponse.Data("ls -1\n"))
+                    success(ShellResponse.Data("hello_world.txt\n"))
+                    success(ShellResponse.Data("user@machine:~$ "))
+                }
+            }
+        )
+
+        document(
+            browse, UCloudApiDocC(
+                """
+                Browses the catalogue of all Jobs
+                
+                The catalogue of all $TYPE_REF Job s works through the normal pagination and the return value can be
+                adjusted through the [flags]($TYPE_REF_LINK JobIncludeFlags). This can include filtering by a specific
+                application or looking at $TYPE_REF Job s of a specific state, such as
+                (`RUNNING`)[$TYPE_REF_LINK JobState).
+            """.trimIndent()
+            )
+        )
+        document(retrieve, UCloudApiDocC("Retrieves a single Job"))
     }
 
     override val create get() = super.create!!

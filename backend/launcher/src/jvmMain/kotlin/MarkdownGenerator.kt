@@ -411,11 +411,60 @@ fun generateMarkdownForExample(useCase: UseCase): String {
                             appendLine("*/")
                         }
                         is UseCaseNode.Comment -> {
+                            appendLine()
                             appendLine("/* ${node.comment} */")
+                            appendLine()
                         }
                         is UseCaseNode.SourceCode -> {
                             if (node.language == UseCaseNode.Language.KOTLIN) {
                                 appendLine(node.code)
+                            }
+                        }
+
+                        is UseCaseNode.Subscription<*, *, *> -> {
+                            append(node.call.containerRef::class.simpleName)
+                            append(".")
+                            append(node.call.field?.name ?: node.call.name)
+                            appendLine(".subscribe(")
+                            append(generateKotlinFromValue(node.request).prependIndent("    "))
+                            appendLine(",")
+                            append("    ")
+                            append(node.actor.name)
+                            appendLine(",")
+                            appendLine("    handler = { /* will receive messages listed below */ }")
+                            appendLine(")")
+                            appendLine()
+
+                            for (message in node.messages) {
+                                when (message) {
+                                    is UseCaseNode.RequestOrResponse.Request -> {
+                                        append(node.call.containerRef::class.simpleName)
+                                        append(".")
+                                        append(node.call.field?.name ?: node.call.name)
+                                        appendLine(".call(")
+                                        append(generateKotlinFromValue(message.request).prependIndent("    "))
+                                        appendLine(",")
+                                        append("    ")
+                                        appendLine(node.actor.name)
+                                        appendLine(").orThrow()")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Response -> {
+                                        appendLine("/*")
+                                        appendLine(generateKotlinFromValue(message.response.result))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Error -> {
+                                        appendLine("/*")
+                                        appendLine(message.error.statusCode)
+                                        appendLine(generateKotlinFromValue(message.error))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+                                }
                             }
                         }
                     }
@@ -700,9 +749,9 @@ fun generateKotlinFromValue(
             buildString {
                 append(
                     when (value) {
-                        is Array<*> -> "arrayOf"
-                        is List<*> -> "listOf"
-                        is Set<*> -> "setOf"
+                        is Array<*> -> if (value.isEmpty()) "emptyArray" else "arrayOf"
+                        is List<*> ->  if (value.isEmpty()) "emptyList" else "listOf"
+                        is Set<*> -> if(value.isEmpty()) "emptySet" else "setOf"
                         else -> "listOf"
                     }
                 )
@@ -716,7 +765,7 @@ fun generateKotlinFromValue(
                 append(")")
             }
         }
-        is String -> "\"${value}\""
+        is String -> value.split("\n").joinToString(""" + "\n" + """ + "\n    ") { "\"${it}\"" }
         is JsonObject -> {
             buildString {
                 append("JsonObject(mapOf(")
