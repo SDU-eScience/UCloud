@@ -4,6 +4,7 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+_A value describing the current state of a Job_
 
 ```kotlin
 enum class JobState {

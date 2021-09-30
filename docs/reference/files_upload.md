@@ -36,7 +36,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 

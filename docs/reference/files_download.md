@@ -28,7 +28,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 

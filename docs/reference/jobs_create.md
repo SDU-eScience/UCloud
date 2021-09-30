@@ -16,7 +16,9 @@
 </summary>
 
 ```kotlin
+
 /* The user finds an interesting application from the catalogue */
+
 val applications = AppStore.listAll.call(
     PaginationRequest(
         itemsPerPage = 50, 
@@ -46,8 +48,12 @@ applications = Page(
     pageNumber = 0, 
 )
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 val application = AppStore.findByNameAndVersion.call(
     FindApplicationAndOptionalDependencies(
         appName = "a-batch-application", 
@@ -66,7 +72,7 @@ application = ApplicationWithFavoriteAndTags(
         applicationType = ApplicationType.BATCH, 
         container = null, 
         environment = null, 
-        fileExtensions = listOf(), 
+        fileExtensions = emptyList(), 
         invocation = listOf(WordInvocationParameter(
             word = "batch", 
         ), VariableInvocationParameter(
@@ -78,7 +84,7 @@ application = ApplicationWithFavoriteAndTags(
             suffixVariable = "", 
             variableNames = listOf("var"), 
         )), 
-        licenseServers = listOf(), 
+        licenseServers = emptyList(), 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = null, 
@@ -110,7 +116,7 @@ application = ApplicationWithFavoriteAndTags(
                         version = "1.0.0", 
                     ), 
                     license = "None", 
-                    requiredModules = listOf(), 
+                    requiredModules = emptyList(), 
                     supportedProviders = null, 
                     title = "Batch tool", 
                 ), 
@@ -135,7 +141,9 @@ application = ApplicationWithFavoriteAndTags(
     tags = listOf("very-scientific"), 
 )
 */
+
 /* The user looks for a suitable machine */
+
 val machineTypes = Products.browse.call(
     ProductsBrowseRequest(
         consistency = null, 
@@ -181,7 +189,9 @@ machineTypes = PageV2(
     next = null, 
 )
 */
+
 /* The user starts the Job with input based on previous requests */
+
 Jobs.create.call(
     bulkRequestOf(JobSpecification(
         allowDuplicateJob = false, 

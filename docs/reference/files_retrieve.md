@@ -76,7 +76,7 @@ UFile(
         unixMode = null, 
         unixOwner = null, 
     ), 
-    updates = listOf(), 
+    updates = emptyList(), 
     providerGeneratedId = "/123/folder", 
 )
 */

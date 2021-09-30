@@ -4,6 +4,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Creates one or more resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
