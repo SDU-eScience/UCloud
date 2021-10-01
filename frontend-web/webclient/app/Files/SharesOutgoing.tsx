@@ -225,10 +225,7 @@ const ShareGroup: React.FunctionComponent<{
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText
-        mr="1em"
-        cursor="pointer"
         selected={props.selected}
-        fontSize={3}
         onClick={props.onClick}
     >
         {props.children}
