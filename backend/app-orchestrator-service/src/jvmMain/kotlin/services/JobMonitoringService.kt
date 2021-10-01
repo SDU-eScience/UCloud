@@ -91,12 +91,12 @@ class JobMonitoringService(
                             """
                         )
                         .rows
-                        .map { it.getString(0)!! }
+                        .map { it.getLong(0)!! }
                         .toSet()
-                        .let {
+                        .let { set ->
                             jobOrchestrator.retrieveBulk(
                                 actorAndProject = ActorAndProject(Actor.System, null),
-                                it.toList(),
+                                set.map { id -> id.toString() },
                                 permissionOneOf = listOf(Permission.READ)
                             )
                         }
@@ -260,12 +260,21 @@ class JobMonitoringService(
                 resources.filterIsInstance<AppParameterValue.File>() +
                 outputFolder
 
+        log.debug("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
+
         val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }
         val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }
 
+        log.debug("readonly: ${readOnlyFiles.size}, write: ${readWriteFiles.size}")
 
-        checkFiles(session, true, readOnlyFiles, job)
-        checkFiles(session, false, readWriteFiles, job)
+        val permissionToRead = checkFiles(session, true, readOnlyFiles, job)
+        if(!permissionToRead.hasPermission) {
+            return permissionToRead
+        }
+        val permissionToWrite = checkFiles(session, false, readWriteFiles, job)
+        if (!permissionToWrite.hasPermission) {
+            return permissionToWrite
+        }
         return HasPermissionForExistingMounts(true, null)
     }
 
@@ -279,6 +288,8 @@ class JobMonitoringService(
             requireAll = false,
             ctx = session
         )
+        log.debug(canAccess.joinToString())
+        log.debug("${canAccess.size} vs ${files.size}" )
         if (canAccess.size != files.size) {
             val accessibleFiles = canAccess.map { it.id }
             val lostPermissionTo = files.filterNot { accessibleFiles.contains(it) }
@@ -289,6 +300,6 @@ class JobMonitoringService(
 
     companion object : Loggable {
         override val log = logger()
-        private const val TIME_BETWEEN_SCANS = 1_000 * 60 * 15
+        private const val TIME_BETWEEN_SCANS = 1_000 * 60 * 5
     }
 }

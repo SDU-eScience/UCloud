@@ -353,7 +353,11 @@ class JobOrchestrator(
         return proxy.bulkProxy(
             actorAndProject,
             request,
-            BulkProxyInstructions.pureProcedure(this, { providerApi(it).terminate }, { it.id }, { _, res -> res })
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).terminate },
+                requestToId = { it.id },
+                resourceToRequest = { _, res -> res })
         )
     }
 
