@@ -16,5 +16,5 @@ services:
     depends_on:
       - backend
     ports:
-      - 8889:8889
+      - ${INTEGRATION_PORT:-8889}:8889
     hostname: integration-module

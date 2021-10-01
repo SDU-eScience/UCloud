@@ -503,7 +503,6 @@ class JobManagement(
                 throw ex
             }
         }
-
         plugins.forEach { plugin ->
             with(plugin) {
                 with(k8) {
@@ -511,7 +510,6 @@ class JobManagement(
                 }
             }
         }
-
         with(k8) {
             plugins.forEach { plugin ->
                 with(plugin) {
@@ -519,7 +517,6 @@ class JobManagement(
                 }
             }
         }
-
         return true
     }
 
