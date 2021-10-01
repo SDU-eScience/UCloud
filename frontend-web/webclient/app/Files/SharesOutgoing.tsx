@@ -110,7 +110,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     }, []);
 
     return <MainContainer
-        header={<SharedByTabs sharedByMe={true} />}
+        header={<SharedByTabs sharedByMe />}
         headerSize={55}
         main={
             <>
