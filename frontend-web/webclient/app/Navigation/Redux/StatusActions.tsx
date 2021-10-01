@@ -1,4 +1,4 @@
-import {SetLoadingAction} from "Types";
+import {SetLoadingAction} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {SET_ACTIVE_PAGE, SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
 import {useDispatch} from "react-redux";

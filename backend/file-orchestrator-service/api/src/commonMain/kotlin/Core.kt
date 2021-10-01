@@ -304,10 +304,7 @@ data class UFileStatus(
 ) : ResourceStatus<Product.Storage, FSSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc(
-    """
-""", importance = 98
-)
+@UCloudApiDoc("", importance = 98)
 @Serializable
 data class UFileSpecification(
     val collection: String,

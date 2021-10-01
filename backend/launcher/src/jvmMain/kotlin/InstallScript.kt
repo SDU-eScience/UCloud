@@ -99,10 +99,9 @@ fun runInstaller(configDir: File) {
 
         val cephFs = File("/mnt/cephfs")
         if (cephFs.exists()) {
-            File(cephFs, "home").mkdir()
-            File(cephFs, "projects").mkdir()
-            File(cephFs, "home/user").mkdir() // TODO Temporary
-            File(cephFs, "home/user/Jobs").mkdir() // TODO Temporary
+            File(cephFs, "projects").mkdirs()
+            File(cephFs, "home").mkdirs()
+            File(cephFs, "collections").mkdirs()
         }
 
         routing {

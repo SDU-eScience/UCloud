@@ -189,12 +189,13 @@ private fun generateCall(
     val errorType = traverseType(call.errorClass.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
 
-    val synopsis = call.docOrNull?.summary
-    val description = call.docOrNull?.description
+    val currentPackage = container::class.java.packageName
+    val synopsis = call.docOrNull?.summary?.let { processDocumentation(currentPackage, it) }
+    val description = call.docOrNull?.description?.let { processDocumentation(currentPackage, it) }
 
     val field = call.field
     val defaultMaturity = containerDocs.maturity
-    val overriddenDocs = container.docOverrides[call.fullName]?.docs?.split(container::class.java.packageName)
+    val overriddenDocs = container.docOverrides[call.fullName]?.docs?.split(currentPackage)
     val fieldDocs = field?.javaField?.documentation(container::class.java.packageName, defaultMaturity)
 
     return GeneratedRemoteProcedureCall(

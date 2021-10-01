@@ -1,6 +1,6 @@
 import * as React from "react";
 import {Flex} from "@/ui-components";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";

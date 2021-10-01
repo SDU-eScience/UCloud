@@ -70,7 +70,7 @@ import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {emptyPage} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";

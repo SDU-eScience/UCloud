@@ -12,7 +12,7 @@ import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {emptyPage} from "@/DefaultObjects";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/NewApi";
 

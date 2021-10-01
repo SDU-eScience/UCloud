@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class NormalizedToolDescription(
     val info: NameAndVersion,
+    @Deprecated("Use image instead")
     val container: String? = null,
     val defaultNumberOfNodes: Int,
     val defaultTimeAllocation: SimpleDuration,

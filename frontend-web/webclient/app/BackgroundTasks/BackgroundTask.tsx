@@ -3,7 +3,7 @@ import {Progress, Speed, Task, TaskUpdate} from "@/BackgroundTasks/api";
 import DetailedTask from "@/BackgroundTasks/DetailedTask";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import * as ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import styled from "styled-components";
 import {Icon} from "@/ui-components";
 import Box from "@/ui-components/Box";

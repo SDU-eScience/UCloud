@@ -46,7 +46,7 @@ services:
     hostname: k3s
 
   backend:
-    image: dreg.cloud.sdu.dk/ucloud/ucloud:2021.3.0-alpha0
+    image: dreg.cloud.sdu.dk/ucloud/ucloud:2021.3.0-alpha1
     user: root
     command:
       - /opt/service/bin/service
@@ -68,6 +68,6 @@ services:
     hostname: backend
 
   frontend:
-    image: dreg.cloud.sdu.dk/ucloud/webclient:0.51.0-alpha3
+    image: dreg.cloud.sdu.dk/ucloud/webclient:0.51.0-alpha4
     hostname: frontend
 

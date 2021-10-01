@@ -1,13 +1,46 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.*
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.api.ChargeType
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ProductPriceUnit
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
-import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.FakeOutgoingCall
-import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.accounting.api.providers.SupportByProvider
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.TYPE_REF_LINK
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiDocC
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.actor
+import dk.sdu.cloud.calls.basicUser
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.comment
+import dk.sdu.cloud.calls.description
+import dk.sdu.cloud.calls.docCallRef
+import dk.sdu.cloud.calls.document
+import dk.sdu.cloud.calls.documentation
+import dk.sdu.cloud.calls.httpCreate
+import dk.sdu.cloud.calls.httpUpdate
+import dk.sdu.cloud.calls.responseExample
+import dk.sdu.cloud.calls.success
+import dk.sdu.cloud.calls.title
+import dk.sdu.cloud.calls.useCase
+import dk.sdu.cloud.calls.useCaseReference
 import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
@@ -123,11 +156,11 @@ data class FilesCreateDownloadResponseItem(var endpoint: String)
 
 // ---
 
-@UCloudApiStable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
-    FSSupport>("files") {
+        FSSupport>("files") {
     override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
-        UFileStatus, Product.Storage, FSSupport>()
+            UFileStatus, Product.Storage, FSSupport>()
 
     init {
         title = "Files"
@@ -135,16 +168,46 @@ object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileInclu
         //language=markdown
         description = """Files in UCloud is a resource for storing, retrieving and organizing data in UCloud.
 
-A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
-functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
-types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain more directories, which leads to a
-natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
-of bytes.
+The file-system of UCloud provide researchers with a way of storing large data-sets efficiently and securely. The
+file-system is one of UCloud's core features and almost all other features, either directly or indirectly, interact
+with it. For example:
+
+- All interactions in UCloud (including files) are automatically [audited](/docs/developer-guide/core/monitoring/auditing.md)
+- UCloud allows compute [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) to consume UCloud files. Either
+  through containerized workloads or virtual machines.
+- Authorization and [project management](/docs/developer-guide/accounting-and-projects/projects/projects.md)
+- Powerful [file metadata system](/docs/developer-guide/orchestration/storage/metadata/templates.md) for data management
+
+A file in UCloud ($TYPE_REF UFile) closely follows the concept of a computer file you might already be familiar with.
+The functionality of a file is mostly determined by its `type`. The two most important types are the
+[`DIRECTORY`]($TYPE_REF_LINK FileType) and [`FILE`]($TYPE_REF_LINK FileType) types. A
+[`DIRECTORY`]($TYPE_REF_LINK FileType) is a container of $TYPE_REF UFile s. A directory can itself contain more
+directories, which leads to a natural tree-like structure. [`FILE`s]($TYPE_REF_LINK FileType), also referred to as a
+regular files, are data records which each contain a series of bytes.
+
+---
+
+__📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+
+| End-User | Provider (Ingoing) | Control (Outgoing) |
+|----------|--------------------|--------------------|
+| [`Files`](/docs/developer-guide/orchestration/storage/files.md) | [`FilesProvider`](/docs/developer-guide/orchestration/storage/providers/files/ingoing.md) | [`FilesControl`](/docs/developer-guide/orchestration/storage/providers/files/outgoing.md) |
+
+---
 """
     }
 
-    private val renameFileUseCase = "rename_file"
-    private val copyFileToSelfUseCase = "copy_file_to_self"
+    private const val renameFileUseCase = "rename_file"
+    private const val copyFileToSelfUseCase = "copy_file_to_self"
+    private const val uploadUseCase = "upload"
+    private const val downloadUseCase = "download"
+    private const val createFolderUseCase = "create_folder"
+    private const val moveToTrashUseCase = "move_to_trash"
+    private const val browseUseCase = "browse"
+    private const val retrieveUseCase = "retrieve"
+    private const val deleteUseCase = "delete"
+    private const val retrieveProductsUseCase = "retrieve_products"
+
     override fun documentation() {
         useCase(
             renameFileUseCase,
@@ -173,7 +236,7 @@ of bytes.
         useCase(
             copyFileToSelfUseCase,
             "Copying a file to itself",
-            trigger = "Use-initiated action, typically through the user-interface",
+            trigger = "User-initiated action, typically through the user-interface",
             preConditions = listOf(
                 "A file present at /123/my/file",
                 "The user has EDIT permissions on the file",
@@ -195,8 +258,286 @@ of bytes.
             }
         )
 
-        document(browse, UCloudApiDocC(
-            """
+        useCase(
+            uploadUseCase,
+            "Uploading a file",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A folder at '/123/folder'",
+                "The user has EDIT permissions on the file",
+                "The provider supports the CHUNKED protocol"
+            ),
+            postConditions = listOf(
+                "A new file present at '/123/folder/file'"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    createUpload,
+                    bulkRequestOf(
+                        FilesCreateUploadRequestItem(
+                            "/123/folder",
+                            listOf(UploadProtocol.CHUNKED),
+                            WriteConflictPolicy.REJECT
+                        )
+                    ),
+                    FilesCreateUploadResponse(
+                        listOf(
+                            FilesCreateUploadResponseItem(
+                                "https://provider.example.com/ucloud/example-provider/chunked",
+                                UploadProtocol.CHUNKED,
+                                "f1460d47e583653f7723204e5ff3f50bad91a658"
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("The user can now proceed to upload using the chunked protocol at the provided endpoint")
+            }
+        )
+
+        useCase(
+            downloadUseCase,
+            "Downloading a file",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A file at '/123/folder/file",
+                "The user has READ permissions on the file"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    createDownload,
+                    bulkRequestOf(
+                        FilesCreateDownloadRequestItem("/123/folder/file")
+                    ),
+                    BulkResponse(
+                        listOf(
+                            FilesCreateDownloadResponseItem(
+                                "https://provider.example.com/ucloud/example-provider/download?token=d293435e94734c91394f17bb56268d3161c7f069"
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("The user can now download the file through normal HTTP(s) GET at the provided endpoint")
+            }
+        )
+
+        useCase(
+            createFolderUseCase,
+            "Creating a folder",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A folder at '/123/folder",
+                "The user has EDIT permissions on the file"
+            ),
+            postConditions = listOf(
+                "A new file exists at '/123/folder/a"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    createFolder,
+                    bulkRequestOf(
+                        FilesCreateFolderRequestItem(
+                            "/123/folder/a",
+                            WriteConflictPolicy.REJECT
+                        )
+                    ),
+                    FilesCreateFolderResponse(listOf(LongRunningTask.Complete())),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            moveToTrashUseCase,
+            "Moving multiple files to trash",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A folder at '/123/folder'",
+                "A file at '/123/file'",
+                "The user has EDIT permissions for all files involved",
+            ),
+            postConditions = listOf(
+                "The folder and all children are moved to the provider's trash folder",
+                "The file is moved to the provider's trash folder"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    trash,
+                    bulkRequestOf(
+                        FindByPath("/123/folder"),
+                        FindByPath("/123/file")
+                    ),
+                    BulkResponse(
+                        listOf(
+                            LongRunningTask.Complete(),
+                            LongRunningTask.Complete(),
+                        )
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            browseUseCase,
+            "Browsing the contents of a folder",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A folder at '/123/folder",
+                "The user has READ permissions on the file"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    browse,
+                    ResourceBrowseRequest(
+                        UFileIncludeFlags(includeTimestamps = true)
+                    ),
+                    PageV2(
+                        50,
+                        listOf(
+                            UFile(
+                                "/123/folder/file.txt",
+                                UFileSpecification(
+                                    "123",
+                                    ProductReference("u1-cephfs", "u1-cephfs", "ucloud")
+                                ),
+                                1632903417165,
+                                UFileStatus(
+                                    modifiedAt = 1632903417165
+                                ),
+                                ResourceOwner("user", "f63919cd-60d3-45d3-926b-0246dcc697fd")
+                            )
+                        ),
+                        null
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            retrieveUseCase,
+            "Retrieving a single file",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A file at '/123/folder",
+                "The user has READ permissions on the file"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(
+                        UFileIncludeFlags(includeTimestamps = true),
+                        "/123/folder"
+                    ),
+                    UFile(
+                        "/123/folder",
+                        UFileSpecification(
+                            "123",
+                            ProductReference("u1-cephfs", "u1-cephfs", "ucloud")
+                        ),
+                        1632903417165,
+                        UFileStatus(
+                            type = FileType.DIRECTORY,
+                            modifiedAt = 1632903417165
+                        ),
+                        ResourceOwner("user", "f63919cd-60d3-45d3-926b-0246dcc697fd")
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            deleteUseCase,
+            "Deleting a file permanently",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A file at '/123/folder",
+                "The user has EDIT permissions on the file"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    delete,
+                    bulkRequestOf(
+                        FindByStringId("/123/folder")
+                    ),
+                    BulkResponse(listOf(Unit)),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            retrieveProductsUseCase,
+            "Retrieving a list of products supported by accessible providers",
+            trigger = "Typically triggered by a client to determine which operations are supported",
+            preConditions = listOf(
+                "The user has access to the 'ucloud' provider"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "ucloud" to listOf(
+                                ResolvedSupport<Product.Storage, FSSupport>(
+                                    Product.Storage(
+                                        "u1-cephfs",
+                                        1L,
+                                        ProductCategoryId("u1-cephfs", "ucloud"),
+                                        "Storage provided by UCloud",
+                                        unitOfPrice = ProductPriceUnit.PER_UNIT,
+                                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
+                                    ),
+                                    FSSupport(
+                                        ProductReference("u1-cephfs", "u1-cephfs", "ucloud"),
+                                        FSProductStatsSupport(
+                                            sizeInBytes = true,
+                                            sizeIncludingChildrenInBytes = true,
+                                            modifiedAt = true,
+                                            createdAt = true,
+                                            accessedAt = false,
+                                            unixPermissions = true,
+                                            unixOwner = true,
+                                            unixGroup = true
+                                        ),
+                                        FSCollectionSupport(
+                                            aclModifiable = false,
+                                            usersCanCreate = true,
+                                            usersCanDelete = true,
+                                            usersCanRename = true
+                                        ),
+                                        FSFileSupport(
+                                            aclModifiable = false,
+                                            trashSupported = true,
+                                            isReadOnly = false
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+            }
+        )
+
+        document(
+            browse, UCloudApiDocC(
+                """
                 Browses the contents of a directory.
                 
                 The results will be returned using the standard pagination API of UCloud. Consistency is slightly
@@ -206,10 +547,12 @@ of bytes.
                 this list for all subsequent requests and retrieve additional information about the files. If the files
                 no longer exist then the provider should simply not include these results.
             """
-        ))
+            )
+        )
 
-        document(retrieve, UCloudApiDocC(
-            """
+        document(
+            retrieve, UCloudApiDocC(
+                """
                 Retrieves information about a single file.
                 
                 This file can be of any type. Clients can request additional information about the file using the
@@ -217,10 +560,12 @@ of bytes.
                 this information using ${docCallRef(FileCollections::browse)} or 
                 ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
             """
-        ))
+            )
+        )
 
-        document(delete, UCloudApiDocC(
-            """
+        document(
+            delete, UCloudApiDocC(
+                """
                 Permanently deletes one or more files
                 
                 This call will recursively delete files if needed. It is possible that a provider might fail to
@@ -228,6 +573,20 @@ of bytes.
                 file-system is unable to delete a given file. This will lead the file-system in an inconsistent state.
                 It is not guaranteed that the provider will be able to detect this error scenario. A client of the
                 API can check if the file has been deleted by calling `retrieve` on the file.
+            """
+            )
+        )
+
+        document(updateAcl, UCloudApiDocC(
+            """
+            Updates the ACL of a single file.
+                
+            ---
+            
+            __⚠️ WARNING:__ No providers currently support this API. Instead use the
+            $CALL_REF files.collections.updateAcl endpoint.
+            
+            ---
             """
         ))
     }
@@ -238,8 +597,6 @@ of bytes.
         documentation {
             summary = "Move a file from one path to another"
             description = """
-                    Moves a file from one path to another.
-                    
                     The file can be of any type. This request is also used for 'renames' of a file. This is simply
                     considered a move within a single directory. This operation handles conflicts depending on the supplied
                     `WriteConflictPolicy`.
@@ -273,19 +630,19 @@ of bytes.
         documentation {
             summary = "Copies a file from one path to another"
             description = """
-                    Copies a file from one path to another.
-                    
-                    The file can be of any type. If a directory is chosen then this will recursively copy all of its
-                    children. This request might fail half-way through. This can potentially lead to a situation where
-                    a partial file is left on the file-system. It is left to the user to clean up this file.
-                    
-                    This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
-                    
-                    This is a long running task. As a result, this operation might respond with a status code which indicate
-                    that it will continue in the background. Progress of this job can be followed using the task API.
-                    
-                    TODO What happens with metadata, acls and extended attributes?
-                """.trimIndent()
+                The file can be of any type. If a directory is chosen then this will recursively copy all of its
+                children. This request might fail half-way through. This can potentially lead to a situation where
+                a partial file is left on the file-system. It is left to the user to clean up this file.
+                
+                This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
+                
+                This is a long running task. As a result, this operation might respond with a status code which
+                indicate that it will continue in the background. Progress of this job can be followed using the
+                task API.
+                
+                UCloud applied metadata will not be copied to the new file. File-system metadata (e.g.
+                extended-attributes) may be moved, however this is provider dependant.
+            """.trimIndent()
 
             responseExample(
                 HttpStatusCode.BadRequest,
@@ -312,11 +669,9 @@ of bytes.
         documentation {
             summary = "Creates an upload session between the user and the provider"
             description = """
-                    Creates an upload session between the user and the provider.
-                    
-                    The returned endpoint will accept an upload from the user which will create a file at a location
-                    specified in this request.
-                """.trimIndent()
+                The returned endpoint will accept an upload from the user which will create a file at a location
+                specified in this request.
+            """.trimIndent()
 
             responseExample(
                 HttpStatusCode.NotFound,
@@ -327,20 +682,20 @@ of bytes.
                 HttpStatusCode.Forbidden,
                 "You lack permissions to perform this operation"
             )
+
+            useCaseReference(uploadUseCase, "Uploading a file with the chunked protocol")
         }
     }
 
     val createDownload = call<FilesCreateDownloadRequest, FilesCreateDownloadResponse,
-        CommonErrorMessage>("createDownload") {
+            CommonErrorMessage>("createDownload") {
         httpCreate(baseContext, "download")
 
         documentation {
             summary = "Creates a download session between the user and the provider"
             description = """
-                    Creates a download session between the user and the provider.
-                    
-                    The returned endpoint will respond with a download to the user.
-                """.trimIndent()
+                The returned endpoint will respond with a download to the user.
+            """.trimIndent()
 
             responseExample(
                 HttpStatusCode.NotFound,
@@ -351,6 +706,8 @@ of bytes.
                 HttpStatusCode.Forbidden,
                 "You lack permissions to perform this operation"
             )
+
+            useCaseReference(downloadUseCase, "Downloading a file")
         }
     }
 
@@ -358,13 +715,11 @@ of bytes.
         httpCreate(baseContext, "folder")
 
         documentation {
-            summary = "Creates a folder"
+            summary = "Creates one or more folders"
             description = """
-                    Creates a folder at a specified location.
-                    
-                    This folder will automatically create parent directories if needed. This request may fail half-way
-                    through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
-                """.trimIndent()
+                This folder will automatically create parent directories if needed. This request may fail half-way
+                through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
+            """.trimIndent()
 
             responseExample(
                 HttpStatusCode.NotFound,
@@ -375,6 +730,8 @@ of bytes.
                 HttpStatusCode.Forbidden,
                 "You lack permissions to perform this operation"
             )
+
+            useCaseReference(createFolderUseCase, "Creating a folder")
         }
     }
 
@@ -384,14 +741,12 @@ of bytes.
         documentation {
             summary = "Moves a file to the trash"
             description = """
-                    Moves a file to the trash.
-                    
                     This operation acts as a non-permanent delete for users. Users will be able to restore the file from
                     trash later, if needed. It is up to the provider to determine if the trash should be automatically
                     deleted and where this trash should be stored.
                     
-                    Note that not all providers supports this endpoint. You can query ${docCallRef(FileCollections::browse)}
-                    or ${docCallRef(FileCollections::retrieve)} with the `includeSupport` flag.
+                    Not all providers supports this endpoint. You can query $CALL_REF files.collections.browse
+                    or $CALL_REF files.collections.retrieve with the `includeSupport` flag.
                     
                     This is a long running task. As a result, this operation might respond with a status code which indicate
                     that it will continue in the background. Progress of this job can be followed using the task API.
@@ -411,6 +766,8 @@ of bytes.
                 HttpStatusCode.BadRequest,
                 "This operation is not supported by the provider"
             )
+
+            useCaseReference(moveToTrashUseCase, "Moving files to trash")
         }
     }
 

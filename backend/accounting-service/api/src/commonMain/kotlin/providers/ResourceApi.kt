@@ -140,6 +140,10 @@ abstract class ResourceApi<
                     typeOf<ResourceBrowseRequest<Flags>>(),
                     baseContext
                 )
+
+                documentation {
+                    summary = "Browses the catalogue of available resources"
+                }
             },
             requestType = ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
             successType = PageV2.serializer(typeInfo.resSerializer),
@@ -159,6 +163,10 @@ abstract class ResourceApi<
                     typeOf<ResourceRetrieveRequest<Flags>>(),
                     baseContext
                 )
+
+                documentation {
+                    summary = "Retrieve a single resource"
+                }
             },
             requestType = ResourceRetrieveRequest.serializer(typeInfo.flagsSerializer),
             successType = typeInfo.resSerializer,
@@ -173,6 +181,10 @@ abstract class ResourceApi<
             name = "create",
             handler = {
                 httpCreate(BulkRequest.serializer(typeInfo.specSerializer), baseContext)
+
+                documentation {
+                    summary = "Creates one or more resources"
+                }
             },
             requestType = BulkRequest.serializer(typeInfo.specSerializer),
             successType = BulkResponse.serializer(FindByStringId.serializer().nullable),
@@ -187,6 +199,10 @@ abstract class ResourceApi<
             name = "delete",
             handler = {
                 httpDelete(BulkRequest.serializer(FindByStringId.serializer()), baseContext)
+
+                documentation {
+                    summary = "Deletes one or more resources"
+                }
             },
             requestType = BulkRequest.serializer(FindByStringId.serializer()),
             successType = BulkResponse.serializer(Unit.serializer().nullable),
@@ -201,6 +217,20 @@ abstract class ResourceApi<
             name = "retrieveProducts",
             handler = {
                 httpRetrieve(baseContext, "products")
+
+                documentation {
+                    summary = "Retrieve product support for all accessible providers"
+                    description = """
+                        This endpoint will determine all providers that which the authenticated user has access to, in
+                        the current workspace. A user has access to a product, and thus a provider, if the product is
+                        either free or if the user has been granted credits to use the product.
+                        
+                        See also:
+                        
+                        - $TYPE_REF dk.sdu.cloud.accounting.api.Product
+                        - [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
+                    """.trimIndent()
+                }
             },
             requestType = Unit.serializer(),
             successType = SupportByProvider.serializer(typeInfo.productSerializer, typeInfo.supportSerializer),
@@ -219,6 +249,10 @@ abstract class ResourceApi<
                     baseContext,
                     "updateAcl",
                 )
+
+                documentation {
+                    summary = "Updates the ACL attached to a resource"
+                }
             },
             requestType = BulkRequest.serializer(UpdatedAcl.serializer()),
             successType = BulkResponse.serializer(Unit.serializer().nullable),
@@ -236,6 +270,10 @@ abstract class ResourceApi<
                     ResourceSearchRequest.serializer(typeInfo.flagsSerializer),
                     baseContext
                 )
+
+                documentation {
+                    summary = "Searches the catalogue of available resources"
+                }
             },
             requestType = ResourceSearchRequest.serializer(typeInfo.flagsSerializer),
             successType = PageV2.serializer(typeInfo.resSerializer),

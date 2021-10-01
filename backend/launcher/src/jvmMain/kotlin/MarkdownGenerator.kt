@@ -12,7 +12,7 @@ import kotlin.reflect.full.memberProperties
 
 val outputFolder by lazy {
     if (File("../../backend").exists() && File("../../frontend-web").exists()) {
-        File("../../Docs").apply {
+        File("../../docs").apply {
             deleteRecursively()
             mkdirs()
         }
@@ -29,7 +29,7 @@ fun badge(
     color: String,
     altText: String = "$label: $message",
 ): String {
-    return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
+    return "![$altText](https://img.shields.io/static/v1?label=$label&message=${message.replace(" ", "+")}&color=$color&style=flat-square)"
 }
 
 fun apiMaturityBadge(level: UCloudApiMaturity): String {
@@ -94,22 +94,51 @@ fun generateMarkdown(
     path: List<Chapter.Node>,
     types: LinkedHashMap<String, GeneratedType>,
     calls: List<GeneratedRemoteProcedureCall>,
+    id: String,
     title: String,
     container: CallDescriptionContainer,
 ) {
     val outputFile = File(
         outputFolder,
-        path.joinToString("/") { it.title.replace("/", "_") } + "/" + title + ".md"
+        path.joinToString("/") { it.id.replace("/", "_") } + "/" + id + ".md"
     )
-    val referenceFolder = File(outputFolder, "Reference").also { it.mkdirs() }
+    val referenceFolder = File(outputFolder, "reference").also { it.mkdirs() }
 
     outputFile.parentFile.mkdirs()
+    val sortedCalls = calls.sortedWith(
+        Comparator
+            .comparingInt<GeneratedRemoteProcedureCall> {
+                when (it.realCall.authDescription.access) {
+                    AccessRight.READ -> 1
+                    AccessRight.READ_WRITE -> 2
+                }
+            }
+            .thenComparingInt { -1 * it.doc.importance }
+            .thenComparing<String> { it.name }
+    )
+
+    val sortedTypes = ArrayList(types.values).filter { it.owner == container::class }.sortedWith(
+        Comparator
+            .comparingInt<GeneratedType> {
+                if (it.name.contains("Request")) {
+                    1
+                } else if (it.name.contains("Response")) {
+                    2
+                } else {
+                    0
+                }
+            }
+            .thenComparing<Int> { -1 * it.doc.importance }
+            .thenComparing<String> { it.name }
+    )
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()
         val synopsis = container.description?.substringBefore('\n', "")?.takeIf { it.isNotEmpty() }
+            ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.synopsis
         val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
+            ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.description
         outs.println("# $title")
         outs.println()
@@ -124,6 +153,72 @@ fun generateMarkdown(
             outs.println()
         }
 
+        outs.println("## Table of Contents")
+        var counter = 1
+        if (container.useCases.isNotEmpty()) {
+            outs.println(
+                summary(
+                    "<a href='#example-${container.useCases.first().title.replace(" ", "-").lowercase()}'>" +
+                        "${counter++}. Examples" +
+                        "</a>",
+                    buildString {
+                        appendLine("<table><thead><tr>")
+                        appendLine("<th>Description</th>")
+                        appendLine("</tr></thread>")
+                        appendLine("<tbody>")
+                        for (useCase in container.useCases) {
+                            appendLine("<tr><td><a href='#example-${useCase.title.replace(" ", "-").lowercase()}'>${useCase.title}</a></td></tr>")
+                        }
+                        appendLine("</tbody></table>")
+                    }
+                )
+            )
+        }
+        if (sortedCalls.isNotEmpty()) {
+            outs.println(
+                summary(
+                    "<a href='#remote-procedure-calls'>" +
+                        "${counter++}. Remote Procedure Calls" +
+                        "</a>",
+                    buildString {
+                        appendLine("<table><thead><tr>")
+                        appendLine("<th>Name</th>")
+                        appendLine("<th>Description</th>")
+                        appendLine("</tr></thread>")
+                        appendLine("<tbody>")
+                        for (call in sortedCalls) {
+                            appendLine("<tr>")
+                            appendLine("<td><a href='#${call.name.lowercase()}'><code>${call.name}</code></a></td>")
+                            appendLine("<td>${call.doc.synopsis ?: "<i>No description</i>"}</td>")
+                            appendLine("</tr>")
+                        }
+                        appendLine("</tbody></table>")
+                    }
+                )
+            )
+        }
+        if (sortedTypes.isNotEmpty()) {
+            outs.println(summary(
+                "<a href='#data-models'>" +
+                    "${counter++}. Data Models" +
+                    "</a>",
+                buildString {
+                    appendLine("<table><thead><tr>")
+                    appendLine("<th>Name</th>")
+                    appendLine("<th>Description</th>")
+                    appendLine("</tr></thread>")
+                    appendLine("<tbody>")
+                    for (type in sortedTypes) {
+                        appendLine("<tr>")
+                        appendLine("<td><a href='#${simplifyName(type.name).lowercase()}'><code>${simplifyName(type.name)}</code></a></td>")
+                        appendLine("<td>${type.doc.synopsis ?: "<i>No description</i>"}</td>")
+                        appendLine("</tr>")
+                    }
+                    appendLine("</tbody></table>")
+                }
+            ))
+        }
+
         for (useCase in container.useCases) {
             outs.println("## Example: ${useCase.title}")
             val content = generateMarkdownForExample(useCase)
@@ -133,11 +228,11 @@ fun generateMarkdown(
                 .writeText("# Example: ${useCase.title}\n\n$content")
         }
 
-        if (calls.isNotEmpty()) {
+        if (sortedCalls.isNotEmpty()) {
             outs.println()
             outs.println("## Remote Procedure Calls")
             outs.println()
-            for (call in calls) {
+            for (call in sortedCalls) {
                 outs.println("### `${call.name}`")
                 outs.println()
                 val content = generateMarkdownForRemoteProcedureCall(container, types, call)
@@ -148,28 +243,12 @@ fun generateMarkdown(
             }
         }
 
-        if (types.values.isNotEmpty()) {
+        if (sortedTypes.isNotEmpty()) {
             outs.println()
             outs.println("## Data Models")
             outs.println()
 
-            val sortedTypes = ArrayList(types.values).sortedWith(
-                Comparator
-                    .comparingInt<GeneratedType> {
-                        if (it.name.contains("Request")) {
-                            1
-                        } else if (it.name.contains("Response")) {
-                            2
-                        } else {
-                            0
-                        }
-                    }
-                    .thenComparing<Int> { -1 * it.doc.importance }
-                    .thenComparing<String> { it.name }
-            )
             for (type in sortedTypes) {
-                if (type.owner != container::class) continue
-
                 outs.println("### `${simplifyName(type.name)}`")
                 val content = generateMarkdownForType(container, types, type)
                 outs.println(content)
@@ -246,7 +325,7 @@ fun generateMarkdownForRemoteProcedureCall(
         outs.println("| Example |")
         outs.println("|---------|")
         for (example in useCaseExamples) {
-            outs.println("| [${example.description}](/Docs/Reference/${call.namespace}_${example.id}.md) |")
+            outs.println("| [${example.description}](/docs/reference/${call.namespace}_${example.id}.md) |")
         }
         outs.println()
     }
@@ -332,11 +411,60 @@ fun generateMarkdownForExample(useCase: UseCase): String {
                             appendLine("*/")
                         }
                         is UseCaseNode.Comment -> {
+                            appendLine()
                             appendLine("/* ${node.comment} */")
+                            appendLine()
                         }
                         is UseCaseNode.SourceCode -> {
                             if (node.language == UseCaseNode.Language.KOTLIN) {
                                 appendLine(node.code)
+                            }
+                        }
+
+                        is UseCaseNode.Subscription<*, *, *> -> {
+                            append(node.call.containerRef::class.simpleName)
+                            append(".")
+                            append(node.call.field?.name ?: node.call.name)
+                            appendLine(".subscribe(")
+                            append(generateKotlinFromValue(node.request).prependIndent("    "))
+                            appendLine(",")
+                            append("    ")
+                            append(node.actor.name)
+                            appendLine(",")
+                            appendLine("    handler = { /* will receive messages listed below */ }")
+                            appendLine(")")
+                            appendLine()
+
+                            for (message in node.messages) {
+                                when (message) {
+                                    is UseCaseNode.RequestOrResponse.Request -> {
+                                        append(node.call.containerRef::class.simpleName)
+                                        append(".")
+                                        append(node.call.field?.name ?: node.call.name)
+                                        appendLine(".call(")
+                                        append(generateKotlinFromValue(message.request).prependIndent("    "))
+                                        appendLine(",")
+                                        append("    ")
+                                        appendLine(node.actor.name)
+                                        appendLine(").orThrow()")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Response -> {
+                                        appendLine("/*")
+                                        appendLine(generateKotlinFromValue(message.response.result))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Error -> {
+                                        appendLine("/*")
+                                        appendLine(message.error.statusCode)
+                                        appendLine(generateKotlinFromValue(message.error))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+                                }
                             }
                         }
                     }
@@ -583,7 +711,7 @@ fun GeneratedTypeReference.kotlinWithLink(
                     null
                 } else {
                     if (visitedType.owner != owner::class) {
-                        "/Docs/Reference/${name}.md"
+                        "/docs/reference/${name}.md"
                     } else {
                         "#${simplifyName(name).lowercase()}"
                     }
@@ -621,9 +749,9 @@ fun generateKotlinFromValue(
             buildString {
                 append(
                     when (value) {
-                        is Array<*> -> "arrayOf"
-                        is List<*> -> "listOf"
-                        is Set<*> -> "setOf"
+                        is Array<*> -> if (value.isEmpty()) "emptyArray" else "arrayOf"
+                        is List<*> ->  if (value.isEmpty()) "emptyList" else "listOf"
+                        is Set<*> -> if(value.isEmpty()) "emptySet" else "setOf"
                         else -> "listOf"
                     }
                 )
@@ -637,7 +765,7 @@ fun generateKotlinFromValue(
                 append(")")
             }
         }
-        is String -> "\"${value}\""
+        is String -> value.split("\n").joinToString(""" + "\n" + """ + "\n    ") { "\"${it}\"" }
         is JsonObject -> {
             buildString {
                 append("JsonObject(mapOf(")
@@ -669,6 +797,22 @@ fun generateKotlinFromValue(
                 append(value.name)
             }
         }
+
+        is Map<*, *> -> {
+            buildString {
+                append("mapOf(")
+                var idx = 0
+                for ((k, v) in value) {
+                    if (idx != 0) append(", ")
+                    append(generateKotlinFromValue(k))
+                    append(" to ")
+                    append(generateKotlinFromValue(v))
+                    idx++
+                }
+                append(")")
+            }
+        }
+
         else -> {
             buildString {
                 append(simplifyName(value::class.java.canonicalName))
