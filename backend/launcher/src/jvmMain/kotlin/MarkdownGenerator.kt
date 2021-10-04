@@ -88,6 +88,45 @@ fun summary(summary: String, body: String, open: Boolean = false): String {
     }
 }
 
+fun generateMarkdownChapterTableOfContents(
+    path: List<Chapter.Node>,
+    chapter: Chapter.Node
+) {
+    val outputFile = File(
+        outputFolder,
+        path.joinToString("/") { it.id.replace("/", "_") } + "/" + chapter.id + "/" + "README.md"
+    )
+    outputFile.parentFile.mkdirs()
+
+    outputFile.printWriter().use { outs ->
+        val urlBuilder = StringBuilder("/docs/")
+        for ((index, node) in (path + chapter).withIndex()) {
+            if (index != 0) outs.print(" / ")
+            urlBuilder.append(node.id)
+            urlBuilder.append('/')
+
+            if (node == chapter) {
+                outs.print("${node.title}")
+            } else {
+                outs.print("[${node.title}](${urlBuilder}README.md)")
+            }
+        }
+        outs.println()
+
+
+        outs.println("# ${chapter.title}")
+        outs.println()
+
+        chapter.children.forEach { chapter ->
+            val suffix = when (chapter) {
+                is Chapter.Node -> "/README.md"
+                is Chapter.Feature -> ".md"
+            }
+            outs.println(" - [${chapter.title}](${urlBuilder}${chapter.id}${suffix})")
+        }
+    }
+}
+
 fun generateMarkdown(
     previousSection: Chapter?,
     nextSection: Chapter?,
@@ -140,6 +179,20 @@ fun generateMarkdown(
         val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.description
+
+        run {
+            val urlBuilder = StringBuilder("/docs/")
+            for ((index, node) in path.withIndex()) {
+                if (index != 0) outs.print(" / ")
+                urlBuilder.append(node.id)
+                urlBuilder.append('/')
+
+                outs.print("[${node.title}](${urlBuilder}README.md)")
+            }
+            outs.print(" / ")
+            outs.println(title)
+        }
+
         outs.println("# $title")
         outs.println()
         outs.println(apiMaturityBadge(documentation.maturity))

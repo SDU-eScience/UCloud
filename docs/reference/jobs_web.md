@@ -2,6 +2,12 @@
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

@@ -11,6 +11,12 @@
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file present at '/123/folder/file'</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

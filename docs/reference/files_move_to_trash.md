@@ -12,6 +12,12 @@
 <li>The folder and all children are moved to the provider's trash folder</li>
 <li>The file is moved to the provider's trash folder</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

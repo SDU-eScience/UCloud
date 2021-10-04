@@ -832,7 +832,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                     user
                 )
 
-                comment("Note that the machine has support for the 'terminal' feature")
+                comment("📝 Note: The machine has support for the 'terminal' feature")
 
                 success(
                     openInteractiveSession,
@@ -1229,7 +1229,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                 )
 
                 comment("""
-                    Note, at this point the user has a very low amount of credits remaining.
+                    📝 Note: at this point the user has a very low amount of credits remaining.
                     It will only last a couple of minutes.
                 """.trimIndent())
 
@@ -1525,5 +1525,8 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession")
+        documentation {
+            summary = "Opens an interactive session (e.g. terminal, web or VNC)"
+        }
     }
 }

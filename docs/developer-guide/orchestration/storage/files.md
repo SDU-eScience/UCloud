@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Files
 # Files
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
@@ -461,6 +462,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file present at '/123/folder/file'</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -585,6 +592,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A file at '/123/folder/file</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -696,6 +709,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file exists at '/123/folder/a</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -802,6 +821,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>The folder and all children are moved to the provider's trash folder</li>
 <li>The file is moved to the provider's trash folder</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -914,6 +939,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A folder at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1161,6 +1192,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 <li>A file at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1382,6 +1419,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 <li>A file at '/123/folder</li>
 <li>The user has EDIT permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1477,6 +1520,12 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 <tr><th>Pre-conditions</th><td><ul>
 <li>The user has access to the 'ucloud' provider</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

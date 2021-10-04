@@ -9,6 +9,12 @@
 <tr><th>Post-conditions</th><td><ul>
 <li>A Job is started in the user's workspace</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

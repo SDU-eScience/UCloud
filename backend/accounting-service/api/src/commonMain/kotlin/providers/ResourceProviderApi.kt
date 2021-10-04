@@ -68,6 +68,16 @@ abstract class ResourceProviderApi<
             name = "verify",
             handler = {
                 httpUpdate(BulkRequest.serializer(typeInfo.resSerializer), baseContext, "verify", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Invoked by UCloud/Core to trigger verification of a single batch"
+                    description = """
+                        This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+                        Provider should immediately determine if these are still valid and recognized by the Provider.
+                        If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+                        an update for each affected resource.
+                    """.trimIndent()
+                }
             },
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = Unit.serializer(),
@@ -82,6 +92,16 @@ abstract class ResourceProviderApi<
             name = "retrieveProducts",
             handler = {
                 httpRetrieve(Unit.serializer(), typeOf<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Retrieve product support for this providers"
+                    description = """
+                        This endpoint responds with the $TYPE_REF dk.sdu.cloud.accounting.api.Product s supported by
+                        this provider along with details for how $TYPE_REF dk.sdu.cloud.accounting.api.Product is
+                        supported. The $TYPE_REF dk.sdu.cloud.accounting.api.Product s must be registered with
+                        UCloud/Core already.
+                    """.trimIndent()
+                }
             },
             requestType = Unit.serializer(),
             successType = BulkResponse.serializer(typeInfo.supportSerializer),
@@ -101,6 +121,16 @@ abstract class ResourceProviderApi<
                     "updateAcl",
                     roles = Roles.PRIVILEGED
                 )
+
+                documentation {
+                    summary = "Callback received by the Provider when permissions are updated"
+                    description = """
+                        This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+                        internal state, then they may simply ignore this request by responding with `200 OK`. The
+                        Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+                        not acknowledge the request.
+                    """.trimIndent()
+                }
             },
             requestType = BulkRequest.serializer(UpdatedAclWithResource.serializer(typeInfo.resSerializer)),
             successType = BulkResponse.serializer(Unit.serializer().nullable),

@@ -7,6 +7,12 @@
 <li>A file at '/123/folder/file</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

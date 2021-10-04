@@ -425,6 +425,7 @@ fun generateCode() {
             }
 
             is Chapter.Node -> {
+                generateMarkdownChapterTableOfContents(chapter.path, chapter)
                 for (child in chapter.children.reversed()) {
                     stack.addFirst(child)
                 }

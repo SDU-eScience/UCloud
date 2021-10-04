@@ -4,6 +4,7 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+_Stop an existing follow session for a given Job_
 
 ```kotlin
 data class CancelStream(

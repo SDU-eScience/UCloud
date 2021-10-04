@@ -6,6 +6,12 @@
 <tr><th>Pre-conditions</th><td><ul>
 <li>The user has access to the 'ucloud' provider</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

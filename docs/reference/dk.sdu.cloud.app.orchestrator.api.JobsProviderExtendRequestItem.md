@@ -4,6 +4,7 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+_A request to extend the timeAllocation of a Job_
 
 ```kotlin
 data class JobsProviderExtendRequestItem(
@@ -19,7 +20,7 @@ data class JobsProviderExtendRequestItem(
 
 <details>
 <summary>
-<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
+<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code> The affected Job
 </summary>
 
 
@@ -30,7 +31,7 @@ data class JobsProviderExtendRequestItem(
 
 <details>
 <summary>
-<code>requestedTime</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.SimpleDuration.md'>SimpleDuration</a></code></code>
+<code>requestedTime</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.store.api.SimpleDuration.md'>SimpleDuration</a></code></code> The requested extension, it will be added to the current timeAllocation
 </summary>
 
 

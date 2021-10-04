@@ -7,6 +7,12 @@
 <li>A running Job with ID 123</li>
 <li>The provider must support the terminal functionality</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -74,7 +80,7 @@ SupportByProvider(
 )
 */
 
-/* Note that the machine has support for the 'terminal' feature */
+/* 📝 Note: The machine has support for the 'terminal' feature */
 
 Jobs.openInteractiveSession.call(
     bulkRequestOf(JobsOpenInteractiveSessionRequestItem(
@@ -219,7 +225,7 @@ await callAPI(JobsApi.retrieveProducts(
 }
 */
 
-/* Note that the machine has support for the 'terminal' feature */
+/* 📝 Note: The machine has support for the 'terminal' feature */
 
 await callAPI(JobsApi.openInteractiveSession(
     {
@@ -326,7 +332,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #     }
 # }
 
-# Note that the machine has support for the 'terminal' feature
+# 📝 Note: The machine has support for the 'terminal' feature
 
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/interactiveSession" -d '{
     "items": [

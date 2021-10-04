@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / Jobs
 # Jobs
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
@@ -59,7 +60,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr><td><a href='#example-using-a-web-application'>Using a web Application</a></td></tr>
 <tr><td><a href='#example-losing-access-to-resources'>Losing access to resources</a></td></tr>
 <tr><td><a href='#example-running-out-of-compute-credits'>Running out of compute credits</a></td></tr>
-<tr><td><a href='#example-extending-a-job-and-cancelling-it-early'>Extending a Job and cancelling it early</a></td></tr>
+<tr><td><a href='#example-extending-a-job-and-terminating-it-early'>Extending a Job and terminating it early</a></td></tr>
 </tbody></table>
 
 
@@ -109,7 +110,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#openinteractivesession'><code>openInteractiveSession</code></a></td>
-<td><i>No description</i></td>
+<td>Opens an interactive session (e.g. terminal, web or VNC)</td>
 </tr>
 <tr>
 <td><a href='#suspend'><code>suspend</code></a></td>
@@ -261,6 +262,12 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr><th>Post-conditions</th><td><ul>
 <li>A Job is started in the user's workspace</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -954,6 +961,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Pre-conditions</th><td><ul>
 <li>A running Job, with ID 123</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1003,7 +1016,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633332153848, 
+        timestamp = 1633353478096, 
     )), 
 )
 */
@@ -1051,7 +1064,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633332153849, 
+        timestamp = 1633353478096, 
     )), 
 )
 */
@@ -1097,6 +1110,12 @@ JobsFollowResponse(
 <li>A running Job with ID 123</li>
 <li>The provider must support the terminal functionality</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1164,7 +1183,7 @@ SupportByProvider(
 )
 */
 
-/* Note that the machine has support for the 'terminal' feature */
+/* 📝 Note: The machine has support for the 'terminal' feature */
 
 Jobs.openInteractiveSession.call(
     bulkRequestOf(JobsOpenInteractiveSessionRequestItem(
@@ -1309,7 +1328,7 @@ await callAPI(JobsApi.retrieveProducts(
 }
 */
 
-/* Note that the machine has support for the 'terminal' feature */
+/* 📝 Note: The machine has support for the 'terminal' feature */
 
 await callAPI(JobsApi.openInteractiveSession(
     {
@@ -1416,7 +1435,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #     }
 # }
 
-# Note that the machine has support for the 'terminal' feature
+# 📝 Note: The machine has support for the 'terminal' feature
 
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/interactiveSession" -d '{
     "items": [
@@ -1456,6 +1475,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User initiated</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1772,6 +1797,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 ## Example: Starting a Job with a public link (Ingress)
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -2172,6 +2203,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 <tr><th>Pre-conditions</th><td><ul>
 <li>User has already been granted credits for the license (typically through Grants)</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -2407,6 +2444,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 ## Example: Using a remote desktop Application (VNC)
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -2656,6 +2699,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 ## Example: Using a web Application
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -2885,6 +2934,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 ## Example: Losing access to resources
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -3337,6 +3392,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 ## Example: Running out of compute credits
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -3391,7 +3452,7 @@ PageV2(
 )
 */
 
-/* Note, at this point the user has a very low amount of credits remaining.
+/* 📝 Note: at this point the user has a very low amount of credits remaining.
 It will only last a couple of minutes. */
 
 Jobs.create.call(
@@ -3580,7 +3641,7 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* Note, at this point the user has a very low amount of credits remaining.
+/* 📝 Note: at this point the user has a very low amount of credits remaining.
 It will only last a couple of minutes. */
 
 await callAPI(JobsApi.create(
@@ -3770,7 +3831,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Note, at this point the user has a very low amount of credits remaining.
+# 📝 Note: at this point the user has a very low amount of credits remaining.
 # It will only last a couple of minutes.
 
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
@@ -3882,12 +3943,18 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 </details>
 
 
-## Example: Extending a Job and cancelling it early
+## Example: Extending a Job and terminating it early
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
 <li>The provider must support the extension API</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -5078,6 +5145,7 @@ more jobs after the first failure.
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Opens an interactive session (e.g. terminal, web or VNC)_
 
 | Request | Response | Error |
 |---------|----------|-------|

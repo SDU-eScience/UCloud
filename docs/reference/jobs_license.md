@@ -5,6 +5,12 @@
 <tr><th>Pre-conditions</th><td><ul>
 <li>User has already been granted credits for the license (typically through Grants)</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>

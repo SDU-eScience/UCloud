@@ -348,7 +348,7 @@ object Products : CallDescriptionContainer("products") {
     override fun documentation() {
         useCase(
             browseUseCase,
-            "Browse all available components",
+            "Browse all available products",
             flow = {
                 val user = basicUser()
                 success(
