@@ -76,7 +76,9 @@ await callAPI(FilesApi.createUpload(
     ]
 }
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -88,8 +90,10 @@ await callAPI(FilesApi.createUpload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/upload" -d '{

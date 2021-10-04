@@ -54,7 +54,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633007995287, 
+        timestamp = 1633332153848, 
     )), 
 )
 */
@@ -102,7 +102,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633007995288, 
+        timestamp = 1633332153849, 
     )), 
 )
 */
@@ -129,8 +129,10 @@ JobsFollowResponse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 ```
 

@@ -304,8 +304,10 @@ await callAPI(FilesApi.move(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/move" -d '{
@@ -416,8 +418,10 @@ await callAPI(FilesApi.copy(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/copy" -d '{
@@ -522,7 +526,9 @@ await callAPI(FilesApi.createUpload(
     ]
 }
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -534,8 +540,10 @@ await callAPI(FilesApi.createUpload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/upload" -d '{
@@ -632,7 +640,9 @@ await callAPI(FilesApi.createDownload(
     ]
 }
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -644,8 +654,10 @@ await callAPI(FilesApi.createDownload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/download" -d '{
@@ -747,8 +759,10 @@ await callAPI(FilesApi.createFolder(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/folder" -d '{
@@ -857,8 +871,10 @@ await callAPI(FilesApi.trash(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/trash" -d '{
@@ -1080,8 +1096,10 @@ await callAPI(FilesApi.browse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 
@@ -1305,8 +1323,10 @@ await callAPI(FilesApi.retrieve(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&id=/123/folder" 
@@ -1422,8 +1442,10 @@ await callAPI(FilesApi.delete(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files" -d '{
@@ -1603,8 +1625,10 @@ await callAPI(FilesApi.retrieveProducts(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProducts" 

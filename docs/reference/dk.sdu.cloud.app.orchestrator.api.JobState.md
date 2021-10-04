@@ -24,68 +24,101 @@ enum class JobState {
 
 <details>
 <summary>
-<code>IN_QUEUE</code> Any job which has been submitted and not yet in a final state where the number of tasks running is less thanthe number of tasks requested
+<code>IN_QUEUE</code> Any Job which is not yet ready
 </summary>
 
 
 
+More specifically, this state should apply to any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  for which all of the following holds:
+
+- The [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  has been created
+- It has never been in a final state
+- The number of `replicas` which are running is less than the requested amount
 
 
 </details>
 
 <details>
 <summary>
-<code>RUNNING</code> A job where all the tasks are running
+<code>RUNNING</code> A Job where all the tasks are running
 </summary>
 
 
 
+More specifically, this state should apply to any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  for which all of the following holds:
+
+- All `replicas` of the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  have been started
+
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  can be `RUNNING` without actually being ready. For example, if a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  
+exposes a web interface, then the web-interface doesn't have to be available yet. That is, the server might
+still be running its initialization code.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>CANCELING</code> A job which has been cancelled, either by user request or system request
+<code>CANCELING</code> A Job which has been cancelled but has not yet terminated
 </summary>
 
 
 
+---
+
+__📝 NOTE:__ This is only a temporary state. The [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is expected to eventually transition to a final
+state, typically the `SUCCESS` state.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>SUCCESS</code> A job which has terminated. The job terminated with no _scheduler_ error.
+<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error  
 </summary>
 
 
 
-Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  will complete successfully even if the user application exits with an unsuccessful 
+status code.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>FAILURE</code> A job which has terminated with a failure.
+<code>FAILURE</code> A Job which has terminated with a failure
 </summary>
 
 
 
-Note: A job will fail _only_ if it is the scheduler's fault
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  should _only_ fail if it is the scheduler's fault
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>EXPIRED</code> A job which has expired and was terminated as a result
+<code>EXPIRED</code> A Job which has expired and was terminated as a result
 </summary>
 
 
 
+This state should only be used if the [`timeAllocation`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobSpecification.md) has expired. Any other
+form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
 
 
 </details>

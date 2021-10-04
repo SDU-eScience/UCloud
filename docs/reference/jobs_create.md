@@ -1,4 +1,4 @@
-# Example: Creating a simple batch job
+# Example: Creating a simple batch Job
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -233,7 +233,9 @@ BulkResponse(
 </summary>
 
 ```typescript
+
 /* The user finds an interesting application from the catalogue */
+
 // Authenticated as user
 const applications = await callAPI(HpcAppsApi.listAll(
     {
@@ -268,8 +270,12 @@ applications = {
     ]
 }
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 const application = await callAPI(HpcAppsApi.findByNameAndVersion(
     {
         "appName": "a-batch-application",
@@ -374,7 +380,9 @@ application = {
     ]
 }
 */
+
 /* The user looks for a suitable machine */
+
 const machineTypes = await callAPI(ProductsApi.browse(
     {
         "itemsPerPage": 50,
@@ -420,7 +428,9 @@ machineTypes = {
     "next": null
 }
 */
+
 /* The user starts the Job with input based on previous requests */
+
 await callAPI(JobsApi.create(
     {
         "items": [
@@ -470,8 +480,10 @@ await callAPI(JobsApi.create(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # The user finds an interesting application from the catalogue
 

@@ -4,11 +4,11 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
@@ -49,32 +49,76 @@ data class ExportedParameters(
 @UCloudApiDoc("A value describing the current state of a Job", importance = 350)
 @Serializable
 enum class JobState {
-    @UCloudApiDoc(
-        "Any job which has been submitted and not yet in a final state where the number of tasks running is less than" +
-            "the number of tasks requested"
-    )
+    @UCloudApiDoc("""
+        Any Job which is not yet ready
+        
+        More specifically, this state should apply to any $TYPE_REF Job for which all of the following holds:
+        
+        - The $TYPE_REF Job has been created
+        - It has never been in a final state
+        - The number of `replicas` which are running is less than the requested amount
+    """)
     IN_QUEUE,
 
-    @UCloudApiDoc("A job where all the tasks are running")
+    @UCloudApiDoc("""
+        A Job where all the tasks are running
+        
+        
+        More specifically, this state should apply to any $TYPE_REF Job for which all of the following holds:
+        
+        - All `replicas` of the $TYPE_REF Job have been started
+        
+        ---
+        
+        __📝 NOTE:__ A $TYPE_REF Job can be `RUNNING` without actually being ready. For example, if a $TYPE_REF Job 
+        exposes a web interface, then the web-interface doesn't have to be available yet. That is, the server might
+        still be running its initialization code.
+        
+        ---
+    """)
     RUNNING,
 
-    @UCloudApiDoc("A job which has been cancelled, either by user request or system request")
+    @UCloudApiDoc("""
+        A Job which has been cancelled but has not yet terminated
+        
+        ---
+        
+        __📝 NOTE:__ This is only a temporary state. The $TYPE_REF Job is expected to eventually transition to a final
+        state, typically the `SUCCESS` state.
+        
+        ---
+    """)
     CANCELING,
 
-    @UCloudApiDoc(
-        "A job which has terminated. The job terminated with no _scheduler_ error.\n\n" +
-            "Note: A job will complete successfully even if the user application exits with an unsuccessful " +
-            "status code."
-    )
+    @UCloudApiDoc("""
+        A Job which has terminated without a _scheduler_ error  
+        
+        ---
+    
+        __📝 NOTE:__ A $TYPE_REF Job will complete successfully even if the user application exits with an unsuccessful 
+        status code.
+        
+        ---
+    """)
     SUCCESS,
 
-    @UCloudApiDoc(
-        "A job which has terminated with a failure.\n\n" +
-            "Note: A job will fail _only_ if it is the scheduler's fault"
-    )
+    @UCloudApiDoc("""
+        A Job which has terminated with a failure
+        
+        ---
+    
+        __📝 NOTE:__ A $TYPE_REF Job should _only_ fail if it is the scheduler's fault
+        
+        ---
+    """)
     FAILURE,
 
-    @UCloudApiDoc("A job which has expired and was terminated as a result")
+    @UCloudApiDoc("""
+        A Job which has expired and was terminated as a result
+        
+        This state should only be used if the [`timeAllocation`]($TYPE_REF_LINK JobSpecification) has expired. Any other
+        form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
+    """)
     EXPIRED;
 
     fun isFinal(): Boolean =
@@ -540,11 +584,19 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     private const val createUseCase = "create"
     private const val followUseCase = "follow"
     private const val terminalUseCase = "terminal"
+    private const val peerUseCase = "peers"
+    private const val ingressUseCase = "ingress"
+    private const val softwareLicenseUseCase = "license"
+    private const val vncUseCase = "vnc"
+    private const val webUseCase = "web"
+    private const val permissionUseCase = "permissions"
+    private const val creditsUseCase = "credits"
+    private const val extendAndCancelUseCase = "extendAndCancel"
 
     override fun documentation() {
         useCase(
             createUseCase,
-            "Creating a simple batch job",
+            "Creating a simple batch Job",
             trigger = "User initiated",
             preConditions = listOf(
                 "User has been granted credits for using the selected machine"
@@ -814,6 +866,555 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                     success(ShellResponse.Data("hello_world.txt\n"))
                     success(ShellResponse.Data("user@machine:~$ "))
                 }
+            }
+        )
+
+        useCase(
+            peerUseCase,
+            "Connecting two Jobs together",
+            trigger = "User initiated",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example our user wish to deploy a simple web application which connects to a " +
+                        "database server")
+
+                comment("The user first provision a database server using an Application")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-database", "1.0.0"),
+                            ComputeProductReference("example-compute", "example-compute", "example"),
+                            "my-database",
+                            parameters = mapOf(
+                                "dataStore" to AppParameterValue.File("/123/acme-database")
+                            )
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("4101"))),
+                    user
+                )
+
+                comment("The database is now `RUNNING` with the persistent from `/123/acme-database`")
+                comment("""
+                    By default, the UCloud firewall will not allow any ingoing connections to the Job. This firewall
+                    can be updated by connecting one or more Jobs together. We will now do this using the Application.
+                    "Peer" feature. This feature is commonly referred to as "Connect to Job".
+                """.trimIndent())
+
+                comment("We will now start our web-application and connect it to our existing database Job")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-web-app", "1.0.0"),
+                            ComputeProductReference("example-compute", "example-compute", "example"),
+                            "my-web-app",
+                            resources = listOf(
+                                AppParameterValue.Peer("database", "4101")
+                            )
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("4150"))),
+                    user
+                )
+
+                comment("""
+                    The web-application can now connect to the database using the 'database' hostname, as specified in
+                    the JobSpecification.
+                """.trimIndent())
+            }
+        )
+
+        useCase(
+            ingressUseCase,
+            "Starting a Job with a public link (Ingress)",
+            flow = {
+                val user = basicUser()
+
+                comment("""
+                    In this example, the user will create a Job which exposes a web-interface. This web-interface will
+                    become available through a publicly accessible link.
+                """.trimIndent())
+
+                comment("First, the user creates an Ingress resource (this needs to be done once per ingress)")
+
+                val ingressSpec = IngressSpecification(
+                    "app-my-application.provider.example.com",
+                    ProductReference("example-ingress", "example-ingress", "example")
+                )
+
+                success(
+                    Ingresses.create,
+                    bulkRequestOf(ingressSpec),
+                    BulkResponse(listOf(FindByStringId("41231"))),
+                    user
+                )
+
+                comment("This link can now be attached to any Application which support a web-interface")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-web-app", "1.0.0"),
+                            ProductReference("compute-example", "compute-example", "example"),
+                            resources = listOf(
+                                AppParameterValue.Ingress("41231")
+                            )
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("41252"))),
+                    user
+                )
+
+                comment("The Application is now running, and we can access it through the public link")
+                comment("""
+                    The Ingress will also remain exclusively bound to the Job. It will remain like this until the Job
+                    terminates. You can check the status of the Ingress simply by retrieving it.
+                """.trimIndent())
+
+                success(
+                    Ingresses.retrieve,
+                    ResourceRetrieveRequest(IngressIncludeFlags(), "41231"),
+                    Ingress(
+                        "41231",
+                        ingressSpec,
+                        ResourceOwner("user", null),
+                        1633087693694,
+                        IngressStatus(
+                            listOf("41231"),
+                            IngressState.READY
+                        )
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            softwareLicenseUseCase,
+            "Using licensed software",
+            preConditions = listOf(
+                "User has already been granted credits for the license (typically through Grants)"
+            ),
+            flow = {
+                val user = basicUser()
+                comment("In this example, the user will run a piece of licensed software.")
+                comment("First, the user must activate a copy of their license, which has previously been granted to " +
+                        "them through the Grant system.")
+
+                val licenseId = "56231"
+                success(
+                    Licenses.create,
+                    bulkRequestOf(
+                        LicenseSpecification(ProductReference("example-license", "example-license", "example"))
+                    ),
+                    BulkResponse(listOf(FindByStringId(licenseId))),
+                    user
+                )
+
+                comment("This license can now freely be used in Jobs")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-licensed-software", "1.0.0"),
+                            ComputeProductReference("example-compute", "example-compute", "example"),
+                            parameters = mapOf(
+                                "license" to AppParameterValue.License(licenseId)
+                            )
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("55123"))),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            vncUseCase,
+            "Using a remote desktop Application (VNC)",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example, the user will create a Job which uses an Application that exposes a VNC " +
+                        "interface")
+
+                val jobId = "51231"
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-remote-desktop", "1.0.0"),
+                            ComputeProductReference("example-compute", "example-compute", "example")
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId(jobId))),
+                    user
+                )
+
+                success(
+                    openInteractiveSession,
+                    bulkRequestOf(JobsOpenInteractiveSessionRequestItem(jobId, 0, InteractiveSessionType.VNC)),
+                    BulkResponse(listOf(
+                        OpenSessionWithProvider(
+                            "provider.example.com",
+                            "example",
+                            OpenSession.Vnc(
+                                jobId,
+                                0,
+                                "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
+                                "e7ccc6e0870250073286c44545e6b41820d1db7f"
+                            )
+                        )
+                    )),
+                    user
+                )
+
+                comment("The user can now connect to the remote desktop using the VNC protocol with the above details")
+                comment("""
+                    NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
+                    established directly from the browser.
+                    
+                    You can read more about the protocol here: https://novnc.com
+                """.trimIndent())
+            }
+        )
+
+        useCase(
+            webUseCase,
+            "Using a web Application",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example, the user will create a Job which uses an Application that exposes a web " +
+                        "interface")
+
+                val jobId = "62342"
+                success(
+                    create,
+                    bulkRequestOf(
+                        JobSpecification(
+                            NameAndVersion("acme-web-application", "1.0.0"),
+                            ComputeProductReference("example-compute", "example-compute", "example")
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId(jobId))),
+                    user
+                )
+
+                success(
+                    openInteractiveSession,
+                    bulkRequestOf(JobsOpenInteractiveSessionRequestItem(jobId, 0, InteractiveSessionType.WEB)),
+                    BulkResponse(listOf(
+                        OpenSessionWithProvider(
+                            "provider.example.com",
+                            "example",
+                            OpenSession.Web(
+                                jobId,
+                                0,
+                                "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+                            )
+                        )
+                    )),
+                    user
+                )
+
+                comment("The user should now proceed to the link provided in the response")
+            }
+        )
+
+        useCase(
+            permissionUseCase,
+            "Losing access to resources",
+            flow = {
+                val user = basicUser()
+                comment("""
+                    In this example, the user will create a Job using shared resources. Later in the example, the user
+                    will lose access to these resources.
+                """.trimIndent())
+
+                val start = 1633329776235L
+                comment("When the user starts the Job, they have access to some shared files. These are used in the" +
+                        "Job (see the resources section).")
+
+                val jobId = "62348"
+                val jobSpecification = JobSpecification(
+                    NameAndVersion("acme-web-application", "1.0.0"),
+                    ComputeProductReference("example-compute", "example-compute", "example"),
+                    resources = listOf(
+                        AppParameterValue.File("/12512/shared")
+                    )
+                )
+
+                success(create, bulkRequestOf(jobSpecification), BulkResponse(listOf(FindByStringId(jobId))), user)
+
+                comment("The Job is now running")
+                comment("""
+                    However, a few minutes later the share is revoked. UCloud automatically kills the Job a few minutes
+                    after this. The status now reflects this.
+                """.trimIndent())
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(JobIncludeFlags(), jobId),
+                    Job(
+                        jobId,
+                        ResourceOwner("user", null),
+                        listOf(
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "Your job is now waiting in the queue!",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3)
+                            ),
+                            JobUpdate(
+                                JobState.RUNNING,
+                                status = "Your job is now running!",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3) + 5000
+                            ),
+                            JobUpdate(
+                                JobState.SUCCESS,
+                                status = "Your job has been terminated (Lost permissions)",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3) + 120_000 + 5000
+                            )
+                        ),
+                        jobSpecification,
+                        JobStatus(JobState.SUCCESS),
+                        start + (1000L * 60 * 60 * 24 * 3)
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            creditsUseCase,
+            "Running out of compute credits",
+            flow = {
+                val user = basicUser()
+                comment("In this example, the user will create a Job and eventually run out of compute credits.")
+
+                val start = 1633329776235L
+                comment("When the user creates the Job, they have enough credits")
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    PageV2(50, listOf(
+                        Wallet(
+                            WalletOwner.User("user"),
+                            ProductCategoryId("example-compute", "example"),
+                            listOf(
+                                WalletAllocation(
+                                    "1254151",
+                                    listOf("1254151"),
+                                    500,
+                                    1_000_000 * 500,
+                                    500,
+                                    start,
+                                    null
+                                )
+                            ),
+                            AllocationSelectorPolicy.EXPIRE_FIRST,
+                            ProductType.COMPUTE,
+                            ChargeType.ABSOLUTE,
+                            ProductPriceUnit.CREDITS_PER_MINUTE
+                        )
+                    ), null),
+                    user
+                )
+
+                comment("""
+                    Note, at this point the user has a very low amount of credits remaining.
+                    It will only last a couple of minutes.
+                """.trimIndent())
+
+                val jobId = "62348"
+                val jobSpecification = JobSpecification(
+                    NameAndVersion("acme-web-application", "1.0.0"),
+                    ComputeProductReference("example-compute", "example-compute", "example")
+                )
+
+                success(create, bulkRequestOf(jobSpecification), BulkResponse(listOf(FindByStringId(jobId))), user)
+
+                comment("The Job is now running")
+                comment("However, a few minutes later the Job is automatically killed by UCloud. " +
+                        "The status now reflects this.")
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(JobIncludeFlags(), jobId),
+                    Job(
+                        jobId,
+                        ResourceOwner("user", null),
+                        listOf(
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "Your job is now waiting in the queue!",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3)
+                            ),
+                            JobUpdate(
+                                JobState.RUNNING,
+                                status = "Your job is now running!",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3) + 5000
+                            ),
+                            JobUpdate(
+                                JobState.SUCCESS,
+                                status = "Your job has been terminated (No more credits)",
+                                timestamp = start + (1000L * 60 * 60 * 24 * 3) + 120_000 + 5000
+                            )
+                        ),
+                        jobSpecification,
+                        JobStatus(JobState.SUCCESS),
+                        start + (1000L * 60 * 60 * 24 * 3)
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            extendAndCancelUseCase,
+            "Extending a Job and terminating it early",
+            preConditions = listOf(
+                "The provider must support the extension API"
+            ),
+            flow = {
+                val user = basicUser()
+
+                comment("""
+                    In this example we will show how a user can extend the duration of a Job. Later in the same
+                    example, we show how the user can cancel it early.
+                """.trimIndent())
+
+                val start = 1633329776235L
+                val jobId = "62348"
+                val jobSpecification = JobSpecification(
+                    NameAndVersion("acme-web-application", "1.0.0"),
+                    ComputeProductReference("example-compute", "example-compute", "example"),
+                    timeAllocation = SimpleDuration(5, 0, 0)
+                )
+
+                success(create, bulkRequestOf(jobSpecification), BulkResponse(listOf(FindByStringId(jobId))), user)
+
+                comment("The Job is initially allocated with a duration of 5 hours. We can check when it expires by " +
+                        "retrieving the Job")
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(JobIncludeFlags(), jobId),
+                    Job(
+                        jobId,
+                        ResourceOwner("user", null),
+                        listOf(
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "Your job is now waiting in the queue!",
+                                timestamp = start
+                            ),
+                            JobUpdate(
+                                JobState.RUNNING,
+                                status = "Your job is now running!",
+                                timestamp = start + 5000
+                            )
+                        ),
+                        jobSpecification,
+                        JobStatus(
+                            JobState.RUNNING,
+                            expiresAt = start + (1000L * 3600 * 5)
+                        ),
+                        start
+                    ),
+                    user
+                )
+
+                comment("We can extend the duration quite easily")
+
+                success(
+                    extend,
+                    bulkRequestOf(
+                        JobsExtendRequestItem(jobId, SimpleDuration(1, 0, 0))
+                    ),
+                    JobsExtendResponse(listOf(Unit)),
+                    user
+                )
+
+                comment("The new expiration is reflected if we retrieve it again")
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(JobIncludeFlags(), jobId),
+                    Job(
+                        jobId,
+                        ResourceOwner("user", null),
+                        listOf(
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "Your job is now waiting in the queue!",
+                                timestamp = start
+                            ),
+                            JobUpdate(
+                                JobState.RUNNING,
+                                status = "Your job is now running!",
+                                timestamp = start + 5000
+                            )
+                        ),
+                        jobSpecification,
+                        JobStatus(
+                            JobState.RUNNING,
+                            expiresAt = start + (1000L * 3600 * 6)
+                        ),
+                        start
+                    ),
+                    user
+                )
+
+                comment("If the user decides that they are done with the Job early, then they can simply terminate it")
+
+                success(
+                    terminate,
+                    bulkRequestOf(FindByStringId(jobId)),
+                    BulkResponse(listOf(Unit)),
+                    user
+                )
+
+                comment("This termination is reflected in the status (and updates)")
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(JobIncludeFlags(), jobId),
+                    Job(
+                        jobId,
+                        ResourceOwner("user", null),
+                        listOf(
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "Your job is now waiting in the queue!",
+                                timestamp = start
+                            ),
+                            JobUpdate(
+                                JobState.RUNNING,
+                                status = "Your job is now running!",
+                                timestamp = start + 5000
+                            ),
+                            JobUpdate(
+                                JobState.SUCCESS,
+                                status = "Your job has been cancelled!",
+                                timestamp = start + 5000 + (1000L * 60 * 120)
+                            )
+                        ),
+                        jobSpecification,
+                        JobStatus(
+                            JobState.SUCCESS,
+                        ),
+                        start
+                    ),
+                    user
+                )
             }
         )
 

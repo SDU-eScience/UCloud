@@ -218,7 +218,9 @@ await callAPI(JobsApi.retrieveProducts(
     }
 }
 */
+
 /* Note that the machine has support for the 'terminal' feature */
+
 await callAPI(JobsApi.openInteractiveSession(
     {
         "items": [
@@ -247,7 +249,9 @@ await callAPI(JobsApi.openInteractiveSession(
     ]
 }
 */
+
 /* The session is now open and we can establish a shell connection directly with provider.example.com */
+
 ```
 
 
@@ -259,8 +263,10 @@ await callAPI(JobsApi.openInteractiveSession(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProducts" 

@@ -14,8 +14,10 @@ fun UseCase.curl(): String {
         var lastActor: String? = null
 
         appendLine("```bash")
+        appendLine("# ------------------------------------------------------------------------------------------------------")
         appendLine("# \$host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'")
         appendLine("# \$accessToken is a valid access-token issued by UCloud")
+        appendLine("# ------------------------------------------------------------------------------------------------------")
         appendLine()
 
         loop@ for (node in nodes) {

@@ -49,9 +49,17 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <th>Description</th>
 </tr></thread>
 <tbody>
-<tr><td><a href='#example-creating-a-simple-batch-job'>Creating a simple batch job</a></td></tr>
+<tr><td><a href='#example-creating-a-simple-batch-job'>Creating a simple batch Job</a></td></tr>
 <tr><td><a href='#example-following-the-progress-of-a-job'>Following the progress of a Job</a></td></tr>
 <tr><td><a href='#example-starting-an-interactive-terminal-session'>Starting an interactive terminal session</a></td></tr>
+<tr><td><a href='#example-connecting-two-jobs-together'>Connecting two Jobs together</a></td></tr>
+<tr><td><a href='#example-starting-a-job-with-a-public-link-(ingress)'>Starting a Job with a public link (Ingress)</a></td></tr>
+<tr><td><a href='#example-using-licensed-software'>Using licensed software</a></td></tr>
+<tr><td><a href='#example-using-a-remote-desktop-application-(vnc)'>Using a remote desktop Application (VNC)</a></td></tr>
+<tr><td><a href='#example-using-a-web-application'>Using a web Application</a></td></tr>
+<tr><td><a href='#example-losing-access-to-resources'>Losing access to resources</a></td></tr>
+<tr><td><a href='#example-running-out-of-compute-credits'>Running out of compute credits</a></td></tr>
+<tr><td><a href='#example-extending-a-job-and-cancelling-it-early'>Extending a Job and cancelling it early</a></td></tr>
 </tbody></table>
 
 
@@ -243,7 +251,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
 </details>
 
-## Example: Creating a simple batch job
+## Example: Creating a simple batch Job
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User initiated</td></tr>
@@ -477,7 +485,9 @@ BulkResponse(
 </summary>
 
 ```typescript
+
 /* The user finds an interesting application from the catalogue */
+
 // Authenticated as user
 const applications = await callAPI(HpcAppsApi.listAll(
     {
@@ -512,8 +522,12 @@ applications = {
     ]
 }
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 const application = await callAPI(HpcAppsApi.findByNameAndVersion(
     {
         "appName": "a-batch-application",
@@ -618,7 +632,9 @@ application = {
     ]
 }
 */
+
 /* The user looks for a suitable machine */
+
 const machineTypes = await callAPI(ProductsApi.browse(
     {
         "itemsPerPage": 50,
@@ -664,7 +680,9 @@ machineTypes = {
     "next": null
 }
 */
+
 /* The user starts the Job with input based on previous requests */
+
 await callAPI(JobsApi.create(
     {
         "items": [
@@ -714,8 +732,10 @@ await callAPI(JobsApi.create(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # The user finds an interesting application from the catalogue
 
@@ -983,7 +1003,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633007995287, 
+        timestamp = 1633332153848, 
     )), 
 )
 */
@@ -1031,7 +1051,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633007995288, 
+        timestamp = 1633332153849, 
     )), 
 )
 */
@@ -1058,8 +1078,10 @@ JobsFollowResponse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 ```
 
@@ -1286,7 +1308,9 @@ await callAPI(JobsApi.retrieveProducts(
     }
 }
 */
+
 /* Note that the machine has support for the 'terminal' feature */
+
 await callAPI(JobsApi.openInteractiveSession(
     {
         "items": [
@@ -1315,7 +1339,9 @@ await callAPI(JobsApi.openInteractiveSession(
     ]
 }
 */
+
 /* The session is now open and we can establish a shell connection directly with provider.example.com */
+
 ```
 
 
@@ -1327,8 +1353,10 @@ await callAPI(JobsApi.openInteractiveSession(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProducts" 
@@ -1417,6 +1445,3477 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # }
 
 # The session is now open and we can establish a shell connection directly with provider.example.com
+
+```
+
+
+</details>
+
+
+## Example: Connecting two Jobs together
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Trigger</th><td>User initiated</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example our user wish to deploy a simple web application which connects to a database server */
+
+
+/* The user first provision a database server using an Application */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-database", 
+            version = "1.0.0", 
+        ), 
+        name = "my-database", 
+        parameters = mapOf("dataStore" to AppParameterValue.File(
+            path = "/123/acme-database", 
+            readOnly = false, 
+        )), 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "4101", 
+    )), 
+)
+*/
+
+/* The database is now `RUNNING` with the persistent from `/123/acme-database` */
+
+
+/* By default, the UCloud firewall will not allow any ingoing connections to the Job. This firewall
+can be updated by connecting one or more Jobs together. We will now do this using the Application.
+"Peer" feature. This feature is commonly referred to as "Connect to Job". */
+
+
+/* We will now start our web-application and connect it to our existing database Job */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-app", 
+            version = "1.0.0", 
+        ), 
+        name = "my-web-app", 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = listOf(AppParameterValue.Peer(
+            hostname = "database", 
+            jobId = "4101", 
+        )), 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "4150", 
+    )), 
+)
+*/
+
+/* The web-application can now connect to the database using the 'database' hostname, as specified in
+the JobSpecification. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example our user wish to deploy a simple web application which connects to a database server */
+
+
+/* The user first provision a database server using an Application */
+
+// Authenticated as user
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-database",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": "my-database",
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": {
+                    "dataStore": {
+                        "type": "file",
+                        "path": "/123/acme-database",
+                        "readOnly": false
+                    }
+                },
+                "resources": null,
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "4101"
+        }
+    ]
+}
+*/
+
+/* The database is now `RUNNING` with the persistent from `/123/acme-database` */
+
+
+/* By default, the UCloud firewall will not allow any ingoing connections to the Job. This firewall
+can be updated by connecting one or more Jobs together. We will now do this using the Application.
+"Peer" feature. This feature is commonly referred to as "Connect to Job". */
+
+
+/* We will now start our web-application and connect it to our existing database Job */
+
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-app",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": "my-web-app",
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": [
+                    {
+                        "type": "peer",
+                        "hostname": "database",
+                        "jobId": "4101"
+                    }
+                ],
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "4150"
+        }
+    ]
+}
+*/
+
+/* The web-application can now connect to the database using the 'database' hostname, as specified in
+the JobSpecification. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example our user wish to deploy a simple web application which connects to a database server
+
+# The user first provision a database server using an Application
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-database",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": "my-database",
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": {
+                "dataStore": {
+                    "type": "file",
+                    "path": "/123/acme-database",
+                    "readOnly": false
+                }
+            },
+            "resources": null,
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "4101"
+#         }
+#     ]
+# }
+
+# The database is now `RUNNING` with the persistent from `/123/acme-database`
+
+# By default, the UCloud firewall will not allow any ingoing connections to the Job. This firewall
+# can be updated by connecting one or more Jobs together. We will now do this using the Application.
+# "Peer" feature. This feature is commonly referred to as "Connect to Job".
+
+# We will now start our web-application and connect it to our existing database Job
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-app",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": "my-web-app",
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": [
+                {
+                    "type": "peer",
+                    "hostname": "database",
+                    "jobId": "4101"
+                }
+            ],
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "4150"
+#         }
+#     ]
+# }
+
+# The web-application can now connect to the database using the 'database' hostname, as specified in
+# the JobSpecification.
+
+```
+
+
+</details>
+
+
+## Example: Starting a Job with a public link (Ingress)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will create a Job which exposes a web-interface. This web-interface will
+become available through a publicly accessible link. */
+
+
+/* First, the user creates an Ingress resource (this needs to be done once per ingress) */
+
+Ingresses.create.call(
+    bulkRequestOf(IngressSpecification(
+        domain = "app-my-application.provider.example.com", 
+        product = ProductReference(
+            category = "example-ingress", 
+            id = "example-ingress", 
+            provider = "example", 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "41231", 
+    )), 
+)
+*/
+
+/* This link can now be attached to any Application which support a web-interface */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-app", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "compute-example", 
+            id = "compute-example", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = listOf(AppParameterValue.Ingress(
+            id = "41231", 
+        )), 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "41252", 
+    )), 
+)
+*/
+
+/* The Application is now running, and we can access it through the public link */
+
+
+/* The Ingress will also remain exclusively bound to the Job. It will remain like this until the Job
+terminates. You can check the status of the Ingress simply by retrieving it. */
+
+Ingresses.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = IngressIncludeFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "41231", 
+    ),
+    user
+).orThrow()
+
+/*
+Ingress(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633087693694, 
+    id = "41231", 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = IngressSpecification(
+        domain = "app-my-application.provider.example.com", 
+        product = ProductReference(
+            category = "example-ingress", 
+            id = "example-ingress", 
+            provider = "example", 
+        ), 
+    ), 
+    status = IngressStatus(
+        boundTo = listOf("41231"), 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        state = IngressState.READY, 
+    ), 
+    updates = emptyList(), 
+    providerGeneratedId = "41231", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will create a Job which exposes a web-interface. This web-interface will
+become available through a publicly accessible link. */
+
+
+/* First, the user creates an Ingress resource (this needs to be done once per ingress) */
+
+// Authenticated as user
+await callAPI(IngressesApi.create(
+    {
+        "items": [
+            {
+                "domain": "app-my-application.provider.example.com",
+                "product": {
+                    "id": "example-ingress",
+                    "category": "example-ingress",
+                    "provider": "example"
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "41231"
+        }
+    ]
+}
+*/
+
+/* This link can now be attached to any Application which support a web-interface */
+
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-app",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "compute-example",
+                    "category": "compute-example",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": [
+                    {
+                        "type": "ingress",
+                        "id": "41231"
+                    }
+                ],
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "41252"
+        }
+    ]
+}
+*/
+
+/* The Application is now running, and we can access it through the public link */
+
+
+/* The Ingress will also remain exclusively bound to the Job. It will remain like this until the Job
+terminates. You can check the status of the Ingress simply by retrieving it. */
+
+await callAPI(IngressesApi.retrieve(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null,
+            "filterState": null
+        },
+        "id": "41231"
+    }
+);
+
+/*
+{
+    "id": "41231",
+    "specification": {
+        "domain": "app-my-application.provider.example.com",
+        "product": {
+            "id": "example-ingress",
+            "category": "example-ingress",
+            "provider": "example"
+        }
+    },
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "createdAt": 1633087693694,
+    "status": {
+        "boundTo": [
+            "41231"
+        ],
+        "state": "READY",
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "updates": [
+    ],
+    "permissions": null,
+    "billing": {
+    },
+    "acl": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will create a Job which exposes a web-interface. This web-interface will
+# become available through a publicly accessible link.
+
+# First, the user creates an Ingress resource (this needs to be done once per ingress)
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/ingresses" -d '{
+    "items": [
+        {
+            "domain": "app-my-application.provider.example.com",
+            "product": {
+                "id": "example-ingress",
+                "category": "example-ingress",
+                "provider": "example"
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "41231"
+#         }
+#     ]
+# }
+
+# This link can now be attached to any Application which support a web-interface
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-app",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "compute-example",
+                "category": "compute-example",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": [
+                {
+                    "type": "ingress",
+                    "id": "41231"
+                }
+            ],
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "41252"
+#         }
+#     ]
+# }
+
+# The Application is now running, and we can access it through the public link
+
+# The Ingress will also remain exclusively bound to the Job. It will remain like this until the Job
+# terminates. You can check the status of the Ingress simply by retrieving it.
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=41231" 
+
+# {
+#     "id": "41231",
+#     "specification": {
+#         "domain": "app-my-application.provider.example.com",
+#         "product": {
+#             "id": "example-ingress",
+#             "category": "example-ingress",
+#             "provider": "example"
+#         }
+#     },
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "createdAt": 1633087693694,
+#     "status": {
+#         "boundTo": [
+#             "41231"
+#         ],
+#         "state": "READY",
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "updates": [
+#     ],
+#     "permissions": null,
+#     "billing": {
+#     },
+#     "acl": null
+# }
+
+```
+
+
+</details>
+
+
+## Example: Using licensed software
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>User has already been granted credits for the license (typically through Grants)</li>
+</ul></td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will run a piece of licensed software. */
+
+
+/* First, the user must activate a copy of their license, which has previously been granted to them through the Grant system. */
+
+Licenses.create.call(
+    bulkRequestOf(LicenseSpecification(
+        product = ProductReference(
+            category = "example-license", 
+            id = "example-license", 
+            provider = "example", 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "56231", 
+    )), 
+)
+*/
+
+/* This license can now freely be used in Jobs */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-licensed-software", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = mapOf("license" to AppParameterValue.License(
+            id = "56231", 
+        )), 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "55123", 
+    )), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will run a piece of licensed software. */
+
+
+/* First, the user must activate a copy of their license, which has previously been granted to them through the Grant system. */
+
+// Authenticated as user
+await callAPI(LicensesApi.create(
+    {
+        "items": [
+            {
+                "product": {
+                    "id": "example-license",
+                    "category": "example-license",
+                    "provider": "example"
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "56231"
+        }
+    ]
+}
+*/
+
+/* This license can now freely be used in Jobs */
+
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-licensed-software",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": {
+                    "license": {
+                        "type": "license_server",
+                        "id": "56231"
+                    }
+                },
+                "resources": null,
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "55123"
+        }
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will run a piece of licensed software.
+
+# First, the user must activate a copy of their license, which has previously been granted to them through the Grant system.
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/licenses" -d '{
+    "items": [
+        {
+            "product": {
+                "id": "example-license",
+                "category": "example-license",
+                "provider": "example"
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "56231"
+#         }
+#     ]
+# }
+
+# This license can now freely be used in Jobs
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-licensed-software",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": {
+                "license": {
+                    "type": "license_server",
+                    "id": "56231"
+                }
+            },
+            "resources": null,
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "55123"
+#         }
+#     ]
+# }
+
+```
+
+
+</details>
+
+
+## Example: Using a remote desktop Application (VNC)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will create a Job which uses an Application that exposes a VNC interface */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-remote-desktop", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "51231", 
+    )), 
+)
+*/
+Jobs.openInteractiveSession.call(
+    bulkRequestOf(JobsOpenInteractiveSessionRequestItem(
+        id = "51231", 
+        rank = 0, 
+        sessionType = InteractiveSessionType.VNC, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(OpenSessionWithProvider(
+        providerDomain = "provider.example.com", 
+        providerId = "example", 
+        session = OpenSession.Vnc(
+            jobId = "51231", 
+            password = "e7ccc6e0870250073286c44545e6b41820d1db7f", 
+            rank = 0, 
+            url = "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com", 
+        ), 
+    )), 
+)
+*/
+
+/* The user can now connect to the remote desktop using the VNC protocol with the above details */
+
+
+/* NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
+established directly from the browser.
+
+You can read more about the protocol here: https://novnc.com */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will create a Job which uses an Application that exposes a VNC interface */
+
+// Authenticated as user
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-remote-desktop",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": null,
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "51231"
+        }
+    ]
+}
+*/
+await callAPI(JobsApi.openInteractiveSession(
+    {
+        "items": [
+            {
+                "id": "51231",
+                "rank": 0,
+                "sessionType": "VNC"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "providerDomain": "provider.example.com",
+            "providerId": "example",
+            "session": {
+                "type": "vnc",
+                "jobId": "51231",
+                "rank": 0,
+                "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
+                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+            }
+        }
+    ]
+}
+*/
+
+/* The user can now connect to the remote desktop using the VNC protocol with the above details */
+
+
+/* NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
+established directly from the browser.
+
+You can read more about the protocol here: https://novnc.com */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will create a Job which uses an Application that exposes a VNC interface
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-remote-desktop",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": null,
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "51231"
+#         }
+#     ]
+# }
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/interactiveSession" -d '{
+    "items": [
+        {
+            "id": "51231",
+            "rank": 0,
+            "sessionType": "VNC"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "providerDomain": "provider.example.com",
+#             "providerId": "example",
+#             "session": {
+#                 "type": "vnc",
+#                 "jobId": "51231",
+#                 "rank": 0,
+#                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
+#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+#             }
+#         }
+#     ]
+# }
+
+# The user can now connect to the remote desktop using the VNC protocol with the above details
+
+# NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
+# established directly from the browser.
+# 
+# You can read more about the protocol here: https://novnc.com
+
+```
+
+
+</details>
+
+
+## Example: Using a web Application
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will create a Job which uses an Application that exposes a web interface */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "62342", 
+    )), 
+)
+*/
+Jobs.openInteractiveSession.call(
+    bulkRequestOf(JobsOpenInteractiveSessionRequestItem(
+        id = "62342", 
+        rank = 0, 
+        sessionType = InteractiveSessionType.WEB, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(OpenSessionWithProvider(
+        providerDomain = "provider.example.com", 
+        providerId = "example", 
+        session = OpenSession.Web(
+            jobId = "62342", 
+            rank = 0, 
+            redirectClientTo = "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d", 
+        ), 
+    )), 
+)
+*/
+
+/* The user should now proceed to the link provided in the response */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will create a Job which uses an Application that exposes a web interface */
+
+// Authenticated as user
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-application",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": null,
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "62342"
+        }
+    ]
+}
+*/
+await callAPI(JobsApi.openInteractiveSession(
+    {
+        "items": [
+            {
+                "id": "62342",
+                "rank": 0,
+                "sessionType": "WEB"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "providerDomain": "provider.example.com",
+            "providerId": "example",
+            "session": {
+                "type": "web",
+                "jobId": "62342",
+                "rank": 0,
+                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+            }
+        }
+    ]
+}
+*/
+
+/* The user should now proceed to the link provided in the response */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will create a Job which uses an Application that exposes a web interface
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-application",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": null,
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "62342"
+#         }
+#     ]
+# }
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/interactiveSession" -d '{
+    "items": [
+        {
+            "id": "62342",
+            "rank": 0,
+            "sessionType": "WEB"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "providerDomain": "provider.example.com",
+#             "providerId": "example",
+#             "session": {
+#                 "type": "web",
+#                 "jobId": "62342",
+#                 "rank": 0,
+#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+#             }
+#         }
+#     ]
+# }
+
+# The user should now proceed to the link provided in the response
+
+```
+
+
+</details>
+
+
+## Example: Losing access to resources
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will create a Job using shared resources. Later in the example, the user
+will lose access to these resources. */
+
+
+/* When the user starts the Job, they have access to some shared files. These are used in theJob (see the resources section). */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = listOf(AppParameterValue.File(
+            path = "/12512/shared", 
+            readOnly = false, 
+        )), 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "62348", 
+    )), 
+)
+*/
+
+/* The Job is now running */
+
+
+/* However, a few minutes later the share is revoked. UCloud automatically kills the Job a few minutes
+after this. The status now reflects this. */
+
+Jobs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = JobIncludeFlags(
+            filterApplication = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeApplication = null, 
+            includeOthers = false, 
+            includeParameters = null, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "62348", 
+    ),
+    user
+).orThrow()
+
+/*
+Job(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633588976235, 
+    id = "62348", 
+    output = null, 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = listOf(AppParameterValue.File(
+            path = "/12512/shared", 
+            readOnly = false, 
+        )), 
+        timeAllocation = null, 
+    ), 
+    status = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.SUCCESS, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.IN_QUEUE, 
+        status = "Your job is now waiting in the queue!", 
+        timestamp = 1633588976235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "Your job is now running!", 
+        timestamp = 1633588981235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.SUCCESS, 
+        status = "Your job has been terminated (Lost permissions)", 
+        timestamp = 1633589101235, 
+    )), 
+    providerGeneratedId = "62348", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will create a Job using shared resources. Later in the example, the user
+will lose access to these resources. */
+
+
+/* When the user starts the Job, they have access to some shared files. These are used in theJob (see the resources section). */
+
+// Authenticated as user
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-application",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": [
+                    {
+                        "type": "file",
+                        "path": "/12512/shared",
+                        "readOnly": false
+                    }
+                ],
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "62348"
+        }
+    ]
+}
+*/
+
+/* The Job is now running */
+
+
+/* However, a few minutes later the share is revoked. UCloud automatically kills the Job a few minutes
+after this. The status now reflects this. */
+
+await callAPI(JobsApi.retrieve(
+    {
+        "flags": {
+            "filterApplication": null,
+            "filterState": null,
+            "includeParameters": null,
+            "includeApplication": null,
+            "includeProduct": false,
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "62348"
+    }
+);
+
+/*
+{
+    "id": "62348",
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "updates": [
+        {
+            "state": "IN_QUEUE",
+            "outputFolder": null,
+            "status": "Your job is now waiting in the queue!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633588976235
+        },
+        {
+            "state": "RUNNING",
+            "outputFolder": null,
+            "status": "Your job is now running!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633588981235
+        },
+        {
+            "state": "SUCCESS",
+            "outputFolder": null,
+            "status": "Your job has been terminated (Lost permissions)",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633589101235
+        }
+    ],
+    "specification": {
+        "application": {
+            "name": "acme-web-application",
+            "version": "1.0.0"
+        },
+        "product": {
+            "id": "example-compute",
+            "category": "example-compute",
+            "provider": "example"
+        },
+        "name": null,
+        "replicas": 1,
+        "allowDuplicateJob": false,
+        "parameters": null,
+        "resources": [
+            {
+                "type": "file",
+                "path": "/12512/shared",
+                "readOnly": false
+            }
+        ],
+        "timeAllocation": null
+    },
+    "status": {
+        "state": "SUCCESS",
+        "jobParametersJson": null,
+        "startedAt": null,
+        "expiresAt": null,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "createdAt": 1633588976235,
+    "output": null,
+    "permissions": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will create a Job using shared resources. Later in the example, the user
+# will lose access to these resources.
+
+# When the user starts the Job, they have access to some shared files. These are used in theJob (see the resources section).
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-application",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": [
+                {
+                    "type": "file",
+                    "path": "/12512/shared",
+                    "readOnly": false
+                }
+            ],
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "62348"
+#         }
+#     ]
+# }
+
+# The Job is now running
+
+# However, a few minutes later the share is revoked. UCloud automatically kills the Job a few minutes
+# after this. The status now reflects this.
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?includeProduct=false&includeOthers=false&includeUpdates=false&includeSupport=false&id=62348" 
+
+# {
+#     "id": "62348",
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "updates": [
+#         {
+#             "state": "IN_QUEUE",
+#             "outputFolder": null,
+#             "status": "Your job is now waiting in the queue!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633588976235
+#         },
+#         {
+#             "state": "RUNNING",
+#             "outputFolder": null,
+#             "status": "Your job is now running!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633588981235
+#         },
+#         {
+#             "state": "SUCCESS",
+#             "outputFolder": null,
+#             "status": "Your job has been terminated (Lost permissions)",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633589101235
+#         }
+#     ],
+#     "specification": {
+#         "application": {
+#             "name": "acme-web-application",
+#             "version": "1.0.0"
+#         },
+#         "product": {
+#             "id": "example-compute",
+#             "category": "example-compute",
+#             "provider": "example"
+#         },
+#         "name": null,
+#         "replicas": 1,
+#         "allowDuplicateJob": false,
+#         "parameters": null,
+#         "resources": [
+#             {
+#                 "type": "file",
+#                 "path": "/12512/shared",
+#                 "readOnly": false
+#             }
+#         ],
+#         "timeAllocation": null
+#     },
+#     "status": {
+#         "state": "SUCCESS",
+#         "jobParametersJson": null,
+#         "startedAt": null,
+#         "expiresAt": null,
+#         "resolvedApplication": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "createdAt": 1633588976235,
+#     "output": null,
+#     "permissions": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
+
+```
+
+
+</details>
+
+
+## Example: Running out of compute credits
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, the user will create a Job and eventually run out of compute credits. */
+
+
+/* When the user creates the Job, they have enough credits */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    user
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("1254151"), 
+            balance = 500, 
+            endDate = null, 
+            id = "1254151", 
+            initialBalance = 500000000, 
+            localBalance = 500, 
+            startDate = 1633329776235, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.User(
+            username = "user", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-compute", 
+            name = "example-compute", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.CREDITS_PER_MINUTE, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* Note, at this point the user has a very low amount of credits remaining.
+It will only last a couple of minutes. */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "62348", 
+    )), 
+)
+*/
+
+/* The Job is now running */
+
+
+/* However, a few minutes later the Job is automatically killed by UCloud. The status now reflects this. */
+
+Jobs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = JobIncludeFlags(
+            filterApplication = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeApplication = null, 
+            includeOthers = false, 
+            includeParameters = null, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "62348", 
+    ),
+    user
+).orThrow()
+
+/*
+Job(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633588976235, 
+    id = "62348", 
+    output = null, 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = null, 
+    ), 
+    status = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.SUCCESS, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.IN_QUEUE, 
+        status = "Your job is now waiting in the queue!", 
+        timestamp = 1633588976235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "Your job is now running!", 
+        timestamp = 1633588981235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.SUCCESS, 
+        status = "Your job has been terminated (No more credits)", 
+        timestamp = 1633589101235, 
+    )), 
+    providerGeneratedId = "62348", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, the user will create a Job and eventually run out of compute credits. */
+
+
+/* When the user creates the Job, they have enough credits */
+
+// Authenticated as user
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "user",
+                "username": "user"
+            },
+            "paysFor": {
+                "name": "example-compute",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "1254151",
+                    "allocationPath": [
+                        "1254151"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500000000,
+                    "localBalance": 500,
+                    "startDate": 1633329776235,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "CREDITS_PER_MINUTE"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* Note, at this point the user has a very low amount of credits remaining.
+It will only last a couple of minutes. */
+
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-application",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": null,
+                "timeAllocation": null
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "62348"
+        }
+    ]
+}
+*/
+
+/* The Job is now running */
+
+
+/* However, a few minutes later the Job is automatically killed by UCloud. The status now reflects this. */
+
+await callAPI(JobsApi.retrieve(
+    {
+        "flags": {
+            "filterApplication": null,
+            "filterState": null,
+            "includeParameters": null,
+            "includeApplication": null,
+            "includeProduct": false,
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "62348"
+    }
+);
+
+/*
+{
+    "id": "62348",
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "updates": [
+        {
+            "state": "IN_QUEUE",
+            "outputFolder": null,
+            "status": "Your job is now waiting in the queue!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633588976235
+        },
+        {
+            "state": "RUNNING",
+            "outputFolder": null,
+            "status": "Your job is now running!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633588981235
+        },
+        {
+            "state": "SUCCESS",
+            "outputFolder": null,
+            "status": "Your job has been terminated (No more credits)",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633589101235
+        }
+    ],
+    "specification": {
+        "application": {
+            "name": "acme-web-application",
+            "version": "1.0.0"
+        },
+        "product": {
+            "id": "example-compute",
+            "category": "example-compute",
+            "provider": "example"
+        },
+        "name": null,
+        "replicas": 1,
+        "allowDuplicateJob": false,
+        "parameters": null,
+        "resources": null,
+        "timeAllocation": null
+    },
+    "status": {
+        "state": "SUCCESS",
+        "jobParametersJson": null,
+        "startedAt": null,
+        "expiresAt": null,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "createdAt": 1633588976235,
+    "output": null,
+    "permissions": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, the user will create a Job and eventually run out of compute credits.
+
+# When the user creates the Job, they have enough credits
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "user",
+#                 "username": "user"
+#             },
+#             "paysFor": {
+#                 "name": "example-compute",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "1254151",
+#                     "allocationPath": [
+#                         "1254151"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500000000,
+#                     "localBalance": 500,
+#                     "startDate": 1633329776235,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "CREDITS_PER_MINUTE"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Note, at this point the user has a very low amount of credits remaining.
+# It will only last a couple of minutes.
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-application",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": null,
+            "timeAllocation": null
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "62348"
+#         }
+#     ]
+# }
+
+# The Job is now running
+
+# However, a few minutes later the Job is automatically killed by UCloud. The status now reflects this.
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?includeProduct=false&includeOthers=false&includeUpdates=false&includeSupport=false&id=62348" 
+
+# {
+#     "id": "62348",
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "updates": [
+#         {
+#             "state": "IN_QUEUE",
+#             "outputFolder": null,
+#             "status": "Your job is now waiting in the queue!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633588976235
+#         },
+#         {
+#             "state": "RUNNING",
+#             "outputFolder": null,
+#             "status": "Your job is now running!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633588981235
+#         },
+#         {
+#             "state": "SUCCESS",
+#             "outputFolder": null,
+#             "status": "Your job has been terminated (No more credits)",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633589101235
+#         }
+#     ],
+#     "specification": {
+#         "application": {
+#             "name": "acme-web-application",
+#             "version": "1.0.0"
+#         },
+#         "product": {
+#             "id": "example-compute",
+#             "category": "example-compute",
+#             "provider": "example"
+#         },
+#         "name": null,
+#         "replicas": 1,
+#         "allowDuplicateJob": false,
+#         "parameters": null,
+#         "resources": null,
+#         "timeAllocation": null
+#     },
+#     "status": {
+#         "state": "SUCCESS",
+#         "jobParametersJson": null,
+#         "startedAt": null,
+#         "expiresAt": null,
+#         "resolvedApplication": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "createdAt": 1633588976235,
+#     "output": null,
+#     "permissions": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
+
+```
+
+
+</details>
+
+
+## Example: Extending a Job and cancelling it early
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>The provider must support the extension API</li>
+</ul></td></tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example we will show how a user can extend the duration of a Job. Later in the same
+example, we show how the user can cancel it early. */
+
+Jobs.create.call(
+    bulkRequestOf(JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = SimpleDuration(
+            hours = 5, 
+            minutes = 0, 
+            seconds = 0, 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "62348", 
+    )), 
+)
+*/
+
+/* The Job is initially allocated with a duration of 5 hours. We can check when it expires by retrieving the Job */
+
+Jobs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = JobIncludeFlags(
+            filterApplication = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeApplication = null, 
+            includeOthers = false, 
+            includeParameters = null, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "62348", 
+    ),
+    user
+).orThrow()
+
+/*
+Job(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633329776235, 
+    id = "62348", 
+    output = null, 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = SimpleDuration(
+            hours = 5, 
+            minutes = 0, 
+            seconds = 0, 
+        ), 
+    ), 
+    status = JobStatus(
+        expiresAt = 1633347776235, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.RUNNING, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.IN_QUEUE, 
+        status = "Your job is now waiting in the queue!", 
+        timestamp = 1633329776235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "Your job is now running!", 
+        timestamp = 1633329781235, 
+    )), 
+    providerGeneratedId = "62348", 
+)
+*/
+
+/* We can extend the duration quite easily */
+
+Jobs.extend.call(
+    bulkRequestOf(JobsExtendRequestItem(
+        jobId = "62348", 
+        requestedTime = SimpleDuration(
+            hours = 1, 
+            minutes = 0, 
+            seconds = 0, 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(Unit), 
+)
+*/
+
+/* The new expiration is reflected if we retrieve it again */
+
+Jobs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = JobIncludeFlags(
+            filterApplication = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeApplication = null, 
+            includeOthers = false, 
+            includeParameters = null, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "62348", 
+    ),
+    user
+).orThrow()
+
+/*
+Job(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633329776235, 
+    id = "62348", 
+    output = null, 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = SimpleDuration(
+            hours = 5, 
+            minutes = 0, 
+            seconds = 0, 
+        ), 
+    ), 
+    status = JobStatus(
+        expiresAt = 1633351376235, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.RUNNING, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.IN_QUEUE, 
+        status = "Your job is now waiting in the queue!", 
+        timestamp = 1633329776235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "Your job is now running!", 
+        timestamp = 1633329781235, 
+    )), 
+    providerGeneratedId = "62348", 
+)
+*/
+
+/* If the user decides that they are done with the Job early, then they can simply terminate it */
+
+Jobs.terminate.call(
+    bulkRequestOf(FindByStringId(
+        id = "62348", 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(Unit), 
+)
+*/
+
+/* This termination is reflected in the status (and updates) */
+
+Jobs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = JobIncludeFlags(
+            filterApplication = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterState = null, 
+            includeApplication = null, 
+            includeOthers = false, 
+            includeParameters = null, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "62348", 
+    ),
+    user
+).orThrow()
+
+/*
+Job(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633329776235, 
+    id = "62348", 
+    output = null, 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    specification = JobSpecification(
+        allowDuplicateJob = false, 
+        application = NameAndVersion(
+            name = "acme-web-application", 
+            version = "1.0.0", 
+        ), 
+        name = null, 
+        parameters = null, 
+        product = ProductReference(
+            category = "example-compute", 
+            id = "example-compute", 
+            provider = "example", 
+        ), 
+        replicas = 1, 
+        resources = null, 
+        timeAllocation = SimpleDuration(
+            hours = 5, 
+            minutes = 0, 
+            seconds = 0, 
+        ), 
+    ), 
+    status = JobStatus(
+        expiresAt = null, 
+        jobParametersJson = null, 
+        resolvedApplication = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        startedAt = null, 
+        state = JobState.SUCCESS, 
+    ), 
+    updates = listOf(JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.IN_QUEUE, 
+        status = "Your job is now waiting in the queue!", 
+        timestamp = 1633329776235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.RUNNING, 
+        status = "Your job is now running!", 
+        timestamp = 1633329781235, 
+    ), JobUpdate(
+        expectedDifferentState = null, 
+        expectedState = null, 
+        outputFolder = null, 
+        state = JobState.SUCCESS, 
+        status = "Your job has been cancelled!", 
+        timestamp = 1633336981235, 
+    )), 
+    providerGeneratedId = "62348", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example we will show how a user can extend the duration of a Job. Later in the same
+example, we show how the user can cancel it early. */
+
+// Authenticated as user
+await callAPI(JobsApi.create(
+    {
+        "items": [
+            {
+                "application": {
+                    "name": "acme-web-application",
+                    "version": "1.0.0"
+                },
+                "product": {
+                    "id": "example-compute",
+                    "category": "example-compute",
+                    "provider": "example"
+                },
+                "name": null,
+                "replicas": 1,
+                "allowDuplicateJob": false,
+                "parameters": null,
+                "resources": null,
+                "timeAllocation": {
+                    "hours": 5,
+                    "minutes": 0,
+                    "seconds": 0
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "62348"
+        }
+    ]
+}
+*/
+
+/* The Job is initially allocated with a duration of 5 hours. We can check when it expires by retrieving the Job */
+
+await callAPI(JobsApi.retrieve(
+    {
+        "flags": {
+            "filterApplication": null,
+            "filterState": null,
+            "includeParameters": null,
+            "includeApplication": null,
+            "includeProduct": false,
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "62348"
+    }
+);
+
+/*
+{
+    "id": "62348",
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "updates": [
+        {
+            "state": "IN_QUEUE",
+            "outputFolder": null,
+            "status": "Your job is now waiting in the queue!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329776235
+        },
+        {
+            "state": "RUNNING",
+            "outputFolder": null,
+            "status": "Your job is now running!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329781235
+        }
+    ],
+    "specification": {
+        "application": {
+            "name": "acme-web-application",
+            "version": "1.0.0"
+        },
+        "product": {
+            "id": "example-compute",
+            "category": "example-compute",
+            "provider": "example"
+        },
+        "name": null,
+        "replicas": 1,
+        "allowDuplicateJob": false,
+        "parameters": null,
+        "resources": null,
+        "timeAllocation": {
+            "hours": 5,
+            "minutes": 0,
+            "seconds": 0
+        }
+    },
+    "status": {
+        "state": "RUNNING",
+        "jobParametersJson": null,
+        "startedAt": null,
+        "expiresAt": 1633347776235,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "createdAt": 1633329776235,
+    "output": null,
+    "permissions": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+
+/* We can extend the duration quite easily */
+
+await callAPI(JobsApi.extend(
+    {
+        "items": [
+            {
+                "jobId": "62348",
+                "requestedTime": {
+                    "hours": 1,
+                    "minutes": 0,
+                    "seconds": 0
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+        }
+    ]
+}
+*/
+
+/* The new expiration is reflected if we retrieve it again */
+
+await callAPI(JobsApi.retrieve(
+    {
+        "flags": {
+            "filterApplication": null,
+            "filterState": null,
+            "includeParameters": null,
+            "includeApplication": null,
+            "includeProduct": false,
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "62348"
+    }
+);
+
+/*
+{
+    "id": "62348",
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "updates": [
+        {
+            "state": "IN_QUEUE",
+            "outputFolder": null,
+            "status": "Your job is now waiting in the queue!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329776235
+        },
+        {
+            "state": "RUNNING",
+            "outputFolder": null,
+            "status": "Your job is now running!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329781235
+        }
+    ],
+    "specification": {
+        "application": {
+            "name": "acme-web-application",
+            "version": "1.0.0"
+        },
+        "product": {
+            "id": "example-compute",
+            "category": "example-compute",
+            "provider": "example"
+        },
+        "name": null,
+        "replicas": 1,
+        "allowDuplicateJob": false,
+        "parameters": null,
+        "resources": null,
+        "timeAllocation": {
+            "hours": 5,
+            "minutes": 0,
+            "seconds": 0
+        }
+    },
+    "status": {
+        "state": "RUNNING",
+        "jobParametersJson": null,
+        "startedAt": null,
+        "expiresAt": 1633351376235,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "createdAt": 1633329776235,
+    "output": null,
+    "permissions": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+
+/* If the user decides that they are done with the Job early, then they can simply terminate it */
+
+await callAPI(JobsApi.terminate(
+    {
+        "items": [
+            {
+                "id": "62348"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+        }
+    ]
+}
+*/
+
+/* This termination is reflected in the status (and updates) */
+
+await callAPI(JobsApi.retrieve(
+    {
+        "flags": {
+            "filterApplication": null,
+            "filterState": null,
+            "includeParameters": null,
+            "includeApplication": null,
+            "includeProduct": false,
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "62348"
+    }
+);
+
+/*
+{
+    "id": "62348",
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "updates": [
+        {
+            "state": "IN_QUEUE",
+            "outputFolder": null,
+            "status": "Your job is now waiting in the queue!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329776235
+        },
+        {
+            "state": "RUNNING",
+            "outputFolder": null,
+            "status": "Your job is now running!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633329781235
+        },
+        {
+            "state": "SUCCESS",
+            "outputFolder": null,
+            "status": "Your job has been cancelled!",
+            "expectedState": null,
+            "expectedDifferentState": null,
+            "timestamp": 1633336981235
+        }
+    ],
+    "specification": {
+        "application": {
+            "name": "acme-web-application",
+            "version": "1.0.0"
+        },
+        "product": {
+            "id": "example-compute",
+            "category": "example-compute",
+            "provider": "example"
+        },
+        "name": null,
+        "replicas": 1,
+        "allowDuplicateJob": false,
+        "parameters": null,
+        "resources": null,
+        "timeAllocation": {
+            "hours": 5,
+            "minutes": 0,
+            "seconds": 0
+        }
+    },
+    "status": {
+        "state": "SUCCESS",
+        "jobParametersJson": null,
+        "startedAt": null,
+        "expiresAt": null,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "createdAt": 1633329776235,
+    "output": null,
+    "permissions": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example we will show how a user can extend the duration of a Job. Later in the same
+# example, we show how the user can cancel it early.
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
+    "items": [
+        {
+            "application": {
+                "name": "acme-web-application",
+                "version": "1.0.0"
+            },
+            "product": {
+                "id": "example-compute",
+                "category": "example-compute",
+                "provider": "example"
+            },
+            "name": null,
+            "replicas": 1,
+            "allowDuplicateJob": false,
+            "parameters": null,
+            "resources": null,
+            "timeAllocation": {
+                "hours": 5,
+                "minutes": 0,
+                "seconds": 0
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "62348"
+#         }
+#     ]
+# }
+
+# The Job is initially allocated with a duration of 5 hours. We can check when it expires by retrieving the Job
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?includeProduct=false&includeOthers=false&includeUpdates=false&includeSupport=false&id=62348" 
+
+# {
+#     "id": "62348",
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "updates": [
+#         {
+#             "state": "IN_QUEUE",
+#             "outputFolder": null,
+#             "status": "Your job is now waiting in the queue!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329776235
+#         },
+#         {
+#             "state": "RUNNING",
+#             "outputFolder": null,
+#             "status": "Your job is now running!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329781235
+#         }
+#     ],
+#     "specification": {
+#         "application": {
+#             "name": "acme-web-application",
+#             "version": "1.0.0"
+#         },
+#         "product": {
+#             "id": "example-compute",
+#             "category": "example-compute",
+#             "provider": "example"
+#         },
+#         "name": null,
+#         "replicas": 1,
+#         "allowDuplicateJob": false,
+#         "parameters": null,
+#         "resources": null,
+#         "timeAllocation": {
+#             "hours": 5,
+#             "minutes": 0,
+#             "seconds": 0
+#         }
+#     },
+#     "status": {
+#         "state": "RUNNING",
+#         "jobParametersJson": null,
+#         "startedAt": null,
+#         "expiresAt": 1633347776235,
+#         "resolvedApplication": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "createdAt": 1633329776235,
+#     "output": null,
+#     "permissions": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
+
+# We can extend the duration quite easily
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/extend" -d '{
+    "items": [
+        {
+            "jobId": "62348",
+            "requestedTime": {
+                "hours": 1,
+                "minutes": 0,
+                "seconds": 0
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#         }
+#     ]
+# }
+
+# The new expiration is reflected if we retrieve it again
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?includeProduct=false&includeOthers=false&includeUpdates=false&includeSupport=false&id=62348" 
+
+# {
+#     "id": "62348",
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "updates": [
+#         {
+#             "state": "IN_QUEUE",
+#             "outputFolder": null,
+#             "status": "Your job is now waiting in the queue!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329776235
+#         },
+#         {
+#             "state": "RUNNING",
+#             "outputFolder": null,
+#             "status": "Your job is now running!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329781235
+#         }
+#     ],
+#     "specification": {
+#         "application": {
+#             "name": "acme-web-application",
+#             "version": "1.0.0"
+#         },
+#         "product": {
+#             "id": "example-compute",
+#             "category": "example-compute",
+#             "provider": "example"
+#         },
+#         "name": null,
+#         "replicas": 1,
+#         "allowDuplicateJob": false,
+#         "parameters": null,
+#         "resources": null,
+#         "timeAllocation": {
+#             "hours": 5,
+#             "minutes": 0,
+#             "seconds": 0
+#         }
+#     },
+#     "status": {
+#         "state": "RUNNING",
+#         "jobParametersJson": null,
+#         "startedAt": null,
+#         "expiresAt": 1633351376235,
+#         "resolvedApplication": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "createdAt": 1633329776235,
+#     "output": null,
+#     "permissions": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
+
+# If the user decides that they are done with the Job early, then they can simply terminate it
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs/terminate" -d '{
+    "items": [
+        {
+            "id": "62348"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#         }
+#     ]
+# }
+
+# This termination is reflected in the status (and updates)
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?includeProduct=false&includeOthers=false&includeUpdates=false&includeSupport=false&id=62348" 
+
+# {
+#     "id": "62348",
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "updates": [
+#         {
+#             "state": "IN_QUEUE",
+#             "outputFolder": null,
+#             "status": "Your job is now waiting in the queue!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329776235
+#         },
+#         {
+#             "state": "RUNNING",
+#             "outputFolder": null,
+#             "status": "Your job is now running!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633329781235
+#         },
+#         {
+#             "state": "SUCCESS",
+#             "outputFolder": null,
+#             "status": "Your job has been cancelled!",
+#             "expectedState": null,
+#             "expectedDifferentState": null,
+#             "timestamp": 1633336981235
+#         }
+#     ],
+#     "specification": {
+#         "application": {
+#             "name": "acme-web-application",
+#             "version": "1.0.0"
+#         },
+#         "product": {
+#             "id": "example-compute",
+#             "category": "example-compute",
+#             "provider": "example"
+#         },
+#         "name": null,
+#         "replicas": 1,
+#         "allowDuplicateJob": false,
+#         "parameters": null,
+#         "resources": null,
+#         "timeAllocation": {
+#             "hours": 5,
+#             "minutes": 0,
+#             "seconds": 0
+#         }
+#     },
+#     "status": {
+#         "state": "SUCCESS",
+#         "jobParametersJson": null,
+#         "startedAt": null,
+#         "expiresAt": null,
+#         "resolvedApplication": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "createdAt": 1633329776235,
+#     "output": null,
+#     "permissions": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
 
 ```
 
@@ -1994,68 +5493,101 @@ enum class JobState {
 
 <details>
 <summary>
-<code>IN_QUEUE</code> Any job which has been submitted and not yet in a final state where the number of tasks running is less thanthe number of tasks requested
+<code>IN_QUEUE</code> Any Job which is not yet ready
 </summary>
 
 
 
+More specifically, this state should apply to any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  for which all of the following holds:
+
+- The [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  has been created
+- It has never been in a final state
+- The number of `replicas` which are running is less than the requested amount
 
 
 </details>
 
 <details>
 <summary>
-<code>RUNNING</code> A job where all the tasks are running
+<code>RUNNING</code> A Job where all the tasks are running
 </summary>
 
 
 
+More specifically, this state should apply to any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  for which all of the following holds:
+
+- All `replicas` of the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  have been started
+
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  can be `RUNNING` without actually being ready. For example, if a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  
+exposes a web interface, then the web-interface doesn't have to be available yet. That is, the server might
+still be running its initialization code.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>CANCELING</code> A job which has been cancelled, either by user request or system request
+<code>CANCELING</code> A Job which has been cancelled but has not yet terminated
 </summary>
 
 
 
+---
+
+__📝 NOTE:__ This is only a temporary state. The [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is expected to eventually transition to a final
+state, typically the `SUCCESS` state.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>SUCCESS</code> A job which has terminated. The job terminated with no _scheduler_ error.
+<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error  
 </summary>
 
 
 
-Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  will complete successfully even if the user application exits with an unsuccessful 
+status code.
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>FAILURE</code> A job which has terminated with a failure.
+<code>FAILURE</code> A Job which has terminated with a failure
 </summary>
 
 
 
-Note: A job will fail _only_ if it is the scheduler's fault
+---
+
+__📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  should _only_ fail if it is the scheduler's fault
+
+---
 
 
 </details>
 
 <details>
 <summary>
-<code>EXPIRED</code> A job which has expired and was terminated as a result
+<code>EXPIRED</code> A Job which has expired and was terminated as a result
 </summary>
 
 
 
+This state should only be used if the [`timeAllocation`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobSpecification.md) has expired. Any other
+form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
 
 
 </details>
