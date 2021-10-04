@@ -6,6 +6,12 @@
 <tr><th>Pre-conditions</th><td><ul>
 <li>The user has access to the 'ucloud' provider</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -154,8 +160,10 @@ await callAPI(FilesApi.retrieveProducts(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProducts" 

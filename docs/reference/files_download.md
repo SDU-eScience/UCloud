@@ -7,6 +7,12 @@
 <li>A file at '/123/folder/file</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -28,7 +34,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -60,7 +68,9 @@ await callAPI(FilesApi.createDownload(
     ]
 }
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -72,8 +82,10 @@ await callAPI(FilesApi.createDownload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/download" -d '{

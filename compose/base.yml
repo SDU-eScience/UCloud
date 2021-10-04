@@ -22,7 +22,7 @@ services:
       - ${PWD}/.compose/postgres:/var/lib/postgresql/data
       - ${PWD}/backend:/opt/ucloud
     ports:
-    - 35432:5432
+    - ${POSTGRES_PORT:-35432}:5432
     hostname: postgres
 
   k3s:
@@ -58,7 +58,7 @@ services:
       - ucloudFiles:/mnt/cephfs
       - k3sConfig:/mnt/k3s
     ports:
-      - 8080:8080
+      - ${BACKEND_PORT:-8080}:8080
     restart: always
     depends_on:
       - redis

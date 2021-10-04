@@ -177,11 +177,11 @@ const Create: React.FunctionComponent = props => {
         header={
             <SelectableTextWrapper mb={"16px"}>
                 <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO}
-                                children={"1. Info"} mr={"1em"}/>
+                    children={"1. Info"} />
                 <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA}
-                                children={"2. Schema"} mr={"1em"}/>
+                    children={"2. Schema"} />
                 <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW}
-                                children={"3. Preview and save"} mr={"1em"}/>
+                    children={"3. Preview and save"} />
             </SelectableTextWrapper>
         }
         headerSize={45}
@@ -193,7 +193,7 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Information</Heading.h3>
                             <Label>
                                 ID
-                                <Input ref={idRef} placeholder={"schema-xyz"} disabled={id != null}/>
+                                <Input ref={idRef} placeholder={"schema-xyz"} disabled={id != null} />
                                 {id == null ? null :
                                     <Text color={"gray"}>
                                         <b>NOTE:</b>{" "}
@@ -203,10 +203,10 @@ const Create: React.FunctionComponent = props => {
                             </Label>
                             <Label>
                                 Title
-                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"}/>
+                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"} />
                             </Label>
                             <Label>
-                                Description <br/>
+                                Description <br />
                                 <TextArea
                                     ref={descriptionRef}
                                     rows={5}
@@ -220,13 +220,13 @@ const Create: React.FunctionComponent = props => {
                             <Heading.h3>Versioning</Heading.h3>
                             <Label>
                                 Version
-                                <Input ref={versionRef} placeholder={"1.0.0"}/>
+                                <Input ref={versionRef} placeholder={"1.0.0"} />
                             </Label>
 
                             <Label>
-                                Changes since last version <br/>
+                                Changes since last version <br />
                                 <TextArea ref={changeLogRef} rows={2} width={"100%"}
-                                          placeholder={"Version 1.1.0 has made the following changes..."}/>
+                                    placeholder={"Version 1.1.0 has made the following changes..."} />
                             </Label>
                         </Section>
 
@@ -349,7 +349,7 @@ const Create: React.FunctionComponent = props => {
         }
         sidebar={
             <Operations location={"SIDEBAR"} operations={operations} selected={[]} extra={callbacks}
-                        entityNameSingular={templateApi.title}/>
+                entityNameSingular={templateApi.title} />
         }
     />;
 };

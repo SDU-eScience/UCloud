@@ -40,14 +40,12 @@ export const ShareBrowse: React.FunctionComponent<{
         isSearch={props.isSearch}
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}
-        header={<>
-            <SharedByTabs sharedByMe={!filterIngoing} />
-        </>}
+        header={<SharedByTabs sharedByMe={!filterIngoing} />}
         headerSize={55}
         emptyPage={
             <Heading.h3 textAlign={"center"}>
                 No shares
-                <br/>
+                <br />
                 <small>You can create a new share by clicking 'Share' on one of your files.</small>
             </Heading.h3>
         }
@@ -55,7 +53,7 @@ export const ShareBrowse: React.FunctionComponent<{
 };
 
 const Router: React.FunctionComponent = () => {
-    return <ResourceRouter api={SharesApi} Browser={ShareBrowse}/>;
+    return <ResourceRouter api={SharesApi} Browser={ShareBrowse} />;
 };
 
 export default Router;

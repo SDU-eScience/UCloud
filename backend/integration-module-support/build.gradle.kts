@@ -69,13 +69,13 @@ publishing {
         }
 
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+            name = "UCloudMaven"
+            url = uri("https://mvn.cloud.sdu.dk/releases")
             credentials {
-                username = (project.findProperty("gpr.user") as? String?)
-                    ?: System.getenv("GITHUB_USERNAME")
-                password = (project.findProperty("gpr.key") as? String?)
-                    ?: System.getenv("GITHUB_TOKEN")
+                username = (project.findProperty("ucloud.mvn.username") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_USERNAME")
+                password = (project.findProperty("ucloud.mvn.token") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_TOKEN")
             }
         }
     }

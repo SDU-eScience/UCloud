@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Drives (FileCollection)
 # Drives (FileCollection)
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -16,27 +17,27 @@
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td><i>No description</i></td>
+<td>Browses the catalogue of available resources</td>
 </tr>
 <tr>
 <td><a href='#retrieve'><code>retrieve</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve a single resource</td>
 </tr>
 <tr>
 <td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve product support for all accessible providers</td>
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
-<td><i>No description</i></td>
+<td>Searches the catalogue of available resources</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td><i>No description</i></td>
+<td>Creates one or more resources</td>
 </tr>
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
-<td><i>No description</i></td>
+<td>Deletes one or more resources</td>
 </tr>
 <tr>
 <td><a href='#rename'><code>rename</code></a></td>
@@ -44,7 +45,7 @@
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
-<td><i>No description</i></td>
+<td>Updates the ACL attached to a resource</td>
 </tr>
 </tbody></table>
 
@@ -111,6 +112,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Browses the catalogue of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -124,6 +126,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Retrieve a single resource_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -137,11 +140,20 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Retrieve product support for all accessible providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='#fssupport'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint will determine all providers that which the authenticated user has access to, in
+the current workspace. A user has access to a product, and thus a provider, if the product is
+either free or if the user has been granted credits to use the product.
+
+See also:
+
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
+- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
 
 
 ### `search`
@@ -150,6 +162,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Searches the catalogue of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -163,6 +176,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Creates one or more resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -176,6 +190,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Deletes one or more resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -202,6 +217,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Updates the ACL attached to a resource_
 
 | Request | Response | Error |
 |---------|----------|-------|

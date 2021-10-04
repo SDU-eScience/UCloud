@@ -16,5 +16,5 @@ virtual machine will be stopped and destroyed. Persistent storage attached to th
 deleted only temporary data from the job will be deleted.
 
 This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
-be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md)), [`jobs.browse`](/docs/reference/jobs.browse.md)), [`jobs.follow`](/docs/reference/jobs.follow.md)) calls.
+be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md), [`jobs.browse`](/docs/reference/jobs.browse.md), [`jobs.follow`](/docs/reference/jobs.follow.md)  calls.
 

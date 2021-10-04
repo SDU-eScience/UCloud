@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Public IPs (NetworkIP)](/docs/developer-guide/orchestration/compute/providers/ips/README.md) / Ingoing API
 # Ingoing API
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -16,7 +17,7 @@
 <tbody>
 <tr>
 <td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve product support for this providers</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
@@ -28,7 +29,7 @@
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
-<td><i>No description</i></td>
+<td>Callback received by the Provider when permissions are updated</td>
 </tr>
 <tr>
 <td><a href='#updatefirewall'><code>updateFirewall</code></a></td>
@@ -36,7 +37,7 @@
 </tr>
 <tr>
 <td><a href='#verify'><code>verify</code></a></td>
-<td><i>No description</i></td>
+<td>Invoked by UCloud/Core to trigger verification of a single batch</td>
 </tr>
 </tbody></table>
 
@@ -71,11 +72,16 @@
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
+_Retrieve product support for this providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.md'>NetworkIPSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint responds with the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s supported by
+this provider along with details for how [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  is
+supported. The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s must be registered with
+UCloud/Core already.
 
 
 ### `create`
@@ -110,11 +116,16 @@
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
+_Callback received by the Provider when permissions are updated_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.UpdatedAclWithResource.md'>UpdatedAclWithResource</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.NetworkIP.md'>NetworkIP</a>&gt;&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+internal state, then they may simply ignore this request by responding with `200 OK`. The
+Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+not acknowledge the request.
 
 
 ### `updateFirewall`
@@ -136,11 +147,16 @@
 ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
 
 
+_Invoked by UCloud/Core to trigger verification of a single batch_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.NetworkIP.md'>NetworkIP</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+Provider should immediately determine if these are still valid and recognized by the Provider.
+If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+an update for each affected resource.
 
 
 

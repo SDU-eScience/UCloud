@@ -88,6 +88,45 @@ fun summary(summary: String, body: String, open: Boolean = false): String {
     }
 }
 
+fun generateMarkdownChapterTableOfContents(
+    path: List<Chapter.Node>,
+    chapter: Chapter.Node
+) {
+    val outputFile = File(
+        outputFolder,
+        path.joinToString("/") { it.id.replace("/", "_") } + "/" + chapter.id + "/" + "README.md"
+    )
+    outputFile.parentFile.mkdirs()
+
+    outputFile.printWriter().use { outs ->
+        val urlBuilder = StringBuilder("/docs/")
+        for ((index, node) in (path + chapter).withIndex()) {
+            if (index != 0) outs.print(" / ")
+            urlBuilder.append(node.id)
+            urlBuilder.append('/')
+
+            if (node == chapter) {
+                outs.print("${node.title}")
+            } else {
+                outs.print("[${node.title}](${urlBuilder}README.md)")
+            }
+        }
+        outs.println()
+
+
+        outs.println("# ${chapter.title}")
+        outs.println()
+
+        chapter.children.forEach { chapter ->
+            val suffix = when (chapter) {
+                is Chapter.Node -> "/README.md"
+                is Chapter.Feature -> ".md"
+            }
+            outs.println(" - [${chapter.title}](${urlBuilder}${chapter.id}${suffix})")
+        }
+    }
+}
+
 fun generateMarkdown(
     previousSection: Chapter?,
     nextSection: Chapter?,
@@ -140,6 +179,20 @@ fun generateMarkdown(
         val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.description
+
+        run {
+            val urlBuilder = StringBuilder("/docs/")
+            for ((index, node) in path.withIndex()) {
+                if (index != 0) outs.print(" / ")
+                urlBuilder.append(node.id)
+                urlBuilder.append('/')
+
+                outs.print("[${node.title}](${urlBuilder}README.md)")
+            }
+            outs.print(" / ")
+            outs.println(title)
+        }
+
         outs.println("# $title")
         outs.println()
         outs.println(apiMaturityBadge(documentation.maturity))
@@ -411,11 +464,60 @@ fun generateMarkdownForExample(useCase: UseCase): String {
                             appendLine("*/")
                         }
                         is UseCaseNode.Comment -> {
+                            appendLine()
                             appendLine("/* ${node.comment} */")
+                            appendLine()
                         }
                         is UseCaseNode.SourceCode -> {
                             if (node.language == UseCaseNode.Language.KOTLIN) {
                                 appendLine(node.code)
+                            }
+                        }
+
+                        is UseCaseNode.Subscription<*, *, *> -> {
+                            append(node.call.containerRef::class.simpleName)
+                            append(".")
+                            append(node.call.field?.name ?: node.call.name)
+                            appendLine(".subscribe(")
+                            append(generateKotlinFromValue(node.request).prependIndent("    "))
+                            appendLine(",")
+                            append("    ")
+                            append(node.actor.name)
+                            appendLine(",")
+                            appendLine("    handler = { /* will receive messages listed below */ }")
+                            appendLine(")")
+                            appendLine()
+
+                            for (message in node.messages) {
+                                when (message) {
+                                    is UseCaseNode.RequestOrResponse.Request -> {
+                                        append(node.call.containerRef::class.simpleName)
+                                        append(".")
+                                        append(node.call.field?.name ?: node.call.name)
+                                        appendLine(".call(")
+                                        append(generateKotlinFromValue(message.request).prependIndent("    "))
+                                        appendLine(",")
+                                        append("    ")
+                                        appendLine(node.actor.name)
+                                        appendLine(").orThrow()")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Response -> {
+                                        appendLine("/*")
+                                        appendLine(generateKotlinFromValue(message.response.result))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+
+                                    is UseCaseNode.RequestOrResponse.Error -> {
+                                        appendLine("/*")
+                                        appendLine(message.error.statusCode)
+                                        appendLine(generateKotlinFromValue(message.error))
+                                        appendLine("*/")
+                                        appendLine()
+                                    }
+                                }
                             }
                         }
                     }
@@ -700,9 +802,9 @@ fun generateKotlinFromValue(
             buildString {
                 append(
                     when (value) {
-                        is Array<*> -> "arrayOf"
-                        is List<*> -> "listOf"
-                        is Set<*> -> "setOf"
+                        is Array<*> -> if (value.isEmpty()) "emptyArray" else "arrayOf"
+                        is List<*> ->  if (value.isEmpty()) "emptyList" else "listOf"
+                        is Set<*> -> if(value.isEmpty()) "emptySet" else "setOf"
                         else -> "listOf"
                     }
                 )
@@ -716,7 +818,7 @@ fun generateKotlinFromValue(
                 append(")")
             }
         }
-        is String -> "\"${value}\""
+        is String -> value.split("\n").joinToString(""" + "\n" + """ + "\n    ") { "\"${it}\"" }
         is JsonObject -> {
             buildString {
                 append("JsonObject(mapOf(")

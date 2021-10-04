@@ -22,36 +22,35 @@ data class Job(
 )
 ```
 They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
-much bigger and more machines. In a simplified view, a `Job` describes the following information:
+much bigger and more machines. In a simplified view, a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  describes the following information:
 
-- The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
-- The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
-  [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
-- A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
+- The `Application` which the provider should/is/has run (see [app-store](/docs/developer-guide/orchestration/compute/appstore/apps.md))
+- The [input parameters](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md) required by a `Job`
+- A reference to the appropriate [compute infrastructure](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), this
   includes a reference to the _provider_
-- The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
 
-A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
-orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
-information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+A `Job` is started by a user request containing the `specification` of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md)  This information is verified by the UCloud
+orchestrator and passed to the provider referenced by the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  itself. Assuming that the provider accepts this
+information, the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software
 correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
 
-At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
+At this point, the provider has acted on this information by placing the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in its own equivalent of
 a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-the `Job`
-is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
+is running, it will contact UCloud and place the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in the `RUNNING` state. This indicates to UCloud that log files
 can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
 are available.
 
-Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
-terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
-software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
+Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  has
+terminated successfully if no internal error occurred in UCloud and in the provider. This means that a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  whose
+software returns with a non-zero exit code is still considered successful. A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  might, for example, be placed
 in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
-state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
+state. Any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  which is in a terminal state can no longer receive any updates or change its state.
 
-At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
-delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+At any point after the user submits the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they may request cancellation of the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md)  This will
+stop the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), delete any
+[ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
 any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
 
 <details>

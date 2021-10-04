@@ -180,8 +180,16 @@ data class UseCase(
     }
 }
 
+fun MutableList<UseCaseNode>.ucloudCore(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("ucloud", "The UCloud/Core service user").also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.provider(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("provider", "The provider").also { add(it) }
+}
+
 fun MutableList<UseCaseNode>.basicUser(): UseCaseNode.Actor {
-    return UseCaseNode.Actor("user", "An authenticated user")
+    return UseCaseNode.Actor("user", "An authenticated user").also { add(it) }
 }
 
 fun MutableList<UseCaseNode>.actor(name: String, description: String): UseCaseNode.Actor {
@@ -233,6 +241,38 @@ fun <R : Any, E : Any> MutableList<UseCaseNode>.failure(
     ))
 }
 
+fun <R : Any, S : Any, E : Any> MutableList<UseCaseNode>.subscription(
+    call: CallDescription<R, S, E>,
+    request: R,
+    actor: UseCaseNode.Actor,
+    protocol: MutableList<UseCaseNode.RequestOrResponse<R, S, E>>.() -> Unit,
+) {
+    add(UseCaseNode.Subscription<R, S, E>(
+        call,
+        request,
+        mutableListOf<UseCaseNode.RequestOrResponse<R, S, E>>().apply(protocol),
+        actor,
+    ))
+}
+
+fun <R : Any, S : Any, E : Any> MutableList<UseCaseNode.RequestOrResponse<R, S, E>>.request(request: R) {
+    add(UseCaseNode.RequestOrResponse.Request(request))
+}
+
+fun <R : Any, S : Any, E : Any> MutableList<UseCaseNode.RequestOrResponse<R, S, E>>.success(
+    success: S,
+    statusCode: HttpStatusCode = HttpStatusCode.OK
+) {
+    add(UseCaseNode.RequestOrResponse.Response(IngoingCallResponse.Ok(success, statusCode, FakeOutgoingCall)))
+}
+
+fun <R : Any, S : Any, E : Any> MutableList<UseCaseNode.RequestOrResponse<R, S, E>>.error(
+    statusCode: HttpStatusCode,
+    error: E? = null
+) {
+    add(UseCaseNode.RequestOrResponse.Error(IngoingCallResponse.Error(error, statusCode, FakeOutgoingCall)))
+}
+
 sealed class UseCaseNode {
     class Actor(val name: String, val description: String) : UseCaseNode()
 
@@ -244,6 +284,19 @@ sealed class UseCaseNode {
         val name: String? = null,
     ) : UseCaseNode()
 
+    sealed class RequestOrResponse<R : Any, S : Any, E : Any> {
+        class Request<R : Any, S : Any, E : Any>(val request: R) : RequestOrResponse<R, S, E>()
+        class Response<R : Any, S : Any, E : Any>(val response: IngoingCallResponse.Ok<S, E>) : RequestOrResponse<R, S, E>()
+        class Error<R : Any, S : Any, E : Any>(val error: IngoingCallResponse.Error<S, E>) : RequestOrResponse<R, S, E>()
+    }
+
+    class Subscription<R : Any, S : Any, E : Any>(
+        val call: CallDescription<R, S, E>,
+        val request: R,
+        val messages: List<RequestOrResponse<R, S, E>>,
+        val actor: Actor
+    ) : UseCaseNode()
+
     class Comment(val comment: String) : UseCaseNode()
 
     class SourceCode(val language: Language, val code: String) : UseCaseNode()
@@ -252,4 +305,67 @@ sealed class UseCaseNode {
         KOTLIN,
         TYPESCRIPT
     }
+}
+
+sealed class ProviderApiRequirements {
+    object Optional : ProviderApiRequirements()
+    class List(val conditions: kotlin.collections.List<String>) : ProviderApiRequirements()
+    object Mandatory : ProviderApiRequirements()
+}
+
+fun CallDescriptionContainer.documentProviderCall(
+    call: CallDescription<*, *, *>,
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String = ""
+) {
+    val docs = providerDescriptionDocs(endUserCall, requirements, details)
+    document(call, UCloudApiDocC("${docs.first}\n\n${docs.second}"))
+}
+
+fun UCloudCallDocBuilder<*, *, *>.providerDescription(
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String = ""
+) {
+    val docs = providerDescriptionDocs(endUserCall, requirements, details)
+    summary = docs.first
+    description = docs.second
+}
+
+private fun providerDescriptionDocs(
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String
+): Pair<String?, String> {
+    val summary = endUserCall.docOrNull?.summary
+    val description = buildString {
+        if (details.isNotEmpty()) {
+            appendLine("---")
+            appendLine()
+        }
+
+        append("__Implementation requirements:__ ")
+        when (requirements) {
+            ProviderApiRequirements.Optional -> appendLine("Optional")
+            ProviderApiRequirements.Mandatory -> appendLine("Mandatory")
+            is ProviderApiRequirements.List -> {
+                appendLine()
+                for (condition in requirements.conditions) {
+                    appendLine(" - $condition")
+                }
+            }
+        }
+
+        appendLine()
+        appendLine("For more information, see the end-user API ($CALL_REF ${endUserCall.fullName})")
+
+        if (details.isNotEmpty()) {
+            appendLine()
+            appendLine("---")
+            appendLine()
+            appendLine(details)
+        }
+    }
+    return Pair(summary, description)
 }

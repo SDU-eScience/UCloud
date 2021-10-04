@@ -253,7 +253,6 @@ class ProviderProxy<
                     val providerCall = retrieveCall(comms)
                     val im = IntegrationProvider(provider)
                     mappedRequest = requestForProvider
-
                     for (attempt in 0 until 5) {
                         val response = providerCall.call(
                             requestForProvider,

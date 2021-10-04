@@ -414,7 +414,9 @@ fun UseCase.typescript(): String {
                     appendLine("*/")
                 }
                 is UseCaseNode.Comment -> {
+                    appendLine()
                     appendLine("/* ${node.comment} */")
+                    appendLine()
                 }
                 is UseCaseNode.SourceCode -> {
                     if (node.language == UseCaseNode.Language.TYPESCRIPT) {

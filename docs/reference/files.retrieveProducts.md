@@ -10,9 +10,9 @@ _Retrieve product support for all accessible providers_
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FSSupport.md'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint will determine all providers that which the authenticated user has access to, in the current
-workspace. A user has access to a product, and thus a provider, if the product is either free or if the
-user has been granted credits to use the product.
+This endpoint will determine all providers that which the authenticated user has access to, in
+the current workspace. A user has access to a product, and thus a provider, if the product is
+either free or if the user has been granted credits to use the product.
 
 See also:
 

@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Files
 # Files
 
 ![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
@@ -304,8 +305,10 @@ await callAPI(FilesApi.move(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/move" -d '{
@@ -416,8 +419,10 @@ await callAPI(FilesApi.copy(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/copy" -d '{
@@ -457,6 +462,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file present at '/123/folder/file'</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -482,7 +493,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -520,7 +533,9 @@ await callAPI(FilesApi.createUpload(
     ]
 }
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -532,8 +547,10 @@ await callAPI(FilesApi.createUpload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/upload" -d '{
@@ -575,6 +592,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A file at '/123/folder/file</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -596,7 +619,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -628,7 +653,9 @@ await callAPI(FilesApi.createDownload(
     ]
 }
 */
+
 /* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
+
 ```
 
 
@@ -640,8 +667,10 @@ await callAPI(FilesApi.createDownload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/download" -d '{
@@ -680,6 +709,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file exists at '/123/folder/a</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -743,8 +778,10 @@ await callAPI(FilesApi.createFolder(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/folder" -d '{
@@ -784,6 +821,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>The folder and all children are moved to the provider's trash folder</li>
 <li>The file is moved to the provider's trash folder</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -853,8 +896,10 @@ await callAPI(FilesApi.trash(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/trash" -d '{
@@ -894,6 +939,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A folder at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -969,7 +1020,7 @@ PageV2(
             unixMode = null, 
             unixOwner = null, 
         ), 
-        updates = listOf(), 
+        updates = emptyList(), 
         providerGeneratedId = "/123/folder/file.txt", 
     )), 
     itemsPerPage = 50, 
@@ -1076,8 +1127,10 @@ await callAPI(FilesApi.browse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 
@@ -1139,6 +1192,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 <li>A file at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1208,7 +1267,7 @@ UFile(
         unixMode = null, 
         unixOwner = null, 
     ), 
-    updates = listOf(), 
+    updates = emptyList(), 
     providerGeneratedId = "/123/folder", 
 )
 */
@@ -1301,8 +1360,10 @@ await callAPI(FilesApi.retrieve(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&id=/123/folder" 
@@ -1358,6 +1419,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 <li>A file at '/123/folder</li>
 <li>The user has EDIT permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1418,8 +1485,10 @@ await callAPI(FilesApi.delete(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files" -d '{
@@ -1451,6 +1520,12 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 <tr><th>Pre-conditions</th><td><ul>
 <li>The user has access to the 'ucloud' provider</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1599,8 +1674,10 @@ await callAPI(FilesApi.retrieveProducts(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProducts" 
@@ -1702,8 +1779,8 @@ _Retrieves information about a single file._
 
 This file can be of any type. Clients can request additional information about the file using the
 `include*` flags of the request. Note that not all providers support all information. Clients can query
-this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)) or 
-[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)) with the `includeSupport` flag.
+this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)  or 
+[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)  with the `includeSupport` flag.
 
 
 ### `retrieveProducts`
@@ -1718,9 +1795,9 @@ _Retrieve product support for all accessible providers_
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md'>Product.Storage</a>, <a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FSSupport.md'>FSSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint will determine all providers that which the authenticated user has access to, in the current
-workspace. A user has access to a product, and thus a provider, if the product is either free or if the
-user has been granted credits to use the product.
+This endpoint will determine all providers that which the authenticated user has access to, in
+the current workspace. A user has access to a product, and thus a provider, if the product is
+either free or if the user has been granted credits to use the product.
 
 See also:
 

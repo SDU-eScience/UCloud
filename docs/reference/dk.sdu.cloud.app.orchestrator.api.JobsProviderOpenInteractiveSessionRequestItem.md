@@ -4,6 +4,7 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+_A request for opening a new interactive session (e.g. terminal)_
 
 ```kotlin
 data class JobsProviderOpenInteractiveSessionRequestItem(
@@ -20,7 +21,7 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
 
 <details>
 <summary>
-<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
+<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code> The fully resolved Job
 </summary>
 
 
@@ -31,18 +32,19 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
 
 <details>
 <summary>
-<code>rank</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>rank</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> The rank of the node (0-indexed)
 </summary>
 
 
 
+Valid values range from 0 (inclusive) until [`specification.replicas`](#) (exclusive)
 
 
 </details>
 
 <details>
 <summary>
-<code>sessionType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType.md'>InteractiveSessionType</a></code></code>
+<code>sessionType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType.md'>InteractiveSessionType</a></code></code> The type of session
 </summary>
 
 

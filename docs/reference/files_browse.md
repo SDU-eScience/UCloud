@@ -7,6 +7,12 @@
 <li>A folder at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -82,7 +88,7 @@ PageV2(
             unixMode = null, 
             unixOwner = null, 
         ), 
-        updates = listOf(), 
+        updates = emptyList(), 
         providerGeneratedId = "/123/folder/file.txt", 
     )), 
     itemsPerPage = 50, 
@@ -189,8 +195,10 @@ await callAPI(FilesApi.browse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 

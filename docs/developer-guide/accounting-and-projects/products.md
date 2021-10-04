@@ -1,3 +1,4 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Products
 # Products
 
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
@@ -6,14 +7,14 @@
 ## Table of Contents
 <details>
 <summary>
-<a href='#example-browse-all-available-components'>1. Examples</a>
+<a href='#example-browse-all-available-products'>1. Examples</a>
 </summary>
 
 <table><thead><tr>
 <th>Description</th>
 </tr></thread>
 <tbody>
-<tr><td><a href='#example-browse-all-available-components'>Browse all available components</a></td></tr>
+<tr><td><a href='#example-browse-all-available-products'>Browse all available products</a></td></tr>
 <tr><td><a href='#example-browse-products-by-type'>Browse products by type</a></td></tr>
 <tr><td><a href='#example-retrieve-a-single-product'>Retrieve a single product</a></td></tr>
 </tbody></table>
@@ -115,9 +116,15 @@
 
 </details>
 
-## Example: Browse all available components
+## Example: Browse all available products
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -274,8 +281,10 @@ await callAPI(ProductsApi.browse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?itemsPerPage=50" 
@@ -335,6 +344,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 ## Example: Browse products by type
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -455,8 +470,10 @@ await callAPI(ProductsApi.browse(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?itemsPerPage=50&filterArea=COMPUTE" 
@@ -498,6 +515,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 ## Example: Retrieve a single product
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -598,8 +621,10 @@ await callAPI(ProductsApi.retrieve(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?filterName=example-compute&filterCategory=example-compute&filterProvider=example" 

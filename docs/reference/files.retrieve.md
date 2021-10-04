@@ -12,6 +12,6 @@ _Retrieves information about a single file._
 
 This file can be of any type. Clients can request additional information about the file using the
 `include*` flags of the request. Note that not all providers support all information. Clients can query
-this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)) or 
-[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)) with the `includeSupport` flag.
+this information using [`files.collections.browse`](/docs/reference/files.collections.browse.md)  or 
+[`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)  with the `includeSupport` flag.
 

@@ -1,4 +1,4 @@
-# Example: Creating a simple batch job
+# Example: Creating a simple batch Job
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -9,6 +9,12 @@
 <tr><th>Post-conditions</th><td><ul>
 <li>A Job is started in the user's workspace</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -16,7 +22,9 @@
 </summary>
 
 ```kotlin
+
 /* The user finds an interesting application from the catalogue */
+
 val applications = AppStore.listAll.call(
     PaginationRequest(
         itemsPerPage = 50, 
@@ -46,8 +54,12 @@ applications = Page(
     pageNumber = 0, 
 )
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 val application = AppStore.findByNameAndVersion.call(
     FindApplicationAndOptionalDependencies(
         appName = "a-batch-application", 
@@ -66,7 +78,7 @@ application = ApplicationWithFavoriteAndTags(
         applicationType = ApplicationType.BATCH, 
         container = null, 
         environment = null, 
-        fileExtensions = listOf(), 
+        fileExtensions = emptyList(), 
         invocation = listOf(WordInvocationParameter(
             word = "batch", 
         ), VariableInvocationParameter(
@@ -78,7 +90,7 @@ application = ApplicationWithFavoriteAndTags(
             suffixVariable = "", 
             variableNames = listOf("var"), 
         )), 
-        licenseServers = listOf(), 
+        licenseServers = emptyList(), 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = null, 
@@ -110,7 +122,7 @@ application = ApplicationWithFavoriteAndTags(
                         version = "1.0.0", 
                     ), 
                     license = "None", 
-                    requiredModules = listOf(), 
+                    requiredModules = emptyList(), 
                     supportedProviders = null, 
                     title = "Batch tool", 
                 ), 
@@ -135,7 +147,9 @@ application = ApplicationWithFavoriteAndTags(
     tags = listOf("very-scientific"), 
 )
 */
+
 /* The user looks for a suitable machine */
+
 val machineTypes = Products.browse.call(
     ProductsBrowseRequest(
         consistency = null, 
@@ -181,7 +195,9 @@ machineTypes = PageV2(
     next = null, 
 )
 */
+
 /* The user starts the Job with input based on previous requests */
+
 Jobs.create.call(
     bulkRequestOf(JobSpecification(
         allowDuplicateJob = false, 
@@ -223,7 +239,9 @@ BulkResponse(
 </summary>
 
 ```typescript
+
 /* The user finds an interesting application from the catalogue */
+
 // Authenticated as user
 const applications = await callAPI(HpcAppsApi.listAll(
     {
@@ -258,8 +276,12 @@ applications = {
     ]
 }
 */
+
 /* The user selects the first application ('batch' in version '1.0.0') */
+
+
 /* The user requests additional information about the application */
+
 const application = await callAPI(HpcAppsApi.findByNameAndVersion(
     {
         "appName": "a-batch-application",
@@ -364,7 +386,9 @@ application = {
     ]
 }
 */
+
 /* The user looks for a suitable machine */
+
 const machineTypes = await callAPI(ProductsApi.browse(
     {
         "itemsPerPage": 50,
@@ -410,7 +434,9 @@ machineTypes = {
     "next": null
 }
 */
+
 /* The user starts the Job with input based on previous requests */
+
 await callAPI(JobsApi.create(
     {
         "items": [
@@ -460,8 +486,10 @@ await callAPI(JobsApi.create(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # The user finds an interesting application from the catalogue
 

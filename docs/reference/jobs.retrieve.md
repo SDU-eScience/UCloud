@@ -4,6 +4,7 @@
 ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
 
 
+_Retrieves a single Job_
 
 | Request | Response | Error |
 |---------|----------|-------|

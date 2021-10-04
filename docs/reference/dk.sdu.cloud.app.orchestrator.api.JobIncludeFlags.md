@@ -4,6 +4,7 @@
 ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
 
 
+_Flags used to tweak read operations of Jobs_
 
 ```kotlin
 data class JobIncludeFlags(

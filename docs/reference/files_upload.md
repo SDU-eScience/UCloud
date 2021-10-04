@@ -11,6 +11,12 @@
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file present at '/123/folder/file'</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -36,7 +42,9 @@ BulkResponse(
     )), 
 )
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -74,7 +82,9 @@ await callAPI(FilesApi.createUpload(
     ]
 }
 */
+
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
+
 ```
 
 
@@ -86,8 +96,10 @@ await callAPI(FilesApi.createUpload(
 </summary>
 
 ```bash
+# ------------------------------------------------------------------------------------------------------
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/upload" -d '{
