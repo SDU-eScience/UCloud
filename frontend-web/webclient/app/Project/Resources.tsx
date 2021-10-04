@@ -41,7 +41,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
 import * as Pagination from "@/Pagination";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import ReactDatePicker from "react-datepicker";
 import {enGB} from "date-fns/locale";
@@ -108,18 +108,18 @@ filterWidgets.push(props =>
 
 
 const ResourcesGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-gap: 16px;
 
-  ${deviceBreakpoint({minWidth: "1600px"})} {
-    &.two-columns {
-      grid-template-columns: 60% calc(40% - 32px);
+    ${deviceBreakpoint({minWidth: "1600px"})} {
+        &.two-columns {
+            grid-template-columns: 60% calc(40% - 32px);
+        }
     }
-  }
 `;
 
-const Resources: React.FunctionComponent = props => {
+const Resources: React.FunctionComponent = () => {
     useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});

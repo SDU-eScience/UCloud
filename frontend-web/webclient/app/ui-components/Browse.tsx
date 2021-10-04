@@ -34,6 +34,7 @@ interface BrowseProps<T> {
     setRefreshFunction?: boolean;
     hide?: boolean;
     toggleSet?: ToggleSetHook<T>;
+    pageSizeRef?: React.MutableRefObject<number>;
 }
 
 export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
@@ -51,12 +52,17 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     const isLoading = hasPreloadedResources ? false : remoteResources.loading;
     if (props.loadingRef) props.loadingRef.current = isLoading;
 
+    if (props.pageSizeRef && !props.preloadedResources) {
+        props.pageSizeRef.current = remoteResources.data.items.length;
+    }
+
     const reload = useCallback(() => {
         setInfScroll(prev => prev + 1);
         if (hasPreloadedResources) return;
         fetchResources(props.generateCall());
         if (props.onReload) props.onReload();
     }, [props.generateCall, props.onReload, hasPreloadedResources]);
+
     if (props.reloadRef) props.reloadRef.current = reload;
 
     const loadMore = useCallback(() => {
@@ -293,7 +299,9 @@ export function StandardList<T, CB = EmptyObject>(
             reloadRef={reloadRef} loadingRef={loadingRef}
             hide={props.hide} setRefreshFunction={isMainContainer}
             preloadedResources={props.preloadedResources} />,
-        [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]);
+        [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]
+    );
+
     if (isMainContainer) {
         useTitle(titlePlural);
         useLoading(commandLoading || loadingRef.current);

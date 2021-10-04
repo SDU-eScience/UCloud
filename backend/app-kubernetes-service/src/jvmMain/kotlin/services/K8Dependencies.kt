@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
@@ -20,6 +21,7 @@ data class K8Dependencies(
     var serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,
     val dockerImageSizeQuery: DockerImageSizeQuery,
+    val debug: DebugSystem?,
 ) {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 

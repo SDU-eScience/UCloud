@@ -7605,8 +7605,7 @@ export interface GiftWithId {
 export interface ResourceRequest {
     productCategory: string,
     productProvider: string,
-    creditsRequested?: number /* int64 */,
-    quotaRequested?: number /* int64 */,
+    balanceRequested?: number /* int64 */,
 }
 export interface ClaimGiftRequest {
     giftId: number /* int64 */,

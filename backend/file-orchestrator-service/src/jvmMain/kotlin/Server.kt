@@ -64,7 +64,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
         val syncDeviceService = SyncDeviceService(db, syncProviders, syncSupport, serviceClient)
         val syncFolderService = SyncFolderService(db, syncProviders, syncSupport, serviceClient,
-            fileCollections)
+            filesService, fileCollections)
 
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)

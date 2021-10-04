@@ -8,7 +8,7 @@ import {
     ResourceSpecification, ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {accounting, BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
 import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
@@ -20,7 +20,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
-import View from "@/Applications/Jobs/View";
+import {View} from "@/Applications/Jobs/View";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductCompute} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
@@ -321,4 +321,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     }
 }
 
-export default new JobApi();
+export const api = new JobApi()
+
+export default api;

@@ -124,7 +124,7 @@ class FileCollectionService(
                     val collections = retrieveBulk(
                         actorAndProject,
                         ids,
-                        listOf(Permission.Edit),
+                        listOf(Permission.EDIT),
                         simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                     ).associateBy { it.id }
                     return request.items.map { it to ProductRefOrResource.SomeResource(collections.getValue(it.id)) }

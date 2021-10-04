@@ -56,7 +56,7 @@ kotlin {
     }
 }
 
-version = "2021.2.0-storage0"
+version = rootProject.file("./version.txt").readText().trim()
 group = "dk.sdu.cloud"
 
 publishing {
@@ -66,13 +66,13 @@ publishing {
         }
 
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+            name = "UCloudMaven"
+            url = uri("https://mvn.cloud.sdu.dk/releases")
             credentials {
-                username = (project.findProperty("gpr.user") as? String?)
-                    ?: System.getenv("GITHUB_USERNAME")
-                password = (project.findProperty("gpr.key") as? String?)
-                    ?: System.getenv("GITHUB_TOKEN")
+                username = (project.findProperty("ucloud.mvn.username") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_USERNAME")
+                password = (project.findProperty("ucloud.mvn.token") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_TOKEN")
             }
         }
     }

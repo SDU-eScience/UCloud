@@ -4,9 +4,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
@@ -55,7 +52,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                 val allResources = retrieveBulk(
                     actorAndProject,
                     resources.map { it.id },
-                    listOf(Permission.Edit),
+                    listOf(Permission.EDIT),
                     simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                 )
 

@@ -189,7 +189,6 @@ class ProjectQueryService(
                     where
                         id = :group and 
                             project.check_group_acl(:username, :userIsAdmin, g.id)
-import kotlinx.coroutines.runBlocking
                     group by g.id
                 """
             ).rows.get(0)

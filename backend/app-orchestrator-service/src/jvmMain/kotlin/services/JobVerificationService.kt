@@ -63,7 +63,7 @@ class JobVerificationService(
                 )
             }
 
-            orchestrator.retrieveBulk(actorAndProject, allPeers.map { it.jobId }, listOf(Permission.Edit))
+            orchestrator.retrieveBulk(actorAndProject, allPeers.map { it.jobId }, listOf(Permission.EDIT))
         }
 
         // Check files
@@ -72,7 +72,7 @@ class JobVerificationService(
             val requiredCollections = files.map { extractPathMetadata(it.path).collection }.toSet()
             val retrievedCollections = try {
                 fileCollections
-                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.Read))
+                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ))
                     .associateBy { it.id }
             } catch (ex: RPCException) {
                 throw JobException.VerificationError("You are not allowed to use one or more of your files")
@@ -80,7 +80,7 @@ class JobVerificationService(
 
             for (file in files) {
                 val perms = retrievedCollections[extractPathMetadata(file.path).collection]!!.permissions!!.myself
-                val allowWrite = perms.any { it == Permission.Edit || it == Permission.Admin }
+                val allowWrite = perms.any { it == Permission.EDIT || it == Permission.ADMIN }
                 file.readOnly = !allowWrite
             }
         }

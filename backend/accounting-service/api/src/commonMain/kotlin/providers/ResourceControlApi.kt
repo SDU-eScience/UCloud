@@ -15,6 +15,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceChargeCredits(
     @UCloudApiDoc("The ID of the `Resource`")
     val id: String,
@@ -36,6 +37,7 @@ data class ResourceChargeCredits(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceChargeCreditsResponse(
     @UCloudApiDoc(
         "A list of resources which could not be charged due to lack of funds. " +

@@ -93,7 +93,7 @@ class ProviderService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
     ) {
-        val providers = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.Admin))
+        val providers = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN))
 
         // If we crash here the user will need to click renew again!
         val renewedTokens = AuthProviders.renew.call(

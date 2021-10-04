@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.ucloud.services.InternalFile
 import dk.sdu.cloud.file.ucloud.services.NativeFS
 import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
@@ -32,8 +33,8 @@ class OutputLogPlugin(
             try {
                 dir?.listFiles()?.forEach { file ->
                     val outputFile = pathConverter.relativeToInternal(
-                        RelativeInternalFile(joinPath(workMount.removeSuffix("/"), file.name).removeSuffix("/"))
-                    )
+                            RelativeInternalFile(joinPath(workMount.removeSuffix("/"), file.name).removeSuffix("/"))
+                        )
 
                     fs.openForWriting(outputFile, WriteConflictPolicy.RENAME).second.use { outs ->
                         file.inputStream().use { ins ->

@@ -353,7 +353,11 @@ class JobOrchestrator(
         return proxy.bulkProxy(
             actorAndProject,
             request,
-            BulkProxyInstructions.pureProcedure(this, { providerApi(it).terminate }, { it.id }, { _, res -> res })
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).terminate },
+                requestToId = { it.id },
+                resourceToRequest = { _, res -> res })
         )
     }
 
@@ -362,7 +366,7 @@ class JobOrchestrator(
     ): Unit = with(callHandler) {
         withContext<WSCall> {
             val initialJob = retrieveBulk(
-                callHandler.actorAndProject, listOf(request.id), listOf(Permission.Read),
+                callHandler.actorAndProject, listOf(request.id), listOf(Permission.READ),
                 flags = JobIncludeFlags(includeUpdates = true, includeSupport = true)
             ).single()
 
@@ -434,7 +438,7 @@ class JobOrchestrator(
                         var lastStatus: JobStatus? = null
                         while (isActive && !states[currentState.get()].isFinal()) {
                             val job = retrieveBulk(
-                                actorAndProject, listOf(request.id), listOf(Permission.Read),
+                                actorAndProject, listOf(request.id), listOf(Permission.READ),
                                 JobIncludeFlags(includeUpdates = true)
                             ).single()
 
@@ -560,7 +564,7 @@ class JobOrchestrator(
                     actorAndProject: ActorAndProject,
                     request: JobsRetrieveUtilizationRequest
                 ): RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job> {
-                    val job = retrieveBulk(actorAndProject, listOf(request.jobId), listOf(Permission.Read)).single()
+                    val job = retrieveBulk(actorAndProject, listOf(request.jobId), listOf(Permission.READ)).single()
                     return RequestWithRefOrResource(request, ProductRefOrResource.SomeResource(job))
                 }
 

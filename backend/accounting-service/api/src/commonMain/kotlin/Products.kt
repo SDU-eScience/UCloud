@@ -14,6 +14,7 @@ const val UCLOUD_PROVIDER = "ucloud"
 typealias ProductArea = ProductType
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 enum class ProductType {
     STORAGE,
     COMPUTE,
@@ -24,6 +25,7 @@ enum class ProductType {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 data class ProductCategory(
     val id: ProductCategoryId,
     val productType: ProductType,
@@ -34,11 +36,13 @@ data class ProductCategory(
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 enum class ChargeType {
     ABSOLUTE,
     DIFFERENTIAL_QUOTA
 }
 
+@UCloudApiOwnedBy(Products::class)
 enum class ProductPriceUnit {
     @UCloudApiDoc("""
         Used for resources which either: are charged once for the entire life-time (`ChargeType.ABSOLUTE`) or
@@ -106,6 +110,7 @@ enum class ProductPriceUnit {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 data class ProductCategoryId(
     val name: String,
     val provider: String
@@ -115,6 +120,7 @@ data class ProductCategoryId(
 }
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc("Contains a unique reference to a [Product](/backend/accounting-service/README.md)")
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
@@ -126,6 +132,7 @@ data class ProductReference(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Products::class)
 sealed class Product {
     abstract val category: ProductCategoryId
     abstract val pricePerUnit: Long
@@ -355,18 +362,151 @@ object Products : CallDescriptionContainer("products") {
         )
     }
 
+    private const val browseUseCase = "browse"
+    private const val browseByTypeUseCase = "browse-by-type"
+    private const val retrieveUseCase = "retrieve"
+
+    override fun documentation() {
+        useCase(
+            browseUseCase,
+            "Browse all available components",
+            flow = {
+                val user = basicUser()
+                success(
+                    browse,
+                    ProductsBrowseRequest(itemsPerPage = 50),
+                    ProductsBrowseResponse(
+                        50,
+                        listOf(
+                            Product.Compute(
+                                "example-compute",
+                                1_000_000,
+                                ProductCategoryId("example-compute", "example"),
+                                "An example compute product",
+                                cpu = 10,
+                                memoryInGigs = 20,
+                                gpu = 0,
+                                unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
+                            ),
+                            Product.Storage(
+                                "example-storage",
+                                1,
+                                ProductCategoryId("example-storage", "example"),
+                                "An example storage product (Quota)",
+                                chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+                                unitOfPrice = ProductPriceUnit.PER_UNIT
+                            )
+                        ),
+                        null
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            browseByTypeUseCase,
+            "Browse products by type",
+            flow = {
+                val user = basicUser()
+                success(
+                    browse,
+                    ProductsBrowseRequest(itemsPerPage = 50, filterArea = ProductType.COMPUTE),
+                    ProductsBrowseResponse(
+                        50,
+                        listOf(
+                            Product.Compute(
+                                "example-compute",
+                                1_000_000,
+                                ProductCategoryId("example-compute", "example"),
+                                "An example compute product",
+                                cpu = 10,
+                                memoryInGigs = 20,
+                                gpu = 0,
+                                unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
+                            ),
+                        ),
+                        null
+                    ),
+                    user
+                )
+            }
+        )
+
+        useCase(
+            retrieveUseCase,
+            "Retrieve a single product",
+            flow = {
+                val user = basicUser()
+                success(
+                    retrieve,
+                    ProductsRetrieveRequest(
+                        filterName = "example-compute",
+                        filterCategory = "example-compute",
+                        filterProvider = "example"
+                    ),
+                    Product.Compute(
+                        "example-compute",
+                        1_000_000,
+                        ProductCategoryId("example-compute", "example"),
+                        "An example compute product",
+                        cpu = 10,
+                        memoryInGigs = 20,
+                        gpu = 0,
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE
+                    ),
+                    user
+                )
+            }
+        )
+    }
+
     val create = call<BulkRequest<Product>, Unit, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
+
+        documentation {
+            summary = "Creates a new $TYPE_REF Product in UCloud"
+            description = """
+                Only providers and UCloud administrators can create a $TYPE_REF Product . When this endpoint is
+                invoked by a provider, then the provider field of the $TYPE_REF Product must match the invoking user.
+                
+                The $TYPE_REF Product will become ready and visible in UCloud immediately after invoking this call.
+                If no $TYPE_REF Product has been created in this category before, then this category will be created.
+                
+                ---
+                
+                __📝 NOTE:__ Must properties of a $TYPE_REF ProductCategory are immutable and must not be changed.
+                As a result, you cannot create a new $TYPE_REF Product later with different category properties.
+                
+                ---
+                
+                If the $TYPE_REF Product already exists, then a new `version` of it is created. Version numbers are
+                always sequential and the incoming version number is always ignored by UCloud.
+            """.trimIndent()
+        }
     }
 
     val retrieve = call<ProductsRetrieveRequest, Product, CommonErrorMessage>("retrieve") {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
+
+        documentation {
+            summary = "Retrieve a single product"
+            useCaseReference(retrieveUseCase, "Retrieving a single product by ID")
+        }
     }
 
     val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>(
         "browse",
         {
             httpBrowse(baseContext, roles = Roles.PUBLIC)
+
+            documentation {
+                summary = "Browse a set of products"
+                description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
+                    "of $TYPE_REF Product ."
+                useCaseReference(browseUseCase, "Browse in the full product catalogue")
+                useCaseReference(browseByTypeUseCase, "Browse for a specific type of product (e.g. compute)")
+            }
         },
         ProductsBrowseRequest.serializer(),
         PageV2.serializer(Product.serializer()),

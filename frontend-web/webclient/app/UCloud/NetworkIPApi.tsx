@@ -11,7 +11,6 @@ import {BulkRequest, compute} from "@/UCloud/index";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
-import {JobBinding} from "@/UCloud/JobsApi";
 import PortRangeAndProto = compute.PortRangeAndProto;
 import {ResourceProperties} from "@/Resource/Properties";
 import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
@@ -59,7 +58,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
     NetworkIPFlags, NetworkIPStatus, NetworkIPSupport> {
     routingNamespace = "public-ips";
     title = "Public IP";
-    page = SidebarPages.Runs;
+    page = SidebarPages.Resources;
     productType = "NETWORK_IP" as const;
 
     renderer: ItemRenderer<NetworkIP> = {

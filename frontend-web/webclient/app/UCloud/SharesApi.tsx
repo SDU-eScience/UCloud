@@ -95,7 +95,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     mx={"0"}
                 />;
             }
-            return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>;
+            return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />;
         },
 
         ImportantStats({resource, callbacks}) {
@@ -131,38 +131,40 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
             if (resource === undefined) return null;
 
+            const sharedByMe = resource!.specification.sharedWith !== Client.username;
+
             return <Flex alignItems={"center"}>
                 {resource.status.state !== "APPROVED" ? null :
-                    <><Icon color={"green"} name={"check"} mr={8}/> Approved</>
+                    <><Icon color={"green"} name={"check"} mr={8} /> Approved</>
                 }
                 {resource.status.state !== "PENDING" ? null :
-                    <><Icon color={"blue"} name={"questionSolid"} mr={8}/> Pending</>
+                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> Pending</>
                 }
                 {resource.status.state !== "REJECTED" ? null :
-                    <><Icon color={"red"} name={"close"} mr={8}/> Rejected</>
+                    <><Icon color={"red"} name={"close"} mr={8} /> Rejected</>
                 }
                 <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
                     <RadioTilesContainer height={48} onClick={stopPropagation}>
-                        <RadioTile
+                        {sharedByMe || !isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
                             label={"Read"}
                             onChange={updatePermissionsRead}
                             icon={"search"}
                             name={"READ"}
-                            checked={!isEdit}
+                            checked={!isEdit && sharedByMe}
                             height={40}
                             fontSize={"0.5em"}
-                        />
-                        <RadioTile
+                        /> : null}
+                        {sharedByMe || isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
                             label={"Edit"}
                             onChange={updatePermissionsEdit}
                             icon={"edit"}
                             name={"EDIT"}
-                            checked={isEdit}
+                            checked={isEdit && sharedByMe}
                             height={40}
                             fontSize={"0.5em"}
-                        />
+                        /> : null}
                     </RadioTilesContainer>
                 </form>
             </Flex>;
@@ -174,14 +176,14 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
         this.filterPills.push(props => {
             return <ValuePill {...props} propertyName={"filterIngoing"} showValue={true} icon={"share"} title={""}
-                              valueToString={value => value === "true" ? "Shared with me" : "Shared by me"}
-                              canRemove={false}/>
+                valueToString={value => value === "true" ? "Shared with me" : "Shared by me"}
+                canRemove={false} />
         });
 
         this.filterPills.push(props => {
             return <ValuePill {...props} propertyName={"filterOriginalPath"} showValue={false} icon={"ftFolder"}
-                              title={"Path"} canRemove={false}>
-                <PrettyFilePath path={props.properties["filterOriginalPath"]}/>
+                title={"Path"} canRemove={false}>
+                <PrettyFilePath path={props.properties["filterOriginalPath"]} />
             </ValuePill>
         });
     }
@@ -250,7 +252,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
         return apiUpdate(request, this.baseContext, "reject");
     }
 
-    updatePermissions(request: BulkRequest<{ id: string, permissions: ("READ" | "EDIT")[] }>): APICallParameters {
+    updatePermissions(request: BulkRequest<{id: string, permissions: ("READ" | "EDIT")[]}>): APICallParameters {
         return apiUpdate(request, this.baseContext, "permissions");
     }
 

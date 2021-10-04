@@ -17,7 +17,7 @@ import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {Client} from "@/Authentication/HttpClientInstance";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import styled from "styled-components";
-import * as ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import CONF from "../../site.config.json";

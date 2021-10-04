@@ -1,10 +1,12 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class NormalizedToolDescription(
     val info: NameAndVersion,
+    @Deprecated("Use image instead")
     val container: String? = null,
     val defaultNumberOfNodes: Int,
     val defaultTimeAllocation: SimpleDuration,
@@ -30,6 +32,7 @@ data class ToolReference(
 ) : WithNameAndVersion
 
 @Serializable
+@UCloudApiOwnedBy(ToolStore::class)
 data class Tool(
     val owner: String,
     val createdAt: Long,

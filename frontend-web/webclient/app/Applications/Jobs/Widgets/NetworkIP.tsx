@@ -1,5 +1,5 @@
 import * as React from "react";
-import ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
 import {Flex} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";

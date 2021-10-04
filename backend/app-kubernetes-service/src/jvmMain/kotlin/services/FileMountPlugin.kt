@@ -104,7 +104,7 @@ class FileMountPlugin(
 
         val fileMounts = run {
             val allMounts = job.files.map {
-                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(it.path))
+                val internalFile = pathConverter.ucloudToRelative(UCloudFile.create(it.path))
                 FileMount(internalFile.path, it.readOnly)
             }
 
@@ -136,6 +136,25 @@ class FileMountPlugin(
             val pSpec = task.template?.spec ?: error("no pod spec in task")
             pSpec.containers?.forEach { c ->
                 (c.volumeMounts?.toMutableList() ?: ArrayList()).let { volumeMounts ->
+                    volumeMounts.add(
+                        Pod.Container.VolumeMount(
+                            name = VOL_NAME,
+                            mountPath = "/work",
+                            readOnly = false,
+                            subPath = buildString {
+                                if (cephConfiguration.subfolder.isNotEmpty()) {
+                                    append(
+                                        cephConfiguration.subfolder
+                                            .removePrefix("/")
+                                            .removeSuffix("/")
+                                    )
+                                    append("/")
+                                }
+                                append(relativeJobFolder.normalize().path.removePrefix("/"))
+                            }
+                        )
+                    )
+
                     fileMounts.forEach { mount ->
                         volumeMounts.add(
                             Pod.Container.VolumeMount(
@@ -156,25 +175,6 @@ class FileMountPlugin(
                             )
                         )
                     }
-
-                    volumeMounts.add(
-                        Pod.Container.VolumeMount(
-                            name = VOL_NAME,
-                            mountPath = "/work",
-                            readOnly = false,
-                            subPath = buildString {
-                                if (cephConfiguration.subfolder.isNotEmpty()) {
-                                    append(
-                                        cephConfiguration.subfolder
-                                            .removePrefix("/")
-                                            .removeSuffix("/")
-                                    )
-                                    append("/")
-                                }
-                                append(relativeJobFolder.normalize().path.removePrefix("/"))
-                            }
-                        )
-                    )
 
                     c.volumeMounts = volumeMounts
                 }

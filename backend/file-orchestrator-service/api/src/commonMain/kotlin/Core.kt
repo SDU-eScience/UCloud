@@ -5,8 +5,11 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.TYPE_REF_LINK
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
@@ -125,7 +128,41 @@ This value is `true` by default """)
 ) : ResourceIncludeFlags
 
 @Serializable
-@UCloudApiDoc("A file in UCloud", importance = 500)
+@UCloudApiDoc("""
+A $TYPE_REF UFile is a resource for storing, retrieving and organizing data in UCloud
+    
+A file in UCloud ($TYPE_REF UFile) closely follows the concept of a computer file you might already be familiar with.
+The functionality of a file is mostly determined by its [`type`]($TYPE_REF_LINK UFileStatus). The two most important
+types are the [`DIRECTORY`]($TYPE_REF_LINK FileType) and [`FILE`]($TYPE_REF_LINK FileType) types. A
+[`DIRECTORY`]($TYPE_REF_LINK FileType) is a container of $TYPE_REF UFile s. A directory can itself contain more
+directories, which leads to a natural tree-like structure. [`FILE`]($TYPE_REF_LINK FileType)s, also referred to as a
+regular files, are data records which each contain a series of bytes.
+
+All files in UCloud have a name associated with them. This name uniquely identifies them within their directory. All
+files in UCloud belong to exactly one directory.
+
+File operations must be able to reference the files on which they operate. In UCloud, these references are made through
+the `id` property, also known as a path. Paths use the tree-like structure of files to reference a file, it does so by
+declaring which directories to go through, starting at the top, to reach the file we are referencing. This information
+is serialized as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path
+must start with a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file
+paths, which some systems use.
+
+All files in UCloud additionally have metadata associated with them. For this we differentiate between system-level
+metadata and user-defined metadata.
+
+We have just covered two examples of system-level metadata, the [`id`]($TYPE_REF_LINK UFile) (path) and
+[`type`]($TYPE_REF_LINK UFileStatus). UCloud additionally supports metadata such as general
+[stats]($TYPE_REF_LINK UFileStatus) about the files, such as file sizes. All files have a set of
+[`permissions`]($TYPE_REF_LINK UFile) associated with them, providers may optionally expose this information to
+UCloud and the users.
+
+User-defined metadata describe the contents of a file. All metadata is described by a template
+($TYPE_REF FileMetadataTemplate), this template defines a document structure for the metadata. User-defined metadata
+can be used for a variety of purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels,
+and other field specific metadata formats.
+""", importance = 500)
+@UCloudApiOwnedBy(Files::class)
 data class UFile(
     @UCloudApiDoc(
         """
@@ -267,38 +304,7 @@ data class UFileStatus(
 ) : ResourceStatus<Product.Storage, FSSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc(
-    """A `UFile` is a resource for storing, retrieving and organizing data in UCloud
-    
-A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
-functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
-types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain more directories, which leads to a
-natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
-of bytes.
-
-All files in UCloud have a name associated with them. This name uniquely identifies them within their directory. All
-files in UCloud belong to exactly one directory.
-
-File operations must be able to reference the files on which they operate. In UCloud, these references are made through
-the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
-directories to go through, starting at the top, to reach the file we are referencing. This information is serialized
-as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with
-a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
-systems use.
-
-All files in UCloud additionally have metadata associated with them. For this we differentiate between system-level
-metadata and user-defined metadata.
-
-We have just covered two examples of system-level metadata, the `path` and `type`. UCloud additionally supports
-metadata such as general `stats` about the files, such as file sizes. All files have a set of `permissions` associated
-with them, providers may optionally expose this information to UCloud and the users.
-
-User-defined metadata describe the contents of a file. All metadata is described by a template (`FileMetadataTemplate`),
-this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
-purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
-metadata formats.
-""", importance = 98
-)
+@UCloudApiDoc("", importance = 98)
 @Serializable
 data class UFileSpecification(
     val collection: String,
@@ -332,6 +338,7 @@ sealed class FileMetadataOrDeleted {
 @UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
+@UCloudApiOwnedBy(FileMetadata::class)
 data class FileMetadataDocument(
     override val id: String,
     val specification: Spec,
@@ -341,6 +348,7 @@ data class FileMetadataDocument(
 ) : FileMetadataOrDeleted(){
     @Serializable
     @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
@@ -354,12 +362,14 @@ data class FileMetadataDocument(
 
     @Serializable
     @UCloudApiDoc("The current status of a metadata document", importance = 95)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Status(
         val approval: ApprovalStatus,
     )
 
     @Serializable
     @UCloudApiDoc("The approval status of a metadata document", importance = 94)
+    @UCloudApiOwnedBy(FileMetadata::class)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
@@ -488,6 +498,7 @@ data class FileCollection(
 }
 
 @Serializable
+@UCloudApiOwnedBy(FileCollections::class)
 data class FSSupport(
     override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),

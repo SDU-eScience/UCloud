@@ -36,7 +36,7 @@ function mergeProperties(
     newProperties: Record<string, string | undefined>,
     setProperties: (p: Record<string, string>) => void
 ): Record<string, string> {
-    const result: Record<string, string> = {...(properties)};
+    const result: Record<string, string> = {...properties};
     for (const [key, value] of Object.entries(newProperties)) {
         if (value === undefined) {
             delete result[key];
@@ -106,14 +106,15 @@ export const ResourceFilter: React.FunctionComponent<{
         setIsDirty(true);
     }, [setSortProperties, sortProperties, setIsDirty, props.onSortUpdated]);
 
-    const sortOptions = useMemo(() => {
-        return props.sortEntries.map(it => ({
+    const sortOptions = useMemo(() =>
+        props.sortEntries.map(it => ({
             icon: it.icon,
             title: it.title,
             value: it.column,
             helpText: it.helpText
-        }));
-    }, [props.sortEntries])
+        })),
+        [props.sortEntries]
+    );
 
     const expand = useCallback((id: number) => {
         if (expanded === id) {
@@ -122,18 +123,6 @@ export const ResourceFilter: React.FunctionComponent<{
             setExpanded(id);
         }
     }, [expanded, setExpanded]);
-
-    const sortDirections: EnumOption[] = useMemo(() => [{
-        icon: "sortAscending",
-        title: "Ascending",
-        value: "ascending",
-        helpText: "Increasing in value, e.g. 1, 2, 3..."
-    }, {
-        icon: "sortDescending",
-        title: "Descending",
-        value: "descending",
-        helpText: "Decreasing in value, e.g. 3, 2, 1..."
-    }], []);
 
     const applyFilters = useCallback(() => {
         props.onApplyFilters();
@@ -149,8 +138,6 @@ export const ResourceFilter: React.FunctionComponent<{
         </Heading.h4>}
         <Grid gridGap={"8px"}>
             <WidgetWrapper embedded={props.embedded} gridGap="12px">
-                <EnumPill propertyName={"direction"} properties={sortProperties} onDelete={onSortDeleted}
-                    icon={"sortDescending"} title={"Sort direction"} options={sortDirections} />
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                     icon={"properties"} title={"Sort by"} options={sortOptions} />
                 {props.pills.map((Pill, idx) =>
@@ -169,11 +156,6 @@ export const ResourceFilter: React.FunctionComponent<{
 
             {onlyFilter ? null : <>
                 <WidgetWrapper embedded={props.embedded} gridGap="12px">
-                    <EnumFilterWidget
-                        propertyName="direction" icon="sortDescending" title="Sort direction" expanded={false}
-                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                        options={sortDirections}
-                    />
                     <EnumFilterWidget
                         propertyName="column" icon="properties" title="Sort by" expanded={false}
                         id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
@@ -253,11 +235,12 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     dropdownContent: React.ReactElement;
     onExpand: () => void;
     contentWidth?: string;
+    facedownChevron?: boolean;
 } & BaseFilterWidgetProps> = props => {
     const trigger = <FilterWidget icon={props.icon} title={props.title} cursor={"pointer"}
         onClick={props.expanded ? props.onExpand : undefined}>
         <Box flexGrow={1} />
-        <Icon name={"chevronDownLight"} rotation={props.expanded ? 0 : 270} size={"16px"}
+        <Icon name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron ? 0 : 270} size={"16px"}
             color={"iconColor"} />
     </FilterWidget>;
 
@@ -266,11 +249,12 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
             <ClickableDropdown
                 fullWidth
                 trigger={trigger}
-                children={props.dropdownContent}
                 width={props.contentWidth}
                 useMousePositioning
                 paddingControlledByContent
-            /> :
+            >
+                {props.dropdownContent}
+            </ClickableDropdown> :
             trigger
         }
 
@@ -495,7 +479,7 @@ export const ValuePill: React.FunctionComponent<{
     </FilterPill>;
 };
 
-interface EnumOption {
+export interface EnumOption {
     icon?: IconName;
     value: string;
     title: string;
@@ -522,7 +506,8 @@ export const EnumPill: React.FunctionComponent<{
 };
 
 export const EnumFilterWidget: React.FunctionComponent<{
-    propertyName: string
+    propertyName: string;
+    facedownChevron?: boolean;
 } & BaseFilterWidgetProps & FilterWidgetProps & EnumOptions> = props => {
     const onChange = useCallback((newValue: string) => {
         const properties: Record<string, string | undefined> = {};
@@ -535,6 +520,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
         icon={props.icon}
         title={props.title}
         onExpand={doNothing}
+        facedownChevron={props.facedownChevron}
         contentWidth={"300px"}
         dropdownContent={
             <>

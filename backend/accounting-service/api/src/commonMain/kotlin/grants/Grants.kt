@@ -91,6 +91,7 @@ typealias ReadTemplatesResponse = UploadTemplatesRequest
  * @see UserCriteria.WayfOrganization
  */
 @Serializable
+@UCloudApiOwnedBy(Grants::class)
 sealed class UserCriteria {
     /**
      * Matches any user
@@ -267,6 +268,7 @@ sealed class GrantRecipient {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Grants::class)
 data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,

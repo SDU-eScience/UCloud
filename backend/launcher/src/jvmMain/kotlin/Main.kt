@@ -39,8 +39,6 @@ import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -77,7 +75,7 @@ val services = setOf<Service>(
 
 suspend fun main(args: Array<String>) {
     if (args.contains("--run-script") && args.contains("api-gen")) {
-        runOpenApiGenerator(args)
+        generateCode()
         exitProcess(0)
     }
 
@@ -183,14 +181,6 @@ suspend fun main(args: Array<String>) {
                 userClient
             ).orThrow()
 
-            val cephfs = File("/mnt/cephfs")
-            if (cephfs.exists()) {
-                // TODO Temporary
-                File(cephfs, "projects/${project}").mkdir()
-                File(cephfs, "projects/${project}/Member's Files").mkdir()
-                File(cephfs, "projects/${project}/Member's Files/user").mkdir()
-            }
-
             File(configDir, "ucloud-compute-config.yaml").writeText(
                 """
                     app:
@@ -220,59 +210,65 @@ suspend fun main(args: Array<String>) {
                         gpu = 0,
                         unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
                         freeToUse = false,
-                        version = 1,
+                        description = "An example product for development use",
                     ),
                     Product.Storage(
                         "u1-cephfs",
-                        0L,
-                        ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
-                        version = 1,
-                        freeToUse = false
-                    )
+                        1L,
+                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
+                    Product.Storage(
+                        "home",
+                        1L,
+                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
+                    Product.Storage(
+                        "project-home",
+                        1L,
+                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
                 ),
                 userClient
             ).orThrow()
 
-            // TODO(Dan): Need to set balance
-
-            /*
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet(project, WalletOwnerType.PROJECT, ProductCategoryId("u1-cephfs", providerId)),
-                    0L,
-                    1000L * 100_000
+            Accounting.rootDeposit.call(
+                bulkRequestOf(
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        WalletOwner.Project(project),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-standard", providerId),
+                        WalletOwner.Project(project),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        WalletOwner.User("user"),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-standard", providerId),
+                        WalletOwner.User("user"),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
                 ),
                 client
             ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet(project, WalletOwnerType.PROJECT, ProductCategoryId("u1-standard", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet("user", WalletOwnerType.USER, ProductCategoryId("u1-cephfs", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet("user", WalletOwnerType.USER, ProductCategoryId("u1-standard", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-             */
 
             ToolStore.create.call(
                 Unit,

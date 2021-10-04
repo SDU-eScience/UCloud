@@ -1,18 +1,23 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.calls.UCloudApiStable
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 @UCloudApiStable
-@UCloudApiDoc("""A generic error message
+@UCloudApiDoc(
+    """
+        A generic error message
 
-UCloud uses HTTP status code for all error messages. In addition and if possible, UCloud will include a message using a
-common format. Note that this is not guaranteed to be included in case of a failure somewhere else in the network stack.
-For example, UCloud's load balancer might not be able to contact the backend at all. In such a case UCloud will
-_not_ include a more detailed error message.
-""")
+        UCloud uses HTTP status code for all error messages. In addition and if possible, UCloud will include a message
+        using a common format. Note that this is not guaranteed to be included in case of a failure somewhere else in
+        the network stack. For example, UCloud's load balancer might not be able to contact the backend at all. In
+        such a case UCloud will _not_ include a more detailed error message.
+    """
+)
 data class CommonErrorMessage(
     @UCloudApiDoc("Human readable description of why the error occurred. This value is generally not stable.")
     val why: String,
@@ -23,6 +28,7 @@ data class CommonErrorMessage(
 )
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class FindByStringId(override val id: String) : WithStringId
 
 interface WithStringId {
@@ -30,10 +36,13 @@ interface WithStringId {
 }
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class FindByLongId(val id: Long)
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class FindByIntId(val id: Int)
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class FindByDoubleId(val id: Double)

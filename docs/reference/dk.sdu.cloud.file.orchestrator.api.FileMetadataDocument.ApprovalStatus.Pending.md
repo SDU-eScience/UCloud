@@ -1,0 +1,35 @@
+# `FileMetadataDocument.ApprovalStatus.Pending`
+
+
+![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+
+
+_The metadata document has not yet been approved_
+
+```kotlin
+data class Pending(
+    val type: String /* "pending" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "pending" */</code></code> The type discriminator
+</summary>
+
+![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+
+
+
+
+</details>
+
+
+
+</details>
+

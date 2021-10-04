@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.service
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
@@ -19,6 +20,7 @@ class SyncFolderService(
     providers: Providers<SimpleProviderCommunication>,
     support: ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncFolderSupport>,
     serviceClient: AuthenticatedClient,
+    private val files: FilesService,
     private val fileCollectionService: FileCollectionService,
 ) : FolderSvcSuper(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.sync_folders")
@@ -31,6 +33,30 @@ class SyncFolderService(
     override fun userApi() = SyncFolders
     override fun controlApi() = SyncFolderControl
     override fun providerApi(comms: ProviderComms) = SyncFolderProvider(comms.provider.id)
+
+    init {
+        files.addMoveHandler(::onFilesMoved)
+        files.addDeleteHandler(::onFilesDeleted)
+    }
+
+    private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+        println("Files moved: $batch")
+        /*db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("files")
+                },
+                """
+                    
+                """
+            )
+        }*/
+    }
+
+    private suspend fun onFilesDeleted(request: List<FindByStringId>) {
+        println("Files deleted: $request")
+        // TODO(Brian)
+    }
 
     override suspend fun createSpecifications(
         actorAndProject: ActorAndProject,
@@ -45,7 +71,7 @@ class SyncFolderService(
         val fileCollections = fileCollectionService.retrieveBulk(
             actorAndProject,
             collectionIds,
-            listOf(Permission.Read)
+            listOf(Permission.READ)
         )
 
         session
@@ -60,7 +86,7 @@ class SyncFolderService(
                             }!!.permissions!!.myself
 
 
-                            if (permissions.contains(Permission.Edit) || permissions.contains(Permission.Admin)) {
+                            if (permissions.contains(Permission.EDIT) || permissions.contains(Permission.ADMIN)) {
                                 SynchronizationType.SEND_RECEIVE.name
                             } else {
                                 SynchronizationType.SEND_ONLY.name
