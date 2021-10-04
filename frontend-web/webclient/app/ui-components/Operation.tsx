@@ -86,15 +86,17 @@ const OperationComponent: React.FunctionComponent<{
         extraProps["actionText"] = op.text;
         extraProps["hoverColor"] = op.hoverColor;
         if (op.primary) {
-            extraProps["align"] = "center"
-            extraProps["fontSize"] = "14px"
+            extraProps["align"] = "center";
+            extraProps["fontSize"] = "14px";
+            extraProps["mx"] = "12px";
         } else {
-            extraProps["align"] = "left"
-            extraProps["fontSize"] = "large"
+            extraProps["align"] = "left";
+            extraProps["fontSize"] = "large";
             extraProps["ml"] = "-16px";
-            extraProps["width"] = "calc(100% + 32px)"
+            extraProps["width"] = "calc(100% + 32px)";
         }
     }
+
     const component = <As
         cursor="pointer"
         color={reasonDisabled === undefined ? op.color : "gray"}

@@ -208,6 +208,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "check",
                 color: "green",
                 confirm: true,
+                primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.status.state === "PENDING" &&
@@ -227,6 +228,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "close",
                 color: "red",
                 confirm: true,
+                primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.owner.createdBy !== Client.username
