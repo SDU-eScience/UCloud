@@ -108,7 +108,7 @@ class SyncService(
 
                 Mounts.mount.call(
                     MountRequest(
-                        listOf(MountFolder(folder.id, folder.specification.path))
+                        listOf(MountFolder(folder.id.toLong(), folder.specification.path))
                     ),
                     authenticatedClient //.withMounterInfo(device)
                 ).orRethrowAs {
@@ -169,16 +169,15 @@ class SyncService(
         db.withSession { session ->
             val devices = session.sendPreparedStatement(
                 {
-                    setParameter("ids", request.items.map { it.id })
-                    //setParameter("user", actor.username)
+                    setParameter("ids", request.items.map { it.id.toLong() })
                 },
                 """
                     delete from file_ucloud.sync_folders
-                    where id in (select unnest(:ids::text[]))
+                    where id in (select unnest(:ids::bigint[]))
                     returning id, device_id
                 """
             ).rows.mapNotNull {
-                val id = it.getString(0)!!
+                val id = it.getLong(0)!!
                 val deviceId = it.getString(1)!!
                 val device = syncthing.config.devices.find { it.id == deviceId }
                 if (device != null) {
@@ -194,7 +193,7 @@ class SyncService(
                     UnmountRequest(
                         requests.map { MountFolderId(it.first) }
                     ),
-                    authenticatedClient.withMounterInfo(requests[0].second)
+                    authenticatedClient//.withMounterInfo(requests[0].second)
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
@@ -218,7 +217,7 @@ class SyncService(
                     returning id, device_id
                 """
             ).rows.mapNotNull {
-                val id = it.getString(0)!!
+                val id = it.getLong(0)!!
                 val deviceId = it.getString(1)!!
                 val device = syncthing.config.devices.find { it.id == deviceId }
                 if (device != null) {

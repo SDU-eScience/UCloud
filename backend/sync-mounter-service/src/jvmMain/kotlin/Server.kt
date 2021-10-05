@@ -66,7 +66,7 @@ class Server(
                 mountService.unmount(
                     UnmountRequest(
                         syncDir.listFiles().map { file ->
-                            MountFolderId(file.name)
+                            MountFolderId(file.name.toLong())
                         }
                     )
                 )
@@ -113,7 +113,7 @@ class Server(
                     mountService.mount(
                         MountRequest(
                             folders.map { folder ->
-                                MountFolder(folder.id.toString(), folder.path)
+                                MountFolder(folder.id, folder.path)
                             }
                         )
                     )

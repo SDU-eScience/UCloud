@@ -31,7 +31,7 @@ class MountService(
             }
 
             if (target.exists()) {
-                unmount(UnmountRequest(listOf(MountFolderId(item.id.toString()))))
+                unmount(UnmountRequest(listOf(MountFolderId(item.id))))
             }
 
             if (!target.mkdir()) {
@@ -87,7 +87,7 @@ class MountService(
 
     fun unmount(request: UnmountRequest) {
         request.items.forEach { item ->
-            val target = File(joinPath(config.syncBaseMount, item.id))
+            val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
             }
