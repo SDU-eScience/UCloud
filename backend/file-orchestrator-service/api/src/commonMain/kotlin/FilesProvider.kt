@@ -96,6 +96,14 @@ data class FilesProviderTrashRequestItem(
 typealias FilesProviderTrashResponse = FilesTrashResponse
 
 @Serializable
+data class FilesProviderEmptyTrashRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String
+) : WithPath
+typealias FilesProviderEmptyTrashResponse = FilesTrashResponse
+
+
+@Serializable
 data class FilesProviderCreateDownloadRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String
@@ -141,6 +149,10 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
 
     val trash = call<BulkRequest<FilesProviderTrashRequestItem>, FilesProviderTrashResponse, CommonErrorMessage>("trash") {
         httpUpdate(baseContext, "trash", roles = Roles.SERVICE)
+    }
+
+    val emptyTrash = call<BulkRequest<FilesProviderEmptyTrashRequestItem>, FilesProviderEmptyTrashResponse, CommonErrorMessage>("emptyTrash") {
+        httpUpdate(baseContext, "emptyTrash", roles = Roles.SERVICE)
     }
 
     val createUpload = call<BulkRequest<FilesProviderCreateUploadRequestItem>, FilesProviderCreateUploadResponse,

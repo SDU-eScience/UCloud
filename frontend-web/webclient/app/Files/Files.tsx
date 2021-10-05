@@ -37,6 +37,8 @@ export const FilesBrowse: React.FunctionComponent<{
     const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
+    const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
+
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
         FileCollectionsApi.browse({itemsPerPage: 10}), emptyPageV2
     );
@@ -77,6 +79,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 fetchCollection(FileCollectionsApi.retrieve({id: collectionId, includeSupport: true}));
             }
         }
+        fetchDirectory(FilesApi.retrieve({id: path}))
     }, [path]);
 
     const breadcrumbsComponent = useMemo((): JSX.Element => {
@@ -154,8 +157,9 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [path]);
 
     const callbacks = useMemo(() => ({
-        collection: collection?.data ?? undefined
-    }), [collection.data]);
+        collection: collection?.data ?? undefined,
+        directory: directory?.data ?? undefined
+    }), [collection.data, directory.data]);
 
     return <ResourceBrowse
         api={FilesApi}

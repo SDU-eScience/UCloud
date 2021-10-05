@@ -433,8 +433,16 @@ class NativeFS(
                         if (Native.getLastError() == ENOTEMPTY) {
                             throw FSException.BadRequest()
                         }
-
-                        throw FSException.NotFound()
+                        if (Native.getLastError() == EISDIR) {
+                            log.debug("Is directory - should traverse")
+                            listFiles(file).forEach { path ->
+                                delete(InternalFile(file.path+"/"+path))
+                            }
+                            delete(file)
+                        }
+                        else {
+                            throw FSException.NotFound()
+                        }
                     }
                 }
             } finally {
@@ -727,6 +735,7 @@ class NativeFS(
         private const val O_RDONLY = 0x0
         private const val O_DIRECTORY = 0x10000
         private const val ENOENT = 2
+        private const val EISDIR = 21
         private const val ENOTEMPTY = 39
         const val DEFAULT_DIR_MODE = 488 // 0750
         const val DEFAULT_FILE_MODE = 416 // 0640

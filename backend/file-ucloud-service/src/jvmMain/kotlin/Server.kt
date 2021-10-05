@@ -92,6 +92,7 @@ class Server(
             install(MoveTask())
             install(CreateFolderTask())
             install(TrashTask(memberFiles, trashService))
+            install(EmptyTrashTask())
         }
         val fileCollectionService = FileCollectionsService(
             pathConverter,
