@@ -48,6 +48,10 @@
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#emptytrash'><code>emptyTrash</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#move'><code>move</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -104,6 +108,10 @@
 </tr>
 <tr>
 <td><a href='#filesprovidercreateuploadrequestitem'><code>FilesProviderCreateUploadRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesprovideremptytrashrequestitem'><code>FilesProviderEmptyTrashRequestItem</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -232,6 +240,19 @@ UCloud/Core already.
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md'>UFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `emptyTrash`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filesprovideremptytrashrequestitem'>FilesProviderEmptyTrashRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.LongRunningTask.md'>LongRunningTask</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -694,6 +715,54 @@ data class FilesProviderCreateUploadRequestItem(
 <details>
 <summary>
 <code>conflictPolicy</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy.md'>WriteConflictPolicy</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesProviderEmptyTrashRequestItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class FilesProviderEmptyTrashRequestItem(
+    val resolvedCollection: FileCollection,
+    val id: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>resolvedCollection</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md'>FileCollection</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

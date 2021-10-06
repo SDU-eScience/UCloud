@@ -50,6 +50,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr><td><a href='#example-downloading-a-file'>Downloading a file</a></td></tr>
 <tr><td><a href='#example-creating-a-folder'>Creating a folder</a></td></tr>
 <tr><td><a href='#example-moving-multiple-files-to-trash'>Moving multiple files to trash</a></td></tr>
+<tr><td><a href='#example-emptying-trash-folder'>Emptying trash folder</a></td></tr>
 <tr><td><a href='#example-browsing-the-contents-of-a-folder'>Browsing the contents of a folder</a></td></tr>
 <tr><td><a href='#example-retrieving-a-single-file'>Retrieving a single file</a></td></tr>
 <tr><td><a href='#example-deleting-a-file-permanently'>Deleting a file permanently</a></td></tr>
@@ -100,6 +101,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
 <td>Permanently deletes one or more files</td>
+</tr>
+<tr>
+<td><a href='#emptytrash'><code>emptyTrash</code></a></td>
+<td>Permanently deletes all files from the selected trash folder thereby emptying it</td>
 </tr>
 <tr>
 <td><a href='#move'><code>move</code></a></td>
@@ -917,6 +922,114 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         {
 #             "type": "complete"
 #         },
+#         {
+#             "type": "complete"
+#         }
+#     ]
+# }
+
+```
+
+
+</details>
+
+
+## Example: Emptying trash folder
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Trigger</th><td>User initiated</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>A trash folder located at /home/trash</li>
+<li>The trash folder contains two files and a folder</li>
+</ul></td></tr>
+<tr><th>Post-conditions</th><td><ul>
+<li>The folder and all children are removed from the trash folder</li>
+<li>The files is removed from the trash folder</li>
+</ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+Files.trash.call(
+    bulkRequestOf(FindByPath(
+        id = "/home/trash", 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(LongRunningTask.Complete()), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(FilesApi.trash(
+    {
+        "items": [
+            {
+                "id": "/home/trash"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "type": "complete"
+        }
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/trash" -d '{
+    "items": [
+        {
+            "id": "/home/trash"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
 #         {
 #             "type": "complete"
 #         }
@@ -1946,6 +2059,42 @@ completely delete the entire sub-tree. This can, for example, happen because of 
 file-system is unable to delete a given file. This will lead the file-system in an inconsistent state.
 It is not guaranteed that the provider will be able to detect this error scenario. A client of the
 API can check if the file has been deleted by calling `retrieve` on the file.
+
+
+### `emptyTrash`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Permanently deletes all files from the selected trash folder thereby emptying it_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#findbypath'>FindByPath</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#longrunningtask'>LongRunningTask</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This operation acts as a permanent delete for users. Users will NOT be able to restore the file 
+later, if needed. 
+
+Not all providers supports this endpoint. You can query [`files.collections.browse`](/docs/reference/files.collections.browse.md) 
+or [`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)  with the `includeSupport` flag.
+
+This is a long running task. As a result, this operation might respond with a status code which indicate
+that it will continue in the background. Progress of this job can be followed using the task API.
+
+__Errors:__
+
+| Status Code | Description |
+|-------------|-------------|
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+| `400 Bad Request` | This operation is not supported by the provider |
+
+__Examples:__
+
+| Example |
+|---------|
+| [Moving files to trash](/docs/reference/files_empty_trash_folder.md) |
 
 
 ### `move`
