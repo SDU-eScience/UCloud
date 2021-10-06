@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Application Store](/docs/developer-guide/orchestration/compute/appstore/README.md) / [Tools](/docs/developer-guide/orchestration/compute/appstore/tools.md)
-                        
-                        # Example: Retrieve a virtual machine based Tool
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Application Store](/docs/developer-guide/orchestration/compute/appstore/README.md) / [Tools](/docs/developer-guide/orchestration/compute/appstore/tools.md)
 
-                        <table>
+# Example: Retrieve a virtual machine based Tool
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr>
 <th>Actors</th>
@@ -177,4 +177,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/tools/byNameAn
 
 
 </details>
+
 

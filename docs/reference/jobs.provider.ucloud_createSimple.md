@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
-                        
-                        # Example: Simple batch Job with life-cycle events
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
 
-                        <table>
+# Example: Simple batch Job with life-cycle events
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
 <li>You should understand Products, Applications and Jobs before reading this</li>
@@ -1056,4 +1056,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Allocations](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
-                            
-                            # `RootDepositRequestItem`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Allocations](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
 
-                            
+# `RootDepositRequestItem`
+
+
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -105,4 +105,5 @@ data class RootDepositRequestItem(
 
 
 </details>
+
 

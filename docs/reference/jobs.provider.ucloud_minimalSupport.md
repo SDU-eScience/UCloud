@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
-                        
-                        # Example: Declaring minimal support for virtual machines
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
 
-                        <table>
+# Example: Declaring minimal support for virtual machines
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr>
 <th>Actors</th>
@@ -284,4 +284,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/ucloud/jobs/ret
 
 
 </details>
+
 

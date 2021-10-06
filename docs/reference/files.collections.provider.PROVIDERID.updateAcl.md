@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Provider APIs](/docs/developer-guide/orchestration/storage/providers/README.md) / [Drives (FileCollection)](/docs/developer-guide/orchestration/storage/providers/drives/README.md) / [Ingoing API](/docs/developer-guide/orchestration/storage/providers/drives/ingoing.md)
-                            
-                            # `files.collections.provider.PROVIDERID.updateAcl`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Provider APIs](/docs/developer-guide/orchestration/storage/providers/README.md) / [Drives (FileCollection)](/docs/developer-guide/orchestration/storage/providers/drives/README.md) / [Ingoing API](/docs/developer-guide/orchestration/storage/providers/drives/ingoing.md)
 
-                            [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+# `files.collections.provider.PROVIDERID.updateAcl`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -16,4 +16,5 @@ This endpoint is mandatory for Providers to implement. If the Provider does not 
 internal state, then they may simply ignore this request by responding with `200 OK`. The
 Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
 not acknowledge the request.
+
 

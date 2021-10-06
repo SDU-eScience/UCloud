@@ -1,6 +1,7 @@
-[« Previous section](/docs/developer-guide/accounting-and-projects/projects/favorites.md)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Next section »](/docs/developer-guide/accounting-and-projects/products.md)
-
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/projects/favorites.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/products.md'>Next section »</a>
+</p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Providers
@@ -8,11 +9,54 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Providers, the backbone of UCloud, expose compute and storage resources to end-users._
+
+## Rationale
+
+UCloud/Core is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. This means, that the core doesn't actually know how 
+to serve files or run computational workloads. Instead, the core must ask one or more [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s 
+to fulfil requests from the user.
+
+![](/backend/accounting-service/wiki/overview.png)
+
+__Figure:__ UCloud/Core receives a request from the user and forwards it to a provider.
+
+The core isn't a simple proxy. Before passing the request, UCloud performs the following tasks:
+
+- __Authentication:__ UCloud ensures that users have authenticated.
+- __Authorization:__ The [`Project`](/docs/reference/dk.sdu.cloud.project.api.Project.md)  system of UCloud brings role-based 
+  authorization to all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. The core verifies all actions before forwarding the request.
+- __Resolving references:__ UCloud maintains a catalog of all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s in the system. All user 
+  requests only contain a reference to these [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. UCloud verifies and resolves all 
+  references before proxying the request.
+
+The communication between UCloud/Core and the provider happens through the __provider APIs__. Throughout the 
+developer guide, you will find various sections describing these APIs. These APIs contain both an ingoing 
+(from the provider's perspective) and outgoing APIs. This allows for bidirectional communication between 
+both parties. In almost all cases, the communication from the user goes through UCloud/Core. The only 
+exception to this rule is when the data involved is either sensitive or large. In these cases, UCloud will 
+only be responsible for facilitating direct communication. A common example of this is 
+[file uploads](/docs/reference/files.createUpload.md).
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-provider-authenticating-with-ucloud/core'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-provider-authenticating-with-ucloud/core'>Provider authenticating with UCloud/Core</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -22,7 +66,7 @@
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td>Browses the catalogue of available resources</td>
+<td>Browses the catalog of available resources</td>
 </tr>
 <tr>
 <td><a href='#retrieve'><code>retrieve</code></a></td>
@@ -38,7 +82,7 @@
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
-<td>Searches the catalogue of available resources</td>
+<td>Searches the catalog of available resources</td>
 </tr>
 <tr>
 <td><a href='#approve'><code>approve</code></a></td>
@@ -67,7 +111,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -148,6 +192,119 @@
 
 </details>
 
+## Example: Provider authenticating with UCloud/Core
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>The provider has already been registered with UCloud/Core</li>
+</ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The provider (<code>provider</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+AuthProviders.refresh.call(
+    bulkRequestOf(RefreshToken(
+        refreshToken = "fb69e4367ee0fe4c76a4a926394aee547a41d998", 
+    )),
+    provider
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(AccessToken(
+        accessToken = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo", 
+    )), 
+)
+*/
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as provider
+await callAPI(AuthProvidersApi.refresh(
+    {
+        "items": [
+            {
+                "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+        }
+    ]
+}
+*/
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as provider
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/auth/providers/refresh" -d '{
+    "items": [
+        {
+            "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+#         }
+#     ]
+# }
+
+# 📝 Note: The tokens shown here are not representative of tokens you will see in practice
+
+```
+
+
+</details>
+
+
 
 ## Remote Procedure Calls
 
@@ -157,7 +314,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Browses the catalogue of available resources_
+_Browses the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -220,7 +377,7 @@ See also:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches the catalogue of available resources_
+_Searches the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|

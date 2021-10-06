@@ -1,6 +1,7 @@
-[« Previous section](/docs/developer-guide/orchestration/compute/appstore/apps.md)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Next section »](/docs/developer-guide/orchestration/compute/ips.md)
-
+<p align='center'>
+<a href='/docs/developer-guide/orchestration/compute/appstore/apps.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/orchestration/compute/ips.md'>Next section »</a>
+</p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / Jobs
@@ -82,7 +83,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td>Browses the catalogue of all Jobs</td>
+<td>Browses the catalog of all Jobs</td>
 </tr>
 <tr>
 <td><a href='#follow'><code>follow</code></a></td>
@@ -102,7 +103,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
-<td>Searches the catalogue of available resources</td>
+<td>Searches the catalog of available resources</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
@@ -280,7 +281,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
 ```kotlin
 
-/* The user finds an interesting application from the catalogue */
+/* The user finds an interesting application from the catalog */
 
 val applications = AppStore.listAll.call(
     PaginationRequest(
@@ -497,7 +498,7 @@ BulkResponse(
 
 ```typescript
 
-/* The user finds an interesting application from the catalogue */
+/* The user finds an interesting application from the catalog */
 
 // Authenticated as user
 const applications = await callAPI(HpcAppsApi.listAll(
@@ -748,7 +749,7 @@ await callAPI(JobsApi.create(
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# The user finds an interesting application from the catalogue
+# The user finds an interesting application from the catalog
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerPage=50&page=0" 
@@ -1020,7 +1021,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633512756898, 
+        timestamp = 1633521335225, 
     )), 
 )
 */
@@ -1068,7 +1069,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633512756898, 
+        timestamp = 1633521335226, 
     )), 
 )
 */
@@ -5003,13 +5004,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Browses the catalogue of all Jobs_
+_Browses the catalog of all Jobs_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-The catalogue of all [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s works through the normal pagination and the return value can be
+The catalog of all [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s works through the normal pagination and the return value can be
 adjusted through the [flags](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags.md). This can include filtering by a specific
 application or looking at [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s of a specific state, such as
 (`RUNNING`)[/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
@@ -5094,7 +5095,7 @@ informational purposes. UCloud does not use this information for any accounting 
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches the catalogue of available resources_
+_Searches the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|

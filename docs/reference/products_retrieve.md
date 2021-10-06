@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
-                        
-                        # Example: Retrieve a single product
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
 
-                        <table>
+# Example: Retrieve a single product
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr>
 <th>Actors</th>
@@ -144,4 +144,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 
 
 </details>
+
 

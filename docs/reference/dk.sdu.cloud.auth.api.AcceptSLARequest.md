@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Users](/docs/developer-guide/core/users/README.md) / [SLAs](/docs/developer-guide/core/users/slas.md)
-                            
-                            # `AcceptSLARequest`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Users](/docs/developer-guide/core/users/README.md) / [SLAs](/docs/developer-guide/core/users/slas.md)
 
-                            
+# `AcceptSLARequest`
+
+
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -32,4 +32,5 @@ data class AcceptSLARequest(
 
 
 </details>
+
 

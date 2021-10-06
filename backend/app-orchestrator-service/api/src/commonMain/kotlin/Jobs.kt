@@ -605,7 +605,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
             flow = {
                 val user = basicUser()
 
-                comment("The user finds an interesting application from the catalogue")
+                comment("The user finds an interesting application from the catalog")
 
                 val metadata = ApplicationMetadata(
                     "a-batch-application",
@@ -1419,9 +1419,9 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         document(
             browse, UCloudApiDocC(
                 """
-                Browses the catalogue of all Jobs
+                Browses the catalog of all Jobs
                 
-                The catalogue of all $TYPE_REF Job s works through the normal pagination and the return value can be
+                The catalog of all $TYPE_REF Job s works through the normal pagination and the return value can be
                 adjusted through the [flags]($TYPE_REF_LINK JobIncludeFlags). This can include filtering by a specific
                 application or looking at $TYPE_REF Job s of a specific state, such as
                 (`RUNNING`)[$TYPE_REF_LINK JobState).

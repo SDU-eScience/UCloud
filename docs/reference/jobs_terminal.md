@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
-                        
-                        # Example: Starting an interactive terminal session
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
 
-                        <table>
+# Example: Starting an interactive terminal session
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User initiated by clicking on 'Open Terminal' of a running Job</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
@@ -368,4 +368,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

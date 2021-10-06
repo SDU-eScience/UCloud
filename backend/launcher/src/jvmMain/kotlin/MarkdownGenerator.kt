@@ -166,6 +166,7 @@ fun generateSectionNavigation(
     nextSection: Chapter?
 ): String {
     return buildString {
+        appendLine("<p align='center'>")
         if (previousSection != null) {
             val linkedSection = if (previousSection is Chapter.Node) {
                 previousSection.children.lastOrNull() ?: previousSection
@@ -173,8 +174,8 @@ fun generateSectionNavigation(
                 previousSection
             }
 
-            appendLine("[« Previous section](${linkedSection.linkToDocs()})")
-            repeat(153) { append("&nbsp;") }
+            appendLine("<a href='${linkedSection.linkToDocs()}'>« Previous section</a>")
+            repeat(60) { append("&nbsp;") }
         }
         if (nextSection != null) {
             val linkedSection = if (nextSection is Chapter.Node) {
@@ -182,9 +183,9 @@ fun generateSectionNavigation(
             } else {
                 nextSection
             }
-            appendLine("[Next section »](${linkedSection.linkToDocs()})")
+            appendLine("<a href='${linkedSection.linkToDocs()}'>Next section »</a>")
         }
-        appendLine()
+        appendLine("</p>")
         appendLine()
     }
 }
@@ -338,13 +339,13 @@ fun generateMarkdown(
 
             File(referenceFolder, "${container.namespace}_${useCase.id}.md")
                 .writeText(
-                    """
-                        ${chapter.breadcrumbs(includeLeaf = true)}
-                        
-                        # Example: ${useCase.title}
-
-                        $content
-                    """.trimIndent()
+                    buildString {
+                        appendLine(chapter.breadcrumbs(includeLeaf = true))
+                        appendLine()
+                        appendLine("# Example: ${useCase.title}")
+                        appendLine()
+                        appendLine(content)
+                    }
                 )
         }
 
@@ -360,13 +361,13 @@ fun generateMarkdown(
 
                 File(referenceFolder, "${call.realCall.fullName}.md")
                     .writeText(
-                        """
-                            ${chapter.breadcrumbs(includeLeaf = true)}
-                            
-                            # `${call.realCall.fullName}`
-
-                            $content
-                        """.trimIndent()
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${call.realCall.fullName}`")
+                            appendLine()
+                            appendLine(content)
+                        }
                     )
             }
         }
@@ -386,13 +387,13 @@ fun generateMarkdown(
 
                 File(referenceFolder, type.name + ".md")
                     .writeText(
-                        """
-                            ${chapter.breadcrumbs(includeLeaf = true)}
-                            
-                            # `${simplifyName(type.name)}`
-
-                            $content
-                        """.trimIndent()
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${simplifyName(type.name)}`")
+                            appendLine()
+                            appendLine(content)
+                        }
                     )
             }
         }

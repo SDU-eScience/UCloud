@@ -1,6 +1,7 @@
-[« Previous section](/docs/developer-guide/orchestration/compute/appstore/tools.md)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Next section »](/docs/developer-guide/orchestration/compute/jobs.md)
-
+<p align='center'>
+<a href='/docs/developer-guide/orchestration/compute/appstore/tools.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/orchestration/compute/jobs.md'>Next section »</a>
+</p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Application Store](/docs/developer-guide/orchestration/compute/appstore/README.md) / Applications
@@ -75,11 +76,11 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#advancedsearch'><code>advancedSearch</code></a></td>
-<td>Searches in the Application catalogue using more advanced parameters</td>
+<td>Searches in the Application catalog using more advanced parameters</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td>Creates a new Application and inserts it into the catalogue</td>
+<td>Creates a new Application and inserts it into the catalog</td>
 </tr>
 <tr>
 <td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
@@ -123,11 +124,11 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#searchapps'><code>searchApps</code></a></td>
-<td>Searches in the Application catalogue using a free-text query</td>
+<td>Searches in the Application catalog using a free-text query</td>
 </tr>
 <tr>
 <td><a href='#searchtags'><code>searchTags</code></a></td>
-<td>Browses the Application catalogue by tag</td>
+<td>Browses the Application catalog by tag</td>
 </tr>
 <tr>
 <td><a href='#clearlogo'><code>clearLogo</code></a></td>
@@ -139,7 +140,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
-<td>Removes an Application from the catalogue</td>
+<td>Removes an Application from the catalog</td>
 </tr>
 <tr>
 <td><a href='#removetag'><code>removeTag</code></a></td>
@@ -2453,7 +2454,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches in the Application catalogue using more advanced parameters_
+_Searches in the Application catalog using more advanced parameters_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -2467,7 +2468,7 @@ _Searches in the Application catalogue using more advanced parameters_
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Creates a new Application and inserts it into the catalogue_
+_Creates a new Application and inserts it into the catalog_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -2622,7 +2623,7 @@ _Retrieves the list of favorite Applications for the curent user_
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches in the Application catalogue using a free-text query_
+_Searches in the Application catalog using a free-text query_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -2636,7 +2637,7 @@ _Searches in the Application catalogue using a free-text query_
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Browses the Application catalogue by tag_
+_Browses the Application catalog by tag_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -2678,7 +2679,7 @@ _Attaches a set of tags to an Application_
 [![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Removes an Application from the catalogue_
+_Removes an Application from the catalog_
 
 | Request | Response | Error |
 |---------|----------|-------|
