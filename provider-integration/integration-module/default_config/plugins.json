@@ -9,7 +9,8 @@
                 "id": "slurm", 
                 "name": "normal-configuration",
                 "configuration": {
-                    "partition": "normal"
+                    "partition": "normal",
+                    "mountpoint": "/data"
                 } 
             }   
         ]

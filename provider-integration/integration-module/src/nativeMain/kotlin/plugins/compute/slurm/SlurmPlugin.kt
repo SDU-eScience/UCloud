@@ -75,6 +75,7 @@ fun manageHeader(job:Job, config: IMConfiguration ):String {
         val request_product = job.specification?.product as ProductReference
 
         val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition
+        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
         val job_nodes = job.specification!!.replicas
 
         val product_cpu = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.cpu.toString()
@@ -90,7 +91,7 @@ fun manageHeader(job:Job, config: IMConfiguration ):String {
                             #
                             # POSTFIX START
                             #
-                            #SBATCH --chdir /data/${job.id} 
+                            #SBATCH --chdir ${mountpoint}/${job.id} 
                             #SBATCH --cpus-per-task ${product_cpu} 
                             #SBATCH --mem ${product_mem} 
                             #SBATCH --gpus-per-node ${product_gpu} 
@@ -306,18 +307,20 @@ fun PluginContext.getStatus(id: String) : Status {
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
 
-        mkdir("/data/${job.id}", "0770".toUInt(8) )
+        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
+        mkdir("${mountpoint}/${job.id}", "0770".toUInt(8) )
+
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
         val sbatch_content = manageHeader(job, config)
 
 
         
-        NativeFile.open(path="/data/${job.id}/job.req", readOnly = false).writeText(job_content.value)
-        NativeFile.open(path="/data/${job.id}/job.sbatch", readOnly = false).writeText(sbatch_content)
+        NativeFile.open(path="${mountpoint}/${job.id}/job.req", readOnly = false).writeText(job_content.value)
+        NativeFile.open(path="${mountpoint}/${job.id}/job.sbatch", readOnly = false).writeText(sbatch_content)
 
         runBlocking {
 
-        val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch").addArg("/data/${job.id}/job.sbatch").addEnv("SLURM_CONF", "/etc/slurm/slurm.conf").execute()
+        val (code, stdout, stderr) = CmdBuilder("/usr/bin/sbatch").addArg("${mountpoint}/${job.id}/job.sbatch").addEnv("SLURM_CONF", "/etc/slurm/slurm.conf").execute()
         if ( code != 0 ) throw RPCException("Unhandled exception when creating job: $stderr", HttpStatusCode.BadRequest)
 
         var slurmId = stdout
@@ -572,9 +575,10 @@ fun PluginContext.getStatus(id: String) : Status {
             sleep(2)
             println("follow logs")
 
+            val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
             
-            val stdOut = NativeFile.open(path="/data/${job.id}/std.out", readOnly = true)
-            val stdErr = NativeFile.open(path="/data/${job.id}/std.err", readOnly = true)
+            val stdOut = NativeFile.open(path="${mountpoint}/${job.id}/std.out", readOnly = true)
+            val stdErr = NativeFile.open(path="${mountpoint}/${job.id}/std.err", readOnly = true)
 
     thisLoop@ while ( isActive() ) {
                 val mState:Status = getStatus(job.id)

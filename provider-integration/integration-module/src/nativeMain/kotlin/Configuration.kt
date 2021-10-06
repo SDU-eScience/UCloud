@@ -55,7 +55,7 @@ data class PartialProductReferenceWithoutProvider(
 
 //Work in progress
 @Serializable
-data class PluginBasedConfiguration(val partition:String)
+data class PluginBasedConfiguration(val partition:String, val mountpoint:String)
 
 @Serializable
 data class ProductBasedConfiguration(
