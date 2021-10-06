@@ -1,4 +1,5 @@
-export const HTTP_STATUS_CODES: Record<number, string> = {
+// Remove?
+const HTTP_STATUS_CODES: Record<number, string> = {
     100: "Continue",
     101: "Switching Protocols",
     102: "Processing",
@@ -60,21 +61,12 @@ export interface ErrorMessage {
 
 function unwrapError(e: any): ErrorMessage {
     const request: XMLHttpRequest = e.request;
+    const errorMessage = "An error occurred. Please reload the page.";
     if (request === undefined) {
-        return {statusCode: 500, errorMessage: "Internal Server Error"};
+        return {statusCode: 500, errorMessage};
     }
 
-    const defaultStatusText = HTTP_STATUS_CODES[request.status] ?
-        HTTP_STATUS_CODES[request.status] : "Internal Server Error";
-
-    if (e.response) {
-        if (e.response.why) {
-            return {statusCode: request.status, errorMessage: e.response.why};
-        }
-        return {statusCode: request.status, errorMessage: defaultStatusText};
-    }
-
-    return {statusCode: request.status, errorMessage: defaultStatusText};
+    return {statusCode: request.status, errorMessage: e.response?.why ?? errorMessage};
 }
 
 export async function unwrap<T = any>(

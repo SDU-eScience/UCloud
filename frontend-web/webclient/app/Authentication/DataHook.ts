@@ -193,11 +193,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
                     setState(old => ({...old, call: {...old.call, loading: false, data: result}}));
                 } catch (e) {
                     const statusCode = e.request.status;
-                    let why = "Internal Server Error";
-                    if (!!e.response && e.response.why) {
-                        why = e.response.why;
-                    }
-
+                    const why = e.response?.why ?? "An error occurred. Please reload the page.";
                     if (promises.canceledKeeper) return;
                     setState(old => ({...old, call: {...old.call, loading: false, error: {why, statusCode}}}));
                 }
@@ -290,12 +286,7 @@ export function useAsyncWork(): AsyncWorker {
         } catch (e) {
             if (didCancel) return;
             if (e.request) {
-                let why = "Internal Server Error";
-                if (!!e.response && e.response.why) {
-                    why = e.response.why;
-                } else {
-                    why = e.request.statusText;
-                }
+                const why = e.response?.why ?? e.request.statusText;
                 setError(why);
             } else if (typeof e === "string") {
                 setError(e);
@@ -441,11 +432,7 @@ export function useCloudAPI<T, Parameters = any>(
                     } catch (e) {
                         if (!didCancel) {
                             const statusCode = e.request.status;
-                            let why = "Internal Server Error";
-                            if (!!e.response && e.response.why) {
-                                why = e.response.why;
-                            }
-
+                            const why = e.response?.why ?? "An error occurred. Please reload the page.";
                             dispatch({type: "FETCH_FAILURE", data: dataInitial, error: {why, statusCode}});
                         }
                     }
