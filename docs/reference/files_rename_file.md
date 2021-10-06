@@ -1,6 +1,8 @@
-# Example: Renaming a file
+                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+                        
+                        # Example: Renaming a file
 
-<table>
+                        <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User-initiated action, typically though the user-interface</td></tr>
 <tr><th>Pre-conditions</th><td><ul>

@@ -92,6 +92,8 @@ fun summary(summary: String, body: String, open: Boolean = false): String {
 }
 
 fun generateMarkdownChapterTableOfContents(
+    previousSection: Chapter?,
+    nextSection: Chapter?,
     path: List<Chapter.Node>,
     chapter: Chapter.Node
 ) {
@@ -102,6 +104,7 @@ fun generateMarkdownChapterTableOfContents(
     outputFile.parentFile.mkdirs()
 
     outputFile.printWriter().use { outs ->
+        /*
         val urlBuilder = StringBuilder("/docs/")
         for ((index, node) in (path + chapter).withIndex()) {
             if (index != 0) outs.print(" / ")
@@ -115,18 +118,74 @@ fun generateMarkdownChapterTableOfContents(
             }
         }
         outs.println()
+         */
 
+        outs.println(generateSectionNavigation(previousSection, nextSection))
+        outs.println(chapter.breadcrumbs())
 
         outs.println("# ${chapter.title}")
         outs.println()
 
         chapter.children.forEach { chapter ->
-            val suffix = when (chapter) {
-                is Chapter.Node -> "/README.md"
-                is Chapter.Feature -> ".md"
-            }
-            outs.println(" - [${chapter.title}](${urlBuilder}${chapter.id}${suffix})")
+            outs.println(" - [${chapter.title}](${chapter.linkToDocs()})")
         }
+    }
+}
+
+fun Chapter.linkToDocs(): String {
+    val urlBuilder = StringBuilder("/docs/")
+    for (node in path) {
+        urlBuilder.append(node.id)
+        urlBuilder.append('/')
+    }
+
+    val suffix = when (this) {
+        is Chapter.Node -> "/README.md"
+        is Chapter.Feature -> ".md"
+    }
+
+    return urlBuilder.toString() + id + suffix
+}
+
+fun Chapter.breadcrumbs(includeLeaf: Boolean = false): String {
+    return buildString {
+        for ((index, node) in (path + this@breadcrumbs).withIndex()) {
+            if (index != 0) append(" / ")
+
+            if (node == this@breadcrumbs && !includeLeaf) {
+                append("${node.title}")
+            } else {
+                append("[${node.title}](${node.linkToDocs()})")
+            }
+        }
+    }
+}
+
+fun generateSectionNavigation(
+    previousSection: Chapter?,
+    nextSection: Chapter?
+): String {
+    return buildString {
+        if (previousSection != null) {
+            val linkedSection = if (previousSection is Chapter.Node) {
+                previousSection.children.lastOrNull() ?: previousSection
+            } else {
+                previousSection
+            }
+
+            appendLine("[« Previous section](${linkedSection.linkToDocs()})")
+            repeat(153) { append("&nbsp;") }
+        }
+        if (nextSection != null) {
+            val linkedSection = if (nextSection is Chapter.Node) {
+                nextSection.children.firstOrNull() ?: nextSection
+            } else {
+                nextSection
+            }
+            appendLine("[Next section »](${linkedSection.linkToDocs()})")
+        }
+        appendLine()
+        appendLine()
     }
 }
 
@@ -136,10 +195,12 @@ fun generateMarkdown(
     path: List<Chapter.Node>,
     types: LinkedHashMap<String, GeneratedType>,
     calls: List<GeneratedRemoteProcedureCall>,
-    id: String,
-    title: String,
-    container: CallDescriptionContainer,
+    chapter: Chapter.Feature
 ) {
+    val title = chapter.title
+    val id = chapter.id
+    val container = chapter.container
+
     val outputFile = File(
         outputFolder,
         path.joinToString("/") { it.id.replace("/", "_") } + "/" + id + ".md"
@@ -183,18 +244,9 @@ fun generateMarkdown(
             ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.description)?.trim()
 
-        run {
-            val urlBuilder = StringBuilder("/docs/")
-            for ((index, node) in path.withIndex()) {
-                if (index != 0) outs.print(" / ")
-                urlBuilder.append(node.id)
-                urlBuilder.append('/')
+        outs.println(generateSectionNavigation(previousSection, nextSection))
 
-                outs.print("[${node.title}](${urlBuilder}README.md)")
-            }
-            outs.print(" / ")
-            outs.println(title)
-        }
+        outs.println(chapter.breadcrumbs())
 
         outs.println("# $title")
         outs.println()
@@ -285,7 +337,15 @@ fun generateMarkdown(
             outs.println(content)
 
             File(referenceFolder, "${container.namespace}_${useCase.id}.md")
-                .writeText("# Example: ${useCase.title}\n\n$content")
+                .writeText(
+                    """
+                        ${chapter.breadcrumbs(includeLeaf = true)}
+                        
+                        # Example: ${useCase.title}
+
+                        $content
+                    """.trimIndent()
+                )
         }
 
         if (sortedCalls.isNotEmpty()) {
@@ -299,7 +359,15 @@ fun generateMarkdown(
                 outs.println(content)
 
                 File(referenceFolder, "${call.realCall.fullName}.md")
-                    .writeText("# `${call.realCall.fullName}`\n\n$content")
+                    .writeText(
+                        """
+                            ${chapter.breadcrumbs(includeLeaf = true)}
+                            
+                            # `${call.realCall.fullName}`
+
+                            $content
+                        """.trimIndent()
+                    )
             }
         }
 
@@ -317,7 +385,15 @@ fun generateMarkdown(
                 outs.println()
 
                 File(referenceFolder, type.name + ".md")
-                    .writeText("# `${simplifyName(type.name)}`\n\n$content")
+                    .writeText(
+                        """
+                            ${chapter.breadcrumbs(includeLeaf = true)}
+                            
+                            # `${simplifyName(type.name)}`
+
+                            $content
+                        """.trimIndent()
+                    )
             }
         }
     }

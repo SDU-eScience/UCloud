@@ -1,19 +1,55 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.Visualization
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.alerting.api.Alerting
-import dk.sdu.cloud.app.kubernetes.api.*
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
+import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
+import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseMaintenance
+import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenses
+import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
+import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
+import dk.sdu.cloud.app.kubernetes.api.Maintenance
+import dk.sdu.cloud.app.orchestrator.api.IngressControl
+import dk.sdu.cloud.app.orchestrator.api.IngressProvider
+import dk.sdu.cloud.app.orchestrator.api.Ingresses
+import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
+import dk.sdu.cloud.app.orchestrator.api.LicenseControl
+import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
+import dk.sdu.cloud.app.orchestrator.api.Licenses
+import dk.sdu.cloud.app.orchestrator.api.NetworkIPControl
+import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
+import dk.sdu.cloud.app.orchestrator.api.NetworkIPs
+import dk.sdu.cloud.app.orchestrator.api.Shells
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.audit.ingestion.api.Auditing
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.AuthProviders
+import dk.sdu.cloud.auth.api.ServiceLicenseAgreement
+import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
-import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
+import dk.sdu.cloud.file.orchestrator.api.FileCollections
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
+import dk.sdu.cloud.file.orchestrator.api.FileMetadata
+import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaces
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.FilesControl
+import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.api.Shares
+import dk.sdu.cloud.file.orchestrator.api.SharesControl
+import dk.sdu.cloud.file.orchestrator.api.SharesProvider
 import dk.sdu.cloud.file.ucloud.api.UCloudFileCollections
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.api.UCloudShares
@@ -34,7 +70,6 @@ import dk.sdu.cloud.slack.api.SlackDescriptions
 import dk.sdu.cloud.support.api.SupportDescriptions
 import dk.sdu.cloud.task.api.Tasks
 import java.util.*
-import kotlin.collections.LinkedHashMap
 
 sealed class Chapter {
     abstract val id: String
@@ -48,6 +83,7 @@ sealed class Chapter {
     ) : Chapter() {
         override var path: List<Chapter.Node> = emptyList()
     }
+
     data class Feature(
         override val id: String,
         override val title: String,
@@ -62,6 +98,25 @@ fun Chapter.addPaths(path: List<Chapter.Node> = emptyList()) {
     if (this !is Chapter.Node) return
     val newPath = path + listOf(this)
     children.forEach { it.addPaths(newPath) }
+}
+
+fun Chapter.previous(): Chapter? {
+    val parent = path.lastOrNull()
+    return if (parent != null) {
+        val indexOfSelf = parent.children.indexOf(this)
+        if (indexOfSelf > 0) {
+            parent.children[indexOfSelf - 1]
+        } else {
+            val previousSection = parent.previous()
+            if (previousSection is Chapter.Node) {
+                previousSection.children.lastOrNull() ?: previousSection
+            } else {
+                previousSection
+            }
+        }
+    } else {
+        null
+    }
 }
 
 fun generateCode() {
@@ -376,7 +431,6 @@ fun generateCode() {
     )
     structure.addPaths()
 
-    var previousSection: Chapter? = null
     val stack = LinkedList<Chapter?>(listOf(structure))
     val types = LinkedHashMap<String, GeneratedType>()
     val callsByFeature = HashMap<Chapter.Feature, List<GeneratedRemoteProcedureCall>>()
@@ -403,23 +457,22 @@ fun generateCode() {
             }
         }
 
+        val actualPreviousSection = chapter.previous()
         when (chapter) {
             is Chapter.Feature -> {
-                val nextSection = stack.peek()
                 if (firstPass) {
                     chapter.container.documentation()
                     callsByFeature[chapter] = generateCalls(chapter.container, types)
                 } else {
+                    val nextSection = stack.peek()
                     val calls = callsByFeature.getValue(chapter)
                     generateMarkdown(
-                        previousSection,
+                        actualPreviousSection,
                         nextSection,
                         chapter.path,
                         types,
                         calls,
-                        chapter.id,
-                        chapter.title,
-                        chapter.container,
+                        chapter
                     )
 
                     generateTypeScriptCode(types, calls, chapter.title, chapter.container)
@@ -427,12 +480,17 @@ fun generateCode() {
             }
 
             is Chapter.Node -> {
-                generateMarkdownChapterTableOfContents(chapter.path, chapter)
                 for (child in chapter.children.reversed()) {
                     stack.addFirst(child)
                 }
+                var nextSection = stack.peek()
+                while (nextSection is Chapter.Node) {
+                    // NOTE(Dan): don't set next section to null if not needed
+                    val next = nextSection.children.firstOrNull() ?: break
+                    nextSection = next
+                }
+                generateMarkdownChapterTableOfContents(actualPreviousSection, nextSection, chapter.path, chapter)
             }
         }
-        previousSection = chapter
     }
 }

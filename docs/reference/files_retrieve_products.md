@@ -1,6 +1,8 @@
-# Example: Retrieving a list of products supported by accessible providers
+                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+                        
+                        # Example: Retrieving a list of products supported by accessible providers
 
-<table>
+                        <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>Typically triggered by a client to determine which operations are supported</td></tr>
 <tr><th>Pre-conditions</th><td><ul>

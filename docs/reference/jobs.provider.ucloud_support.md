@@ -1,6 +1,8 @@
-# Example: Declaring support full support for containerized applications
+                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
+                        
+                        # Example: Declaring support full support for containerized applications
 
-<table>
+                        <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr>
 <th>Actors</th>

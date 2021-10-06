@@ -1,6 +1,8 @@
-# Example: Copying a file to itself
+                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+                        
+                        # Example: Copying a file to itself
 
-<table>
+                        <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User-initiated action, typically through the user-interface</td></tr>
 <tr><th>Pre-conditions</th><td><ul>

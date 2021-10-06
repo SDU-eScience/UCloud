@@ -1,6 +1,8 @@
-# Example: Using licensed software
+                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+                        
+                        # Example: Using licensed software
 
-<table>
+                        <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
 <li>User has already been granted credits for the license (typically through Grants)</li>
