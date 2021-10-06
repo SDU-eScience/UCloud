@@ -6,7 +6,7 @@
         ],
         "plugins": [
             {
-                "id": "sample", 
+                "id": "slurm", 
                 "name": "normal-configuration",
                 "configuration": {
                     "partition": "normal"

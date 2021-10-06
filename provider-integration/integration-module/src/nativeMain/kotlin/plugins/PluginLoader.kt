@@ -5,7 +5,7 @@ import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.plugins.compute.SampleComputePlugin
+import dk.sdu.cloud.plugins.compute.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
 import io.ktor.http.*
@@ -15,7 +15,7 @@ class PluginLoaderException(message: String) : RuntimeException(message)
 
 class PluginLoader(private val pluginContext: PluginContext) {
     private val computePlugins = mapOf<String, () -> ComputePlugin>(
-        "sample" to { SampleComputePlugin() }
+        "slurm" to { SlurmPlugin() }
     )
 
     private val connectionPlugins = mapOf<String, () -> ConnectionPlugin>(

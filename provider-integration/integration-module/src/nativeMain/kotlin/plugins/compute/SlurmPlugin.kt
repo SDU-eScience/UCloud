@@ -79,7 +79,7 @@ fun manageHeader(job:Job, config: IMConfiguration ):String {
         val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
         val request_product = job.specification?.product as ProductReference
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition
         val job_nodes = job.specification!!.replicas
 
         val product_cpu = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.cpu.toString()
@@ -139,7 +139,7 @@ fun manageHeader(job:Job, config: IMConfiguration ):String {
 
 
 
-class SampleComputePlugin : ComputePlugin {
+class SlurmPlugin : ComputePlugin {
 
 fun PluginContext.getStatus(id: String) : Status {
 
@@ -330,7 +330,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         val ipcClient = ipcClient ?: error("No ipc client")
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition.toString()
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition.toString()
         
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
 
@@ -368,7 +368,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         println("delete job")
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
