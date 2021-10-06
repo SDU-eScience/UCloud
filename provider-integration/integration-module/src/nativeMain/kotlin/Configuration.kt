@@ -53,17 +53,21 @@ data class PartialProductReferenceWithoutProvider(
     }
 }
 
+//Work in progress
+@Serializable
+data class PluginBasedConfiguration(val partition:String)
+
 @Serializable
 data class ProductBasedConfiguration(
     val products: List<ProductReferenceWithoutProvider>,
     val plugins: List<PluginConfiguration>
 ) {
     @Serializable
-    class PluginConfiguration(
+    data class PluginConfiguration(
         val id: String,
         val activeFor: List<PartialProductReferenceWithoutProvider> = listOf(PartialProductReferenceWithoutProvider()),
         val name: String? = null,
-        val configuration: JsonObject? = null,
+        val configuration: PluginBasedConfiguration? = null, // ADD slurm configuration
     )
 }
 
@@ -111,7 +115,7 @@ class IMConfiguration(
                 )
             }
 
-            val plugins = Json{ignoreUnknownKeys = true}.decodeFromString<Plugins>(
+            val plugins = Json.decodeFromString<Plugins>(
                 NativeFile.open("$CONFIG_PATH/plugins.json", readOnly = true).readText()
             )
 

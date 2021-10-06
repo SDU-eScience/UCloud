@@ -209,7 +209,7 @@ class ComputeController(
 
         implement(jobs.retrieveUtilization) {
             if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            //TODO("Issue #2425")
+            TODO("Issue #2425")
 
 
             //TODO: find a way to call the plugin from SampleComputePlugin
@@ -229,38 +229,38 @@ class ComputeController(
             // 27|50M|1|PENDING
 
             //get pending cpu/mem jobs
-            val (_, jobs, _) = CmdBuilder("/usr/bin/squeue")
-                                    .addArg("--format","%A|%m|%C|%T")
-                                    .addArg("--noheader")
-                                    .addArg("--noconvert")
-                                    .addArg("--states", "running,pending")
-                                    .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
-                                    .execute()
+            // val (_, jobs, _) = CmdBuilder("/usr/bin/squeue")
+            //                         .addArg("--format","%A|%m|%C|%T")
+            //                         .addArg("--noheader")
+            //                         .addArg("--noconvert")
+            //                         .addArg("--states", "running,pending")
+            //                         .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
+            //                         .execute()
 
-            val mList = jobs.lines().map{
-                it.trimIndent()
-                it.trim()
-                it.split("|")
-            }.toList()
+            // val mList = jobs.lines().map{
+            //     it.trimIndent()
+            //     it.trim()
+            //     it.split("|")
+            // }.toList()
 
-            var usedCpu = 0;
-            var usedMem = 0;
-            var pendingJobs = 0;
-            var runningJobs = 0;
+            // var usedCpu = 0;
+            // var usedMem = 0;
+            // var pendingJobs = 0;
+            // var runningJobs = 0;
 
-            mList.forEach{ line -> 
+            // mList.forEach{ line -> 
 
-                    if(  line[3].equals("PENDING") ) {
-                       pendingJobs++
-                    }
+            //         if(  line[3].equals("PENDING") ) {
+            //            pendingJobs++
+            //         }
 
-                    if(  line[3].equals("RUNNING")  ) {
-                        usedCpu = usedCpu + line[2].toInt()
-                        usedMem = usedMem + line[1].replace("M", "").toInt()
-                        runningJobs++
-                    }
+            //         if(  line[3].equals("RUNNING")  ) {
+            //             usedCpu = usedCpu + line[2].toInt()
+            //             usedMem = usedMem + line[1].replace("M", "").toInt()
+            //             runningJobs++
+            //         }
 
-            }
+            // }
 
             //println("$usedCpu $usedMem $pendingJobs $runningJobs")
 
@@ -291,17 +291,17 @@ class ComputeController(
             //             clusterMem = clusterMem + line[2].replace("M", "").toInt()
             // }
 
-            var clusterCpu:Int = 0;
-            var clusterMem:Int = 0;
+            // var clusterCpu:Int = 0;
+            // var clusterMem:Int = 0;
 
-            compute?.forEach{ product -> 
-                clusterCpu = clusterCpu + product.get("cpu").toString().toInt()
-                clusterMem = clusterMem + product.get("mem").toString().toInt()
-            }
+            // compute?.forEach{ product -> 
+            //     clusterCpu = clusterCpu + product.get("cpu").toString().toInt()
+            //     clusterMem = clusterMem + product.get("mem").toString().toInt()
+            // }
 
             //println("$clusterCpu $clusterMem")
 
-           OutgoingCallResponse.Ok( JobsProviderUtilizationResponse(   CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()), CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()), QueueStatus(runningJobs, pendingJobs))   )
+           //OutgoingCallResponse.Ok( JobsProviderUtilizationResponse(   CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()), CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()), QueueStatus(runningJobs, pendingJobs))   )
 
         }
 

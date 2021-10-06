@@ -9,7 +9,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.plugins.ComputePlugin
-import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.*
 import kotlinx.coroutines.runBlocking
 import platform.posix.*
 import kotlinx.cinterop.*
@@ -55,12 +55,6 @@ import dk.sdu.cloud.app.store.api.SimpleDuration
 
 
 
-//JsonElement.toString() returns "dtu-small" which is not equal to dtu-small due to extra quotes
-fun JsonElement?.getString() : String {
-    return if (this == null) "" else this.toString().replace("\"","")
-} 
-
-
 @Serializable
 data class SlurmJob(
     val ucloudId: String,
@@ -79,35 +73,18 @@ typealias UcloudState =  JobState
 data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )    
 
 
-//TOD: 
-val compute : List<JsonObject>?  by lazy {
-
-
-        val plugins = Json{ignoreUnknownKeys = true}.decodeFromString<JsonObject>(
-            NativeFile.open("/etc/ucloud/plugins.json", readOnly = true).readText()
-        )
-
-        val compute =  Json.decodeFromString<JsonObject> (plugins.get("compute").toString() )
-        val products = compute.get("products") as List<JsonObject>
-        products
-
-}
-
-
-fun manageHeader(job:Job):String { 
+fun manageHeader(job:Job, config: IMConfiguration ):String { 
  
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
         val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
         val request_product = job.specification?.product as ProductReference
 
-        val product = compute?.first{ request_product.id == it.get("id").getString() } as JsonObject
-
-
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition
         val job_nodes = job.specification!!.replicas
-        val product_cpu = product.get("cpu").getString()
-        val product_mem = product.get("mem").getString()
-        val product_gpu = product.get("gpu").getString()
-        val job_partition = "normal" //product.get("partition").getString()
+
+        val product_cpu = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.cpu.toString()
+        val product_mem = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.mem.toString()
+        val product_gpu = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.gpu.toString()
 
 
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
@@ -236,7 +213,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
     override fun PluginContext.initialize() {
-        val log = Log("SampleComputePlugin")
+        val log = Log("SlurmComputePlugin")
 
         ipcServer?.addHandler(
             IpcHandler("add.job") { user, jsonRequest ->
@@ -336,7 +313,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         mkdir("/data/${job.id}", "0770".toUInt(8) )
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-        val sbatch_content = manageHeader(job)
+        val sbatch_content = manageHeader(job, config)
 
 
         
@@ -352,9 +329,9 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
-        val request_product = job.specification?.product as ProductReference
-        val product = compute?.first{ it.get("id").getString() == request_product.id } as JsonObject
-        val job_partition = "normal" //product.get("partition").getString()
+
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition.toString()
+        
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
 
         sleep(2)
@@ -390,9 +367,8 @@ fun PluginContext.getStatus(id: String) : Status {
         val client = rpcClient ?: error("No client")
 
         println("delete job")
-        val request_product = job.specification?.product as ProductReference
-        val product = compute?.first{ it.get("id").getString() == request_product.id } as JsonObject
-        val job_partition = "normal"//product.get("partition").getString()
+
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "sample"  }?.configuration?.partition
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
