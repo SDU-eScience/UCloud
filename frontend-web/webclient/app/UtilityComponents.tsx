@@ -171,7 +171,7 @@ export const NamingField: React.FunctionComponent<{
 
     return (
         <form onSubmit={submit}>
-            <Flex>
+            <Flex onClick={stopPropagationAndPreventDefault}>
                 {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
@@ -190,7 +190,7 @@ export const NamingField: React.FunctionComponent<{
                     ref={props.inputRef}
                 />
                 {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
-                <div onClick={stopPropagationAndPreventDefault} style={{transform: "translateY(2px)", marginBottom: "2px"}}>
+                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons
                         confirmText={props.confirmText}
                         cancelText="Cancel"
