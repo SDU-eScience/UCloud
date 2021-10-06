@@ -19,6 +19,7 @@ import dk.sdu.cloud.file.orchestrator.api.UploadProtocol
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.file.ucloud.services.tasks.EmptyTrashRequestItem
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
@@ -154,6 +155,22 @@ class FilesController(
                             Files.trash.fullName,
                             defaultMapper.encodeToJsonElement(
                                 bulkRequestOf(TrashRequestItem(username, reqItem.id))
+                            ) as JsonObject
+                        )
+                    }
+                )
+            )
+        }
+
+        implement(UCloudFiles.emptyTrash) {
+            val username = ucloudUsername ?: throw  RPCException("No username supplied", HttpStatusCode.BadRequest)
+            ok (
+                BulkResponse(
+                    request.items.map { requestItem ->
+                        taskSystem.submitTask(
+                            Files.emptyTrash.fullName,
+                            defaultMapper.encodeToJsonElement(
+                                bulkRequestOf(EmptyTrashRequestItem(username, requestItem.id))
                             ) as JsonObject
                         )
                     }

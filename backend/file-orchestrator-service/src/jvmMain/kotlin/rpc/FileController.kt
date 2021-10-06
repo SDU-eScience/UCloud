@@ -36,6 +36,10 @@ class FileController(private val files: FilesService) : Controller {
             ok(files.trash(actorAndProject, request))
         }
 
+        implement(Files.emptyTrash) {
+            ok(files.emptyTrash(actorAndProject, request))
+        }
+
         implement(Files.updateAcl) {
             ok(files.updateAcl(actorAndProject, request))
         }

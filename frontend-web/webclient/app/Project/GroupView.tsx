@@ -7,7 +7,7 @@ import {
     removeGroupMemberRequest,
     updateGroupName,
 } from "@/Project";
-import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
+import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {ProjectRole} from "@/Project";
 import {useProjectManagementStatus} from "@/Project/index";
 import {MembersList} from "@/Project/MembersList";
@@ -128,7 +128,7 @@ const GroupView: React.FunctionComponent = () => {
                 <>
                     <MembersList
                         members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
-                        onRemoveMember={promptRemoveMember}
+                        onRemoveMember={removeMember}
                         projectId={projectId}
                         projectRole={projectRole}
                         allowRoleManagement={false}
@@ -139,16 +139,6 @@ const GroupView: React.FunctionComponent = () => {
             }
         />
     </>;
-
-    function promptRemoveMember(member: string): void {
-        addStandardDialog({
-            title: "Remove member?",
-            message: `Do you want to remove ${member} from the group ${groupDetails.data.groupTitle}?`,
-            onConfirm: () => removeMember(member),
-            cancelText: "Cancel",
-            confirmText: "Remove"
-        });
-    }
 
     async function removeMember(member: string): Promise<void> {
         if (groupId === undefined) return;

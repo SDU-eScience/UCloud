@@ -142,18 +142,14 @@ const MembersPanel: React.FunctionComponent = () => {
 
         <MembersList
             members={projectMembers.data.items}
-            onRemoveMember={async member => addStandardDialog({
-                title: "Remove member",
-                message: `Remove ${member}?`,
-                onConfirm: async () => {
-                    await runCommand(deleteMemberInProject({
-                        projectId,
-                        member
-                    }));
+            onRemoveMember={async member => {
+                await runCommand(deleteMemberInProject({
+                    projectId,
+                    member
+                }));
 
-                    reloadMembers();
-                }
-            })}
+                reloadMembers();
+            }}
             reload={reloadMembers}
             projectId={projectId}
             projectRole={projectRole}

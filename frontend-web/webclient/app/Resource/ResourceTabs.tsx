@@ -36,7 +36,6 @@ export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element |
                     key={rt}
                     onClick={() => onSelect(ResourceTabOptions[rt])}
                     selected={ResourceTabOptions[rt] === props.active}
-                    mr="12px"
                 >
                     {ResourceTabOptions[rt]}                    
                 </SelectableText>
