@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins.compute
+package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.app.orchestrator.api.*
 
@@ -59,14 +59,9 @@ import dk.sdu.cloud.app.store.api.SimpleDuration
 data class SlurmJob(
     val ucloudId: String,
     val slurmId: String,
-    //val cpu: In,
-    //val mem: String,
-    //val gpu: String,
     val partition: String = "normal",
     val status: Int = 1
 )
-
-//TODO add SlurmConfiguration data class
 
 
 typealias UcloudState =  JobState
@@ -491,9 +486,6 @@ fun PluginContext.getStatus(id: String) : Status {
 
             Log("RunMonitoringLoop")
 
-            // Worker.start(name = "Monitoring Loop Worker").execute(TransferMode.SAFE, {} ) { 
-
-
                 val terminalStates = listOf("COMPLETED", "CANCELLED", "FAILED", "OUT_OF_MEMORY","BOOT_FAIL", "NODE_FAIL", "PREEMPTED", "REVOKED", "DEADLINE", "TIMEOUT"  )
 
 
@@ -568,7 +560,6 @@ fun PluginContext.getStatus(id: String) : Status {
 
                 }
 
-            //}
 
 
     }
