@@ -1,9 +1,10 @@
 # `ApplicationParameter.Bool`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An input parameter which accepts any boolean value_
 
 ```kotlin
 data class Bool(
@@ -17,6 +18,7 @@ data class Bool(
     val type: String /* "boolean" */,
 )
 ```
+__Compatible with:__ [`AppParameterValue.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.Bool.md)
 
 <details>
 <summary>
@@ -105,7 +107,7 @@ data class Bool(
 <code>type</code>: <code><code>String /* "boolean" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

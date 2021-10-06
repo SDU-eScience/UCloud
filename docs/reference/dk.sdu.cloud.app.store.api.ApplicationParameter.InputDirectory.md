@@ -1,9 +1,10 @@
 # `ApplicationParameter.InputDirectory`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An input parameter which accepts UFiles of type `DIRECTORY`_
 
 ```kotlin
 data class InputDirectory(
@@ -15,6 +16,7 @@ data class InputDirectory(
     val type: String /* "input_directory" */,
 )
 ```
+__Compatible with:__ [`AppParameterValue.File`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.File.md)
 
 <details>
 <summary>
@@ -81,7 +83,7 @@ data class InputDirectory(
 <code>type</code>: <code><code>String /* "input_directory" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

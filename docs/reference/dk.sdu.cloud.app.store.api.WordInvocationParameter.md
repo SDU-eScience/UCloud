@@ -1,9 +1,10 @@
 # `WordInvocationParameter`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A static value for an InvocationParameter_
 
 ```kotlin
 data class WordInvocationParameter(
@@ -11,6 +12,8 @@ data class WordInvocationParameter(
     val type: String /* "word" */,
 )
 ```
+This value is static and will always produce only a single value. As a result, you do not need to escape any values
+for this parameter.
 
 <details>
 <summary>
@@ -33,7 +36,7 @@ data class WordInvocationParameter(
 <code>type</code>: <code><code>String /* "word" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

@@ -1,7 +1,7 @@
 # `FileMetadataTemplate`
 
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`_

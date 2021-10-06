@@ -27,6 +27,7 @@ import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.app.store.api.VariableInvocationParameter
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
+import dk.sdu.cloud.app.store.api.exampleBatchApplication
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CALL_REF
@@ -35,6 +36,7 @@ import dk.sdu.cloud.calls.ProviderApiRequirements
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.TYPE_REF_LINK
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -232,59 +234,6 @@ data class ComputeProductSupport(
     val support: ComputeSupport,
 )
 
-internal val exampleBatchApplication = Application(
-    ApplicationMetadata(
-        "acme-batch",
-        "1.0.0",
-        listOf("Acme Inc."),
-        "Acme Batch",
-        "A batch application",
-        public = true
-    ),
-    ApplicationInvocationDescription(
-        ToolReference(
-            "acme-batch", "1.0.0", Tool(
-                "_ucloud",
-                1633329776235,
-                1633329776235,
-                NormalizedToolDescription(
-                    NameAndVersion("acme-batch", "1.0.0"),
-                    defaultNumberOfNodes = 1,
-                    defaultTimeAllocation = SimpleDuration(1, 0, 0),
-                    requiredModules = emptyList(),
-                    authors = listOf("Acme Inc."),
-                    title = "Acme Batch",
-                    description = "A batch tool",
-                    backend = ToolBackend.DOCKER,
-                    license = "None",
-                    image = "acme/batch:1.0.0"
-                )
-            )
-        ),
-        listOf(
-            WordInvocationParameter("acme-batch"),
-            VariableInvocationParameter(
-                listOf("debug"),
-                prefixGlobal = "--debug "
-            ),
-            VariableInvocationParameter(
-                listOf("value")
-            )
-        ),
-        listOf(
-            ApplicationParameter.Bool(
-                "debug",
-                description = "Should debug be enabled?"
-            ),
-            ApplicationParameter.Text(
-                "value",
-                description = "The value for the batch application"
-            )
-        ),
-        listOf("*"),
-        ApplicationType.BATCH
-    )
-)
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
@@ -337,6 +286,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
     private val accountingUseCase = "accounting"
     private val verificationUseCase = "verify"
 
+    @OptIn(UCloudApiExampleValue::class)
     override fun documentation() {
         useCase(
             supportUseCase,

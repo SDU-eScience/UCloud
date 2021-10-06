@@ -1,9 +1,10 @@
 # `ContainerDescription`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Information to the Provider about how to launch the container_
 
 ```kotlin
 data class ContainerDescription(

@@ -1,12 +1,11 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / Jobs
 # Jobs
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _The ingoing provider API for Jobs_
 
 ## Rationale
-
 
 [`Job`](/docs/reference/dk.sdu.cloud.app.kubernetes.api.Job.md)  s in UCloud are the core abstraction used to describe units of computation.
 
@@ -823,7 +822,7 @@ KubernetesCompute.create.call(
                         tool = Tool(
                             createdAt = 1633329776235, 
                             description = NormalizedToolDescription(
-                                authors = listOf("Acme Inc."), 
+                                authors = listOf("UCloud"), 
                                 backend = ToolBackend.DOCKER, 
                                 container = null, 
                                 defaultNumberOfNodes = 1, 
@@ -832,7 +831,7 @@ KubernetesCompute.create.call(
                                     minutes = 0, 
                                     seconds = 0, 
                                 ), 
-                                description = "A batch tool", 
+                                description = "An example tool", 
                                 image = "acme/batch:1.0.0", 
                                 info = NameAndVersion(
                                     name = "acme-batch", 
@@ -841,7 +840,7 @@ KubernetesCompute.create.call(
                                 license = "None", 
                                 requiredModules = emptyList(), 
                                 supportedProviders = null, 
-                                title = "Acme Batch", 
+                                title = "Acme batch", 
                             ), 
                             modifiedAt = 1633329776235, 
                             owner = "_ucloud", 
@@ -852,12 +851,12 @@ KubernetesCompute.create.call(
                     web = null, 
                 ), 
                 metadata = ApplicationMetadata(
-                    authors = listOf("Acme Inc."), 
-                    description = "A batch application", 
+                    authors = listOf("UCloud"), 
+                    description = "An example application", 
                     isPublic = true, 
                     name = "acme-batch", 
                     public = true, 
-                    title = "Acme Batch", 
+                    title = "Acme batch", 
                     version = "1.0.0", 
                     website = null, 
                 ), 
@@ -1106,10 +1105,10 @@ await callAPI(JobsProviderUcloudApi.create(
                             "name": "acme-batch",
                             "version": "1.0.0",
                             "authors": [
-                                "Acme Inc."
+                                "UCloud"
                             ],
-                            "title": "Acme Batch",
-                            "description": "A batch application",
+                            "title": "Acme batch",
+                            "description": "An example application",
                             "website": null,
                             "public": true
                         },
@@ -1136,10 +1135,10 @@ await callAPI(JobsProviderUcloudApi.create(
                                         "requiredModules": [
                                         ],
                                         "authors": [
-                                            "Acme Inc."
+                                            "UCloud"
                                         ],
-                                        "title": "Acme Batch",
-                                        "description": "A batch tool",
+                                        "title": "Acme batch",
+                                        "description": "An example tool",
                                         "backend": "DOCKER",
                                         "license": "None",
                                         "image": "acme/batch:1.0.0",
@@ -1470,10 +1469,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "name": "acme-batch",
                         "version": "1.0.0",
                         "authors": [
-                            "Acme Inc."
+                            "UCloud"
                         ],
-                        "title": "Acme Batch",
-                        "description": "A batch application",
+                        "title": "Acme batch",
+                        "description": "An example application",
                         "website": null,
                         "public": true
                     },
@@ -1500,10 +1499,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                                     "requiredModules": [
                                     ],
                                     "authors": [
-                                        "Acme Inc."
+                                        "UCloud"
                                     ],
-                                    "title": "Acme Batch",
-                                    "description": "A batch tool",
+                                    "title": "Acme batch",
+                                    "description": "An example tool",
                                     "backend": "DOCKER",
                                     "license": "None",
                                     "image": "acme/batch:1.0.0",
@@ -2458,8 +2457,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ### `follow`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Follow the progress of a job_
@@ -2478,8 +2477,8 @@ For more information, see the end-user API ([`jobs.follow`](/docs/reference/jobs
 
 ### `retrieveProducts`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Retrieve product support for this providers_
@@ -2496,8 +2495,8 @@ UCloud/Core already.
 
 ### `retrieveUtilization`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Retrieve information about how busy the provider's cluster currently is_
@@ -2516,8 +2515,8 @@ For more information, see the end-user API ([`jobs.retrieveUtilization`](/docs/r
 
 ### `create`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates one or more resources_
@@ -2535,8 +2534,8 @@ For more information, see the end-user API ([`jobs.create`](/docs/reference/jobs
 
 ### `extend`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Extend the duration of one or more jobs_
@@ -2555,8 +2554,8 @@ For more information, see the end-user API ([`jobs.extend`](/docs/reference/jobs
 
 ### `openInteractiveSession`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Opens an interactive session (e.g. terminal, web or VNC)_
@@ -2578,8 +2577,8 @@ For more information, see the end-user API ([`jobs.openInteractiveSession`](/doc
 
 ### `suspend`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Suspend a job_
@@ -2597,8 +2596,8 @@ For more information, see the end-user API ([`jobs.suspend`](/docs/reference/job
 
 ### `terminate`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Request job cancellation and destruction_
@@ -2615,8 +2614,8 @@ For more information, see the end-user API ([`jobs.terminate`](/docs/reference/j
 
 ### `updateAcl`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Callback received by the Provider when permissions are updated_
@@ -2633,8 +2632,8 @@ not acknowledge the request.
 
 ### `verify`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Invoked by UCloud/Core to trigger verification of a single batch_

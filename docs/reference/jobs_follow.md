@@ -60,7 +60,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633353478096, 
+        timestamp = 1633505919257, 
     )), 
 )
 */
@@ -108,7 +108,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633353478096, 
+        timestamp = 1633505919258, 
     )), 
 )
 */

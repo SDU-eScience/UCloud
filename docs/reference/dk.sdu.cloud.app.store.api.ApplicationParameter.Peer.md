@@ -1,9 +1,10 @@
 # `ApplicationParameter.Peer`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An input parameter which accepts a peering Job_
 
 ```kotlin
 data class Peer(
@@ -16,6 +17,7 @@ data class Peer(
     val type: String /* "peer" */,
 )
 ```
+__Compatible with:__ [`AppParameterValue.Peer`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.Peer.md)
 
 <details>
 <summary>
@@ -93,7 +95,7 @@ data class Peer(
 <code>type</code>: <code><code>String /* "peer" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

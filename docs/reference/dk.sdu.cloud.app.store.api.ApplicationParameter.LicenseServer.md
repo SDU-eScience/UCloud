@@ -1,9 +1,10 @@
 # `ApplicationParameter.LicenseServer`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An input parameter which accepts a license_
 
 ```kotlin
 data class LicenseServer(
@@ -16,6 +17,7 @@ data class LicenseServer(
     val type: String /* "license_server" */,
 )
 ```
+__Compatible with:__ [`AppParameterValue.License`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.License.md)
 
 <details>
 <summary>
@@ -93,7 +95,7 @@ data class LicenseServer(
 <code>type</code>: <code><code>String /* "license_server" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

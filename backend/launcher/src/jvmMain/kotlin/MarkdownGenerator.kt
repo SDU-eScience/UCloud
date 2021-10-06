@@ -37,12 +37,13 @@ fun apiMaturityBadge(level: UCloudApiMaturity): String {
     fun normalizeEnum(enum: Enum<*>): String {
         return enum.name.lowercase().capitalize()
     }
-    return when (level) {
+    val badge = when (level) {
         is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
         is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
         UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
         else -> error("unknown level")
     }
+    return "[$badge](/docs/developer-guide/core/api-conventions.md)"
 }
 
 fun rolesBadge(roles: Set<Role>): String {
@@ -56,12 +57,14 @@ fun rolesBadge(roles: Set<Role>): String {
         else -> roles.joinToString(", ")
     }
 
-    return badge("Auth", message, "informational")
+    val badge = badge("Auth", message, "informational")
+    return "[$badge](/docs/developer-guide/core/types.md#role)"
 }
 
 fun deprecatedBadge(deprecated: Boolean): String {
     if (deprecated) {
-        return badge("Deprecated", "Yes", "red")
+        val badge = badge("Deprecated", "Yes", "red")
+        return "[$badge](/docs/developer-guide/core/api-conventions.md)"
     }
     return ""
 }
@@ -176,9 +179,9 @@ fun generateMarkdown(
         val synopsis = container.description?.substringBefore('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.synopsis
-        val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
+        val description = (container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
-            ?: documentation.description
+            ?: documentation.description)?.trim()
 
         run {
             val urlBuilder = StringBuilder("/docs/")
@@ -200,13 +203,17 @@ fun generateMarkdown(
         if (synopsis != null) outs.println("_${synopsis}_")
         outs.println()
         if (description != null) {
-            outs.println("## Rationale")
-            outs.println()
+            if (!description.startsWith("#")) {
+                outs.println("## Rationale")
+                outs.println()
+            }
             outs.println(description)
             outs.println()
         }
 
-        outs.println("## Table of Contents")
+        if (container.useCases.isNotEmpty() || sortedCalls.isNotEmpty() || sortedTypes.isNotEmpty()) {
+            outs.println("## Table of Contents")
+        }
         var counter = 1
         if (container.useCases.isNotEmpty()) {
             outs.println(

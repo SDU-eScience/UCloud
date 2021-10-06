@@ -1,9 +1,10 @@
 # `ApplicationParameter.Enumeration`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An input parameter which accepts an enum_
 
 ```kotlin
 data class Enumeration(
@@ -16,6 +17,8 @@ data class Enumeration(
     val type: String /* "enumeration" */,
 )
 ```
+__Compatible with:__ [`AppParameterValue.Text`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.Text.md)  (Note: the text should match the `value` of the selected 
+option)
 
 <details>
 <summary>
@@ -93,7 +96,7 @@ data class Enumeration(
 <code>type</code>: <code><code>String /* "enumeration" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

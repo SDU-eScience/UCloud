@@ -9,6 +9,7 @@ import kotlin.reflect.KProperty
 
 const val TYPE_REF = "#TYPEREF#="
 const val CALL_REF = "#CALLREF#="
+const val CALL_REF_LINK = "#CALLREFLINK#="
 const val TYPE_REF_LINK = "#TYPEREFLINK#="
 
 @Retention
@@ -369,3 +370,6 @@ private fun providerDescriptionDocs(
     }
     return Pair(summary, description)
 }
+
+@RequiresOptIn
+annotation class UCloudApiExampleValue

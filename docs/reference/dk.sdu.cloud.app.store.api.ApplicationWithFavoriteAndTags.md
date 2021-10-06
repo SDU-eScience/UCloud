@@ -1,9 +1,10 @@
 # `ApplicationWithFavoriteAndTags`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Applications specify the input parameters and invocation of a software package._
 
 ```kotlin
 data class ApplicationWithFavoriteAndTags(
@@ -13,6 +14,7 @@ data class ApplicationWithFavoriteAndTags(
     val tags: List<String>,
 )
 ```
+For more information see the [full documentation](/docs/developer-guide/orchestration/compute/appstore/apps.md).
 
 <details>
 <summary>

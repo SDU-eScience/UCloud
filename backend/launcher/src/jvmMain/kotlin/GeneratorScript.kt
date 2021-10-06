@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.audit.ingestion.api.Auditing
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
+import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
 import dk.sdu.cloud.file.orchestrator.api.*
@@ -279,6 +280,7 @@ fun generateCode() {
                 "Core",
                 listOf(
                     Chapter.Feature("types", "Core Types", CoreTypes),
+                    Chapter.Feature("api-conventions", "API Conventions", ApiConventions),
                     Chapter.Feature("resources", "Resources", Resources),
                     Chapter.Node(
                         "users",

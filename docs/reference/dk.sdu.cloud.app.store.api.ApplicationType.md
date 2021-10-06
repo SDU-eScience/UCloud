@@ -1,9 +1,10 @@
 # `ApplicationType`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_The ApplicationType determines how user's interact with an Application_
 
 ```kotlin
 enum class ApplicationType {
@@ -12,6 +13,9 @@ enum class ApplicationType {
     WEB,
 }
 ```
+- `BATCH`: A non-interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  which runs without user input
+- `VNC`: An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a remote desktop interface
+- `WEB`: An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a graphical web interface
 
 <details>
 <summary>
@@ -20,7 +24,7 @@ enum class ApplicationType {
 
 <details>
 <summary>
-<code>BATCH</code>
+<code>BATCH</code> A non-interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  which runs without user input
 </summary>
 
 
@@ -31,7 +35,7 @@ enum class ApplicationType {
 
 <details>
 <summary>
-<code>VNC</code>
+<code>VNC</code> An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a remote desktop interface
 </summary>
 
 
@@ -42,7 +46,7 @@ enum class ApplicationType {
 
 <details>
 <summary>
-<code>WEB</code>
+<code>WEB</code> An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a graphical web interface
 </summary>
 
 

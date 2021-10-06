@@ -1,9 +1,10 @@
 # `Tool`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Tools define bundles of software binaries and other assets (e.g. container and virtual machine base-images)._
 
 ```kotlin
 data class Tool(
@@ -13,6 +14,7 @@ data class Tool(
     val description: NormalizedToolDescription,
 )
 ```
+See [Tools](/docs/developer-guide/orchestration/compute/appstore/tools.md) for a more complete discussion.
 
 <details>
 <summary>
@@ -21,7 +23,7 @@ data class Tool(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>owner</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The username of the user who created this Tool
 </summary>
 
 
@@ -32,7 +34,7 @@ data class Tool(
 
 <details>
 <summary>
-<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp describing initial creation
 </summary>
 
 
@@ -43,10 +45,10 @@ data class Tool(
 
 <details>
 <summary>
-<code>modifiedAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>modifiedAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp describing most recent modification (Deprecated, Tools are immutable)
 </summary>
 
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -54,7 +56,7 @@ data class Tool(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='#normalizedtooldescription'>NormalizedToolDescription</a></code></code>
+<code>description</code>: <code><code><a href='#normalizedtooldescription'>NormalizedToolDescription</a></code></code> The specification for this Tool
 </summary>
 
 

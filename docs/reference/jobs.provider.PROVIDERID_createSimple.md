@@ -155,7 +155,7 @@ JobsProvider.create.call(
                         tool = Tool(
                             createdAt = 1633329776235, 
                             description = NormalizedToolDescription(
-                                authors = listOf("Acme Inc."), 
+                                authors = listOf("UCloud"), 
                                 backend = ToolBackend.DOCKER, 
                                 container = null, 
                                 defaultNumberOfNodes = 1, 
@@ -164,7 +164,7 @@ JobsProvider.create.call(
                                     minutes = 0, 
                                     seconds = 0, 
                                 ), 
-                                description = "A batch tool", 
+                                description = "An example tool", 
                                 image = "acme/batch:1.0.0", 
                                 info = NameAndVersion(
                                     name = "acme-batch", 
@@ -173,7 +173,7 @@ JobsProvider.create.call(
                                 license = "None", 
                                 requiredModules = emptyList(), 
                                 supportedProviders = null, 
-                                title = "Acme Batch", 
+                                title = "Acme batch", 
                             ), 
                             modifiedAt = 1633329776235, 
                             owner = "_ucloud", 
@@ -184,12 +184,12 @@ JobsProvider.create.call(
                     web = null, 
                 ), 
                 metadata = ApplicationMetadata(
-                    authors = listOf("Acme Inc."), 
-                    description = "A batch application", 
+                    authors = listOf("UCloud"), 
+                    description = "An example application", 
                     isPublic = true, 
                     name = "acme-batch", 
                     public = true, 
-                    title = "Acme Batch", 
+                    title = "Acme batch", 
                     version = "1.0.0", 
                     website = null, 
                 ), 
@@ -438,10 +438,10 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                             "name": "acme-batch",
                             "version": "1.0.0",
                             "authors": [
-                                "Acme Inc."
+                                "UCloud"
                             ],
-                            "title": "Acme Batch",
-                            "description": "A batch application",
+                            "title": "Acme batch",
+                            "description": "An example application",
                             "website": null,
                             "public": true
                         },
@@ -468,10 +468,10 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                                         "requiredModules": [
                                         ],
                                         "authors": [
-                                            "Acme Inc."
+                                            "UCloud"
                                         ],
-                                        "title": "Acme Batch",
-                                        "description": "A batch tool",
+                                        "title": "Acme batch",
+                                        "description": "An example tool",
                                         "backend": "DOCKER",
                                         "license": "None",
                                         "image": "acme/batch:1.0.0",
@@ -802,10 +802,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "name": "acme-batch",
                         "version": "1.0.0",
                         "authors": [
-                            "Acme Inc."
+                            "UCloud"
                         ],
-                        "title": "Acme Batch",
-                        "description": "A batch application",
+                        "title": "Acme batch",
+                        "description": "An example application",
                         "website": null,
                         "public": true
                     },
@@ -832,10 +832,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                                     "requiredModules": [
                                     ],
                                     "authors": [
-                                        "Acme Inc."
+                                        "UCloud"
                                     ],
-                                    "title": "Acme Batch",
-                                    "description": "A batch tool",
+                                    "title": "Acme batch",
+                                    "description": "An example tool",
                                     "backend": "DOCKER",
                                     "license": "None",
                                     "image": "acme/batch:1.0.0",

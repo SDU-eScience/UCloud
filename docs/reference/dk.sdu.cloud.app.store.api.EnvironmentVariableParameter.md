@@ -1,9 +1,10 @@
 # `EnvironmentVariableParameter`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Produces an environment variable (TODO Documentation)_
 
 ```kotlin
 data class EnvironmentVariableParameter(
@@ -33,7 +34,7 @@ data class EnvironmentVariableParameter(
 <code>type</code>: <code><code>String /* "env" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
