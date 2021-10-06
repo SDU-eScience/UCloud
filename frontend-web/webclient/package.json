@@ -9,7 +9,6 @@
         "start:compose": "vite --mode compose",
         "build": "node scripts/update-version-file.js && vite build",
         "serve": "vite preview",
-        "compose": "echo TODO",
         "test": "jest --runInBand",
         "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
         "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components && rm -f components/index.tsx",
