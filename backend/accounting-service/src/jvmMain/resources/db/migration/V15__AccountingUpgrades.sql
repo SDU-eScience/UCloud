@@ -440,8 +440,34 @@ insert into accounting.new_transactions
 select 'deposit', id, '_ucloud', balance, 'Initial balance', now(), uuid_generate_v4(), uuid_generate_v4()
 from new_allocations;
 
--- TODO(Dan): The allocation path is wrong. It needs to match the current project hierarchy, which I don't think we
---   can get without a full traversal of the project hierarchy [O(n) queries likely].
+
+-- reestablish project hierarchy in allocation paths
+create temporary table project_allocation_paths on commit drop as
+    with recursive project_tree (project_id, parent_id, title, path, allocation_path, product_cat, wallet_allocation) as (
+        select p1.id, p1.parent, p1.title, '' || p1.id, '' || wa.id, w.category, wa.id
+        from project.projects p1 join
+            accounting.wallet_owner wo on p1.id = wo.project_id join
+            accounting.wallets w on wo.id = w.owned_by join
+            accounting.wallet_allocations wa on wa.associated_wallet = w.id
+        where parent is null
+
+        union all
+
+        select p.id, tree.parent_id, p.title, tree.path || '/' || p.id, tree.allocation_path || '.' || wa.id, w.category, wa.id
+            from project.projects p join
+            project_tree tree on tree.project_id = p.parent join
+            accounting.wallet_owner wo on p.id = wo.project_id join
+            accounting.wallets w on wo.id = w.owned_by and w.category = tree.product_cat join
+            accounting.wallet_allocations wa on wa.associated_wallet = w.id
+        where parent = tree.project_id
+    )
+    select project_id, text2ltree(allocation_path) allocation_path, product_cat, wallet_allocation
+    from project_tree;
+
+update accounting.wallet_allocations
+set allocation_path = new_allo.allocation_path
+from project_allocation_paths new_allo
+where id = new_allo.wallet_allocation;
 
 ---- /Transfer all project balances ----
 
