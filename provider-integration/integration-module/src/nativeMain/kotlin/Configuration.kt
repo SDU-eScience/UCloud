@@ -67,7 +67,7 @@ data class ProductBasedConfiguration(
         val id: String,
         val activeFor: List<PartialProductReferenceWithoutProvider> = listOf(PartialProductReferenceWithoutProvider()),
         val name: String? = null,
-        val configuration: PluginBasedConfiguration? = null, // ADD slurm configuration
+        val configuration: PluginBasedConfiguration? = null,
     )
 }
 

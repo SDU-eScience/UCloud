@@ -53,6 +53,8 @@ import kotlin.native.concurrent.Worker
 
 import dk.sdu.cloud.app.store.api.SimpleDuration
 
+private val TAG = "slurm"
+
 
 
 @Serializable
@@ -65,8 +67,8 @@ data class SlurmJob(
 
 
 typealias UcloudState =  JobState
-data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )    
-
+data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )   
+ 
 
 fun manageHeader(job:Job, config: IMConfiguration ):String { 
  
@@ -74,8 +76,8 @@ fun manageHeader(job:Job, config: IMConfiguration ):String {
         val job_timelimit = "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}" 
         val request_product = job.specification?.product as ProductReference
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition
-        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition
+        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == TAG  }!!.configuration!!.mountpoint
         val job_nodes = job.specification!!.replicas
 
         val product_cpu = config.plugins?.compute?.products?.first{ it.id == request_product.id  }?.cpu.toString()
@@ -307,7 +309,7 @@ fun PluginContext.getStatus(id: String) : Status {
     override fun PluginContext.create(job: Job) {
         val client = rpcClient ?: error("No client")
 
-        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
+        val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == TAG  }!!.configuration!!.mountpoint
         mkdir("${mountpoint}/${job.id}", "0770".toUInt(8) )
 
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
@@ -328,7 +330,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         val ipcClient = ipcClient ?: error("No ipc client")
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition.toString()
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition.toString()
         
         ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
 
@@ -366,7 +368,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         println("delete job")
 
-        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == "slurm"  }?.configuration?.partition
+        val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
@@ -387,7 +389,7 @@ fun PluginContext.getStatus(id: String) : Status {
                 bulkRequestOf(
                     JobsControlUpdateRequestItem(
                         job.id,
-                        JobState.EXPIRED,
+                        JobState.SUCCESS,
                         "The job is being cancelled!"
                     )
                 ),
@@ -575,7 +577,7 @@ fun PluginContext.getStatus(id: String) : Status {
             sleep(2)
             println("follow logs")
 
-            val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == "slurm"  }!!.configuration!!.mountpoint
+            val mountpoint = config.plugins!!.compute!!.plugins!!.first{ it.id == TAG }!!.configuration!!.mountpoint
             
             val stdOut = NativeFile.open(path="${mountpoint}/${job.id}/std.out", readOnly = true)
             val stdErr = NativeFile.open(path="${mountpoint}/${job.id}/std.err", readOnly = true)
