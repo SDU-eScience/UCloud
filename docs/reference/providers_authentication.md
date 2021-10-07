@@ -1,6 +1,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
 
-# Example: Provider authenticating with UCloud/Core
+# Example: A Provider authenticating with UCloud/Core
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -21,6 +21,9 @@
 </summary>
 
 ```kotlin
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
 AuthProviders.refresh.call(
     bulkRequestOf(RefreshToken(
         refreshToken = "fb69e4367ee0fe4c76a4a926394aee547a41d998", 
@@ -35,9 +38,6 @@ BulkResponse(
     )), 
 )
 */
-
-/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
-
 ```
 
 
@@ -49,6 +49,9 @@ BulkResponse(
 </summary>
 
 ```typescript
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
 // Authenticated as provider
 await callAPI(AuthProvidersApi.refresh(
     {
@@ -69,9 +72,6 @@ await callAPI(AuthProvidersApi.refresh(
     ]
 }
 */
-
-/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
-
 ```
 
 
@@ -87,6 +87,8 @@ await callAPI(AuthProvidersApi.refresh(
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
+
+# 📝 Note: The tokens shown here are not representative of tokens you will see in practice
 
 # Authenticated as provider
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/auth/providers/refresh" -d '{
@@ -105,8 +107,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #         }
 #     ]
 # }
-
-# 📝 Note: The tokens shown here are not representative of tokens you will see in practice
 
 ```
 

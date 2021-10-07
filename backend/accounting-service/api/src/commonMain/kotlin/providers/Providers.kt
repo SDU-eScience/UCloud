@@ -11,6 +11,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -19,10 +20,14 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CALL_REF_LINK
 import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.actor
+import dk.sdu.cloud.calls.administrator
+import dk.sdu.cloud.calls.basicUser
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.comment
 import dk.sdu.cloud.calls.description
+import dk.sdu.cloud.calls.guest
 import dk.sdu.cloud.calls.httpRetrieve
 import dk.sdu.cloud.calls.httpUpdate
 import dk.sdu.cloud.calls.provider
@@ -214,18 +219,151 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         """.trimIndent()
     }
 
+    private const val exampleProviderUseCase = "provider"
+    private const val registrationUseCase = "registration"
     private const val authenticationUseCase = "authentication"
 
     override fun documentation() {
         useCase(
+            exampleProviderUseCase,
+            "Definition of a Provider (Retrieval)",
+            flow = {
+                val admin = administrator()
+
+                comment("""
+                    This example shows an example provider. The provider's specification contains basic contact
+                    information. This information is used by UCloud when it needs to communicate with a provider.
+                """.trimIndent())
+
+                success(
+                    retrieveSpecification,
+                    FindByStringId("51231"),
+                    ProvidersRetrieveSpecificationResponse(
+                        "example",
+                        "provider.example.com",
+                        true,
+                        port = 443
+                    ),
+                    admin
+                )
+            }
+        )
+
+        useCase(
+            registrationUseCase,
+            "Registering a Provider",
+            flow = {
+                val integrationModule = actor("integrationModule", "The integration module (unauthenticated)")
+                val systemAdministrator = actor(
+                    "systemAdministrator",
+                    "The admin of the provider (authenticated as a normal UCloud user)"
+                )
+                val admin = administrator()
+
+                val specification = ProviderSpecification(
+                    "example",
+                    "provider.example.com",
+                    true
+                )
+
+                comment("""
+                    This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
+                    be using the Integration Module. The system administrator, of the Provider, has just installed the 
+                    Integration Module. Before starting the module, the system administrator has configured the module 
+                    to contact UCloud at a known address.
+                """.trimIndent())
+
+                comment("""
+                    When the system administrator launches the Integration Module, it will automatically contact 
+                    UCloud. This request contains the contact information back to the Provider.
+                """.trimIndent())
+
+                success(
+                    requestApproval,
+                    ProvidersRequestApprovalRequest.Information(specification),
+                    ProvidersRequestApprovalResponse.RequiresSignature("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
+                    integrationModule
+                )
+
+                comment("""
+                    UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
+                    this link, and authenticates with their own UCloud user. This triggers the following request:
+                """.trimIndent())
+
+                success(
+                    requestApproval,
+                    ProvidersRequestApprovalRequest.Sign(
+                        "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+                    ),
+                    ProvidersRequestApprovalResponse.RequiresSignature("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
+                    integrationModule
+                )
+
+                comment("""
+                    The sysadmin now sends his token to a UCloud administrator. This communication always happen 
+                    out-of-band. For a production system, we expect to have been in a dialogue with you about this 
+                    process already.
+
+                    The UCloud administrator approves the request.
+                """.trimIndent())
+
+                success(
+                    approve,
+                    ProvidersApproveRequest("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
+                    ProvidersApproveResponse("51231"),
+                    admin
+                )
+
+                comment("""
+                    UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
+                    authenticate the request. The request also contains the refreshToken and publicKey required by the 
+                    IM. Under normal circumstances, the IM will auto-configure itself to use these tokens.
+                """.trimIndent())
+
+                val response = Provider(
+                    "51231",
+                    specification,
+                    "8accc446c2e3ac924ff07c77d93e1679378a5dad",
+                    "~~ public key ~~",
+                    1633329776235,
+                    ProviderStatus(),
+                    emptyList(),
+                    ResourceOwner("sysadmin", null),
+                )
+
+                success(
+                    IntegrationProvider("example").welcome,
+                    IntegrationProviderWelcomeRequest(
+                        "9eb96d0a27b1330cdc727ef4316bd48265f71414",
+                        ProviderWelcomeTokens(response.refreshToken, response.publicKey)
+                    ),
+                    Unit,
+                    ucloudCore()
+                )
+
+                comment("""
+                    Alternatively, the sysadmin can read the tokens and perform manual configuration.
+                """.trimIndent())
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(ProviderIncludeFlags(), "51231"),
+                    response,
+                    systemAdministrator
+                )
+            }
+        )
+        useCase(
             authenticationUseCase,
-            "Provider authenticating with UCloud/Core",
+            "A Provider authenticating with UCloud/Core",
             preConditions = listOf(
                 "The provider has already been registered with UCloud/Core",
             ),
             flow = {
                 val ucloud = ucloudCore()
                 val provider = provider()
+
+                comment("📝 Note: The tokens shown here are not representative of tokens you will see in practice")
 
                 success(
                     AuthProviders.refresh,
@@ -243,8 +381,6 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
                     ),
                     provider
                 )
-
-                comment("📝 Note: The tokens shown here are not representative of tokens you will see in practice")
             }
         )
     }

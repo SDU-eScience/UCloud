@@ -175,7 +175,7 @@ fun generateSectionNavigation(
             }
 
             appendLine("<a href='${linkedSection.linkToDocs()}'>« Previous section</a>")
-            repeat(60) { append("&nbsp;") }
+            repeat(153) { append("&nbsp;") }
         }
         if (nextSection != null) {
             val linkedSection = if (nextSection is Chapter.Node) {

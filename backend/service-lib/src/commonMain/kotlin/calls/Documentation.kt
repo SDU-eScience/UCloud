@@ -189,6 +189,17 @@ fun MutableList<UseCaseNode>.provider(): UseCaseNode.Actor {
     return UseCaseNode.Actor("provider", "The provider").also { add(it) }
 }
 
+fun MutableList<UseCaseNode>.administrator(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("admin", "A UCloud administrator").also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.guest(details: String? = null): UseCaseNode.Actor {
+    return UseCaseNode.Actor(
+        if (details == null) "guest" else "guest ($details)",
+        "An unauthenticated user"
+    ).also { add(it) }
+}
+
 fun MutableList<UseCaseNode>.basicUser(): UseCaseNode.Actor {
     return UseCaseNode.Actor("user", "An authenticated user").also { add(it) }
 }
