@@ -219,7 +219,7 @@ fun generateMarkdown(
             }
             .thenComparingInt { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     val sortedTypes = ArrayList(types.values).filter { it.owner == container::class }.sortedWith(
         Comparator
@@ -234,7 +234,7 @@ fun generateMarkdown(
             }
             .thenComparing<Int> { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()

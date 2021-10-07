@@ -38,6 +38,11 @@ exception to this rule is when the data involved is either sensitive or large. I
 only be responsible for facilitating direct communication. A common example of this is 
 [file uploads](/docs/reference/files.createUpload.md).
 
+## Suggested Reading
+
+- [Authenticating as a Provider](/docs/developer-guide/core/users/authentication/providers.md)
+- [API Conventions and UCloud RPC](/docs/developer-guide/core/api-conventions.md)
+
 ## Table of Contents
 <details>
 <summary>
@@ -68,19 +73,15 @@ only be responsible for facilitating direct communication. A common example of t
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td>Browses the catalog of available resources</td>
+<td>Browses the catalog of available Providers</td>
 </tr>
 <tr>
 <td><a href='#retrieve'><code>retrieve</code></a></td>
-<td>Retrieve a single resource</td>
-</tr>
-<tr>
-<td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td>Retrieve product support for all accessible providers</td>
+<td>Retrieves a single Provider</td>
 </tr>
 <tr>
 <td><a href='#retrievespecification'><code>retrieveSpecification</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves the specification of a Provider</td>
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
@@ -88,19 +89,19 @@ only be responsible for facilitating direct communication. A common example of t
 </tr>
 <tr>
 <td><a href='#approve'><code>approve</code></a></td>
-<td><i>No description</i></td>
+<td>Used for the last step of the approval protocol</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td>Creates one or more resources</td>
+<td>Creates one or more Providers</td>
 </tr>
 <tr>
 <td><a href='#renewtoken'><code>renewToken</code></a></td>
-<td><i>No description</i></td>
+<td>Replaces the current refresh-token and certificate of a Provider</td>
 </tr>
 <tr>
 <td><a href='#requestapproval'><code>requestApproval</code></a></td>
-<td><i>No description</i></td>
+<td>Used for the approval protocol</td>
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
@@ -123,23 +124,23 @@ only be responsible for facilitating direct communication. A common example of t
 <tbody>
 <tr>
 <td><a href='#provider'><code>Provider</code></a></td>
-<td>A `Resource` is the core data model used to synchronize tasks between UCloud and a</td>
+<td>Providers, the backbone of UCloud, expose compute and storage resources to end-users.</td>
 </tr>
 <tr>
 <td><a href='#providerincludeflags'><code>ProviderIncludeFlags</code></a></td>
-<td><i>No description</i></td>
+<td>Flags used to tweak read queries</td>
 </tr>
 <tr>
 <td><a href='#providerspecification'><code>ProviderSpecification</code></a></td>
-<td><i>No description</i></td>
+<td>The specification of a Provider contains basic (network) contact information</td>
 </tr>
 <tr>
 <td><a href='#providerstatus'><code>ProviderStatus</code></a></td>
-<td>Describes the current state of the `Resource`</td>
+<td>A placeholder document used only to conform with the Resources API</td>
 </tr>
 <tr>
 <td><a href='#providersupport'><code>ProviderSupport</code></a></td>
-<td><i>No description</i></td>
+<td>A placeholder document used only to conform with the Resources API</td>
 </tr>
 <tr>
 <td><a href='#resourcebilling.free'><code>ResourceBilling.Free</code></a></td>
@@ -159,35 +160,35 @@ only be responsible for facilitating direct communication. A common example of t
 </tr>
 <tr>
 <td><a href='#providersapproverequest'><code>ProvidersApproveRequest</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrenewrefreshtokenrequestitem'><code>ProvidersRenewRefreshTokenRequestItem</code></a></td>
-<td><i>No description</i></td>
+<td>Request type for renewing the tokens of a Provider</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest'><code>ProvidersRequestApprovalRequest</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest.information'><code>ProvidersRequestApprovalRequest.Information</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process, provides contact information</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest.sign'><code>ProvidersRequestApprovalRequest.Sign</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process, associates a UCloud user to previously uploaded information</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse'><code>ProvidersRequestApprovalResponse</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse.awaitingadministratorapproval'><code>ProvidersRequestApprovalResponse.AwaitingAdministratorApproval</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse.requiressignature'><code>ProvidersRequestApprovalResponse.RequiresSignature</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 </tbody></table>
 
@@ -888,12 +889,13 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Browses the catalog of available resources_
+_Browses the catalog of available Providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#providerincludeflags'>ProviderIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#provider'>Provider</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
 
 
 ### `retrieve`
@@ -902,34 +904,13 @@ _Browses the catalog of available resources_
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieve a single resource_
+_Retrieves a single Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#providerincludeflags'>ProviderIncludeFlags</a>&gt;</code>|<code><a href='#provider'>Provider</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-
-
-### `retrieveProducts`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Retrieve product support for all accessible providers_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will determine all providers that which the authenticated user has access to, in
-the current workspace. A user has access to a product, and thus a provider, if the product is
-either free or if the user has been granted credits to use the product.
-
-See also:
-
-- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
-- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
+This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
 
 
 ### `retrieveSpecification`
@@ -938,11 +919,13 @@ See also:
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves the specification of a Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#providerspecification'>ProviderSpecification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint is used by internal services to look up the contact information of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md)
 
 
 ### `search`
@@ -965,11 +948,19 @@ _Searches the catalog of available resources_
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Used for the last step of the approval protocol_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#providersapproverequest'>ProvidersApproveRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This call is used as part of the approval protocol. View the example for more information.
+
+__Examples:__
+
+| Example |
+|---------|
+| [Registration protocol](/docs/reference/providers_registration.md) |
 
 
 ### `create`
@@ -978,12 +969,13 @@ _Searches the catalog of available resources_
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Creates one or more resources_
+_Creates one or more Providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#providerspecification'>ProviderSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint can only be invoked by a UCloud administrator.
 
 
 ### `renewToken`
@@ -992,11 +984,18 @@ _Creates one or more resources_
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Replaces the current refresh-token and certificate of a Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#providersrenewrefreshtokenrequestitem'>ProvidersRenewRefreshTokenRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+---
+
+__⚠️ WARNING:__ This endpoint will _immediately_ invalidate all traffic going to your [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
+This endpoint should only be used if the current tokens are compromised.
+
+---
 
 
 ### `requestApproval`
@@ -1005,11 +1004,19 @@ _Creates one or more resources_
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Used for the approval protocol_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#providersrequestapprovalrequest'>ProvidersRequestApprovalRequest</a></code>|<code><a href='#providersrequestapprovalresponse'>ProvidersRequestApprovalResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This call is used as part of the approval protocol. View the example for more information.
+
+__Examples:__
+
+| Example |
+|---------|
+| [Registration protocol](/docs/reference/providers_registration.md) |
 
 
 ### `updateAcl`
@@ -1034,7 +1041,7 @@ _Updates the ACL attached to a resource_
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `Resource` is the core data model used to synchronize tasks between UCloud and a_
+_Providers, the backbone of UCloud, expose compute and storage resources to end-users._
 
 ```kotlin
 data class Provider(
@@ -1052,22 +1059,7 @@ data class Provider(
     val providerGeneratedId: String?,
 )
 ```
-[provider](/backend/provider-service/README.md).
-
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+You can read more about providers [here](/docs/developer-guide/accounting-and-projects/providers.md).
 
 <details>
 <summary>
@@ -1223,6 +1215,7 @@ A null value indicates that permissions are not supported by this resource type.
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Flags used to tweak read queries_
 
 ```kotlin
 data class ProviderIncludeFlags(
@@ -1403,6 +1396,7 @@ data class ProviderIncludeFlags(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_The specification of a Provider contains basic (network) contact information_
 
 ```kotlin
 data class ProviderSpecification(
@@ -1487,7 +1481,7 @@ data class ProviderSpecification(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Describes the current state of the `Resource`_
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderStatus(
@@ -1495,13 +1489,6 @@ data class ProviderStatus(
     val resolvedProduct: Product?,
 )
 ```
-The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
-this will contain information such as:
-
-- A state value. For example, a compute `Job` might be `RUNNING`
-- Key metrics about the resource.
-- Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
-  should be listed in the `status` section.
 
 <details>
 <summary>
@@ -1510,7 +1497,7 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code>
+<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code> 📝 NOTE: Always null
 </summary>
 
 
@@ -1521,12 +1508,11 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> The resolved product referenced by `product`.
+<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> 📝 NOTE: Always null
 </summary>
 
 
 
-This attribute is not included by default unless `includeProduct` is specified.
 
 
 </details>
@@ -1544,6 +1530,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderSupport(
@@ -1790,6 +1777,7 @@ data class UpdatedAcl(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process_
 
 ```kotlin
 data class ProvidersApproveRequest(
@@ -1826,6 +1814,7 @@ data class ProvidersApproveRequest(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type for renewing the tokens of a Provider_
 
 ```kotlin
 data class ProvidersRenewRefreshTokenRequestItem(
@@ -1862,6 +1851,7 @@ data class ProvidersRenewRefreshTokenRequestItem(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalRequest {
@@ -1879,6 +1869,7 @@ sealed class ProvidersRequestApprovalRequest {
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process, provides contact information_
 
 ```kotlin
 data class Information(
@@ -1928,6 +1919,7 @@ data class Information(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process, associates a UCloud user to previously uploaded information_
 
 ```kotlin
 data class Sign(
@@ -1977,6 +1969,7 @@ data class Sign(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalResponse {
@@ -1994,6 +1987,7 @@ sealed class ProvidersRequestApprovalResponse {
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 data class AwaitingAdministratorApproval(
@@ -2043,6 +2037,7 @@ data class AwaitingAdministratorApproval(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 data class RequiresSignature(

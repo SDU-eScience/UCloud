@@ -16,30 +16,16 @@ import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CALL_REF_LINK
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.actor
-import dk.sdu.cloud.calls.administrator
-import dk.sdu.cloud.calls.basicUser
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.guest
-import dk.sdu.cloud.calls.httpRetrieve
-import dk.sdu.cloud.calls.httpUpdate
-import dk.sdu.cloud.calls.provider
-import dk.sdu.cloud.calls.serializerEntry
-import dk.sdu.cloud.calls.serializerLookupTable
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.ucloudCore
-import dk.sdu.cloud.calls.useCase
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiDoc("""
+    Providers, the backbone of UCloud, expose compute and storage resources to end-users.
+    
+    You can read more about providers [here](/docs/developer-guide/accounting-and-projects/providers.md).
+""")
 data class Provider(
     override val id: String,
     override val specification: ProviderSpecification,
@@ -64,9 +50,8 @@ data class Provider(
     }
 }
 
-typealias ProviderAclPermission = Permission
-
 @Serializable
+@UCloudApiDoc("The specification of a Provider contains basic (network) contact information")
 data class ProviderSpecification(
     val id: String,
     val domain: String,
@@ -98,47 +83,35 @@ fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
 }
 
 @Serializable
+@UCloudApiDoc("A placeholder document used only to conform with the Resources API")
 data class ProviderSupport(override val product: ProductReference) : ProductSupport
 
 @Serializable
+@UCloudApiDoc("A placeholder document used only to conform with the Resources API")
 data class ProviderStatus(
+    @UCloudApiDoc("📝 NOTE: Always null")
     override var resolvedSupport: ResolvedSupport<Product, ProviderSupport>? = null,
+    @UCloudApiDoc("📝 NOTE: Always null")
     override var resolvedProduct: Product? = null
 ) : ResourceStatus<Product, ProviderSupport>
 
 @Serializable
+@UCloudApiDoc("Updates regarding a Provider, not currently in use")
 data class ProviderUpdate(
     override val timestamp: Long,
     override val status: String? = null,
 ) : ResourceUpdate
 
 @Serializable
-data class ProvidersUpdateAclRequestItem(
-    val id: String,
-    val acl: List<ResourceAclEntry>
-)
-
-@Serializable
+@UCloudApiDoc("Request type for renewing the tokens of a Provider")
 data class ProvidersRenewRefreshTokenRequestItem(val id: String)
 typealias ProvidersRenewRefreshTokenResponse = Unit
-
-typealias ProvidersRetrieveRequest = FindByStringId
-typealias ProvidersRetrieveResponse = Provider
-
-@Serializable
-data class ProvidersBrowseRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null
-) : WithPaginationRequestV2
-
-typealias ProvidersBrowseResponse = PageV2<Provider>
 
 typealias ProvidersRetrieveSpecificationRequest = FindByStringId
 typealias ProvidersRetrieveSpecificationResponse = ProviderSpecification
 
 @Serializable
+@UCloudApiDoc("Flags used to tweak read queries")
 data class ProviderIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -156,28 +129,36 @@ data class ProviderIncludeFlags(
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiDoc("Request type used as part of the approval process")
 sealed class ProvidersRequestApprovalRequest {
     @Serializable
     @SerialName("information")
+    @UCloudApiDoc("Request type used as part of the approval process, provides contact information")
     data class Information(val specification: ProviderSpecification) : ProvidersRequestApprovalRequest()
 
     @Serializable
     @SerialName("sign")
+    @UCloudApiDoc("Request type used as part of the approval process, associates a UCloud user to previously uploaded " +
+        "information")
     data class Sign(val token: String) : ProvidersRequestApprovalRequest()
 }
 
 @Serializable
+@UCloudApiDoc("Response type used as part of the approval process")
 sealed class ProvidersRequestApprovalResponse {
     @Serializable
     @SerialName("requires_signature")
+    @UCloudApiDoc("Response type used as part of the approval process")
     data class RequiresSignature(val token: String) : ProvidersRequestApprovalResponse()
 
     @Serializable
     @SerialName("awaiting_admin_approval")
+    @UCloudApiDoc("Response type used as part of the approval process")
     data class AwaitingAdministratorApproval(val token: String) : ProvidersRequestApprovalResponse()
 }
 
 @Serializable
+@UCloudApiDoc("Request type used as part of the approval process")
 data class ProvidersApproveRequest(val token: String)
 typealias ProvidersApproveResponse = FindByStringId
 
@@ -216,6 +197,11 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
             exception to this rule is when the data involved is either sensitive or large. In these cases, UCloud will 
             only be responsible for facilitating direct communication. A common example of this is 
             [file uploads]($CALL_REF_LINK files.createUpload).
+            
+            ## Suggested Reading
+            
+            - [Authenticating as a Provider](/docs/developer-guide/core/users/authentication/providers.md)
+            - [API Conventions and UCloud RPC](/docs/developer-guide/core/api-conventions.md)
         """.trimIndent()
     }
 
@@ -383,6 +369,33 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
                 )
             }
         )
+
+        document(browse, UCloudApiDocC("""
+            Browses the catalog of available Providers
+            
+            This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
+        """.trimIndent())
+        )
+
+        document(retrieve, UCloudApiDocC("""
+            Retrieves a single Provider
+            
+            This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
+        """.trimIndent()))
+
+        document(
+            retrieveProducts,
+            UCloudApiDocC("Not in use, only here to be compliant with Resources API", importance = -1000)
+        )
+
+        document(
+            create,
+            UCloudApiDocC("""
+                Creates one or more Providers
+                
+                This endpoint can only be invoked by a UCloud administrator.
+            """.trimIndent())
+        )
     }
 
     override val typeInfo = ResourceTypeInfo<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
@@ -395,20 +408,57 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
             ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
         httpUpdate(baseContext, "renewToken")
+
+        documentation {
+            summary = "Replaces the current refresh-token and certificate of a Provider"
+            description = """
+                ---
+                
+                __⚠️ WARNING:__ This endpoint will _immediately_ invalidate all traffic going to your $TYPE_REF Provider.
+                This endpoint should only be used if the current tokens are compromised.
+                
+                ---
+            """.trimIndent()
+        }
     }
 
     val retrieveSpecification = call<ProvidersRetrieveSpecificationRequest,
             ProvidersRetrieveSpecificationResponse, CommonErrorMessage>("retrieveSpecification") {
         httpRetrieve(baseContext, "specification", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "Retrieves the specification of a Provider"
+            description = """
+                This endpoint is used by internal services to look up the contact information of a $TYPE_REF Provider.
+            """.trimIndent()
+        }
     }
 
     val requestApproval = call<ProvidersRequestApprovalRequest, ProvidersRequestApprovalResponse, CommonErrorMessage>(
         "requestApproval"
     ) {
         httpUpdate(baseContext, "requestApproval", roles = Roles.PUBLIC)
+
+        documentation {
+            summary = "Used for the approval protocol"
+            description = """
+                This call is used as part of the approval protocol. View the example for more information.
+            """.trimIndent()
+
+            useCaseReference(registrationUseCase, "Registration protocol")
+        }
     }
 
     val approve = call<ProvidersApproveRequest, ProvidersApproveResponse, CommonErrorMessage>("approve") {
         httpUpdate(baseContext, "approve", roles = Roles.PUBLIC)
+
+        documentation {
+            summary = "Used for the last step of the approval protocol"
+            description = """
+                This call is used as part of the approval protocol. View the example for more information.
+            """.trimIndent()
+
+            useCaseReference(registrationUseCase, "Registration protocol")
+        }
     }
 }

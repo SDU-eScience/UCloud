@@ -6,7 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Describes the current state of the `Resource`_
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderStatus(
@@ -14,13 +14,6 @@ data class ProviderStatus(
     val resolvedProduct: Product?,
 )
 ```
-The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
-this will contain information such as:
-
-- A state value. For example, a compute `Job` might be `RUNNING`
-- Key metrics about the resource.
-- Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
-  should be listed in the `status` section.
 
 <details>
 <summary>
@@ -29,7 +22,7 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code>
+<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code> 📝 NOTE: Always null
 </summary>
 
 
@@ -40,12 +33,11 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> The resolved product referenced by `product`.
+<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> 📝 NOTE: Always null
 </summary>
 
 
 
-This attribute is not included by default unless `includeProduct` is specified.
 
 
 </details>
