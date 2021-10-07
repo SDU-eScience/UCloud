@@ -491,12 +491,12 @@ export function View(): JSX.Element {
             </Container>
         }
     />;
-};
+}
 
 const Content = styled.div`
-  display: flex;
-  align-items: center;
-  flex-direction: column;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
 `;
 
 const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
