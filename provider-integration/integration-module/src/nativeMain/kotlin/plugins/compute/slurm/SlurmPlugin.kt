@@ -146,7 +146,7 @@ fun PluginContext.getStatus(id: String) : Status {
     runBlocking {
 
         val ipcClient = ipcClient ?: error("No ipc client")
-        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "get.job", defaultMapper.encodeToJsonElement( SlurmJob(id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
+        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", defaultMapper.encodeToJsonElement( SlurmJob(id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
 
 
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/squeue")
@@ -214,7 +214,7 @@ fun PluginContext.getStatus(id: String) : Status {
         val log = Log("SlurmComputePlugin")
 
         ipcServer?.addHandler(
-            IpcHandler("add.job") { user, jsonRequest ->
+            IpcHandler("slurm.jobs.create") { user, jsonRequest ->
                 log.debug("Asked to add new job mapping!")
                 val req = runCatching {
                     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
@@ -244,7 +244,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
         ipcServer?.addHandler(
-            IpcHandler("get.job") { user, jsonRequest ->
+            IpcHandler("slurm.jobs.retrieve") { user, jsonRequest ->
                 log.debug("Asked to get job!")
                 val req = runCatching {
                     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
@@ -274,7 +274,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
         // ipcServer?.addHandler(
-        //     IpcHandler("get.jobs.active") { user, jsonRequest ->
+        //     IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
         //         log.debug("Asked to get active jobs!")
         //         val req = runCatching {
         //             defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
@@ -332,7 +332,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition.toString()
         
-        ipcClient.sendRequestBlocking( JsonRpcRequest( "add.job", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
+        ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.create", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
 
         sleep(2)
 
@@ -372,7 +372,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
-        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "get.job", defaultMapper.encodeToJsonElement( SlurmJob(job.id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
+        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", defaultMapper.encodeToJsonElement( SlurmJob(job.id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
 
 
         // Sends SIGKILL or custom with -s INTEGER
