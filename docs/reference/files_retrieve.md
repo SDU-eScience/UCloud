@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+
 # Example: Retrieving a single file
 
 <table>
@@ -224,4 +226,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 
 
 </details>
+
 

@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # Example: Extending a Job and terminating it early
 
 <table>
@@ -1044,4 +1046,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 
 </details>
+
 

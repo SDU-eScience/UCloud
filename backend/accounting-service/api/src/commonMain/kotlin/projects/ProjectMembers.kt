@@ -1,10 +1,12 @@
 package dk.sdu.cloud.project.api
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.description
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
@@ -59,7 +61,17 @@ data class LookupAdminsBulkResponse(
 )
 
 object ProjectMembers : CallDescriptionContainer("project.members") {
-    val baseContext = "/api/projects/membership"
+    const val baseContext = "/api/projects/membership"
+
+    init {
+        description = """
+UCloud Projects have one or more members.
+
+This API will likely be combined with one or more related APIs in the project feature.
+
+${ApiConventions.nonConformingApiWarning}
+        """.trimIndent()
+    }
 
     /**
      * An endpoint for retrieving the complete project status of a specific user.

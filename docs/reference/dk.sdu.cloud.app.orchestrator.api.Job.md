@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # `Job`
 
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `Job` in UCloud is the core abstraction used to describe a unit of computation._
@@ -33,14 +35,12 @@ A `Job` is started by a user request containing the `specification` of a [`Job`]
 orchestrator and passed to the provider referenced by the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  itself. Assuming that the provider accepts this
 information, the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software
-correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
+correctly [here](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md).
 
 At this point, the provider has acted on this information by placing the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in its own equivalent of
-a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
-is running, it will contact UCloud and place the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in the `RUNNING` state. This indicates to UCloud that log files
-can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
-are available.
+a job queue. Once the provider realizes that the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  is running, it will contact UCloud and place the 
+[`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  in the `RUNNING` state. This indicates to UCloud that log files can be retrieved and that interactive
+interfaces (`VNC`/`WEB`) are available.
 
 Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  has
 terminated successfully if no internal error occurred in UCloud and in the provider. This means that a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  whose
@@ -50,8 +50,8 @@ state. Any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  wh
 
 At any point after the user submits the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they may request cancellation of the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md)  This will
 stop the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), delete any
-[ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
+[ephemeral resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#ephemeral-resources) and release
+any [bound resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#resources).
 
 <details>
 <summary>
@@ -155,7 +155,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
 </summary>
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -167,7 +167,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
 </summary>
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -179,7 +179,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -189,4 +189,5 @@ A null value indicates that permissions are not supported by this resource type.
 
 
 </details>
+
 

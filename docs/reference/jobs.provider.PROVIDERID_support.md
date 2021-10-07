@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/providers/jobs/README.md) / [Ingoing API](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md)
+
 # Example: Declaring support full support for containerized applications
 
 <table>
@@ -274,4 +276,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 
 
 </details>
+
 

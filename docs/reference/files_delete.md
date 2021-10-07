@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+
 # Example: Deleting a file permanently
 
 <table>
@@ -99,4 +101,5 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 
 
 </details>
+
 

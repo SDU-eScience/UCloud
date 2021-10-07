@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Core Types](/docs/developer-guide/core/types.md)
+
 # `CommonErrorMessage`
 
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A generic error message_
@@ -47,4 +49,5 @@ such a case UCloud will _not_ include a more detailed error message.
 
 
 </details>
+
 

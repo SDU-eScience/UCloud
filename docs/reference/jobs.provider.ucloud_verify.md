@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Jobs](/docs/developer-guide/built-in-provider/compute/jobs.md)
+
 # Example: Ensuring UCloud/Core and Provider are in-sync
 
 <table>
@@ -330,4 +332,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.CALL_REF_LINK
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.TYPE_REF_LINK
@@ -577,6 +578,12 @@ fun processDocumentation(currentPackage: String?, docString: String): String {
 
                         "/docs/reference/${qualifiedName}.md"
                     }
+                }
+            }
+
+            3 -> {
+                replaceTags(CALL_REF_LINK) { token ->
+                    "/docs/reference/${token}.md"
                 }
             }
 

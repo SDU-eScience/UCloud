@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+
 # `UFile`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  is a resource for storing, retrieving and organizing data in UCloud_
@@ -258,4 +260,5 @@ A null value indicates that permissions are not supported by this resource type.
 
 
 </details>
+
 

@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Communication](/docs/developer-guide/core/communication/README.md) / [Mail](/docs/developer-guide/core/communication/mail.md)
+
 # `Mail.ResetPasswordMail`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -45,7 +47,7 @@ data class ResetPasswordMail(
 <code>type</code>: <code><code>String /* "resetPassword" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -55,4 +57,5 @@ data class ResetPasswordMail(
 
 
 </details>
+
 

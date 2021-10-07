@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # Example: Starting a Job with a public link (Ingress)
 
 <table>
@@ -400,4 +402,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 
 
 </details>
+
 

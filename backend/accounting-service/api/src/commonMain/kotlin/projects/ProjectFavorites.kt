@@ -4,10 +4,12 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Page
 import dk.sdu.cloud.WithPaginationRequest
+import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.description
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
@@ -28,7 +30,11 @@ data class ToggleFavoriteRequest(
 typealias ToggleFavoriteResponse = Unit
 
 object ProjectFavorites : CallDescriptionContainer("project.favorite") {
-    val baseContext = "/api/projects/favorite"
+    const val baseContext = "/api/projects/favorite"
+
+    init {
+        description = "API to handle favorite status of a Project.\n\n" + ApiConventions.nonConformingApiWarning
+    }
 
     val toggleFavorite = call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavorite") {
         auth {

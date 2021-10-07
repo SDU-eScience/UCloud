@@ -27,6 +27,7 @@ import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.app.store.api.VariableInvocationParameter
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
+import dk.sdu.cloud.app.store.api.exampleBatchApplication
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CALL_REF
@@ -35,6 +36,7 @@ import dk.sdu.cloud.calls.ProviderApiRequirements
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.TYPE_REF_LINK
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -232,59 +234,6 @@ data class ComputeProductSupport(
     val support: ComputeSupport,
 )
 
-internal val exampleBatchApplication = Application(
-    ApplicationMetadata(
-        "acme-batch",
-        "1.0.0",
-        listOf("Acme Inc."),
-        "Acme Batch",
-        "A batch application",
-        public = true
-    ),
-    ApplicationInvocationDescription(
-        ToolReference(
-            "acme-batch", "1.0.0", Tool(
-                "_ucloud",
-                1633329776235,
-                1633329776235,
-                NormalizedToolDescription(
-                    NameAndVersion("acme-batch", "1.0.0"),
-                    defaultNumberOfNodes = 1,
-                    defaultTimeAllocation = SimpleDuration(1, 0, 0),
-                    requiredModules = emptyList(),
-                    authors = listOf("Acme Inc."),
-                    title = "Acme Batch",
-                    description = "A batch tool",
-                    backend = ToolBackend.DOCKER,
-                    license = "None",
-                    image = "acme/batch:1.0.0"
-                )
-            )
-        ),
-        listOf(
-            WordInvocationParameter("acme-batch"),
-            VariableInvocationParameter(
-                listOf("debug"),
-                prefixGlobal = "--debug "
-            ),
-            VariableInvocationParameter(
-                listOf("value")
-            )
-        ),
-        listOf(
-            ApplicationParameter.Bool(
-                "debug",
-                description = "Should debug be enabled?"
-            ),
-            ApplicationParameter.Text(
-                "value",
-                description = "The value for the batch application"
-            )
-        ),
-        listOf("*"),
-        ApplicationType.BATCH
-    )
-)
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
@@ -319,8 +268,61 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             | End-User | Provider (Ingoing) | Control (Outgoing) |
             |----------|--------------------|--------------------|
             | [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) | [`JobsProvider`](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md) | [`JobsControl`](/docs/developer-guide/orchestration/compute/providers/jobs/outgoing.md) |
+            
+            ---
+
+            ## Multi-replica Jobs
+            
+            
+            A `Job` can be scheduled on more than one replica. The orchestrator requires that backends execute the exact same
+            command on all the nodes. Information about other nodes will be mounted at `/etc/ucloud`. This information allows jobs
+            to configure themselves accordingly.
+
+            Each node is given a rank. The rank is 0-indexed. By convention index 0 is used as a primary point of contact.
+
+            The table below summarizes the files mounted at `/etc/ucloud` and their contents:
+
+            | **Name**              | **Description**                                           |
+            |-----------------------|-----------------------------------------------------------|
+            | `node-${"$"}rank.txt`      | Single line containing hostname/ip address of the 'node'. |
+            | `rank.txt`            | Single line containing the rank of this node.             |
+            | `cores.txt`           | Single line containing the amount of cores allocated.     |
+            | `number_of_nodes.txt` | Single line containing the number of nodes allocated.     |
+            | `job_id.txt`          | Single line containing the id of this job.                |
+            
+            ---
+
+            __📝 NOTE:__ We expect that the mount location will become more flexible in a future release. See
+            issue [#2124](https://github.com/SDU-eScience/UCloud/issues/2124).
 
             ---
+
+            ## Networking and Peering with Other Applications
+
+            `Job`s are, by default, only allowed to perform networking with other nodes in the same `Job`. A user can override this
+            by requesting, at `Job` startup, networking with an existing job. This will configure the firewall accordingly and allow
+            networking between the two `Job`s. This will also automatically provide user-friendly hostnames for the `Job`.
+
+            ## The `/work`ing directory
+            
+            UCloud assumes that the `/work` directory is available for data which needs to be persisted. It is expected
+            that files left directly in this directory is placed in the `output` folder of the `Job`. 
+
+            ## Ephemeral Resources
+
+            Every `Job` has some resources which exist only as long as the `Job` is `RUNNING`. These types of resources are said to
+            be ephemeral resources. Examples of this includes temporary working storage included as part of the `Job`. Such
+            storage is _not_ guaranteed to be persisted across `Job` runs and `Application`s should not rely on this behavior.
+            
+            ## Job Scheduler
+
+            The job scheduler is responsible for running `Job`s on behalf of users. The provider can tweak which features the
+            scheduler is able to support using the provider manifest.
+
+            UCloud puts no strict requirements on how the job scheduler runs job and leaves this to the provider. For example, this
+            means that there are no strict requirements on how jobs are queued. Jobs can be run in any order which the provider sees
+            fit.
+
         """.trimIndent()
 
         serializerLookupTable = mapOf(
@@ -337,6 +339,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
     private val accountingUseCase = "accounting"
     private val verificationUseCase = "verify"
 
+    @OptIn(UCloudApiExampleValue::class)
     override fun documentation() {
         useCase(
             supportUseCase,
@@ -761,7 +764,8 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             ProviderApiRequirements.List(listOf(
                 "[`docker.enabled = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
                 "[`virtualMachine.enabled = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
-            ))
+            )),
+
         )
     }
 

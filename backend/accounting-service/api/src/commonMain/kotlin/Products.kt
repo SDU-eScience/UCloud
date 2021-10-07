@@ -483,7 +483,7 @@ object Products : CallDescriptionContainer("products") {
                 summary = "Browse a set of products"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
                     "of $TYPE_REF Product ."
-                useCaseReference(browseUseCase, "Browse in the full product catalogue")
+                useCaseReference(browseUseCase, "Browse in the full product catalog")
                 useCaseReference(browseByTypeUseCase, "Browse for a specific type of product (e.g. compute)")
             }
         },

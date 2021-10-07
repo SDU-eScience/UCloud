@@ -1,7 +1,13 @@
+<p align='center'>
+<a href='/docs/developer-guide/core/api-conventions.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/core/users/creation.md'>Next section »</a>
+</p>
+
+
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / Resources
 # Resources
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ## Table of Contents
@@ -65,7 +71,7 @@
 </tr>
 <tr>
 <td><a href='#providerupdate'><code>ProviderUpdate</code></a></td>
-<td>Describes an update to the `Resource`</td>
+<td>Updates regarding a Provider, not currently in use</td>
 </tr>
 <tr>
 <td><a href='#resourceaclentry'><code>ResourceAclEntry</code></a></td>
@@ -109,7 +115,7 @@
 
 ### `ResolvedSupport`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -157,7 +163,7 @@ data class ResolvedSupport<P, Support>(
 
 ### `ResourceChargeCredits`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -254,7 +260,7 @@ This charge ID must be unique for the `Resource`, UCloud will reject charges whi
 
 ### `SortDirection`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -302,7 +308,7 @@ enum class SortDirection {
 
 ### `SupportByProvider`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -338,7 +344,7 @@ data class SupportByProvider<P, S>(
 
 ### `JobUpdate`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -444,7 +450,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `FileCollection.Update`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -502,7 +508,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `FileMetadataTemplateNamespace.Update`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -560,7 +566,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `Share.Update`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -642,7 +648,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `AclEntity`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -659,7 +665,7 @@ sealed class AclEntity {
 
 ### `AclEntity.ProjectGroup`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -703,7 +709,7 @@ data class ProjectGroup(
 <code>type</code>: <code><code>String /* "project_group" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -720,7 +726,7 @@ data class ProjectGroup(
 
 ### `AclEntity.User`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -752,7 +758,7 @@ data class User(
 <code>type</code>: <code><code>String /* "user" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -769,7 +775,7 @@ data class User(
 
 ### `Permission`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Base type for all permissions of the UCloud authorization model_
@@ -851,10 +857,10 @@ resource.
 
 ### `ProviderUpdate`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Describes an update to the `Resource`_
+_Updates regarding a Provider, not currently in use_
 
 ```kotlin
 data class ProviderUpdate(
@@ -862,15 +868,6 @@ data class ProviderUpdate(
     val status: String?,
 )
 ```
-Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-use the full update history if you only wish to know the _current_ state of a `Resource`.
-
-An update will typically contain information similar to the `status` field, for example:
-
-- A state value. For example, a compute `Job` might be `RUNNING`.
-- Change in key metrics.
-- Bindings to related `Resource`s.
 
 <details>
 <summary>
@@ -909,7 +906,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `ResourceAclEntry`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -957,7 +954,7 @@ data class ResourceAclEntry(
 
 ### `ResourceUpdate`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -1015,7 +1012,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `ResourceUpdateAndId`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1063,7 +1060,7 @@ data class ResourceUpdateAndId<U>(
 
 ### `UpdatedAclWithResource`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1123,7 +1120,7 @@ data class UpdatedAclWithResource<Res>(
 
 ### `ResourceBrowseRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -1261,7 +1258,7 @@ paginate through the results.
 
 ### `ResourceRetrieveRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1309,7 +1306,7 @@ data class ResourceRetrieveRequest<Flags>(
 
 ### `ResourceSearchRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -1459,7 +1456,7 @@ paginate through the results.
 
 ### `ResourceChargeCreditsResponse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

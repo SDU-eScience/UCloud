@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Monitoring and Alerting](/docs/developer-guide/core/monitoring/README.md) / [Activity](/docs/developer-guide/core/monitoring/activity.md)
+
 # `ActivityEvent.RightsAndUser`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -45,7 +47,7 @@ data class RightsAndUser(
 <code>type</code>: <code><code>String /* "rights_and_user" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -55,4 +57,5 @@ data class RightsAndUser(
 
 
 </details>
+
 

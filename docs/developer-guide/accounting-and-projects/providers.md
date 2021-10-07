@@ -1,13 +1,69 @@
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/projects/favorites.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/products.md'>Next section »</a>
+</p>
+
+
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Providers
 # Providers
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Providers, the backbone of UCloud, expose compute and storage resources to end-users._
+
+## Rationale
+
+UCloud/Core is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. This means, that the core doesn't actually know how 
+to serve files or run computational workloads. Instead, the core must ask one or more [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s 
+to fulfil requests from the user.
+
+![](/backend/accounting-service/wiki/overview.png)
+
+__Figure:__ UCloud/Core receives a request from the user and forwards it to a provider.
+
+The core isn't a simple proxy. Before passing the request, UCloud performs the following tasks:
+
+- __Authentication:__ UCloud ensures that users have authenticated.
+- __Authorization:__ The [`Project`](/docs/reference/dk.sdu.cloud.project.api.Project.md)  system of UCloud brings role-based 
+  authorization to all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. The core verifies all actions before forwarding the request.
+- __Resolving references:__ UCloud maintains a catalog of all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s in the system. All user 
+  requests only contain a reference to these [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. UCloud verifies and resolves all 
+  references before proxying the request.
+
+The communication between UCloud/Core and the provider happens through the __provider APIs__. Throughout the 
+developer guide, you will find various sections describing these APIs. These APIs contain both an ingoing 
+(from the provider's perspective) and outgoing APIs. This allows for bidirectional communication between 
+both parties. In almost all cases, the communication from the user goes through UCloud/Core. The only 
+exception to this rule is when the data involved is either sensitive or large. In these cases, UCloud will 
+only be responsible for facilitating direct communication. A common example of this is 
+[file uploads](/docs/reference/files.createUpload.md).
+
+## Suggested Reading
+
+- [Authenticating as a Provider](/docs/developer-guide/core/users/authentication/providers.md)
+- [API Conventions and UCloud RPC](/docs/developer-guide/core/api-conventions.md)
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-definition-of-a-provider-(retrieval)'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-definition-of-a-provider-(retrieval)'>Definition of a Provider (Retrieval)</a></td></tr>
+<tr><td><a href='#example-registering-a-provider'>Registering a Provider</a></td></tr>
+<tr><td><a href='#example-a-provider-authenticating-with-ucloud/core'>A Provider authenticating with UCloud/Core</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -17,39 +73,35 @@
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td>Browses the catalogue of available resources</td>
+<td>Browses the catalog of available Providers</td>
 </tr>
 <tr>
 <td><a href='#retrieve'><code>retrieve</code></a></td>
-<td>Retrieve a single resource</td>
-</tr>
-<tr>
-<td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td>Retrieve product support for all accessible providers</td>
+<td>Retrieves a single Provider</td>
 </tr>
 <tr>
 <td><a href='#retrievespecification'><code>retrieveSpecification</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves the specification of a Provider</td>
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
-<td>Searches the catalogue of available resources</td>
+<td>Searches the catalog of available resources</td>
 </tr>
 <tr>
 <td><a href='#approve'><code>approve</code></a></td>
-<td><i>No description</i></td>
+<td>Used for the last step of the approval protocol</td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td>Creates one or more resources</td>
+<td>Creates one or more Providers</td>
 </tr>
 <tr>
 <td><a href='#renewtoken'><code>renewToken</code></a></td>
-<td><i>No description</i></td>
+<td>Replaces the current refresh-token and certificate of a Provider</td>
 </tr>
 <tr>
 <td><a href='#requestapproval'><code>requestApproval</code></a></td>
-<td><i>No description</i></td>
+<td>Used for the approval protocol</td>
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
@@ -62,7 +114,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -72,23 +124,23 @@
 <tbody>
 <tr>
 <td><a href='#provider'><code>Provider</code></a></td>
-<td>A `Resource` is the core data model used to synchronize tasks between UCloud and a</td>
+<td>Providers, the backbone of UCloud, expose compute and storage resources to end-users.</td>
 </tr>
 <tr>
 <td><a href='#providerincludeflags'><code>ProviderIncludeFlags</code></a></td>
-<td><i>No description</i></td>
+<td>Flags used to tweak read queries</td>
 </tr>
 <tr>
 <td><a href='#providerspecification'><code>ProviderSpecification</code></a></td>
-<td><i>No description</i></td>
+<td>The specification of a Provider contains basic (network) contact information</td>
 </tr>
 <tr>
 <td><a href='#providerstatus'><code>ProviderStatus</code></a></td>
-<td>Describes the current state of the `Resource`</td>
+<td>A placeholder document used only to conform with the Resources API</td>
 </tr>
 <tr>
 <td><a href='#providersupport'><code>ProviderSupport</code></a></td>
-<td><i>No description</i></td>
+<td>A placeholder document used only to conform with the Resources API</td>
 </tr>
 <tr>
 <td><a href='#resourcebilling.free'><code>ResourceBilling.Free</code></a></td>
@@ -108,114 +160,781 @@
 </tr>
 <tr>
 <td><a href='#providersapproverequest'><code>ProvidersApproveRequest</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrenewrefreshtokenrequestitem'><code>ProvidersRenewRefreshTokenRequestItem</code></a></td>
-<td><i>No description</i></td>
+<td>Request type for renewing the tokens of a Provider</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest'><code>ProvidersRequestApprovalRequest</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest.information'><code>ProvidersRequestApprovalRequest.Information</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process, provides contact information</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalrequest.sign'><code>ProvidersRequestApprovalRequest.Sign</code></a></td>
-<td><i>No description</i></td>
+<td>Request type used as part of the approval process, associates a UCloud user to previously uploaded information</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse'><code>ProvidersRequestApprovalResponse</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse.awaitingadministratorapproval'><code>ProvidersRequestApprovalResponse.AwaitingAdministratorApproval</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 <tr>
 <td><a href='#providersrequestapprovalresponse.requiressignature'><code>ProvidersRequestApprovalResponse.RequiresSignature</code></a></td>
-<td><i>No description</i></td>
+<td>Response type used as part of the approval process</td>
 </tr>
 </tbody></table>
 
 
 </details>
 
+## Example: Definition of a Provider (Retrieval)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>A UCloud administrator (<code>admin</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* This example shows an example provider. The provider's specification contains basic contact
+information. This information is used by UCloud when it needs to communicate with a provider. */
+
+Providers.retrieveSpecification.call(
+    FindByStringId(
+        id = "51231", 
+    ),
+    admin
+).orThrow()
+
+/*
+ProviderSpecification(
+    domain = "provider.example.com", 
+    https = true, 
+    id = "example", 
+    port = 443, 
+    product = ProductReference(
+        category = "", 
+        id = "", 
+        provider = "ucloud_core", 
+    ), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* This example shows an example provider. The provider's specification contains basic contact
+information. This information is used by UCloud when it needs to communicate with a provider. */
+
+// Authenticated as admin
+await callAPI(ProvidersApi.retrieveSpecification(
+    {
+        "id": "51231"
+    }
+);
+
+/*
+{
+    "id": "example",
+    "domain": "provider.example.com",
+    "https": true,
+    "port": 443,
+    "product": {
+        "id": "",
+        "category": "",
+        "provider": "ucloud_core"
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# This example shows an example provider. The provider's specification contains basic contact
+# information. This information is used by UCloud when it needs to communicate with a provider.
+
+# Authenticated as admin
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieveSpecification?id=51231" 
+
+# {
+#     "id": "example",
+#     "domain": "provider.example.com",
+#     "https": true,
+#     "port": 443,
+#     "product": {
+#         "id": "",
+#         "category": "",
+#         "provider": "ucloud_core"
+#     }
+# }
+
+```
+
+
+</details>
+
+
+## Example: Registering a Provider
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The integration module (unauthenticated) (<code>integrationModule</code>)</li>
+<li>The admin of the provider (authenticated as a normal UCloud user) (<code>systemAdministrator</code>)</li>
+<li>A UCloud administrator (<code>admin</code>)</li>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
+be using the Integration Module. The system administrator, of the Provider, has just installed the 
+Integration Module. Before starting the module, the system administrator has configured the module 
+to contact UCloud at a known address. */
+
+
+/* When the system administrator launches the Integration Module, it will automatically contact 
+UCloud. This request contains the contact information back to the Provider. */
+
+Providers.requestApproval.call(
+    ProvidersRequestApprovalRequest.Information(
+        specification = ProviderSpecification(
+            domain = "provider.example.com", 
+            https = true, 
+            id = "example", 
+            port = null, 
+            product = ProductReference(
+                category = "", 
+                id = "", 
+                provider = "ucloud_core", 
+            ), 
+        ), 
+    ),
+    integrationModule
+).orThrow()
+
+/*
+ProvidersRequestApprovalResponse.RequiresSignature(
+    token = "9eb96d0a27b1330cdc727ef4316bd48265f71414", 
+)
+*/
+
+/* UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
+this link, and authenticates with their own UCloud user. This triggers the following request: */
+
+Providers.requestApproval.call(
+    ProvidersRequestApprovalRequest.Sign(
+        token = "9eb96d0a27b1330cdc727ef4316bd48265f71414", 
+    ),
+    integrationModule
+).orThrow()
+
+/*
+ProvidersRequestApprovalResponse.RequiresSignature(
+    token = "9eb96d0a27b1330cdc727ef4316bd48265f71414", 
+)
+*/
+
+/* The sysadmin now sends his token to a UCloud administrator. This communication always happen 
+out-of-band. For a production system, we expect to have been in a dialogue with you about this 
+process already.
+
+The UCloud administrator approves the request. */
+
+Providers.approve.call(
+    ProvidersApproveRequest(
+        token = "9eb96d0a27b1330cdc727ef4316bd48265f71414", 
+    ),
+    admin
+).orThrow()
+
+/*
+FindByStringId(
+    id = "51231", 
+)
+*/
+
+/* UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
+authenticate the request. The request also contains the refreshToken and publicKey required by the 
+IM. Under normal circumstances, the IM will auto-configure itself to use these tokens. */
+
+IntegrationProvider.welcome.call(
+    IntegrationProviderWelcomeRequest(
+        createdProvider = ProviderWelcomeTokens(
+            publicKey = "~~ public key ~~", 
+            refreshToken = "8accc446c2e3ac924ff07c77d93e1679378a5dad", 
+        ), 
+        token = "9eb96d0a27b1330cdc727ef4316bd48265f71414", 
+    ),
+    ucloud
+).orThrow()
+
+/*
+Unit
+*/
+
+/* Alternatively, the sysadmin can read the tokens and perform manual configuration. */
+
+Providers.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = ProviderIncludeFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterName = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "51231", 
+    ),
+    systemAdministrator
+).orThrow()
+
+/*
+Provider(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1633329776235, 
+    id = "51231", 
+    owner = ResourceOwner(
+        createdBy = "sysadmin", 
+        project = null, 
+    ), 
+    permissions = null, 
+    publicKey = "~~ public key ~~", 
+    refreshToken = "8accc446c2e3ac924ff07c77d93e1679378a5dad", 
+    specification = ProviderSpecification(
+        domain = "provider.example.com", 
+        https = true, 
+        id = "example", 
+        port = null, 
+        product = ProductReference(
+            category = "", 
+            id = "", 
+            provider = "ucloud_core", 
+        ), 
+    ), 
+    status = ProviderStatus(
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+    ), 
+    updates = emptyList(), 
+    providerGeneratedId = "51231", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
+be using the Integration Module. The system administrator, of the Provider, has just installed the 
+Integration Module. Before starting the module, the system administrator has configured the module 
+to contact UCloud at a known address. */
+
+
+/* When the system administrator launches the Integration Module, it will automatically contact 
+UCloud. This request contains the contact information back to the Provider. */
+
+// Authenticated as integrationModule
+await callAPI(ProvidersApi.requestApproval(
+    {
+        "type": "information",
+        "specification": {
+            "id": "example",
+            "domain": "provider.example.com",
+            "https": true,
+            "port": null,
+            "product": {
+                "id": "",
+                "category": "",
+                "provider": "ucloud_core"
+            }
+        }
+    }
+);
+
+/*
+{
+    "type": "requires_signature",
+    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+}
+*/
+
+/* UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
+this link, and authenticates with their own UCloud user. This triggers the following request: */
+
+await callAPI(ProvidersApi.requestApproval(
+    {
+        "type": "sign",
+        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+    }
+);
+
+/*
+{
+    "type": "requires_signature",
+    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+}
+*/
+
+/* The sysadmin now sends his token to a UCloud administrator. This communication always happen 
+out-of-band. For a production system, we expect to have been in a dialogue with you about this 
+process already.
+
+The UCloud administrator approves the request. */
+
+// Authenticated as admin
+await callAPI(ProvidersApi.approve(
+    {
+        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+    }
+);
+
+/*
+{
+    "id": "51231"
+}
+*/
+
+/* UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
+authenticate the request. The request also contains the refreshToken and publicKey required by the 
+IM. Under normal circumstances, the IM will auto-configure itself to use these tokens. */
+
+// Authenticated as ucloud
+await callAPI(ExampleImApi.welcome(
+    {
+        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414",
+        "createdProvider": {
+            "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
+            "publicKey": "~~ public key ~~"
+        }
+    }
+);
+
+/*
+{
+}
+*/
+
+/* Alternatively, the sysadmin can read the tokens and perform manual configuration. */
+
+// Authenticated as systemAdministrator
+await callAPI(ProvidersApi.retrieve(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null,
+            "filterName": null
+        },
+        "id": "51231"
+    }
+);
+
+/*
+{
+    "id": "51231",
+    "specification": {
+        "id": "example",
+        "domain": "provider.example.com",
+        "https": true,
+        "port": null,
+        "product": {
+            "id": "",
+            "category": "",
+            "provider": "ucloud_core"
+        }
+    },
+    "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
+    "publicKey": "~~ public key ~~",
+    "createdAt": 1633329776235,
+    "status": {
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "updates": [
+    ],
+    "owner": {
+        "createdBy": "sysadmin",
+        "project": null
+    },
+    "permissions": null,
+    "billing": {
+    },
+    "acl": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
+# be using the Integration Module. The system administrator, of the Provider, has just installed the 
+# Integration Module. Before starting the module, the system administrator has configured the module 
+# to contact UCloud at a known address.
+
+# When the system administrator launches the Integration Module, it will automatically contact 
+# UCloud. This request contains the contact information back to the Provider.
+
+# Authenticated as integrationModule
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/providers/requestApproval" -d '{
+    "type": "information",
+    "specification": {
+        "id": "example",
+        "domain": "provider.example.com",
+        "https": true,
+        "port": null,
+        "product": {
+            "id": "",
+            "category": "",
+            "provider": "ucloud_core"
+        }
+    }
+}'
+
+
+# {
+#     "type": "requires_signature",
+#     "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+# }
+
+# UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
+# this link, and authenticates with their own UCloud user. This triggers the following request:
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/providers/requestApproval" -d '{
+    "type": "sign",
+    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+}'
+
+
+# {
+#     "type": "requires_signature",
+#     "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+# }
+
+# The sysadmin now sends his token to a UCloud administrator. This communication always happen 
+# out-of-band. For a production system, we expect to have been in a dialogue with you about this 
+# process already.
+# 
+# The UCloud administrator approves the request.
+
+# Authenticated as admin
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/providers/approve" -d '{
+    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
+}'
+
+
+# {
+#     "id": "51231"
+# }
+
+# UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
+# authenticate the request. The request also contains the refreshToken and publicKey required by the 
+# IM. Under normal circumstances, the IM will auto-configure itself to use these tokens.
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/ucloud/example/integration/welcome" -d '{
+    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414",
+    "createdProvider": {
+        "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
+        "publicKey": "~~ public key ~~"
+    }
+}'
+
+
+# {
+# }
+
+# Alternatively, the sysadmin can read the tokens and perform manual configuration.
+
+# Authenticated as systemAdministrator
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=51231" 
+
+# {
+#     "id": "51231",
+#     "specification": {
+#         "id": "example",
+#         "domain": "provider.example.com",
+#         "https": true,
+#         "port": null,
+#         "product": {
+#             "id": "",
+#             "category": "",
+#             "provider": "ucloud_core"
+#         }
+#     },
+#     "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
+#     "publicKey": "~~ public key ~~",
+#     "createdAt": 1633329776235,
+#     "status": {
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "updates": [
+#     ],
+#     "owner": {
+#         "createdBy": "sysadmin",
+#         "project": null
+#     },
+#     "permissions": null,
+#     "billing": {
+#     },
+#     "acl": null
+# }
+
+```
+
+
+</details>
+
+
+## Example: A Provider authenticating with UCloud/Core
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>The provider has already been registered with UCloud/Core</li>
+</ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The provider (<code>provider</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+AuthProviders.refresh.call(
+    bulkRequestOf(RefreshToken(
+        refreshToken = "fb69e4367ee0fe4c76a4a926394aee547a41d998", 
+    )),
+    provider
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(AccessToken(
+        accessToken = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo", 
+    )), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+// Authenticated as provider
+await callAPI(AuthProvidersApi.refresh(
+    {
+        "items": [
+            {
+                "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+        }
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# 📝 Note: The tokens shown here are not representative of tokens you will see in practice
+
+# Authenticated as provider
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/auth/providers/refresh" -d '{
+    "items": [
+        {
+            "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+#         }
+#     ]
+# }
+
+```
+
+
+</details>
+
+
 
 ## Remote Procedure Calls
 
 ### `browse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Browses the catalogue of available resources_
+_Browses the catalog of available Providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#providerincludeflags'>ProviderIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#provider'>Provider</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
 
 
 ### `retrieve`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieve a single resource_
+_Retrieves a single Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#providerincludeflags'>ProviderIncludeFlags</a>&gt;</code>|<code><a href='#provider'>Provider</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-
-
-### `retrieveProducts`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
-
-
-_Retrieve product support for all accessible providers_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will determine all providers that which the authenticated user has access to, in
-the current workspace. A user has access to a product, and thus a provider, if the product is
-either free or if the user has been granted credits to use the product.
-
-See also:
-
-- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md) 
-- [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
+This endpoint can only be used my users who either own a Provider or are a UCloud administrator.
 
 
 ### `retrieveSpecification`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves the specification of a Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#providerspecification'>ProviderSpecification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint is used by internal services to look up the contact information of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md)
 
 
 ### `search`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches the catalogue of available resources_
+_Searches the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -225,61 +944,85 @@ _Searches the catalogue of available resources_
 
 ### `approve`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Used for the last step of the approval protocol_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#providersapproverequest'>ProvidersApproveRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This call is used as part of the approval protocol. View the example for more information.
+
+__Examples:__
+
+| Example |
+|---------|
+| [Registration protocol](/docs/reference/providers_registration.md) |
 
 
 ### `create`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Creates one or more resources_
+_Creates one or more Providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#providerspecification'>ProviderSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint can only be invoked by a UCloud administrator.
 
 
 ### `renewToken`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Replaces the current refresh-token and certificate of a Provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#providersrenewrefreshtokenrequestitem'>ProvidersRenewRefreshTokenRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+---
+
+__⚠️ WARNING:__ This endpoint will _immediately_ invalidate all traffic going to your [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
+This endpoint should only be used if the current tokens are compromised.
+
+---
 
 
 ### `requestApproval`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Used for the approval protocol_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#providersrequestapprovalrequest'>ProvidersRequestApprovalRequest</a></code>|<code><a href='#providersrequestapprovalresponse'>ProvidersRequestApprovalResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This call is used as part of the approval protocol. View the example for more information.
+
+__Examples:__
+
+| Example |
+|---------|
+| [Registration protocol](/docs/reference/providers_registration.md) |
 
 
 ### `updateAcl`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Updates the ACL attached to a resource_
@@ -295,10 +1038,10 @@ _Updates the ACL attached to a resource_
 
 ### `Provider`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `Resource` is the core data model used to synchronize tasks between UCloud and a_
+_Providers, the backbone of UCloud, expose compute and storage resources to end-users._
 
 ```kotlin
 data class Provider(
@@ -316,22 +1059,7 @@ data class Provider(
     val providerGeneratedId: String?,
 )
 ```
-[provider](/backend/provider-service/README.md).
-
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+You can read more about providers [here](/docs/developer-guide/accounting-and-projects/providers.md).
 
 <details>
 <summary>
@@ -484,9 +1212,10 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `ProviderIncludeFlags`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Flags used to tweak read queries_
 
 ```kotlin
 data class ProviderIncludeFlags(
@@ -664,9 +1393,10 @@ data class ProviderIncludeFlags(
 
 ### `ProviderSpecification`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_The specification of a Provider contains basic (network) contact information_
 
 ```kotlin
 data class ProviderSpecification(
@@ -748,10 +1478,10 @@ data class ProviderSpecification(
 
 ### `ProviderStatus`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Describes the current state of the `Resource`_
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderStatus(
@@ -759,13 +1489,6 @@ data class ProviderStatus(
     val resolvedProduct: Product?,
 )
 ```
-The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
-this will contain information such as:
-
-- A state value. For example, a compute `Job` might be `RUNNING`
-- Key metrics about the resource.
-- Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
-  should be listed in the `status` section.
 
 <details>
 <summary>
@@ -774,7 +1497,7 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code>
+<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>, <a href='#providersupport'>ProviderSupport</a>&gt;?</code></code> 📝 NOTE: Always null
 </summary>
 
 
@@ -785,12 +1508,11 @@ this will contain information such as:
 
 <details>
 <summary>
-<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> The resolved product referenced by `product`.
+<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>?</code></code> 📝 NOTE: Always null
 </summary>
 
 
 
-This attribute is not included by default unless `includeProduct` is specified.
 
 
 </details>
@@ -805,9 +1527,10 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `ProviderSupport`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderSupport(
@@ -841,7 +1564,7 @@ data class ProviderSupport(
 
 ### `ResourceBilling.Free`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Contains information related to the accounting/billing of a `Resource`_
@@ -893,7 +1616,7 @@ to be charged a different price than newly launched products.
 
 ### `ResourceOwner`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The owner of a `Resource`_
@@ -942,7 +1665,7 @@ data class ResourceOwner(
 
 ### `ResourcePermissions`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -991,7 +1714,7 @@ This value typically needs to be included through the `includeFullPermissions` f
 
 ### `UpdatedAcl`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1051,9 +1774,10 @@ data class UpdatedAcl(
 
 ### `ProvidersApproveRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process_
 
 ```kotlin
 data class ProvidersApproveRequest(
@@ -1087,9 +1811,10 @@ data class ProvidersApproveRequest(
 
 ### `ProvidersRenewRefreshTokenRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type for renewing the tokens of a Provider_
 
 ```kotlin
 data class ProvidersRenewRefreshTokenRequestItem(
@@ -1123,9 +1848,10 @@ data class ProvidersRenewRefreshTokenRequestItem(
 
 ### `ProvidersRequestApprovalRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalRequest {
@@ -1140,9 +1866,10 @@ sealed class ProvidersRequestApprovalRequest {
 
 ### `ProvidersRequestApprovalRequest.Information`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process, provides contact information_
 
 ```kotlin
 data class Information(
@@ -1172,7 +1899,7 @@ data class Information(
 <code>type</code>: <code><code>String /* "information" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1189,9 +1916,10 @@ data class Information(
 
 ### `ProvidersRequestApprovalRequest.Sign`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process, associates a UCloud user to previously uploaded information_
 
 ```kotlin
 data class Sign(
@@ -1221,7 +1949,7 @@ data class Sign(
 <code>type</code>: <code><code>String /* "sign" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1238,9 +1966,10 @@ data class Sign(
 
 ### `ProvidersRequestApprovalResponse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalResponse {
@@ -1255,9 +1984,10 @@ sealed class ProvidersRequestApprovalResponse {
 
 ### `ProvidersRequestApprovalResponse.AwaitingAdministratorApproval`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 data class AwaitingAdministratorApproval(
@@ -1287,7 +2017,7 @@ data class AwaitingAdministratorApproval(
 <code>type</code>: <code><code>String /* "awaiting_admin_approval" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1304,9 +2034,10 @@ data class AwaitingAdministratorApproval(
 
 ### `ProvidersRequestApprovalResponse.RequiresSignature`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Response type used as part of the approval process_
 
 ```kotlin
 data class RequiresSignature(
@@ -1336,7 +2067,7 @@ data class RequiresSignature(
 <code>type</code>: <code><code>String /* "requires_signature" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

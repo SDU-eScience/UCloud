@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Compute](/docs/developer-guide/built-in-provider/compute/README.md) / [Public IPs (NetworkIP)](/docs/developer-guide/built-in-provider/compute/ips/README.md) / [Feature](/docs/developer-guide/built-in-provider/compute/ips/feature.md)
+
 # `networkips.provider.ucloud.verify`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Invoked by UCloud/Core to trigger verification of a single batch_
@@ -14,4 +16,5 @@ This endpoint is periodically invoked by UCloud/Core for resources which are dee
 Provider should immediately determine if these are still valid and recognized by the Provider.
 If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
 an update for each affected resource.
+
 

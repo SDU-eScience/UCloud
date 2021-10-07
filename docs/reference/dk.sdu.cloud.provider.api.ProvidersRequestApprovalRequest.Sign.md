@@ -1,9 +1,12 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
+
 # `ProvidersRequestApprovalRequest.Sign`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type used as part of the approval process, associates a UCloud user to previously uploaded information_
 
 ```kotlin
 data class Sign(
@@ -33,7 +36,7 @@ data class Sign(
 <code>type</code>: <code><code>String /* "sign" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -43,4 +46,5 @@ data class Sign(
 
 
 </details>
+
 

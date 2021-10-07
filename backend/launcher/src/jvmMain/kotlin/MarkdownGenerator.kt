@@ -37,12 +37,13 @@ fun apiMaturityBadge(level: UCloudApiMaturity): String {
     fun normalizeEnum(enum: Enum<*>): String {
         return enum.name.lowercase().capitalize()
     }
-    return when (level) {
+    val badge = when (level) {
         is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
         is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
         UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
         else -> error("unknown level")
     }
+    return "[$badge](/docs/developer-guide/core/api-conventions.md)"
 }
 
 fun rolesBadge(roles: Set<Role>): String {
@@ -56,12 +57,14 @@ fun rolesBadge(roles: Set<Role>): String {
         else -> roles.joinToString(", ")
     }
 
-    return badge("Auth", message, "informational")
+    val badge = badge("Auth", message, "informational")
+    return "[$badge](/docs/developer-guide/core/types.md#role)"
 }
 
 fun deprecatedBadge(deprecated: Boolean): String {
     if (deprecated) {
-        return badge("Deprecated", "Yes", "red")
+        val badge = badge("Deprecated", "Yes", "red")
+        return "[$badge](/docs/developer-guide/core/api-conventions.md)"
     }
     return ""
 }
@@ -89,6 +92,8 @@ fun summary(summary: String, body: String, open: Boolean = false): String {
 }
 
 fun generateMarkdownChapterTableOfContents(
+    previousSection: Chapter?,
+    nextSection: Chapter?,
     path: List<Chapter.Node>,
     chapter: Chapter.Node
 ) {
@@ -99,6 +104,7 @@ fun generateMarkdownChapterTableOfContents(
     outputFile.parentFile.mkdirs()
 
     outputFile.printWriter().use { outs ->
+        /*
         val urlBuilder = StringBuilder("/docs/")
         for ((index, node) in (path + chapter).withIndex()) {
             if (index != 0) outs.print(" / ")
@@ -112,18 +118,75 @@ fun generateMarkdownChapterTableOfContents(
             }
         }
         outs.println()
+         */
 
+        outs.println(generateSectionNavigation(previousSection, nextSection))
+        outs.println(chapter.breadcrumbs())
 
         outs.println("# ${chapter.title}")
         outs.println()
 
         chapter.children.forEach { chapter ->
-            val suffix = when (chapter) {
-                is Chapter.Node -> "/README.md"
-                is Chapter.Feature -> ".md"
-            }
-            outs.println(" - [${chapter.title}](${urlBuilder}${chapter.id}${suffix})")
+            outs.println(" - [${chapter.title}](${chapter.linkToDocs()})")
         }
+    }
+}
+
+fun Chapter.linkToDocs(): String {
+    val urlBuilder = StringBuilder("/docs/")
+    for (node in path) {
+        urlBuilder.append(node.id)
+        urlBuilder.append('/')
+    }
+
+    val suffix = when (this) {
+        is Chapter.Node -> "/README.md"
+        is Chapter.Feature -> ".md"
+    }
+
+    return urlBuilder.toString() + id + suffix
+}
+
+fun Chapter.breadcrumbs(includeLeaf: Boolean = false): String {
+    return buildString {
+        for ((index, node) in (path + this@breadcrumbs).withIndex()) {
+            if (index != 0) append(" / ")
+
+            if (node == this@breadcrumbs && !includeLeaf) {
+                append("${node.title}")
+            } else {
+                append("[${node.title}](${node.linkToDocs()})")
+            }
+        }
+    }
+}
+
+fun generateSectionNavigation(
+    previousSection: Chapter?,
+    nextSection: Chapter?
+): String {
+    return buildString {
+        appendLine("<p align='center'>")
+        if (previousSection != null) {
+            val linkedSection = if (previousSection is Chapter.Node) {
+                previousSection.children.lastOrNull() ?: previousSection
+            } else {
+                previousSection
+            }
+
+            appendLine("<a href='${linkedSection.linkToDocs()}'>« Previous section</a>")
+            repeat(153) { append("&nbsp;") }
+        }
+        if (nextSection != null) {
+            val linkedSection = if (nextSection is Chapter.Node) {
+                nextSection.children.firstOrNull() ?: nextSection
+            } else {
+                nextSection
+            }
+            appendLine("<a href='${linkedSection.linkToDocs()}'>Next section »</a>")
+        }
+        appendLine("</p>")
+        appendLine()
     }
 }
 
@@ -133,10 +196,12 @@ fun generateMarkdown(
     path: List<Chapter.Node>,
     types: LinkedHashMap<String, GeneratedType>,
     calls: List<GeneratedRemoteProcedureCall>,
-    id: String,
-    title: String,
-    container: CallDescriptionContainer,
+    chapter: Chapter.Feature
 ) {
+    val title = chapter.title
+    val id = chapter.id
+    val container = chapter.container
+
     val outputFile = File(
         outputFolder,
         path.joinToString("/") { it.id.replace("/", "_") } + "/" + id + ".md"
@@ -154,7 +219,7 @@ fun generateMarkdown(
             }
             .thenComparingInt { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     val sortedTypes = ArrayList(types.values).filter { it.owner == container::class }.sortedWith(
         Comparator
@@ -169,29 +234,20 @@ fun generateMarkdown(
             }
             .thenComparing<Int> { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()
         val synopsis = container.description?.substringBefore('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
             ?: documentation.synopsis
-        val description = container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
+        val description = (container.description?.substringAfter('\n', "")?.takeIf { it.isNotEmpty() }
             ?.let { processDocumentation(container::class.java.packageName, it) }
-            ?: documentation.description
+            ?: documentation.description)?.trim()
 
-        run {
-            val urlBuilder = StringBuilder("/docs/")
-            for ((index, node) in path.withIndex()) {
-                if (index != 0) outs.print(" / ")
-                urlBuilder.append(node.id)
-                urlBuilder.append('/')
+        outs.println(generateSectionNavigation(previousSection, nextSection))
 
-                outs.print("[${node.title}](${urlBuilder}README.md)")
-            }
-            outs.print(" / ")
-            outs.println(title)
-        }
+        outs.println(chapter.breadcrumbs())
 
         outs.println("# $title")
         outs.println()
@@ -200,13 +256,17 @@ fun generateMarkdown(
         if (synopsis != null) outs.println("_${synopsis}_")
         outs.println()
         if (description != null) {
-            outs.println("## Rationale")
-            outs.println()
+            if (!description.startsWith("#")) {
+                outs.println("## Rationale")
+                outs.println()
+            }
             outs.println(description)
             outs.println()
         }
 
-        outs.println("## Table of Contents")
+        if (container.useCases.isNotEmpty() || sortedCalls.isNotEmpty() || sortedTypes.isNotEmpty()) {
+            outs.println("## Table of Contents")
+        }
         var counter = 1
         if (container.useCases.isNotEmpty()) {
             outs.println(
@@ -278,7 +338,15 @@ fun generateMarkdown(
             outs.println(content)
 
             File(referenceFolder, "${container.namespace}_${useCase.id}.md")
-                .writeText("# Example: ${useCase.title}\n\n$content")
+                .writeText(
+                    buildString {
+                        appendLine(chapter.breadcrumbs(includeLeaf = true))
+                        appendLine()
+                        appendLine("# Example: ${useCase.title}")
+                        appendLine()
+                        appendLine(content)
+                    }
+                )
         }
 
         if (sortedCalls.isNotEmpty()) {
@@ -292,7 +360,15 @@ fun generateMarkdown(
                 outs.println(content)
 
                 File(referenceFolder, "${call.realCall.fullName}.md")
-                    .writeText("# `${call.realCall.fullName}`\n\n$content")
+                    .writeText(
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${call.realCall.fullName}`")
+                            appendLine()
+                            appendLine(content)
+                        }
+                    )
             }
         }
 
@@ -310,7 +386,15 @@ fun generateMarkdown(
                 outs.println()
 
                 File(referenceFolder, type.name + ".md")
-                    .writeText("# `${simplifyName(type.name)}`\n\n$content")
+                    .writeText(
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${simplifyName(type.name)}`")
+                            appendLine()
+                            appendLine(content)
+                        }
+                    )
             }
         }
     }
