@@ -213,10 +213,9 @@ interface JobUpdateListener {
     handler: (e: JobsFollowResponse) => void;
 }
 
-export const View: React.FunctionComponent = () => {
+export function View(): JSX.Element {
     const {id} = useParams<{id: string}>();
     const history = useHistory();
-    console.log("The ID is", id);
 
     // Note: This might not match the real app name
     const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
@@ -532,12 +531,12 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
 };
 
 const BusyWrapper = styled(Box)`
-  display: none;
+    display: none;
 
-  &.active {
-    animation: 1s ${busyAnim};
-    display: block;
-  }
+    &.active {
+        animation: 1s ${busyAnim};
+        display: block;
+    }
 `;
 
 const Busy: React.FunctionComponent<{
