@@ -40,6 +40,7 @@ only be responsible for facilitating direct communication. A common example of t
 
 ## Suggested Reading
 
+- [Products](/docs/developer-guide/accounting-and-projects/products.md)
 - [Authenticating as a Provider](/docs/developer-guide/core/users/authentication/providers.md)
 - [API Conventions and UCloud RPC](/docs/developer-guide/core/api-conventions.md)
 

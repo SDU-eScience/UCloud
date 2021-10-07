@@ -200,6 +200,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
             
             ## Suggested Reading
             
+            - [Products](/docs/developer-guide/accounting-and-projects/products.md)
             - [Authenticating as a Provider](/docs/developer-guide/core/users/authentication/providers.md)
             - [API Conventions and UCloud RPC](/docs/developer-guide/core/api-conventions.md)
         """.trimIndent()

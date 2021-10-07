@@ -175,7 +175,22 @@ header). This JWT would provide similar security, the document should contain:
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-a-provider-authenticating-with-ucloud/core'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-a-provider-authenticating-with-ucloud/core'>A Provider authenticating with UCloud/Core</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -218,7 +233,7 @@ header). This JWT would provide similar security, the document should contain:
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -258,6 +273,119 @@ header). This JWT would provide similar security, the document should contain:
 
 
 </details>
+
+## Example: A Provider authenticating with UCloud/Core
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>The provider has already been registered with UCloud/Core</li>
+</ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The provider (<code>provider</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+AuthProviders.refresh.call(
+    bulkRequestOf(RefreshToken(
+        refreshToken = "fb69e4367ee0fe4c76a4a926394aee547a41d998", 
+    )),
+    provider
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(AccessToken(
+        accessToken = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo", 
+    )), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
+
+// Authenticated as provider
+await callAPI(AuthProvidersApi.refresh(
+    {
+        "items": [
+            {
+                "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+        }
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# 📝 Note: The tokens shown here are not representative of tokens you will see in practice
+
+# Authenticated as provider
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/auth/providers/refresh" -d '{
+    "items": [
+        {
+            "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
+#         }
+#     ]
+# }
+
+```
+
+
+</details>
+
 
 
 ## Remote Procedure Calls

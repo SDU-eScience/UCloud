@@ -41,6 +41,81 @@ enum class ChargeType {
     DIFFERENTIAL_QUOTA
 }
 
+sealed class PaymentModel {
+    abstract val priceUnit: PriceUnit
+    abstract fun convertToLegacy(): Pair<ChargeType, ProductPriceUnit>
+
+    @UCloudApiDoc("""
+        - How to read `balance` (of Wallet): numberOfProducts not currently in use
+        - How to read `pricePerUnit` (of Product): Required to be equal to 1
+        - How to read `units` (of charge): Number of periods, always 1
+        - How to read `numberOfProducts` (of charge): The number of products used
+    """)
+    object Quota : PaymentModel() {
+        override val priceUnit = PriceUnit.RESOURCE_UNITS
+
+        override fun convertToLegacy(): Pair<ChargeType, ProductPriceUnit> =
+            Pair(ChargeType.DIFFERENTIAL_QUOTA, ProductPriceUnit.PER_UNIT)
+    }
+
+    @UCloudApiDoc("""
+        - How to read `balance` (of Wallet): Amount of 'priceUnit' not yet used
+        - How to read `pricePerUnit` (of Product): The price of consuming one unit in one period
+        - How to read `units` (of charge): Number of periods, the length of a period depends on periodLength
+        - How to read `numberOfProducts` (of charge): The number of products used
+        
+        The periodLength and priceUnits are only needed for presentation purposes.
+    """)
+    data class PeriodicPayment(
+        override val priceUnit: PriceUnit,
+        val periodLength: PeriodLength
+    ) : PaymentModel() {
+        override fun convertToLegacy(): Pair<ChargeType, ProductPriceUnit> =
+            Pair(
+                ChargeType.ABSOLUTE,
+                when (priceUnit) {
+                    PriceUnit.DKK -> when (periodLength) {
+                        PeriodLength.ONE_MINUTE -> ProductPriceUnit.CREDITS_PER_MINUTE
+                        PeriodLength.ONE_HOUR -> ProductPriceUnit.CREDITS_PER_HOUR
+                        PeriodLength.ONE_DAY -> ProductPriceUnit.CREDITS_PER_DAY
+                    }
+
+                    PriceUnit.RESOURCE_UNITS -> when (periodLength) {
+                        PeriodLength.ONE_MINUTE -> ProductPriceUnit.UNITS_PER_MINUTE
+                        PeriodLength.ONE_HOUR -> ProductPriceUnit.UNITS_PER_HOUR
+                        PeriodLength.ONE_DAY -> ProductPriceUnit.UNITS_PER_DAY
+                    }
+                }
+            )
+    }
+
+    @UCloudApiDoc("""
+        - How to read `balance` (of Wallet): Amount of 'priceUnit' not yet used
+        - How to read `pricePerUnit` (of Product): The price of consuming one unit
+        - How to read `units` (of charge): Number of periods, always 1
+        - How to read `numberOfProducts` (of charge): The number of products used
+        
+        The priceUnits is only needed for presentation purposes.
+    """)
+    data class OneTimePayment(
+        override val priceUnit: PriceUnit
+    ) : PaymentModel() {
+        override fun convertToLegacy(): Pair<ChargeType, ProductPriceUnit> =
+            Pair(ChargeType.ABSOLUTE, ProductPriceUnit.PER_UNIT)
+    }
+
+    enum class PriceUnit {
+        RESOURCE_UNITS,
+        DKK,
+    }
+
+    enum class PeriodLength {
+        ONE_MINUTE,
+        ONE_HOUR,
+        ONE_DAY,
+    }
+}
+
 @UCloudApiOwnedBy(Products::class)
 enum class ProductPriceUnit {
     @UCloudApiDoc("""
@@ -339,6 +414,54 @@ object Products : CallDescriptionContainer("products") {
         serializerLookupTable = mapOf(
             serializerEntry(Product.serializer())
         )
+
+        description = """
+Products define the services exposed by a Provider.
+
+$TYPE_REF dk.sdu.cloud.provider.api.Provider s expose services into UCloud. But, different 
+$TYPE_REF dk.sdu.cloud.provider.api.Provider s expose different services. UCloud uses $TYPE_REF Product s to define the 
+services of a $TYPE_REF dk.sdu.cloud.provider.api.Provider . As an example, a 
+$TYPE_REF dk.sdu.cloud.provider.api.Provider might have the following services:
+
+- __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
+- __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
+  GPU powered nodes for artificial intelligence.
+
+For many $TYPE_REF dk.sdu.cloud.provider.api.Provider s, the story doesn't stop here. You can often allocate your 
+$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job s on a machine "slice". This can increase overall utilization, as users 
+aren't forced to request full nodes. A $TYPE_REF dk.sdu.cloud.provider.api.Provider might advertise the following
+slices:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ A single node-type split up into individual slices.
+
+## Concepts
+
+UCloud represent these concepts in the following abstractions:
+
+- $TYPE_REF ProductType: A classifier for a $TYPE_REF Product, defines the behavior of a $TYPE_REF Product .
+- $TYPE_REF ProductCategory: A group of similar $TYPE_REF Product s. In most cases, $TYPE_REF Product s in a category
+  run on identical hardware. 
+- $TYPE_REF Product: Defines a concrete service exposed by a $TYPE_REF dk.sdu.cloud.provider.api.Provider.
+
+Below, we show an example of how a $TYPE_REF dk.sdu.cloud.provider.api.Provider can organize their services.
+
+![](/backend/accounting-service/wiki/products.png)
+
+__Figure:__ All $TYPE_REF Product s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+$TYPE_REF dk.sdu.cloud.provider.api.Provider s have zero or more categories of every type, e.g. `example-slim`. 
+In a given category, the $TYPE_REF dk.sdu.cloud.provider.api.Provider has one or more slices.
+
+## Payment Model
+
+Magic 🧙‍♂️! Good luck!
+        """.trimIndent()
     }
 
     private const val browseUseCase = "browse"
@@ -454,7 +577,7 @@ object Products : CallDescriptionContainer("products") {
                 
                 ---
                 
-                __📝 NOTE:__ Must properties of a $TYPE_REF ProductCategory are immutable and must not be changed.
+                __📝 NOTE:__ Most properties of a $TYPE_REF ProductCategory are immutable and must not be changed.
                 As a result, you cannot create a new $TYPE_REF Product later with different category properties.
                 
                 ---

@@ -20,7 +20,7 @@ If no [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  has b
 
 ---
 
-__📝 NOTE:__ Must properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
+__📝 NOTE:__ Most properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
 As a result, you cannot create a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  later with different category properties.
 
 ---
