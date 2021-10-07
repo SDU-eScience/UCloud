@@ -248,7 +248,7 @@ function NewsManagement(): JSX.Element | null {
             ).promise;
             setNews(response);
         } catch (err) {
-            displayErrorMessageOrDefault(err, "Could no fetch posts.");
+            displayErrorMessageOrDefault(err, "Could not fetch posts.");
         } finally {
             setLoading(false);
         }

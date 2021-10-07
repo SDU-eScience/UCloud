@@ -233,7 +233,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
-    notifications: Notification[];
+    notifications: {items: Notification[]; error?: string};
     readAll: () => void;
 }
 
@@ -253,8 +253,9 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                 onClick={props.readAll}
             />
         }
+        error={props.notifications.error}
     >
-        {props.notifications.length !== 0 ? null :
+        {props.notifications.items.length !== 0 ? null :
             <NoResultsCardBody title={"No notifications"}>
                 <Text>
                     As you as use UCloud notifications will appear here.
@@ -266,7 +267,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
             </NoResultsCardBody>
         }
         <List childPadding="8px">
-            {props.notifications.slice(0, 7).map((n, i) => (
+            {props.notifications.items.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
                     <NotificationEntry notification={n} onAction={props.onNotificationAction} />
                 </Flex>
@@ -574,8 +575,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
-    ...state.dashboard,
-    notifications: state.notifications.items,
+    notifications: {items: state.notifications.items, error: state.notifications.error},
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);
