@@ -54,8 +54,6 @@ import {
 } from "@/Accounting";
 import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
-import {JobBrowse} from "@/Applications/Jobs/NewApi";
-import {ResourceBrowse} from "@/Resource/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
@@ -127,7 +125,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
-            <DashboardNews news={news.data.items} loading={news.loading} />
+            <DashboardNews news={news} />
 
             <DashboardFavoriteFiles
                 favoriteFiles={favoriteFiles}
@@ -146,11 +144,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 readAll={props.readAll}
             />
 
-            <DashboardResources
-                products={products.data.items}
-                loading={products.loading}
-            />
-            <DashboardProjectUsage charts={usage.data.charts} />
+            <DashboardResources products={products} />
+            <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
         </GridCardGroup>
     );
@@ -183,6 +178,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             icon="starFilled"
             title="Favorites"
             minWidth="100%"
+            error={props.favoriteFiles.error?.why}
         >
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
@@ -237,7 +233,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
-    notifications: Notification[];
+    notifications: {items: Notification[]; error?: string};
     readAll: () => void;
 }
 
@@ -257,8 +253,9 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                 onClick={props.readAll}
             />
         }
+        error={props.notifications.error}
     >
-        {props.notifications.length !== 0 ? null :
+        {props.notifications.items.length !== 0 ? null :
             <NoResultsCardBody title={"No notifications"}>
                 <Text>
                     As you as use UCloud notifications will appear here.
@@ -270,7 +267,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
             </NoResultsCardBody>
         }
         <List childPadding="8px">
-            {props.notifications.slice(0, 7).map((n, i) => (
+            {props.notifications.items.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
                     <NotificationEntry notification={n} onAction={props.onNotificationAction} />
                 </Flex>
@@ -319,14 +316,14 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
     </Flex>
 );
 
-function DashboardProjectUsage(props: {charts: UsageChart[]}): JSX.Element | null {
+function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
             title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
-            {props.charts.length !== 0 ? null : (
+            {props.charts.data.charts.length !== 0 ? null : (
                 <NoResultsCardBody title={"No usage"}>
                     <Text>
                         As you use the platform, usage will appear here.
@@ -340,10 +337,10 @@ function DashboardProjectUsage(props: {charts: UsageChart[]}): JSX.Element | nul
                     </Text>
                 </NoResultsCardBody>
             )}
-            {props.charts.length === 0 ? null : <Text color="darkGray" fontSize={1}>Past 30 days</Text>}
+            {props.charts.data.charts.length === 0 ? null : <Text color="darkGray" fontSize={1}>Past 30 days</Text>}
             <Table>
                 <tbody>
-                    {props.charts.map((it, idx) => (
+                    {props.charts.data.charts.map((it, idx) => (
                         <TableRow key={idx}>
                             <TableCell>
                                 <Icon name={productTypeToIcon(it.type)} mr={8} />
@@ -370,6 +367,7 @@ function DashboardRuns({runs}: {
         title="Recent Runs"
         icon="results"
         isLoading={runs.loading}
+        error={runs.error?.why}
     >
         {runs.data.items.length === 0 ? (
             <NoResultsCardBody title={"No available resources"}>
@@ -397,13 +395,12 @@ function DashboardRuns({runs}: {
     </HighlightedCard>;
 }
 
-function DashboardResources({products, loading}: {
-    products: Product[];
-    loading: boolean
+function DashboardResources({products}: {
+    products: APICallState<PageV2<Product>>;
 }): JSX.Element | null {
     const wallets: (ProductMetadata & {balance: number})[] = [];
 
-    for (const product of products) {
+    for (const product of products.data.items) {
         const metadata: (ProductMetadata & {balance: number}) = {
             category: product.category,
             freeToUse: product.freeToUse,
@@ -428,10 +425,11 @@ function DashboardResources({products, loading}: {
         <HighlightedCard
             title={<Link to={"/project/resources"}><Heading.h3>Resources</Heading.h3></Link>}
             color="red"
-            isLoading={loading}
+            isLoading={products.loading}
             icon={"grant"}
+            error={products.error?.why}
         >
-            {products.length === 0 ? (
+            {products.data.items.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -486,6 +484,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         minWidth="450px"
         isLoading={outgoingApps.loading}
         icon="mail"
+        error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
         {ingoingApps.error !== undefined ? null : (
             <Error error={ingoingApps.error} />
@@ -517,15 +516,16 @@ const DashboardGrantApplications: React.FunctionComponent<{
     </HighlightedCard>;
 };
 
-function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
+function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
     return (
         <HighlightedCard
             title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}
             color="orange"
-            isLoading={loading}
+            isLoading={news.loading}
             icon={"favIcon"}
+            error={news.error?.why}
         >
-            {news.length !== 0 ? null : (
+            {news.data.items.length !== 0 ? null : (
                 <NoResultsCardBody title={"No news"}>
                     <Text>
                         As announcements are made, they will be shared here.
@@ -533,7 +533,7 @@ function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): J
                 </NoResultsCardBody>
             )}
             <Box>
-                {news.slice(0, 1).map(post => (
+                {news.data.items.slice(0, 1).map(post => (
                     <Box key={post.id} mb={32}>
                         <Link to={`/news/detailed/${post.id}`}>
                             <Heading.h3>{post.title} </Heading.h3>
@@ -553,7 +553,7 @@ function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): J
                 ))}
             </Box>
 
-            {news.length === 0 ? null : (
+            {news.data.items.length === 0 ? null : (
                 <Spacer
                     left={null}
                     right={<Link to="/news/list/">View more</Link>}
@@ -575,8 +575,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
-    ...state.dashboard,
-    notifications: state.notifications.items,
+    notifications: {items: state.notifications.items, error: state.notifications.error},
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);

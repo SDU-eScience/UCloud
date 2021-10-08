@@ -25,7 +25,7 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
         request.onreadystatechange = () => {
             if (request.status !== 0) {
                 if (!inSuccessRange(request.status)) {
-                    let message: string = "Logo upload failed";
+                    let message = "Logo upload failed";
                     try {
                         message = JSON.parse(request.responseText).why;
                     } catch (e) {

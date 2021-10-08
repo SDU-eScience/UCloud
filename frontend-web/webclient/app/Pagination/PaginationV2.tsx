@@ -1,9 +1,9 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {PropsWithChildren, useEffect, useState} from "react";
+import {PropsWithChildren, useState} from "react";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as Heading from "@/ui-components/Heading";
-import {Box, Button} from "@/ui-components";
+import {Box, Button, Error} from "@/ui-components";
 import {useEffectSkipMount} from "@/UtilityFunctions";
 
 export type PageRenderer<T> = (page: T[]) => React.ReactNode;
@@ -14,16 +14,16 @@ interface ListV2Props<T> {
     loading: boolean;
     customEmptyPage?: React.ReactNode;
     onLoadMore: () => void;
+    error?: string;
 
     // This can be used to reset infinite scrolling
     infiniteScrollGeneration?: number;
     dataIsStatic?: boolean;
 }
 
-type ListV2Type = <T>(props: PropsWithChildren<ListV2Props<T>>, context?: any) => JSX.Element;
-export const ListV2: ListV2Type = props => {
+export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element {
     // eslint-disable-next-line
-    const [allItems, setAllItems] = useState<any[]>(props.page.items);
+    const [allItems, setAllItems] = useState<T[]>(props.page.items);
 
     useEffectSkipMount(() => {
         if (props.dataIsStatic !== true) {
@@ -54,6 +54,7 @@ export const ListV2: ListV2Type = props => {
     }
 
     return <Box>
+        <Box mt="6px"><Error error={props.error} /></Box>
         {props.pageRenderer(allItems)}
         {props.page.next || allItems.length > 1 ?
             <Box margin={"0 auto"} maxWidth={"500px"}>
