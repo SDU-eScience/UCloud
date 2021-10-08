@@ -604,6 +604,13 @@ private fun CharSequence.findEndOfIdentifier(startIndex: Int): Pair<Int, Boolean
     while (cursor < stringLength) {
         val nextChar = get(cursor++)
         if (nextChar == '\n' || nextChar.isWhitespace()) {
+            val peek1 = getOrNull(cursor)
+            val peek2 = getOrNull(cursor + 1)
+            if (peek1 == 's' || peek1 == 'S') {
+                if (peek2 == null || !peek2.isLetterOrDigit()) {
+                    return Pair(cursor, false)
+                }
+            }
             return Pair(cursor - 1, true)
         }
         if (nextChar != '.' && !nextChar.isJavaIdentifierPart()) {

@@ -29,7 +29,7 @@ contains [input parameters](/docs/reference/dk.sdu.cloud.app.store.api.Applicati
 and application flags, and additional resources. Zero or more resources can be connected to an application,
 and provide services such as:
 
-- Networking between multiple [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s
+- Networking between multiple [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s
 - [Storage](/docs/developer-guide/orchestration/storage/files.md)
 - [Public links](/docs/developer-guide/orchestration/compute/ingress.md)
 - [Public IPs](/docs/developer-guide/orchestration/compute/ips.md)
@@ -5010,9 +5010,9 @@ _Browses the catalog of all Jobs_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#jobincludeflags'>JobIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#job'>Job</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-The catalog of all [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s works through the normal pagination and the return value can be
+The catalog of all [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s works through the normal pagination and the return value can be
 adjusted through the [flags](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags.md). This can include filtering by a specific
-application or looking at [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s of a specific state, such as
+application or looking at [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s of a specific state, such as
 (`RUNNING`)[/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
 
 

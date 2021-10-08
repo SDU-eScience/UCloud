@@ -24,7 +24,7 @@ changes are expected:
 - RPC names will change to conform with the conventions
 - RPC request and response types will change to conform with the conventions
 - RPCs which return a page will be collapsed into a single `browse` endpoint
-- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
 
 ---
 

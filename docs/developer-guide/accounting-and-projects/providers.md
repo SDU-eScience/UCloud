@@ -13,8 +13,8 @@ _Providers, the backbone of UCloud, expose compute and storage resources to end-
 
 ## Rationale
 
-UCloud/Core is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. This means, that the core doesn't actually know how 
-to serve files or run computational workloads. Instead, the core must ask one or more [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s 
+UCloud/Core is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. This means, that the core doesn't actually know how 
+to serve files or run computational workloads. Instead, the core must ask one or more [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s 
 to fulfil requests from the user.
 
 ![](/backend/accounting-service/wiki/overview.png)
@@ -25,9 +25,9 @@ The core isn't a simple proxy. Before passing the request, UCloud performs the f
 
 - __Authentication:__ UCloud ensures that users have authenticated.
 - __Authorization:__ The [`Project`](/docs/reference/dk.sdu.cloud.project.api.Project.md)  system of UCloud brings role-based 
-  authorization to all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. The core verifies all actions before forwarding the request.
-- __Resolving references:__ UCloud maintains a catalog of all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s in the system. All user 
-  requests only contain a reference to these [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s. UCloud verifies and resolves all 
+  authorization to all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. The core verifies all actions before forwarding the request.
+- __Resolving references:__ UCloud maintains a catalog of all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s in the system. All user 
+  requests only contain a reference to these [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. UCloud verifies and resolves all 
   references before proxying the request.
 
 The communication between UCloud/Core and the provider happens through the __provider APIs__. Throughout the 

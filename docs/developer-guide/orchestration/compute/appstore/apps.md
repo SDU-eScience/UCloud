@@ -13,7 +13,7 @@ _Applications specify the input parameters and invocation of a software package.
 
 ## Rationale
 
-All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  s in UCloud consist of two components: the 
+All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s in UCloud consist of two components: the 
 [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  and the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application..md)  The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  defines the computational environment. This includes
 software packages and other assets (e.g. configuration). A typical example would be a base-image for a container or a 
 virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  . This includes specifying the 
@@ -39,7 +39,7 @@ changes are expected:
 - RPC names will change to conform with the conventions
 - RPC request and response types will change to conform with the conventions
 - RPCs which return a page will be collapsed into a single `browse` endpoint
-- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
 
 ---
 
@@ -2960,16 +2960,16 @@ data class ApplicationInvocationDescription(
     val shouldAllowAdditionalPeers: Boolean,
 )
 ```
-All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  s require a `tool`. The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  specify the concrete computing environment. 
+All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s require a `tool`. The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  specify the concrete computing environment. 
 With the `tool` we get the required software packages and configuration.
 
 In this environment, we must start some software. Any [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  launched with
 this [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  will only run for as long as the software runs. You can specify the command-line 
 invocation through the `invocation` property. Each element in this list produce zero or more arguments for the 
-actual invocation. These [`InvocationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.InvocationParameter.md)  s can reference the input `parameters` of the 
+actual invocation. These [`InvocationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.InvocationParameter.md)s can reference the input `parameters` of the 
 [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . In addition, you can set the `environment` variables through the same mechanism.
 
-All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  s have an [`ApplicationType`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationType.md)  associated with them. This `type` determines how the 
+All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s have an [`ApplicationType`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationType.md)  associated with them. This `type` determines how the 
 user interacts with your [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . We support the following types:
 
 - `BATCH`: A non-interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  which runs without user input
@@ -3417,14 +3417,14 @@ sealed class ApplicationParameter {
     class NetworkIP : ApplicationParameter()
 }
 ```
-All [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  s contain metadata used for the presentation in the frontend. This metadata 
+All [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)s contain metadata used for the presentation in the frontend. This metadata 
 includes a title and help-text. This allows UCloud to create a rich user-interface with widgets which are easy to 
 use. 
 
 When the user requests the creation of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they supply a lot of 
-information. This includes a reference to the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  and a set of [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)  s. 
+information. This includes a reference to the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  and a set of [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s. 
 The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  . Every parameter has a type 
-associated with it. This type controls the set of valid [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)  s it can take.
+associated with it. This type controls the set of valid [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s it can take.
 
 <details>
 <summary>

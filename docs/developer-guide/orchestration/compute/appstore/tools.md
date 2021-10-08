@@ -13,7 +13,7 @@ _Tools define bundles of software binaries and other assets (e.g. container and 
 
 ## Rationale
 
-All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  s in UCloud consist of two components: the 
+All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s in UCloud consist of two components: the 
 [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  and the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application..md)  The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  defines the computational environment. This includes
 software packages and other assets (e.g. configuration). A typical example would be a base-image for a container or a 
 virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  . This includes specifying the 
@@ -28,7 +28,7 @@ changes are expected:
 - RPC names will change to conform with the conventions
 - RPC request and response types will change to conform with the conventions
 - RPCs which return a page will be collapsed into a single `browse` endpoint
-- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)  s
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
 
 ---
 
