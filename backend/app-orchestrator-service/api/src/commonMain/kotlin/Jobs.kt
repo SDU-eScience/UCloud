@@ -747,7 +747,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                 JobUpdate(
                                     JobState.RUNNING,
                                     status = "The job is now running",
-                                    timestamp = Time.now()
+                                    timestamp = 1633680152778
                                 )
                             ),
                             emptyList(),
@@ -779,7 +779,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                 JobUpdate(
                                     JobState.SUCCESS,
                                     status = "The job is no longer running",
-                                    timestamp = Time.now()
+                                    timestamp = 1633680152778
                                 )
                             ),
                             emptyList(),

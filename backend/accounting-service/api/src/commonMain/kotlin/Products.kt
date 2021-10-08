@@ -212,17 +212,49 @@ data class ProductReference(
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiDoc("""
+    Products define the services exposed by a Provider.
+    
+    For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
+""")
 sealed class Product {
+    @UCloudApiDoc("The category groups similar products together, it also defines which provider owns the product")
     abstract val category: ProductCategoryId
+    @UCloudApiDoc("""
+        The price of a single unit in a single period
+        
+        For more information go 
+        [here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+    """)
     abstract val pricePerUnit: Long
+    @UCloudApiDoc("A unique name associated with this Product")
     abstract val name: String
+    @UCloudApiDoc("A short (single-line) description of the Product")
     abstract val description: String
+    @UCloudApiDoc("A integer used for changing the order in which products are displayed (ascending order)")
     abstract val priority: Int
+    @UCloudApiDoc("A version number for this Product, managed by UCloud")
     abstract val version: Int
+    @UCloudApiDoc("""
+        Indicates that a Wallet is not required to use this Product
+        
+        Under normal circumstances, a $TYPE_REF Wallet is always required. This is required even if a $TYPE_REF Product
+        has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+    """)
     abstract val freeToUse: Boolean
+    @UCloudApiDoc("Classifier used to explain the type of Product")
     abstract val productType: ProductType
+    @UCloudApiDoc("The unit of price. Used in combination with chargeType to create a complete payment model.")
     abstract val unitOfPrice: ProductPriceUnit
+    @UCloudApiDoc("The category of payment model. Used in combination with unitOfPrice to create a complete payment " +
+        "model.")
     abstract val chargeType: ChargeType
+    @UCloudApiDoc("""
+        Flag to indicate that this Product is not publicly available
+        
+        ⚠️ WARNING: This doesn't make the $TYPE_REF Product secret. In only hides the $TYPE_REF Product from the grant
+        system's UI.
+    """)
     abstract val hiddenInGrantApplications: Boolean
 
     @Deprecated("Replace with name", ReplaceWith("name"))
@@ -240,7 +272,7 @@ sealed class Product {
             ProductPriceUnit.UNITS_PER_MINUTE,
             ProductPriceUnit.UNITS_PER_HOUR,
             ProductPriceUnit.UNITS_PER_DAY -> {
-                if (chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
+                if (chargeType != ChargeType.ABSOLUTE) {
                     throw RPCException("UNITS_PER_X cannot be used with DIFFERENTIAL_QUOTA", HttpStatusCode.BadRequest)
                 }
             }
@@ -248,7 +280,7 @@ sealed class Product {
             ProductPriceUnit.CREDITS_PER_MINUTE,
             ProductPriceUnit.CREDITS_PER_HOUR,
             ProductPriceUnit.CREDITS_PER_DAY -> {
-                if (chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
+                if (chargeType != ChargeType.ABSOLUTE) {
                     throw RPCException("CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
                         HttpStatusCode.BadRequest)
                 }
@@ -262,6 +294,13 @@ sealed class Product {
 
     @Serializable
     @SerialName("storage")
+    @UCloudApiDoc("""
+        A storage Product
+        
+        | Unit | API |
+        |------|-----|
+        | Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
+    """)
     data class Storage(
         override val name: String,
         override val pricePerUnit: Long,
@@ -282,6 +321,13 @@ sealed class Product {
 
     @Serializable
     @SerialName("compute")
+    @UCloudApiDoc("""
+        A compute Product
+        
+        | Unit | API |
+        |------|-----|
+        | Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
+    """)
     data class Compute(
         override val name: String,
         override val pricePerUnit: Long,
@@ -310,6 +356,13 @@ sealed class Product {
 
     @Serializable
     @SerialName("ingress")
+    @UCloudApiDoc("""
+        An ingress Product
+        
+        | Unit | API |
+        |------|-----|
+        | Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
+    """)
     data class Ingress(
         override val name: String,
         override val pricePerUnit: Long,
@@ -330,6 +383,13 @@ sealed class Product {
 
     @Serializable
     @SerialName("license")
+    @UCloudApiDoc("""
+        A license Product
+        
+        | Unit | API |
+        |------|-----|
+        | Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
+    """)
     data class License(
         override val name: String,
         override val pricePerUnit: Long,
@@ -351,6 +411,13 @@ sealed class Product {
 
     @Serializable
     @SerialName("network_ip")
+    @UCloudApiDoc("""
+        An IP address Product
+        
+        | Unit | API |
+        |------|-----|
+        | Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
+    """)
     data class NetworkIP(
         override val name: String,
         override val pricePerUnit: Long,
@@ -476,19 +543,26 @@ is familiar to them. In short, a $Provider must first choose one of the followin
       [`ProductPriceUnit.CREDITS_PER_UNIT`]($TYPE_REF_LINK ProductPriceUnit))
    2. Periodic payment ([`ProductPriceUnit.UNITS_PER_X`]($TYPE_REF_LINK ProductPriceUnit) and 
       [`ProductPriceUnit.CREDITS_PER_X`]($TYPE_REF_LINK ProductPriceUnit))
+      
+---
 
-Quotas put a strict limit on the "number of resources" in concurrent use. UCloud measures this number with a 
-$TYPE_REF Product specific unit. This unit is pre-defined and stable across the entirety of UCloud. A few quick 
-examples, later we will define the unit for every $TYPE_REF ProductType:
+__📝 NOTE:__ To select a model, you must specify a $TYPE_REF ChargeType and a $TYPE_REF ProductPriceUnit . We have 
+shown all valid combinations above.  
 
-- __Storage:__ Number of GB (10⁹ bytes. 1 byte = 1 octet)
-- __Compute:__ Number of hyper-threaded cores (vCPU)
-- __Public IPs:__ Number of IP addresses
-- __Public links:__ Number of public links
+---
 
-If using either payments (one-time or periodic), then you must choose the unit of allocation:
+Quotas put a strict limit on the "number of units" in concurrent use. UCloud measures this number in a 
+$TYPE_REF Product specific way. A unit is pre-defined and stable across the entirety of UCloud. A few quick 
+examples:
 
-- You specify allocations in "number of resources" (`UNITS_PER_X`). For example: 3000 IP addresses.
+- __Storage:__ Measured in GB (10⁹ bytes. 1 byte = 1 octet)
+- __Compute:__ Measured in hyper-threaded cores (vCPU)
+- __Public IPs:__ Measured in IP addresses
+- __Public links:__ Measured in public links
+
+If using an absolute model, then you must choose the unit of allocation:
+
+- You specify allocations in units (`UNITS_PER_X`). For example: 3000 IP addresses.
 - You specify allocations in money (`CREDITS_PER_X`). For example: 1000 DKK.
 
 ---
@@ -500,13 +574,52 @@ to one millionth of a Danish Crown (DKK).
 
 When using periodic payments, you must also specify the length of a single period. $Provider s are not required to 
 report usage once for every period. But the reporting itself must specify usage in number of periods. 
-UCloud supports the following period lengths:
+UCloud supports period lengths of a minute, one hour and one day.
 
-- `MINUTE`: 60 seconds
-- `HOUR`: 60 minutes
-- `DAY`: 24 hours
+## Understanding the price
 
-We recommend that $Provider s strive towards using a monotonic clock to measure time.
+All $TYPE_REF Product s have a `pricePerUnit` property: 
+
+> The `pricePerUnit` specifies the cost of a single _unit_ in a single _period_.
+>
+> Products not paid with credits must have a `pricePerUnit` of 1. Quotas and one-time payments are always made for a 
+> single "period". 
+
+This can lead to some surprising results when defining compute products. Let's consider the example from 
+the beginning:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ Human-readable compute products.
+
+When implementing this in UCloud, a Provider might naively set the following prices:
+
+| Name | ChargeType | ProductPriceUnit | Price |
+|------|------------|------------------|-------|
+| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `200_000` |
+| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `400_000` |
+| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `800_000` |
+
+__Table:__ ️⚠️ Incorrect implementation of prices in UCloud ️⚠️
+
+__This is wrong.__ UCloud defines the price as the cost of using a single unit in a single period. The "unit of use" 
+for a compute product is a single vCPU.  Thus, a correct $Provider implementation would over-report the usage by a 
+factor equal to the number of vCPUs in the machine. Instead, the price must be based on a single vCPU:
+
+| Name | ChargeType | ProductPriceUnit | Price |
+|------|------------|------------------|-------|
+| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+
+__Table:__ ✅ Correct implementation of prices in UCloud ✅
         """.trimIndent()
     }
 
