@@ -9,15 +9,16 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.ResourcePermissions
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
@@ -46,6 +47,58 @@ class SyncFolderService(
     init {
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
+        fileCollectionService.addAclUpdateHandler(::onAclUpdated)
+    }
+
+    private suspend fun onAclUpdated(batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) {
+        db.withSession { session ->
+            val affectedFolders = session.sendPreparedStatement(
+                {
+                    setParameter("parentIds", batch.items.map { "/${it.resource.id}/%" })
+                },
+                """
+                    select * from provider.resource r
+                    join file_orchestrator.sync_folders f on f.resource = r.id
+                    join accounting.product_categories c on r.product = c.id
+                    where type = 'sync_folder' and (
+                        f.path like any((select unnest(:parentIds::text[])))
+                    )
+                """
+            ).rows
+
+            val mapping = affectedFolders.map { row ->
+                val folderId = row.getLong("resource") ?: 0
+                val folderPath = row.getString("path") !!
+                val resource = batch.items.first {
+                    it.resource.id == extractPathMetadata(folderPath).collection
+                }.added;
+
+                val newSyncType = if (resource.any { it.permissions.contains(Permission.EDIT) }) {
+                    SynchronizationType.SEND_RECEIVE
+                } else if (resource.any { it.permissions.contains(Permission.READ)}) {
+                    SynchronizationType.SEND_ONLY
+                } else {
+                    null
+                }
+
+                Pair(folderId, newSyncType)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", mapping.map { it.first })
+                    setParameter("sync_types", mapping.map { it.second.toString() })
+                },
+                """
+                    update file_orchestrator.sync_folders set
+                    sync_type = updates.type
+                    from (select unnest(:ids::bigint[]), unnest(:sync_types::text[])) updates(id, type)
+                    where resource = updates.id
+                """
+            )
+        }
+
+        //TODO(Brian): Update syncType on provider
     }
 
     private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
@@ -93,8 +146,6 @@ class SyncFolderService(
                     ResourcePermissions(emptyList(), emptyList())
                 )
             }
-
-            println(affectedFolders)
 
             if (affectedFolders.length > 0) {
                 proxy.bulkProxy(
@@ -198,7 +249,6 @@ class SyncFolderService(
     }
 
     override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
-        println("Browsing with filterByPath: ${flags?.filterByPath}")
         return PartialQuery(
             {
                 setParameter("query", query)

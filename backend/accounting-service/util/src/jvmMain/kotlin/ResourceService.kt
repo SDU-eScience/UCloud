@@ -470,6 +470,13 @@ abstract class ResourceService<
         // Empty by default
     }
 
+    open suspend fun onUpdateAcl(
+        session: AsyncDBConnection,
+        request: BulkRequest<UpdatedAclWithResource<Res>>
+    ) {
+        // Empty by default
+    }
+
     override suspend fun updateAcl(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdatedAcl>
@@ -566,15 +573,17 @@ abstract class ResourceService<
                                 )
                         }
 
-                        return BulkRequest(
-                            resources.map {
-                                UpdatedAclWithResource(
-                                    (it.second as ProductRefOrResource.SomeResource<Res>).resource,
-                                    it.first.added,
-                                    it.first.deleted
-                                )
-                            }
-                        )
+                        val bulkRequest = BulkRequest(resources.map {
+                            UpdatedAclWithResource(
+                                (it.second as ProductRefOrResource.SomeResource<Res>).resource,
+                                it.first.added,
+                                it.first.deleted
+                            )
+                        })
+
+                        onUpdateAcl(session, bulkRequest)
+
+                        return bulkRequest
                     }
 
                     override suspend fun afterCall(

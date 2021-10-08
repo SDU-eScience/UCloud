@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.AclEntity
 import kotlinx.serialization.Serializable
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
@@ -26,6 +27,11 @@ data class FileCollectionsProviderRenameRequestItem(
     val newTitle: String,
 )
 typealias FileCollectionsProviderRenameResponse = Unit
+
+@Serializable
+data class FileCollectionsAclUpdateItem(
+    val id: String
+)
 
 // ---
 
