@@ -203,6 +203,14 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     }
 `;
 
+/* 
+  HACK(Jonas): 
+    This is not an ideal approach, but using a ref or variable through useState doesn't seem to work.
+    Likely due to the callbacks wrapping the ref/variable in a stale manner. 
+    Adding them to the Dependency List doesn't work.
+*/
+const startedMap = {};
+
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText: string,
     doneText?: string,
@@ -216,7 +224,15 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     const timer = useRef(1600);
     const tickRate = 50;
     const [showHelp, setShowHelp] = useState(false);
+    const [tempStartedKey] = React.useState(new Date().getTime());
     const wasReset = useRef(false);
+
+    React.useEffect(() => {
+        startedMap[tempStartedKey] = false;
+        return () => {
+            delete startedMap[tempStartedKey];
+        }
+    }, []);
 
     const success = useCallback(() => {
         const button = buttonRef.current;
@@ -259,6 +275,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
         button.classList.remove("success");
         button.classList.add("process");
+        startedMap[tempStartedKey] = true;
         timeout.current = window.setTimeout(success, tickRate);
     }, [buttonRef.current, success]);
 
@@ -279,7 +296,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
                 buttonRef.current?.classList?.remove("shaking");
             }, 1500);
         }
-
+        startedMap[tempStartedKey] = false;
         wasReset.current = false;
     }, [buttonRef.current, timeout]);
 
@@ -293,8 +310,8 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     const passedProps = {...props};
     delete passedProps.onAction;
 
-    return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseLeave={end} onMouseUp={end} onTouchEnd={end}
-                    onClick={doNothing} ref={buttonRef}>
+    return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}} onMouseUp={end} onTouchEnd={end}
+        onClick={doNothing} ref={buttonRef}>
         <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />
         </div>
