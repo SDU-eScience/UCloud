@@ -2,7 +2,6 @@ package dk.sdu.cloud.grant.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import io.ktor.http.HttpMethod

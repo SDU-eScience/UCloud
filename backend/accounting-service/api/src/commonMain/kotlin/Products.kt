@@ -15,23 +15,28 @@ typealias ProductArea = ProductType
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiDoc("""
+    A classifier for a $TYPE_REF Product
+    
+    For more information, see the individual $TYPE_REF Product s:
+    
+    - `STORAGE`: See $TYPE_REF Product.Storage
+    - `COMPUTE`: See $TYPE_REF Product.Compute
+    - `INGRESS`: See $TYPE_REF Product.Ingress
+    - `LICENSE`: See $TYPE_REF Product.License
+    - `NETWORK_IP`: See $TYPE_REF Product.NetworkIP
+""")
 enum class ProductType {
+    @UCloudApiDoc("See Product.Storage")
     STORAGE,
+    @UCloudApiDoc("See Product.Compute")
     COMPUTE,
+    @UCloudApiDoc("See Product.Ingress")
     INGRESS,
+    @UCloudApiDoc("See Product.License")
     LICENSE,
+    @UCloudApiDoc("See Product.NetworkIP")
     NETWORK_IP
-}
-
-@Serializable
-@UCloudApiOwnedBy(Products::class)
-data class ProductCategory(
-    val id: ProductCategoryId,
-    val productType: ProductType,
-    val chargeType: ChargeType = ChargeType.ABSOLUTE,
-) {
-    @Deprecated("Renamed to productType")
-    val area: ProductType get() = productType
 }
 
 @Serializable
@@ -415,21 +420,22 @@ object Products : CallDescriptionContainer("products") {
             serializerEntry(Product.serializer())
         )
 
+        val Provider = "$TYPE_REF dk.sdu.cloud.provider.api.Provider"
         description = """
 Products define the services exposed by a Provider.
 
-$TYPE_REF dk.sdu.cloud.provider.api.Provider s expose services into UCloud. But, different 
-$TYPE_REF dk.sdu.cloud.provider.api.Provider s expose different services. UCloud uses $TYPE_REF Product s to define the 
-services of a $TYPE_REF dk.sdu.cloud.provider.api.Provider . As an example, a 
-$TYPE_REF dk.sdu.cloud.provider.api.Provider might have the following services:
+$Provider s expose services into UCloud. But, different 
+$Provider s expose different services. UCloud uses $TYPE_REF Product s to define the 
+services of a $Provider . As an example, a 
+$Provider might have the following services:
 
 - __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
 - __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
   GPU powered nodes for artificial intelligence.
 
-For many $TYPE_REF dk.sdu.cloud.provider.api.Provider s, the story doesn't stop here. You can often allocate your 
+For many $Provider s, the story doesn't stop here. You can often allocate your 
 $TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job s on a machine "slice". This can increase overall utilization, as users 
-aren't forced to request full nodes. A $TYPE_REF dk.sdu.cloud.provider.api.Provider might advertise the following
+aren't forced to request full nodes. A $Provider might advertise the following
 slices:
 
 | Name | vCPU | RAM (GB) | GPU | Price |
@@ -448,19 +454,59 @@ UCloud represent these concepts in the following abstractions:
 - $TYPE_REF ProductType: A classifier for a $TYPE_REF Product, defines the behavior of a $TYPE_REF Product .
 - $TYPE_REF ProductCategory: A group of similar $TYPE_REF Product s. In most cases, $TYPE_REF Product s in a category
   run on identical hardware. 
-- $TYPE_REF Product: Defines a concrete service exposed by a $TYPE_REF dk.sdu.cloud.provider.api.Provider.
+- $TYPE_REF Product: Defines a concrete service exposed by a $Provider.
 
-Below, we show an example of how a $TYPE_REF dk.sdu.cloud.provider.api.Provider can organize their services.
+Below, we show an example of how a $Provider can organize their services.
 
 ![](/backend/accounting-service/wiki/products.png)
 
 __Figure:__ All $TYPE_REF Product s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
-$TYPE_REF dk.sdu.cloud.provider.api.Provider s have zero or more categories of every type, e.g. `example-slim`. 
-In a given category, the $TYPE_REF dk.sdu.cloud.provider.api.Provider has one or more slices.
+$Provider s have zero or more categories of every type, e.g. `example-slim`. 
+In a given category, the $Provider has one or more slices.
 
 ## Payment Model
 
-Magic 🧙‍♂️! Good luck!
+UCloud uses a flexible payment model, which allows $Provider s to use a model which
+is familiar to them. In short, a $Provider must first choose one of the following payment types:
+
+1. __Differential models__ ([`ChargeType.DIFFERENTIAL_QUOTA`]($TYPE_REF_LINK ChargeType))
+   1. Quota ([`ProductPriceUnit.PER_UNIT`]($TYPE_REF_LINK ProductPriceUnit))
+2. __Absolute models__ ([`ChargeType.ABSOLUTE`]($TYPE_REF_LINK ChargeType))
+   1. One-time payment ([`ProductPriceUnit.PER_UNIT`]($TYPE_REF_LINK ProductPriceUnit) and 
+      [`ProductPriceUnit.CREDITS_PER_UNIT`]($TYPE_REF_LINK ProductPriceUnit))
+   2. Periodic payment ([`ProductPriceUnit.UNITS_PER_X`]($TYPE_REF_LINK ProductPriceUnit) and 
+      [`ProductPriceUnit.CREDITS_PER_X`]($TYPE_REF_LINK ProductPriceUnit))
+
+Quotas put a strict limit on the "number of resources" in concurrent use. UCloud measures this number with a 
+$TYPE_REF Product specific unit. This unit is pre-defined and stable across the entirety of UCloud. A few quick 
+examples, later we will define the unit for every $TYPE_REF ProductType:
+
+- __Storage:__ Number of GB (10⁹ bytes. 1 byte = 1 octet)
+- __Compute:__ Number of hyper-threaded cores (vCPU)
+- __Public IPs:__ Number of IP addresses
+- __Public links:__ Number of public links
+
+If using either payments (one-time or periodic), then you must choose the unit of allocation:
+
+- You specify allocations in "number of resources" (`UNITS_PER_X`). For example: 3000 IP addresses.
+- You specify allocations in money (`CREDITS_PER_X`). For example: 1000 DKK.
+
+---
+
+__📝 NOTE:__ For precision purposes, UCloud specifies all money sums as integers. As a result, 1 UCloud credit is equal 
+to one millionth of a Danish Crown (DKK).
+
+---
+
+When using periodic payments, you must also specify the length of a single period. $Provider s are not required to 
+report usage once for every period. But the reporting itself must specify usage in number of periods. 
+UCloud supports the following period lengths:
+
+- `MINUTE`: 60 seconds
+- `HOUR`: 60 minutes
+- `DAY`: 24 hours
+
+We recommend that $Provider s strive towards using a monotonic clock to measure time.
         """.trimIndent()
     }
 
