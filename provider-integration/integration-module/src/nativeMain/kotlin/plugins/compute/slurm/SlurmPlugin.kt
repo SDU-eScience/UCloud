@@ -57,17 +57,17 @@ private val TAG = "slurm"
 
 
 
-@Serializable
-data class SlurmJob(
-    val ucloudId: String,
-    val slurmId: String,
-    val partition: String = "normal",
-    val status: Int = 1
-)
+// @Serializable
+// data class SlurmJob(
+//     val ucloudId: String,
+//     val slurmId: String,
+//     val partition: String = "normal",
+//     val status: Int = 1
+// )
 
 
-typealias UcloudState =  JobState
-data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )   
+// typealias UcloudState =  JobState
+// data class Status ( val id:String, val ucloudStatus: UcloudState, val slurmStatus: String, val message: String  )   
  
 
 fun manageHeader(job:Job, config: IMConfiguration ):String { 
@@ -273,34 +273,34 @@ fun PluginContext.getStatus(id: String) : Status {
         )
 
 
-        // ipcServer?.addHandler(
-        //     IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
-        //         log.debug("Asked to browse jobs!")
-        //         // val req = runCatching {
-        //         //     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-        //         // }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+        ipcServer?.addHandler(
+            IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
+                log.debug("Asked to browse jobs!")
+                // val req = runCatching {
+                //     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
+                // }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
-        //         var jobs:MutableList<SlurmJob> = emptyList()
+                var jobs:MutableList<SlurmJob> = mutableListOf()
 
-        //         (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-        //                     connection.prepareStatement(
-        //                                                 """
-        //                                                     select * 
-        //                                                     from job_mapping 
-        //                                                     where status = 1
-        //                                                 """
-        //                                 ).useAndInvoke(
-        //                                     readRow = { 
-        //                                         jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  )
-        //                                     }
-        //                                 )
-        //         }
+                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
+                            connection.prepareStatement(
+                                                        """
+                                                            select * 
+                                                            from job_mapping 
+                                                            where status = 1
+                                                        """
+                                        ).useAndInvoke(
+                                            readRow = { 
+                                                jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  )
+                                            }
+                                        )
+                }
 
-        //         println(" DATABASE RESULT $slurmJob")
+                println(" DATABASE RESULT $jobs")
 
-        //         defaultMapper.encodeToJsonElement(slurmJob) as JsonObject 
-        //     }
-        // )
+                defaultMapper.encodeToJsonElement(jobs) as JsonObject 
+            }
+        )
 
 
     }
@@ -554,10 +554,9 @@ fun PluginContext.getStatus(id: String) : Status {
                             val start =  Instant.parse( job.toString().split("|").get(3).plus("Z") )
                             val end   =  Instant.parse( job.toString().split("|").get(4).plus("Z") )
                             val lastTs = Clock.System.now().toString()
-                            val timeRunning: Duration = end - start
-                            val uDuration = timeRunning.toComponents{ hours, minutes, seconds, nanoseconds -> SimpleDuration(hours, minutes, seconds) } 
+                            val uDuration = run{ end - start }.let{ SimpleDuration.fromMillis(it.inWholeMilliseconds)  } 
 
-                            //println("JOBID: " + ucloudId + " " + lastTs + " " + timeRunning + " " + uDuration) 
+                            println("JOBID: " + ucloudId + " " + lastTs + " " + uDuration) 
 
                              runBlocking {
                                     JobsControl.chargeCredits.call(
@@ -565,12 +564,8 @@ fun PluginContext.getStatus(id: String) : Status {
                                         client
                                     ).orThrow()
                             }
-
-
                             //TODO: update table job_mapping.status = 0 where slurmId in ( list ) 
-
                         }
-        
                     }       
 
 
