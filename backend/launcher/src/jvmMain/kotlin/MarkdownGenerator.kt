@@ -166,6 +166,7 @@ fun generateSectionNavigation(
     nextSection: Chapter?
 ): String {
     return buildString {
+        appendLine("<p align='center'>")
         if (previousSection != null) {
             val linkedSection = if (previousSection is Chapter.Node) {
                 previousSection.children.lastOrNull() ?: previousSection
@@ -173,7 +174,7 @@ fun generateSectionNavigation(
                 previousSection
             }
 
-            appendLine("[« Previous section](${linkedSection.linkToDocs()})")
+            appendLine("<a href='${linkedSection.linkToDocs()}'>« Previous section</a>")
             repeat(153) { append("&nbsp;") }
         }
         if (nextSection != null) {
@@ -182,9 +183,9 @@ fun generateSectionNavigation(
             } else {
                 nextSection
             }
-            appendLine("[Next section »](${linkedSection.linkToDocs()})")
+            appendLine("<a href='${linkedSection.linkToDocs()}'>Next section »</a>")
         }
-        appendLine()
+        appendLine("</p>")
         appendLine()
     }
 }
@@ -218,7 +219,7 @@ fun generateMarkdown(
             }
             .thenComparingInt { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     val sortedTypes = ArrayList(types.values).filter { it.owner == container::class }.sortedWith(
         Comparator
@@ -233,7 +234,7 @@ fun generateMarkdown(
             }
             .thenComparing<Int> { -1 * it.doc.importance }
             .thenComparing<String> { it.name }
-    )
+    ).filter { it.doc.importance >= 0 }
 
     outputFile.printWriter().use { outs ->
         val documentation = container::class.java.documentation()
@@ -338,13 +339,13 @@ fun generateMarkdown(
 
             File(referenceFolder, "${container.namespace}_${useCase.id}.md")
                 .writeText(
-                    """
-                        ${chapter.breadcrumbs(includeLeaf = true)}
-                        
-                        # Example: ${useCase.title}
-
-                        $content
-                    """.trimIndent()
+                    buildString {
+                        appendLine(chapter.breadcrumbs(includeLeaf = true))
+                        appendLine()
+                        appendLine("# Example: ${useCase.title}")
+                        appendLine()
+                        appendLine(content)
+                    }
                 )
         }
 
@@ -360,13 +361,13 @@ fun generateMarkdown(
 
                 File(referenceFolder, "${call.realCall.fullName}.md")
                     .writeText(
-                        """
-                            ${chapter.breadcrumbs(includeLeaf = true)}
-                            
-                            # `${call.realCall.fullName}`
-
-                            $content
-                        """.trimIndent()
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${call.realCall.fullName}`")
+                            appendLine()
+                            appendLine(content)
+                        }
                     )
             }
         }
@@ -386,13 +387,13 @@ fun generateMarkdown(
 
                 File(referenceFolder, type.name + ".md")
                     .writeText(
-                        """
-                            ${chapter.breadcrumbs(includeLeaf = true)}
-                            
-                            # `${simplifyName(type.name)}`
-
-                            $content
-                        """.trimIndent()
+                        buildString {
+                            appendLine(chapter.breadcrumbs(includeLeaf = true))
+                            appendLine()
+                            appendLine("# `${simplifyName(type.name)}`")
+                            appendLine()
+                            appendLine(content)
+                        }
                     )
             }
         }

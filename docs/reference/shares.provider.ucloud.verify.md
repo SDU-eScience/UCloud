@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Storage](/docs/developer-guide/built-in-provider/storage/README.md) / [Shares](/docs/developer-guide/built-in-provider/storage/shares.md)
-                            
-                            # `shares.provider.ucloud.verify`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Built-in Provider](/docs/developer-guide/built-in-provider/README.md) / [UCloud/Storage](/docs/developer-guide/built-in-provider/storage/README.md) / [Shares](/docs/developer-guide/built-in-provider/storage/shares.md)
 
-                            [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+# `shares.provider.ucloud.verify`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -16,4 +16,5 @@ This endpoint is periodically invoked by UCloud/Core for resources which are dee
 Provider should immediately determine if these are still valid and recognized by the Provider.
 If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
 an update for each affected resource.
+
 

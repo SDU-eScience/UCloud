@@ -172,14 +172,23 @@ export const NamingField: React.FunctionComponent<{
     return (
         <form onSubmit={submit}>
             <Flex onClick={stopPropagationAndPreventDefault}>
+                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
+                    <ConfirmCancelButtons
+                        confirmText={props.confirmText}
+                        cancelText="Cancel"
+                        onConfirm={submit}
+                        onCancel={props.onCancel}
+                    />
+                </div>
                 {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
                     pr="0px"
                     pl="0px"
+                    ml="8px"
                     noBorder
-                    defaultValue={props.defaultValue ? props.defaultValue : ""}
+                    defaultValue={props.defaultValue ?? ""}
                     fontSize={20}
                     maxLength={1024}
                     onKeyDown={keyDown}
@@ -190,14 +199,6 @@ export const NamingField: React.FunctionComponent<{
                     ref={props.inputRef}
                 />
                 {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
-                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
-                    <ConfirmCancelButtons
-                        confirmText={props.confirmText}
-                        cancelText="Cancel"
-                        onConfirm={submit}
-                        onCancel={props.onCancel}
-                    />
-                </div>
             </Flex>
         </form>
     );

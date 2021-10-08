@@ -1,11 +1,12 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
-                            
-                            # `ProvidersRenewRefreshTokenRequestItem`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
 
-                            
+# `ProvidersRenewRefreshTokenRequestItem`
+
+
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type for renewing the tokens of a Provider_
 
 ```kotlin
 data class ProvidersRenewRefreshTokenRequestItem(
@@ -32,4 +33,5 @@ data class ProvidersRenewRefreshTokenRequestItem(
 
 
 </details>
+
 

@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
-                        
-                        # Example: Renaming a file
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
 
-                        <table>
+# Example: Renaming a file
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User-initiated action, typically though the user-interface</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
@@ -112,4 +112,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

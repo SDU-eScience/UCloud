@@ -1,11 +1,12 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
-                            
-                            # `ProviderIncludeFlags`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
 
-                            
+# `ProviderIncludeFlags`
+
+
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Flags used to tweak read queries_
 
 ```kotlin
 data class ProviderIncludeFlags(
@@ -176,4 +177,5 @@ data class ProviderIncludeFlags(
 
 
 </details>
+
 

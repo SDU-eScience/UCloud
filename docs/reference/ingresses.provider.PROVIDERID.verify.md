@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Public Links (Ingress)](/docs/developer-guide/orchestration/compute/providers/ingress/README.md) / [Ingoing API](/docs/developer-guide/orchestration/compute/providers/ingress/ingoing.md)
-                            
-                            # `ingresses.provider.PROVIDERID.verify`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Public Links (Ingress)](/docs/developer-guide/orchestration/compute/providers/ingress/README.md) / [Ingoing API](/docs/developer-guide/orchestration/compute/providers/ingress/ingoing.md)
 
-                            [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+# `ingresses.provider.PROVIDERID.verify`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -16,4 +16,5 @@ This endpoint is periodically invoked by UCloud/Core for resources which are dee
 Provider should immediately determine if these are still valid and recognized by the Provider.
 If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
 an update for each affected resource.
+
 

@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
-                            
-                            # `ProductsRetrieveRequest`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
 
-                            
+# `ProductsRetrieveRequest`
+
+
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -92,4 +92,5 @@ data class ProductsRetrieveRequest(
 
 
 </details>
+
 

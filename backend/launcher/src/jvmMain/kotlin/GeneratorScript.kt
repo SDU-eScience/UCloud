@@ -346,8 +346,8 @@ fun generateCode() {
                                 "authentication",
                                 "Authentication",
                                 listOf(
-                                    Chapter.Feature("users", "Users", AuthDescriptions),
-                                    Chapter.Feature("providers", "Providers", AuthProviders),
+                                    Chapter.Feature("users", "User Authentication", AuthDescriptions),
+                                    Chapter.Feature("providers", "Provider Authentication", AuthProviders),
                                     Chapter.Feature("password-reset", "Password Reset", PasswordResetDescriptions)
                                 )
                             ),

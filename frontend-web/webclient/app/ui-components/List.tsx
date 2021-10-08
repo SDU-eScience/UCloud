@@ -111,80 +111,80 @@ export const ListRowStat: React.FunctionComponent<{
 };
 
 const ListStyle = styled.div<{fontSize?: string; }>`
-  transition: background-color 0.3s;
-  padding: 5px 0;
-  width: 100%;
-  height: 62px;
-  align-items: center;
-  display: flex;
-
-  &[data-highlighted="true"] {
-    background-color: var(--projectHighlight);
-  }
-
-  &[data-selected="true"] {
-    background-color: var(--lightBlue);
-  }
-
-  &:hover {
-    background-color: var(--lightBlue);
-  }
-
-  .row-icon {
-    margin-right: 12px;
-    margin-left: 8px;
-    flex-shrink: 0;
-  }
-
-  .row-left {
-    flex-grow: 1;
-    overflow: visible;
-  }
-
-  &[data-navigate="true"] .row-left-content {
-    cursor: pointer;
-  }
-
-  .row-left-content {
-    margin-bottom: -4px;
-    font-size: ${p => p.fontSize ?? "20px"};
-    /*overflow: hidden;*/
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .row-left-wrapper {
-      display: flex;
-  }
-
-  .row-left-padding {
-      width: auto;
-      cursor: auto;
-  }
-
-  .row-left-sub {
+    transition: background-color 0.3s;
+    padding: 5px 0;
+    width: 100%;
+    height: 62px;
+    align-items: center;
     display: flex;
-    margin-top: 4px;
-  }
-  
-  .row-left-sub > * {
-    margin-right: 16px;
-    color: var(--gray);
-    text-decoration: none;
-    font-size: 10px;
-  }
-  
-  .row-left-sub > * > svg {
-    margin-top: -2px;
-    margin-right: 4px;
-  }
 
-  .row-right {
-    text-align: right;
-    display: flex;
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
+    &[data-highlighted="true"] {
+        background-color: var(--projectHighlight);
+    }
+
+    &[data-selected="true"] {
+        background-color: var(--lightBlue);
+    }
+
+    &:hover {
+        background-color: var(--lightBlue);
+    }
+
+    .row-icon {
+        margin-right: 12px;
+        margin-left: 8px;
+        flex-shrink: 0;
+    }
+
+    .row-left {
+        flex-grow: 1;
+        overflow: visible;
+    }
+
+    &[data-navigate="true"] .row-left-content {
+        cursor: pointer;
+    }
+
+    .row-left-content {
+        margin-bottom: -4px;
+        font-size: ${p => p.fontSize ?? "20px"};
+        /* overflow: hidden; */
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .row-left-wrapper {
+        display: flex;
+    }
+
+    .row-left-padding {
+        width: auto;
+        cursor: auto;
+    }
+
+    .row-left-sub {
+        display: flex;
+        margin-top: 4px;
+    }
+    
+    .row-left-sub > * {
+        margin-right: 16px;
+        color: var(--gray);
+        text-decoration: none;
+        font-size: 10px;
+    }
+    
+    .row-left-sub > * > svg {
+        margin-top: -2px;
+        margin-right: 4px;
+    }
+
+    .row-right {
+        text-align: right;
+        display: flex;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
 `;
 
 export default List;

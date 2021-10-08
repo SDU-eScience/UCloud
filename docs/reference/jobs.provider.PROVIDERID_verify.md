@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/providers/jobs/README.md) / [Ingoing API](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md)
-                        
-                        # Example: Ensuring UCloud/Core and Provider are in-sync
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/providers/jobs/README.md) / [Ingoing API](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md)
 
-                        <table>
+# Example: Ensuring UCloud/Core and Provider are in-sync
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
 <li>One or more active Jobs for this Provider</li>
@@ -332,4 +332,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

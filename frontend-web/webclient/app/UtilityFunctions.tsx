@@ -1,7 +1,6 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Notification} from "@/Notifications";
 import {History} from "history";
-import {HTTP_STATUS_CODES} from "@/Utilities/XHRUtils";
 import {ProjectName} from "@/Project";
 import {getStoredProject} from "@/Project/Redux";
 import {JWT} from "@/Authentication/lib";
@@ -290,14 +289,13 @@ export function defaultErrorHandler(
     if (request) {
         if (!why) {
             switch (request.status) {
-                case 400:
-                    why = "Bad request";
-                    break;
                 case 403:
                     why = "Permission denied";
                     break;
+                // 400 is 'Bad Request', but this is meaningless for the end user.
+                case 400:
                 default:
-                    why = "Internal Server Error. Try again later.";
+                    why = "An error occurred. Please reload the page.";
                     break;
             }
         }
@@ -375,7 +373,7 @@ export function errorMessageOrDefault(
             return err.response;
         } else {
             if (err.response.why) return err.response.why;
-            return HTTP_STATUS_CODES[err.request.status] ?? defaultMessage;
+            return defaultMessage;
         }
     } catch {
         return defaultMessage;

@@ -1,8 +1,8 @@
-                            [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / [Templates](/docs/developer-guide/orchestration/storage/metadata/templates.md)
-                            
-                            # `FileMetadataTemplateNamespace.Status`
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / [Templates](/docs/developer-guide/orchestration/storage/metadata/templates.md)
 
-                            
+# `FileMetadataTemplateNamespace.Status`
+
+
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -65,4 +65,5 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 
 </details>
+
 

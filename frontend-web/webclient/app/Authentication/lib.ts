@@ -6,7 +6,7 @@ import {setStoredProject} from "@/Project/Redux";
 interface CallParameters {
     method: string;
     path: string;
-    body?: Record<string, unknown>;
+    body?: any;
     context?: string;
     withCredentials?: boolean;
     projectOverride?: string;
@@ -222,7 +222,7 @@ export class HttpClient {
      */
     public async post<T = any>(
         path: string,
-        body?: Record<string, unknown>,
+        body?: any,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "POST", path, body, context});

@@ -120,15 +120,6 @@ export interface UploaderReduxObject {
     loading: boolean;
 }
 
-interface LegacyReducers {
-    dashboard?: Reducer<DashboardStateProps>;
-    uploader?: Reducer<UploaderReduxObject>;
-    status?: Reducer<StatusReduxObject>;
-    notifications?: Reducer<NotificationsReduxObject>;
-    header?: Reducer<HeaderSearchReduxObject>;
-    sidebar?: Reducer<SidebarReduxObject>;
-}
-
 /**
  * Global state created via useGlobal() similar to ReduxObject
  */
@@ -190,7 +181,7 @@ export const initStatus = (): StatusReduxObject => ({
 });
 
 export const initDashboard = (): DashboardStateProps => ({
-    notifications: [],
+    notifications: {items: []},
 });
 
 export function initObject(): ReduxObject {

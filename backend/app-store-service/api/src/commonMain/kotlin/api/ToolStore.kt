@@ -191,7 +191,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Queries the entire catalogue of Tools"
+            summary = "Queries the entire catalog of Tools"
             description = """
                 This endpoint is not recommended for use and will likely disappear in a future release. The results are
                 returned in no specific order.
@@ -216,7 +216,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Creates a new Tool and adds it to the internal catalogue"
+            summary = "Creates a new Tool and adds it to the internal catalog"
         }
     }
 

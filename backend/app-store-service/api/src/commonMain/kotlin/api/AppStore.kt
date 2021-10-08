@@ -572,7 +572,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Browses the Application catalogue by tag"
+            summary = "Browses the Application catalog by tag"
         }
     }
 
@@ -598,7 +598,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Searches in the Application catalogue using a free-text query"
+            summary = "Searches in the Application catalog using a free-text query"
         }
     }
 
@@ -697,7 +697,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Searches in the Application catalogue using more advanced parameters"
+            summary = "Searches in the Application catalog using more advanced parameters"
         }
     }
 
@@ -889,7 +889,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Creates a new Application and inserts it into the catalogue"
+            summary = "Creates a new Application and inserts it into the catalog"
         }
     }
 
@@ -910,7 +910,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Removes an Application from the catalogue"
+            summary = "Removes an Application from the catalog"
         }
     }
 

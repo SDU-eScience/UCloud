@@ -1,6 +1,7 @@
-[« Previous section](/docs/developer-guide/accounting-and-projects/providers.md)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Next section »](/docs/developer-guide/accounting-and-projects/accounting/wallets.md)
-
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/providers.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/wallets.md'>Next section »</a>
+</p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Products
@@ -8,6 +9,53 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Products define the services exposed by a Provider._
+
+## Rationale
+
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s expose services into UCloud. But, different 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s to define the 
+services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  . As an example, a 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might have the following services:
+
+- __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
+- __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
+  GPU powered nodes for artificial intelligence.
+
+For many [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s, the story doesn't stop here. You can often allocate your 
+[`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s on a machine "slice". This can increase overall utilization, as users 
+aren't forced to request full nodes. A [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might advertise the following
+slices:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ A single node-type split up into individual slices.
+
+## Concepts
+
+UCloud represent these concepts in the following abstractions:
+
+- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+- [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s in a category
+  run on identical hardware. 
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
+
+Below, we show an example of how a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  can organize their services.
+
+![](/backend/accounting-service/wiki/products.png)
+
+__Figure:__ All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s have zero or more categories of every type, e.g. `example-slim`. 
+In a given category, the [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  has one or more slices.
+
+## Payment Model
+
+Magic 🧙‍♂️! Good luck!
 
 ## Table of Contents
 <details>
@@ -683,7 +731,7 @@ __Examples:__
 
 | Example |
 |---------|
-| [Browse in the full product catalogue](/docs/reference/products_browse.md) |
+| [Browse in the full product catalog](/docs/reference/products_browse.md) |
 | [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
 
 
@@ -727,7 +775,7 @@ If no [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  has b
 
 ---
 
-__📝 NOTE:__ Must properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
+__📝 NOTE:__ Most properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
 As a result, you cannot create a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  later with different category properties.
 
 ---

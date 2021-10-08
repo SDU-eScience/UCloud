@@ -1,8 +1,8 @@
-                        [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
-                        
-                        # Example: Retrieving a single file
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
 
-                        <table>
+# Example: Retrieving a single file
+
+<table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Trigger</th><td>User initiated</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
@@ -226,4 +226,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 
 
 </details>
+
 

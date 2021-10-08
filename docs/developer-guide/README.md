@@ -1,5 +1,6 @@
-[Next section »](/docs/developer-guide/accounting-and-projects/projects/projects.md)
-
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/projects/projects.md'>Next section »</a>
+</p>
 
 
 UCloud Developer Guide
