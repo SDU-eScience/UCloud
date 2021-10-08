@@ -55,7 +55,47 @@ In a given category, the [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.
 
 ## Payment Model
 
-Magic 🧙‍♂️! Good luck!
+UCloud uses a flexible payment model, which allows [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s to use a model which
+is familiar to them. In short, a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  must first choose one of the following payment types:
+
+1. __Differential models__ ([`ChargeType.DIFFERENTIAL_QUOTA`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
+   1. Quota ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+2. __Absolute models__ ([`ChargeType.ABSOLUTE`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
+   1. One-time payment ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
+      [`ProductPriceUnit.CREDITS_PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+   2. Periodic payment ([`ProductPriceUnit.UNITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
+      [`ProductPriceUnit.CREDITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+
+Quotas put a strict limit on the "number of resources" in concurrent use. UCloud measures this number with a 
+[`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  specific unit. This unit is pre-defined and stable across the entirety of UCloud. A few quick 
+examples, later we will define the unit for every [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md):
+
+- __Storage:__ Number of GB (10⁹ bytes. 1 byte = 1 octet)
+- __Compute:__ Number of hyper-threaded cores (vCPU)
+- __Public IPs:__ Number of IP addresses
+- __Public links:__ Number of public links
+
+If using either payments (one-time or periodic), then you must choose the unit of allocation:
+
+- You specify allocations in "number of resources" (`UNITS_PER_X`). For example: 3000 IP addresses.
+- You specify allocations in money (`CREDITS_PER_X`). For example: 1000 DKK.
+
+---
+
+__📝 NOTE:__ For precision purposes, UCloud specifies all money sums as integers. As a result, 1 UCloud credit is equal 
+to one millionth of a Danish Crown (DKK).
+
+---
+
+When using periodic payments, you must also specify the length of a single period. [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s are not required to 
+report usage once for every period. But the reporting itself must specify usage in number of periods. 
+UCloud supports the following period lengths:
+
+- `MINUTE`: 60 seconds
+- `HOUR`: 60 minutes
+- `DAY`: 24 hours
+
+We recommend that [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s strive towards using a monotonic clock to measure time.
 
 ## Table of Contents
 <details>
@@ -154,7 +194,7 @@ Magic 🧙‍♂️! Good luck!
 </tr>
 <tr>
 <td><a href='#producttype'><code>ProductType</code></a></td>
-<td><i>No description</i></td>
+<td>A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)</td>
 </tr>
 <tr>
 <td><a href='#productsbrowserequest'><code>ProductsBrowseRequest</code></a></td>
@@ -2307,6 +2347,7 @@ data class ProductReference(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)_
 
 ```kotlin
 enum class ProductType {
@@ -2317,6 +2358,13 @@ enum class ProductType {
     NETWORK_IP,
 }
 ```
+For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s:
+
+- `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
+- `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 
+- `INGRESS`: See [`Product.Ingress`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md) 
+- `LICENSE`: See [`Product.License`](/docs/reference/dk.sdu.cloud.accounting.api.Product.License.md) 
+- `NETWORK_IP`: See [`Product.NetworkIP`](/docs/reference/dk.sdu.cloud.accounting.api.Product.NetworkIP.md)
 
 <details>
 <summary>
@@ -2325,7 +2373,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>STORAGE</code>
+<code>STORAGE</code> See Product.Storage
 </summary>
 
 
@@ -2336,7 +2384,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>COMPUTE</code>
+<code>COMPUTE</code> See Product.Compute
 </summary>
 
 
@@ -2347,7 +2395,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>INGRESS</code>
+<code>INGRESS</code> See Product.Ingress
 </summary>
 
 
@@ -2358,7 +2406,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>LICENSE</code>
+<code>LICENSE</code> See Product.License
 </summary>
 
 
@@ -2369,7 +2417,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>NETWORK_IP</code>
+<code>NETWORK_IP</code> See Product.NetworkIP
 </summary>
 
 
