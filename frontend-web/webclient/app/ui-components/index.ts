@@ -7,6 +7,7 @@ export {default as OutlineButton} from "./OutlineButton";
 export {default as Card} from "./Card";
 export {default as Container} from "./Container";
 export {default as Divider} from "./Divider";
+export {default as Error} from "./Error";
 export {default as Flex} from "./Flex";
 export {default as Grid} from "./Grid";
 export {default as FormField} from "./FormField";

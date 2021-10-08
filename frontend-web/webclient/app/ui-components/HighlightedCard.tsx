@@ -1,8 +1,9 @@
 import * as React from "react";
-import Box from "@/ui-components/Box";
-import Flex from "@/ui-components/Flex";
-import Card from "@/ui-components/Card";
-import * as Heading from "@/ui-components/Heading";
+import Box from "./Box";
+import Flex from "./Flex";
+import Card from "./Card";
+import * as Heading from "./Heading";
+import Error from "./Error";
 import Icon, {IconName} from "./Icon";
 import theme, {ThemeColor} from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
@@ -10,6 +11,7 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 export const HighlightedCard: React.FunctionComponent<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
+    error?: string;
     color: ThemeColor;
     isLoading?: boolean;
     icon?: IconName;
@@ -24,6 +26,7 @@ export const HighlightedCard: React.FunctionComponent<{
     subtitle,
     onClick,
     color,
+    error,
     isLoading = false,
     icon = undefined,
     children,
@@ -61,6 +64,7 @@ export const HighlightedCard: React.FunctionComponent<{
                     <Box flexGrow={1} />
                     {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
                 </Flex>
+                <Error error={error} />
                 {!isLoading ? children : <Spinner />}
             </Box>
         </Card>

@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
@@ -15,14 +15,14 @@ export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
     const error = props.errors[props.parameter.name] != null;
     return <Flex>
         <Select id={widgetId(props.parameter)} error={error}>
-            <option value={""}/>
+            <option value={""} />
             <option value="true">{props.parameter.trueValue}</option>
             <option value="false">{props.parameter.falseValue}</option>
         </Select>
     </Flex>;
 };
 
-export const BoolValidator: WidgetValidator = (param) => {
+export function BoolValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "boolean") {
         const elem = findElement(param);
         if (elem === null || elem.value === "") {
@@ -35,7 +35,7 @@ export const BoolValidator: WidgetValidator = (param) => {
     }
 
     return {valid: true};
-};
+}
 
 export const BoolSetter: WidgetSetter = (param, value) => {
     if (param.type !== "boolean") return;

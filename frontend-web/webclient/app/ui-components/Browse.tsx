@@ -41,9 +41,9 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     const hasPreloadedResources = !!props.preloadedResources;
     const [remoteResources, fetchResources] = useCloudAPI<PageV2<T>>({noop: true}, emptyPageV2);
     const [infScroll, setInfScroll] = useState(0);
-    const resources = useMemo(() => {
-        return hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data;
-    }, [props.preloadedResources, remoteResources.data]);
+    const resources = useMemo(() =>
+        hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data,
+        [props.preloadedResources, remoteResources.data]);
 
     useEffect(() => {
         if (props.onLoad) props.onLoad(resources.items);
@@ -83,7 +83,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     if (props.hide === true) return null;
 
     return <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-        onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])}
+        onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={remoteResources.error?.why}
         infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />;
 }
 
@@ -311,8 +311,8 @@ export function StandardList<T, CB = EmptyObject>(
 
     if (isInDialog) {
         return <Box ref={scrollingContainerRef}>
-            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
-                <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
+            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX="20px">
+                <Operations selected={toggleSet.checked.items} location="TOPBAR"
                     entityNameSingular={props.title} entityNamePlural={titlePlural}
                     extra={callbacks} operations={allOperations} />
             </StickyBox>
