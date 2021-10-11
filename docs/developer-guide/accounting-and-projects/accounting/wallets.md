@@ -9,6 +9,27 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Wallets hold allocations which grant access to a provider's resources._
+
+## Rationale
+
+[`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet.md)s are the core abstraction used in the accounting system of UCloud. This feature builds
+on top of various other features of UCloud. Here is a quick recap:
+
+- The users of UCloud are members of 
+  [Workspaces and Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md). These form 
+  the foundation of all collaboration in UCloud.
+- UCloud is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. UCloud delegates the responsibility of hosting [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s to 
+  [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s.
+- [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s define which services they support using [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s.
+- All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s belong in a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  . The category contains similar 
+  [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. Under normal circumstances, all products in a category run on the same system.
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s define a payment model. The model supports quotas (`DIFFERENTIAL_QUOTA`), one-time 
+  payments and periodic payments (`ABSOLUTE`). All absolute payment models support paying in a 
+  product-specific unit or in DKK.
+- All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category share the exact same payment model
+
+![](/backend/accounting-service/wiki/allocations.png)
 
 ## Table of Contents
 <details>

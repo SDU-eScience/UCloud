@@ -13,7 +13,7 @@ _The ingoing provider API for Jobs_
 
 ## Rationale
 
-[`Job`](/docs/reference/dk.sdu.cloud.app.kubernetes.api.Job.md)  s in UCloud are the core abstraction used to describe units of computation.
+[`Job`](/docs/reference/dk.sdu.cloud.app.kubernetes.api.Job.md)s in UCloud are the core abstraction used to describe units of computation.
 
 This document describes the API which providers receive to implement Jobs. We recommend that you read the
 documentation for the end-user API first. Most of this API is a natural extension of the end-user APIs. 
@@ -2545,9 +2545,9 @@ _Retrieve product support for this providers_
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.md'>ComputeSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint responds with the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s supported by
+This endpoint responds with the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s supported by
 this provider along with details for how [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  is
-supported. The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s must be registered with
+supported. The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s must be registered with
 UCloud/Core already.
 
 

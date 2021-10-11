@@ -17,7 +17,7 @@ enum class ProductType {
     NETWORK_IP,
 }
 ```
-For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s:
+For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
 
 - `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
 - `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 

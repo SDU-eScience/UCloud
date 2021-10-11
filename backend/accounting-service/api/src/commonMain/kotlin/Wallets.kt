@@ -143,6 +143,33 @@ data class WalletsRetrieveRecipientResponse(
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
+    init {
+        val Resource = "$TYPE_REF dk.sdu.cloud.provider.api.Resource"
+        val Provider = "$TYPE_REF dk.sdu.cloud.provider.api.Provider"
+
+        description = """
+            Wallets hold allocations which grant access to a provider's resources.
+
+            $TYPE_REF Wallet s are the core abstraction used in the accounting system of UCloud. This feature builds
+            on top of various other features of UCloud. Here is a quick recap:
+
+            - The users of UCloud are members of 
+              [Workspaces and Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md). These form 
+              the foundation of all collaboration in UCloud.
+            - UCloud is an orchestrator of $Resource s. UCloud delegates the responsibility of hosting $Resource s to 
+              $Provider s.
+            - $Provider s define which services they support using $TYPE_REF Product s.
+            - All $TYPE_REF Product s belong in a $TYPE_REF ProductCategory . The category contains similar 
+              $TYPE_REF Product s. Under normal circumstances, all products in a category run on the same system.
+            - $TYPE_REF Product s define a payment model. The model supports quotas (`DIFFERENTIAL_QUOTA`), one-time 
+              payments and periodic payments (`ABSOLUTE`). All absolute payment models support paying in a 
+              product-specific unit or in DKK.
+            - All $TYPE_REF Product s in a category share the exact same payment model
+
+            ![](/backend/accounting-service/wiki/allocations.png)
+        """.trimIndent()
+    }
+
     val push = call<BulkRequest<PushWalletChangeRequestItem>, PushWalletChangeResponse, CommonErrorMessage>(
         "push"
     ) {

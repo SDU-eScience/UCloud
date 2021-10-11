@@ -26,7 +26,7 @@ with it. For example:
 A file in UCloud ([`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)) closely follows the concept of a computer file you might already be familiar with.
 The functionality of a file is mostly determined by its `type`. The two most important types are the
 [`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) and [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) types. A
-[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  s. A directory can itself contain more
+[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)s. A directory can itself contain more
 directories, which leads to a natural tree-like structure. [`FILE`s](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md), also referred to as a
 regular files, are data records which each contain a series of bytes.
 
@@ -2221,7 +2221,7 @@ data class UFile(
 A file in UCloud ([`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)) closely follows the concept of a computer file you might already be familiar with.
 The functionality of a file is mostly determined by its [`type`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileStatus.md). The two most important
 types are the [`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) and [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) types. A
-[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  s. A directory can itself contain more
+[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)s. A directory can itself contain more
 directories, which leads to a natural tree-like structure. [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md)s, also referred to as a
 regular files, are data records which each contain a series of bytes.
 

@@ -13,8 +13,8 @@ _Products define the services exposed by a Provider._
 
 ## Rationale
 
-[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s expose services into UCloud. But, different 
-[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s to define the 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose services into UCloud. But, different 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s to define the 
 services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  . As an example, a 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might have the following services:
 
@@ -22,8 +22,8 @@ services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md
 - __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
   GPU powered nodes for artificial intelligence.
 
-For many [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s, the story doesn't stop here. You can often allocate your 
-[`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  s on a machine "slice". This can increase overall utilization, as users 
+For many [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s, the story doesn't stop here. You can often allocate your 
+[`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s on a machine "slice". This can increase overall utilization, as users 
 aren't forced to request full nodes. A [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might advertise the following
 slices:
 
@@ -41,7 +41,7 @@ __Table:__ A single node-type split up into individual slices.
 UCloud represent these concepts in the following abstractions:
 
 - [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
-- [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s in a category
+- [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category
   run on identical hardware. 
 - [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
 
@@ -49,13 +49,13 @@ Below, we show an example of how a [`Provider`](/docs/reference/dk.sdu.cloud.pro
 
 ![](/backend/accounting-service/wiki/products.png)
 
-__Figure:__ All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
-[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s have zero or more categories of every type, e.g. `example-slim`. 
+__Figure:__ All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s have zero or more categories of every type, e.g. `example-slim`. 
 In a given category, the [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  has one or more slices.
 
 ## Payment Model
 
-UCloud uses a flexible payment model, which allows [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s to use a model which
+UCloud uses a flexible payment model, which allows [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s to use a model which
 is familiar to them. In short, a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  must first choose one of the following payment types:
 
 1. __Differential models__ ([`ChargeType.DIFFERENTIAL_QUOTA`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
@@ -94,13 +94,13 @@ to one millionth of a Danish Crown (DKK).
 
 ---
 
-When using periodic payments, you must also specify the length of a single period. [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  s are not required to 
+When using periodic payments, you must also specify the length of a single period. [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s are not required to 
 report usage once for every period. But the reporting itself must specify usage in number of periods. 
 UCloud supports period lengths of a minute, one hour and one day.
 
 ## Understanding the price
 
-All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s have a `pricePerUnit` property: 
+All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s have a `pricePerUnit` property: 
 
 > The `pricePerUnit` specifies the cost of a single _unit_ in a single _period_.
 >
@@ -2423,7 +2423,7 @@ enum class ProductType {
     NETWORK_IP,
 }
 ```
-For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  s:
+For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
 
 - `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
 - `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 
