@@ -319,6 +319,7 @@ data class Application(
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedBy: String? = null,
+    val deicReference: String? = null
 )
 
 @Serializable

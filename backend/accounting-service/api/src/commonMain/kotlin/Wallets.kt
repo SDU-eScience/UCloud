@@ -63,7 +63,11 @@ data class WalletAllocation(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
             "expire automatically"
     )
-    val endDate: Long?
+    val endDate: Long?,
+    @UCloudApiDoc(
+        "ID reference to which grant application this allocation was granted in"
+    )
+    val grantedIn: Long?
 )
 
 @Serializable
