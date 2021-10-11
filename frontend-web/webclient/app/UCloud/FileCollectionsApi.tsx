@@ -6,7 +6,7 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
-} from "@/UCloud/ResourceApi";
+} from "./ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
 import * as React from "react";
@@ -147,4 +147,5 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     }
 }
 
-export default new FileCollectionsApi();
+const api = new FileCollectionsApi();
+export {api};
