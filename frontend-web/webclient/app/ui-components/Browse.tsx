@@ -89,7 +89,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 }
 
 export interface ItemRenderer<T, CB = any> {
-    Icon?: React.FunctionComponent<{resource?: T, size: string;}>;
+    Icon?: React.FunctionComponent<{resource?: T, size: string; browseType: BrowseType;}>;
     MainTitle?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
     Stats?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
     ImportantStats?: React.FunctionComponent<{resource?: T; callbacks: CB; browseType: BrowseType}>;
@@ -139,7 +139,7 @@ export const ItemRow = <T, CB>(
 
     return <ListRow
         onContextMenu={onContextMenu}
-        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} /> : null}
+        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} /> : null}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
