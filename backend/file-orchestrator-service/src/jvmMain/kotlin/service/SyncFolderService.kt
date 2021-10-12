@@ -50,55 +50,69 @@ class SyncFolderService(
         fileCollectionService.addAclUpdateHandler(::onAclUpdated)
     }
 
-    private suspend fun onAclUpdated(batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) {
-        db.withSession { session ->
-            val affectedFolders = session.sendPreparedStatement(
-                {
-                    setParameter("parentIds", batch.items.map { "/${it.resource.id}/%" })
-                },
-                """
-                    select * from provider.resource r
-                    join file_orchestrator.sync_folders f on f.resource = r.id
-                    join accounting.product_categories c on r.product = c.id
-                    where type = 'sync_folder' and (
-                        f.path like any((select unnest(:parentIds::text[])))
-                    )
-                """
-            ).rows
+    private suspend fun onAclUpdated(
+        session: AsyncDBConnection,
+        batch: BulkRequest<UpdatedAclWithResource<FileCollection>>
+    ) {
+        val affectedFolders = session.sendPreparedStatement(
+            {
+                setParameter("parentIds", batch.items.map { "/${it.resource.id}/%" })
+            },
+            """
+                select * 
+                from
+                    provider.resource r join 
+                    file_orchestrator.sync_folders f on f.resource = r.id join 
+                    accounting.product_categories c on r.product = c.id
+                where
+                    type = 'sync_folder' and 
+                    f.path like any((select unnest(:parentIds::text[])))
+            """
+        ).rows
 
-            val mapping = affectedFolders.map { row ->
-                val folderId = row.getLong("resource") ?: 0
-                val folderPath = row.getString("path") !!
-                val resource = batch.items.first {
-                    it.resource.id == extractPathMetadata(folderPath).collection
-                }.added;
+        val mapping = affectedFolders.map { row ->
+            val folderId = row.getLong("resource") ?: 0
+            val folderPath = row.getString("path") !!
+            val resource = batch.items.first {
+                it.resource.id == extractPathMetadata(folderPath).collection
+            }.added;
 
-                val newSyncType = if (resource.any { it.permissions.contains(Permission.EDIT) }) {
-                    SynchronizationType.SEND_RECEIVE
-                } else if (resource.any { it.permissions.contains(Permission.READ)}) {
-                    SynchronizationType.SEND_ONLY
-                } else {
-                    null
-                }
-
-                Pair(folderId, newSyncType)
+            val newSyncType = if (resource.any { it.permissions.contains(Permission.EDIT) }) {
+                SynchronizationType.SEND_RECEIVE
+            } else if (resource.any { it.permissions.contains(Permission.READ)}) {
+                SynchronizationType.SEND_ONLY
+            } else {
+                null
             }
 
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", mapping.map { it.first })
-                    setParameter("sync_types", mapping.map { it.second.toString() })
-                },
-                """
-                    update file_orchestrator.sync_folders set
-                    sync_type = updates.type
-                    from (select unnest(:ids::bigint[]), unnest(:sync_types::text[])) updates(id, type)
-                    where resource = updates.id
-                """
-            )
+            Pair(folderId, newSyncType)
         }
 
-        //TODO(Brian): Update syncType on provider
+        session.sendPreparedStatement(
+            {
+                setParameter("ids", mapping.map { it.first })
+                setParameter("sync_types", mapping.map { it.second.toString() })
+            },
+            """
+                update file_orchestrator.sync_folders set
+                    sync_type = updates.type
+                from (select unnest(:ids::bigint[]), unnest(:sync_types::text[])) updates(id, type)
+                where resource = updates.id
+            """
+        )
+
+        proxy.bulkProxy(
+            ActorAndProject(Actor.System, null),
+            BulkRequest(mapping),
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).onFilePermissionsUpdated },
+                requestToId = { it.first.toString() },
+                resourceToRequest = { req, res ->
+                    res.copy(status = res.status.copy(syncType = req.second))
+                }
+            )
+        )
     }
 
     private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
@@ -278,13 +292,14 @@ class SyncFolderService(
             {
                 setParameter("ids", updates.map { it.id })
                 setParameter("devices", updates.map { it.update.deviceId })
+                setParameter("sync_types", updates.map { it.update.syncType })
             },
             """
                 update file_orchestrator.sync_folders as f
-                set device_id = c.device_id
+                set device_id = c.device_id, sync_type = c.sync_type
                 from (
-                    select unnest(:ids::bigint[]), unnest(:devices::text[])
-                ) as c(resource, device_id)
+                    select unnest(:ids::bigint[]), unnest(:devices::text[]), unnest(:sync_types::text[])
+                ) as c(resource, device_id, sync_type)
                 where c.resource = f.resource
             """
         )

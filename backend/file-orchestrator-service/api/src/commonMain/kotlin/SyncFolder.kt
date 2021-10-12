@@ -1,5 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.api
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
@@ -95,4 +97,8 @@ open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder
             Product.Synchronization, SyncFolderSupport>()
 
     override val delete get() = super.delete!!
+
+    val onFilePermissionsUpdated = call<BulkRequest<SyncFolder>, BulkResponse<Unit?>, CommonErrorMessage>("onFilePermissionsUpdated") {
+        httpUpdate(baseContext, "filePermissionsUpdated", Roles.PROVIDER)
+    }
 }

@@ -15,7 +15,7 @@ import io.ktor.http.*
 import kotlinx.serialization.serializer
 
 
-typealias AclUpdateHandler = suspend (batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
+typealias AclUpdateHandler = suspend (session: AsyncDBConnection, batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
 
 private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
@@ -189,14 +189,10 @@ class FileCollectionService(
         )
     }
 
-
-
-
     override suspend fun onUpdateAcl(
         session: AsyncDBConnection,
         request: BulkRequest<UpdatedAclWithResource<FileCollection>>
     ) {
-        println("Updated acl")
-        aclUpdateHandlers.forEach { handler -> handler(request) }
+        aclUpdateHandlers.forEach { it(session, request) }
     }
 }

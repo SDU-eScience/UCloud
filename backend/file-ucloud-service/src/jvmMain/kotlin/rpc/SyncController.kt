@@ -58,5 +58,9 @@ class SyncController(
         implement(UCloudSyncFoldersBrowse.browse) {
             ok(syncService.browseFolders(request.device))
         }
+
+        implement(UCloudSyncFolders.onFilePermissionsUpdated) {
+            ok(syncService.updatePermissions(request))
+        }
     }
 }
