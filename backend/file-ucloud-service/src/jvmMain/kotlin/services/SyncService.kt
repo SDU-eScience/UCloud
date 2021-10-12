@@ -100,7 +100,11 @@ class SyncService(
                     bulkRequestOf(
                         ResourceUpdateAndId(
                             folder.id,
-                            SyncFolder.Update(Time.now(), "", deviceId = device.id)
+                            SyncFolder.Update(
+                                Time.now(),
+                                "Updated synchronized folder",
+                                deviceId = device.id,
+                                syncType = folder.status.syncType)
                         )
                     ),
                     authenticatedClient
@@ -118,7 +122,6 @@ class SyncService(
                 devices.add(device)
             }
 
-            println("Inserting")
             session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { folder -> folder.id.toLong() })
@@ -205,48 +208,6 @@ class SyncService(
         syncthing.writeConfig()
     }
 
-    internal suspend fun removeSubfolders(path: String) {
-        val affectedRows = db.withSession { session ->
-            val devices = session.sendPreparedStatement(
-                {
-                    setParameter("path", path)
-                },
-                """
-                    delete from file_ucloud.sync_folders
-                    where path like :path || '/%' or path = :path
-                    returning id, device_id
-                """
-            ).rows.mapNotNull {
-                val id = it.getLong(0)!!
-                val deviceId = it.getString(1)!!
-                val device = syncthing.config.devices.find { it.id == deviceId }
-                if (device != null) {
-                    id to device
-                } else {
-                    null
-                }
-            }
-
-            val grouped = devices.groupBy { it.second.id }
-            grouped.forEach { (_, requests) ->
-                Mounts.unmount.call(
-                    UnmountRequest(
-                        requests.map { MountFolderId(it.first) }
-                    ),
-                    authenticatedClient.withMounterInfo(requests[0].second)
-                ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                }
-            }
-
-            devices.size
-        }
-
-        if (affectedRows > 0) {
-            syncthing.writeConfig()
-        }
-    }
-
     suspend fun browseFolders(
         device: String
     ): List<SyncFolderBrowseItem> {
@@ -327,30 +288,61 @@ class SyncService(
 
     suspend fun updatePermissions(folders: BulkRequest<SyncFolder>): BulkResponse<Unit?> {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", folders.items.filter { it.status.syncType == null }.map { it.id })
-                },
-                """
+            if (folders.items.any { it.status.syncType == null }) {
+                val devices = session.sendPreparedStatement(
+                    {
+                        setParameter("ids", folders.items.filter { it.status.syncType == null }.map { it.id.toLong() })
+                    },
+                    """
                     delete from file_ucloud.sync_folders
                     where id in (select unnest(:ids::bigint[]))
+                    returning id, device_id
                 """
-            )
+                ).rows.mapNotNull {
+                    val id = it.getLong(0)!!
+                    val deviceId = it.getString(1)!!
+                    val device = syncthing.config.devices.find { it.id == deviceId }
+                    if (device != null) {
+                        id to device
+                    } else {
+                        null
+                    }
+                }
 
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", folders.items.filter { it.status.syncType != null }.map { it.id })
-                    setParameter("new_sync_types", folders.items.filter { it.status.syncType != null }.map { it.status.syncType })
-                },
-                """
-                    update file_ucloud.sync_folders f set
-                        sync_type = updates.sync_type
-                    from (select unnest(:ids::bigint[]), unnest(:new_sync_types::text[])) updates(id, sync_type)
-                    where f.id = updates.id
-                """
-            )
+                val grouped = devices.groupBy { it.second.id }
+                grouped.forEach { (_, requests) ->
+                    Mounts.unmount.call(
+                        UnmountRequest(
+                            requests.map { MountFolderId(it.first) }
+                        ),
+                        authenticatedClient//.withMounterInfo(requests[0].second)
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                }
+            }
+
+            if (folders.items.any { it.status.syncType != null }) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", folders.items.filter { it.status.syncType != null }.map { it.id })
+                        setParameter(
+                            "new_sync_types",
+                            folders.items.filter { it.status.syncType != null }.map { it.status.syncType })
+                    },
+                    """
+                        update file_ucloud.sync_folders f set
+                            sync_type = updates.sync_type
+                        from (select unnest(:ids::bigint[]), unnest(:new_sync_types::text[])) updates(id, sync_type)
+                        where f.id = updates.id
+                    """
+                )
+            }
         }
 
+        if (folders.items.isNotEmpty()) {
+            syncthing.writeConfig()
+        }
         return BulkResponse(emptyList())
     }
 }

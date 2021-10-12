@@ -70,6 +70,10 @@ class SyncFolderService(
             """
         ).rows
 
+        if (affectedFolders.size == 0) {
+            return
+        }
+
         val mapping = affectedFolders.map { row ->
             val folderId = row.getLong("resource") ?: 0
             val folderPath = row.getString("path") !!
@@ -242,6 +246,8 @@ class SyncFolderService(
             collectionIds,
             listOf(Permission.READ)
         )
+
+
 
         session
             .sendPreparedStatement(
