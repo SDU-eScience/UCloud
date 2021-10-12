@@ -1,6 +1,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Accounting Operations](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
 
-# Example: Charging a root allocation (Absolute)
+# Example: Charging a leaf allocation (Absolute)
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -8,6 +8,8 @@
 <th>Actors</th>
 <td><ul>
 <li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the leaf project (<code>piLeaf</code>)</li>
 </ul></td>
 </tr>
 </table>
@@ -18,9 +20,9 @@
 
 ```kotlin
 
-/* In this example, we will be performing some simple charge requests for an absolute 
-product. Before and after each charge, we will show the current state of the system.
-We will perform the charges on a root allocation, that is, it has no ancestors. */
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
 
 Wallets.browse.call(
     WalletBrowseRequest(
@@ -30,7 +32,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    ucloud
+    piRoot
 ).orThrow()
 
 /*
@@ -48,7 +50,47 @@ PageV2(
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 500, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -63,14 +105,17 @@ PageV2(
 )
 */
 
-/* Currently, the allocation has a balance of 1000. */
+/* As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500. */
+
+
+/* We now perform our charge of a single core hour. */
 
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
         numberOfProducts = 1, 
         payer = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "leaf-project", 
         ), 
         performedBy = "user", 
         product = ProductReference(
@@ -90,7 +135,8 @@ BulkResponse(
 )
 */
 
-/* The charge returns true, indicating that we had enough credits to complete the request. */
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
 
 Wallets.browse.call(
     WalletBrowseRequest(
@@ -100,7 +146,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    ucloud
+    piRoot
 ).orThrow()
 
 /*
@@ -112,13 +158,13 @@ PageV2(
             endDate = null, 
             id = "42", 
             initialBalance = 1000, 
-            localBalance = 999, 
+            localBalance = 1000, 
             startDate = 1633941615074, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "root-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -133,32 +179,10 @@ PageV2(
 )
 */
 
-/* As expected, a single credit was removed from our current balance and local balance. */
+/* On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+that balance shows the overall balance for the entire subtree. The local balance of the root 
+remains unaffected, since this wasn't consumed by the root.  */
 
-Accounting.charge.call(
-    bulkRequestOf(ChargeWalletRequestItem(
-        description = "A charge for compute usage", 
-        numberOfProducts = 1, 
-        payer = WalletOwner.Project(
-            projectId = "my-research", 
-        ), 
-        performedBy = "user", 
-        product = ProductReference(
-            category = "example-slim", 
-            id = "example-slim-1", 
-            provider = "example", 
-        ), 
-        transactionId = "charge-1", 
-        units = 1, 
-    )),
-    ucloud
-).orThrow()
-
-/*
-BulkResponse(
-    responses = listOf(true), 
-)
-*/
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
@@ -167,25 +191,25 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    ucloud
+    piLeaf
 ).orThrow()
 
 /*
 PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
-            allocationPath = listOf("42"), 
-            balance = 998, 
+            allocationPath = listOf("42", "52"), 
+            balance = 499, 
             endDate = null, 
-            id = "42", 
-            initialBalance = 1000, 
-            localBalance = 998, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 499, 
             startDate = 1633941615074, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "leaf-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -200,7 +224,7 @@ PageV2(
 )
 */
 
-/* A second charge further deducts 1 from the balance, as expected. */
+/* In the leaf allocation, we see that this has affected both the balance and the local balance. */
 
 ```
 
@@ -214,11 +238,11 @@ PageV2(
 
 ```typescript
 
-/* In this example, we will be performing some simple charge requests for an absolute 
-product. Before and after each charge, we will show the current state of the system.
-We will perform the charges on a root allocation, that is, it has no ancestors. */
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
 
-// Authenticated as ucloud
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -236,7 +260,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -264,16 +288,67 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
 
-/* Currently, the allocation has a balance of 1000. */
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
 
+/* As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500. */
+
+
+/* We now perform our charge of a single core hour. */
+
+// Authenticated as ucloud
 await callAPI(AccountingApi.charge(
     {
         "items": [
             {
                 "payer": {
                     "type": "project",
-                    "projectId": "my-research"
+                    "projectId": "leaf-project"
                 },
                 "units": 1,
                 "numberOfProducts": 1,
@@ -298,8 +373,10 @@ await callAPI(AccountingApi.charge(
 }
 */
 
-/* The charge returns true, indicating that we had enough credits to complete the request. */
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
 
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -317,7 +394,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -331,7 +408,7 @@ await callAPI(AccountingWalletsApi.browse(
                     ],
                     "balance": 999,
                     "initialBalance": 1000,
-                    "localBalance": 999,
+                    "localBalance": 1000,
                     "startDate": 1633941615074,
                     "endDate": null
                 }
@@ -346,38 +423,11 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* As expected, a single credit was removed from our current balance and local balance. */
+/* On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+that balance shows the overall balance for the entire subtree. The local balance of the root 
+remains unaffected, since this wasn't consumed by the root.  */
 
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "my-research"
-                },
-                "units": 1,
-                "numberOfProducts": 1,
-                "product": {
-                    "id": "example-slim-1",
-                    "category": "example-slim",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -395,7 +445,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "leaf-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -403,13 +453,14 @@ await callAPI(AccountingWalletsApi.browse(
             },
             "allocations": [
                 {
-                    "id": "42",
+                    "id": "52",
                     "allocationPath": [
-                        "42"
+                        "42",
+                        "52"
                     ],
-                    "balance": 998,
-                    "initialBalance": 1000,
-                    "localBalance": 998,
+                    "balance": 499,
+                    "initialBalance": 500,
+                    "localBalance": 499,
                     "startDate": 1633941615074,
                     "endDate": null
                 }
@@ -424,7 +475,7 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* A second charge further deducts 1 from the balance, as expected. */
+/* In the leaf allocation, we see that this has affected both the balance and the local balance. */
 
 ```
 
@@ -442,11 +493,11 @@ await callAPI(AccountingWalletsApi.browse(
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# In this example, we will be performing some simple charge requests for an absolute 
-# product. Before and after each charge, we will show the current state of the system.
-# We will perform the charges on a root allocation, that is, it has no ancestors.
+# In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+# hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+# which we will be referring to as the leaf, since it has no children.
 
-# Authenticated as ucloud
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -455,7 +506,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -483,14 +534,55 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Currently, the allocation has a balance of 1000.
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500.
+
+# We now perform our charge of a single core hour.
+
+# Authenticated as ucloud
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
     "items": [
         {
             "payer": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "leaf-project"
             },
             "units": 1,
             "numberOfProducts": 1,
@@ -513,8 +605,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #     ]
 # }
 
-# The charge returns true, indicating that we had enough credits to complete the request.
+# The response, as expected, that we had enough credits for the transaction. This would have been 
+# false if _any_ of the allocation in the hierarchy runs out of credits.
 
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -523,7 +617,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -537,7 +631,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     ],
 #                     "balance": 999,
 #                     "initialBalance": 1000,
-#                     "localBalance": 999,
+#                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null
 #                 }
@@ -551,36 +645,11 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# As expected, a single credit was removed from our current balance and local balance.
+# On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+# that balance shows the overall balance for the entire subtree. The local balance of the root 
+# remains unaffected, since this wasn't consumed by the root. 
 
-curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
-    "items": [
-        {
-            "payer": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "units": 1,
-            "numberOfProducts": 1,
-            "product": {
-                "id": "example-slim-1",
-                "category": "example-slim",
-                "provider": "example"
-            },
-            "performedBy": "user",
-            "description": "A charge for compute usage",
-            "transactionId": "charge-1"
-        }
-    ]
-}'
-
-
-# {
-#     "responses": [
-#         true
-#     ]
-# }
-
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -589,7 +658,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "leaf-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -597,13 +666,14 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #             },
 #             "allocations": [
 #                 {
-#                     "id": "42",
+#                     "id": "52",
 #                     "allocationPath": [
-#                         "42"
+#                         "42",
+#                         "52"
 #                     ],
-#                     "balance": 998,
-#                     "initialBalance": 1000,
-#                     "localBalance": 998,
+#                     "balance": 499,
+#                     "initialBalance": 500,
+#                     "localBalance": 499,
 #                     "startDate": 1633941615074,
 #                     "endDate": null
 #                 }
@@ -617,7 +687,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# A second charge further deducts 1 from the balance, as expected.
+# In the leaf allocation, we see that this has affected both the balance and the local balance.
 
 ```
 

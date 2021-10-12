@@ -1,13 +1,14 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Accounting Operations](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
 
-# Example: Charging a root allocation (Absolute)
+# Example: Creating a new root allocation (transfer operation)
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr>
 <th>Actors</th>
 <td><ul>
-<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the new root project (<code>piSecondRoot</code>)</li>
 </ul></td>
 </tr>
 </table>
@@ -18,9 +19,12 @@
 
 ```kotlin
 
-/* In this example, we will be performing some simple charge requests for an absolute 
-product. Before and after each charge, we will show the current state of the system.
-We will perform the charges on a root allocation, that is, it has no ancestors. */
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
 
 Wallets.browse.call(
     WalletBrowseRequest(
@@ -30,7 +34,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    ucloud
+    piSecondRoot
 ).orThrow()
 
 /*
@@ -38,17 +42,49 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
-            balance = 1000, 
+            balance = 500, 
             endDate = null, 
             id = "42", 
-            initialBalance = 1000, 
-            localBalance = 1000, 
+            initialBalance = 500, 
+            localBalance = 500, 
             startDate = 1633941615074, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = emptyList(), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "second-root-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -63,35 +99,36 @@ PageV2(
 )
 */
 
-/* Currently, the allocation has a balance of 1000. */
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
 
-Accounting.charge.call(
-    bulkRequestOf(ChargeWalletRequestItem(
-        description = "A charge for compute usage", 
-        numberOfProducts = 1, 
-        payer = WalletOwner.Project(
-            projectId = "my-research", 
-        ), 
-        performedBy = "user", 
-        product = ProductReference(
-            category = "example-slim", 
-            id = "example-slim-1", 
+
+/* We now perform a transfer operation with the leaf workspace as the target. */
+
+Accounting.transfer.call(
+    bulkRequestOf(TransferToWalletRequestItem(
+        amount = 100, 
+        categoryId = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
             provider = "example", 
         ), 
-        transactionId = "charge-1", 
-        units = 1, 
+        endDate = null, 
+        source = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        startDate = null, 
+        target = WalletOwner.Project(
+            projectId = "second-root-project", 
+        ), 
+        transactionId = "-61502635092191502671634045862012", 
     )),
-    ucloud
+    piRoot
 ).orThrow()
 
 /*
-BulkResponse(
-    responses = listOf(true), 
-)
+Unit
 */
-
-/* The charge returns true, indicating that we had enough credits to complete the request. */
-
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
@@ -100,7 +137,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    ucloud
+    piSecondRoot
 ).orThrow()
 
 /*
@@ -108,17 +145,57 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
-            balance = 999, 
+            balance = 400, 
             endDate = null, 
             id = "42", 
-            initialBalance = 1000, 
-            localBalance = 999, 
+            initialBalance = 500, 
+            localBalance = 400, 
             startDate = 1633941615074, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "my-research", 
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("52"), 
+            balance = 100, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 100, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "second-root-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -133,74 +210,9 @@ PageV2(
 )
 */
 
-/* As expected, a single credit was removed from our current balance and local balance. */
-
-Accounting.charge.call(
-    bulkRequestOf(ChargeWalletRequestItem(
-        description = "A charge for compute usage", 
-        numberOfProducts = 1, 
-        payer = WalletOwner.Project(
-            projectId = "my-research", 
-        ), 
-        performedBy = "user", 
-        product = ProductReference(
-            category = "example-slim", 
-            id = "example-slim-1", 
-            provider = "example", 
-        ), 
-        transactionId = "charge-1", 
-        units = 1, 
-    )),
-    ucloud
-).orThrow()
-
-/*
-BulkResponse(
-    responses = listOf(true), 
-)
-*/
-Wallets.browse.call(
-    WalletBrowseRequest(
-        consistency = null, 
-        filterType = null, 
-        itemsPerPage = null, 
-        itemsToSkip = null, 
-        next = null, 
-    ),
-    ucloud
-).orThrow()
-
-/*
-PageV2(
-    items = listOf(Wallet(
-        allocations = listOf(WalletAllocation(
-            allocationPath = listOf("42"), 
-            balance = 998, 
-            endDate = null, 
-            id = "42", 
-            initialBalance = 1000, 
-            localBalance = 998, 
-            startDate = 1633941615074, 
-        )), 
-        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
-        chargeType = ChargeType.ABSOLUTE, 
-        owner = WalletOwner.Project(
-            projectId = "my-research", 
-        ), 
-        paysFor = ProductCategoryId(
-            id = "example-slim", 
-            name = "example-slim", 
-            provider = "example", 
-        ), 
-        productType = ProductType.COMPUTE, 
-        unit = ProductPriceUnit.UNITS_PER_HOUR, 
-    )), 
-    itemsPerPage = 50, 
-    next = null, 
-)
-*/
-
-/* A second charge further deducts 1 from the balance, as expected. */
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
 
 ```
 
@@ -214,11 +226,14 @@ PageV2(
 
 ```typescript
 
-/* In this example, we will be performing some simple charge requests for an absolute 
-product. Before and after each charge, we will show the current state of the system.
-We will perform the charges on a root allocation, that is, it has no ancestors. */
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
 
-// Authenticated as ucloud
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -236,7 +251,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -248,9 +263,9 @@ await callAPI(AccountingWalletsApi.browse(
                     "allocationPath": [
                         "42"
                     ],
-                    "balance": 1000,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
                     "startDate": 1633941615074,
                     "endDate": null
                 }
@@ -264,27 +279,68 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
 
-/* Currently, the allocation has a balance of 1000. */
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
 
-await callAPI(AccountingApi.charge(
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
+
+
+/* We now perform a transfer operation with the leaf workspace as the target. */
+
+// Authenticated as piRoot
+await callAPI(AccountingApi.transfer(
     {
         "items": [
             {
-                "payer": {
-                    "type": "project",
-                    "projectId": "my-research"
-                },
-                "units": 1,
-                "numberOfProducts": 1,
-                "product": {
-                    "id": "example-slim-1",
-                    "category": "example-slim",
+                "categoryId": {
+                    "name": "example-slim",
                     "provider": "example"
                 },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
+                "target": {
+                    "type": "project",
+                    "projectId": "second-root-project"
+                },
+                "source": {
+                    "type": "project",
+                    "projectId": "root-project"
+                },
+                "amount": 100,
+                "startDate": null,
+                "endDate": null,
+                "transactionId": "-61502635092191502671634045862012"
             }
         ]
     }
@@ -292,14 +348,9 @@ await callAPI(AccountingApi.charge(
 
 /*
 {
-    "responses": [
-        true
-    ]
 }
 */
-
-/* The charge returns true, indicating that we had enough credits to complete the request. */
-
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -317,7 +368,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -329,9 +380,9 @@ await callAPI(AccountingWalletsApi.browse(
                     "allocationPath": [
                         "42"
                     ],
-                    "balance": 999,
-                    "initialBalance": 1000,
-                    "localBalance": 999,
+                    "balance": 400,
+                    "initialBalance": 500,
+                    "localBalance": 400,
                     "startDate": 1633941615074,
                     "endDate": null
                 }
@@ -343,39 +394,6 @@ await callAPI(AccountingWalletsApi.browse(
         }
     ],
     "next": null
-}
-*/
-
-/* As expected, a single credit was removed from our current balance and local balance. */
-
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "my-research"
-                },
-                "units": 1,
-                "numberOfProducts": 1,
-                "product": {
-                    "id": "example-slim-1",
-                    "category": "example-slim",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
 }
 */
 await callAPI(AccountingWalletsApi.browse(
@@ -395,7 +413,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "my-research"
+                "projectId": "second-root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -403,13 +421,13 @@ await callAPI(AccountingWalletsApi.browse(
             },
             "allocations": [
                 {
-                    "id": "42",
+                    "id": "52",
                     "allocationPath": [
-                        "42"
+                        "52"
                     ],
-                    "balance": 998,
-                    "initialBalance": 1000,
-                    "localBalance": 998,
+                    "balance": 100,
+                    "initialBalance": 100,
+                    "localBalance": 100,
                     "startDate": 1633941615074,
                     "endDate": null
                 }
@@ -424,7 +442,9 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* A second charge further deducts 1 from the balance, as expected. */
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
 
 ```
 
@@ -442,11 +462,14 @@ await callAPI(AccountingWalletsApi.browse(
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# In this example, we will be performing some simple charge requests for an absolute 
-# product. Before and after each charge, we will show the current state of the system.
-# We will perform the charges on a root allocation, that is, it has no ancestors.
+# In this example, we will show how a workspace can transfer money to another workspace. This is not 
+# the recommended way of creating granting resources. This approach immediately removes all resources 
+# from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+# allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+# should only use transfers if they wish to give away resources that they otherwise will not be able 
+# to consume. 
 
-# Authenticated as ucloud
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -455,7 +478,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -467,9 +490,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "allocationPath": [
 #                         "42"
 #                     ],
-#                     "balance": 1000,
-#                     "initialBalance": 1000,
-#                     "localBalance": 1000,
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null
 #                 }
@@ -483,38 +506,65 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Currently, the allocation has a balance of 1000.
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
-curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "second-root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+# resources at the moment.
+
+# We now perform a transfer operation with the leaf workspace as the target.
+
+# Authenticated as piRoot
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/transfer" -d '{
     "items": [
         {
-            "payer": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "units": 1,
-            "numberOfProducts": 1,
-            "product": {
-                "id": "example-slim-1",
-                "category": "example-slim",
+            "categoryId": {
+                "name": "example-slim",
                 "provider": "example"
             },
-            "performedBy": "user",
-            "description": "A charge for compute usage",
-            "transactionId": "charge-1"
+            "target": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "source": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "amount": 100,
+            "startDate": null,
+            "endDate": null,
+            "transactionId": "-61502635092191502671634045862012"
         }
     ]
 }'
 
 
 # {
-#     "responses": [
-#         true
-#     ]
 # }
 
-# The charge returns true, indicating that we had enough credits to complete the request.
-
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -523,7 +573,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -535,9 +585,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "allocationPath": [
 #                         "42"
 #                     ],
-#                     "balance": 999,
-#                     "initialBalance": 1000,
-#                     "localBalance": 999,
+#                     "balance": 400,
+#                     "initialBalance": 500,
+#                     "localBalance": 400,
 #                     "startDate": 1633941615074,
 #                     "endDate": null
 #                 }
@@ -551,36 +601,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# As expected, a single credit was removed from our current balance and local balance.
-
-curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
-    "items": [
-        {
-            "payer": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "units": 1,
-            "numberOfProducts": 1,
-            "product": {
-                "id": "example-slim-1",
-                "category": "example-slim",
-                "provider": "example"
-            },
-            "performedBy": "user",
-            "description": "A charge for compute usage",
-            "transactionId": "charge-1"
-        }
-    ]
-}'
-
-
-# {
-#     "responses": [
-#         true
-#     ]
-# }
-
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -589,7 +609,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "my-research"
+#                 "projectId": "second-root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -597,13 +617,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #             },
 #             "allocations": [
 #                 {
-#                     "id": "42",
+#                     "id": "52",
 #                     "allocationPath": [
-#                         "42"
+#                         "52"
 #                     ],
-#                     "balance": 998,
-#                     "initialBalance": 1000,
-#                     "localBalance": 998,
+#                     "balance": 100,
+#                     "initialBalance": 100,
+#                     "localBalance": 100,
 #                     "startDate": 1633941615074,
 #                     "endDate": null
 #                 }
@@ -617,7 +637,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# A second charge further deducts 1 from the balance, as expected.
+# After inspecting the allocations, we see that the original (root) allocation has changed. The 
+# system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+# The new allocation does not have a parent.
 
 ```
 

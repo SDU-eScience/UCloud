@@ -67,6 +67,11 @@ In the examples below, we will be using a consistent set of [`Product`](/docs/re
 <tr><td><a href='#example-charging-a-root-allocation-(absolute)'>Charging a root allocation (Absolute)</a></td></tr>
 <tr><td><a href='#example-charging-a-root-allocation-(differential)'>Charging a root allocation (Differential)</a></td></tr>
 <tr><td><a href='#example-charging-a-leaf-allocation-(absolute)'>Charging a leaf allocation (Absolute)</a></td></tr>
+<tr><td><a href='#example-charging-a-leaf-allocation-(differential)'>Charging a leaf allocation (Differential)</a></td></tr>
+<tr><td><a href='#example-charging-a-leaf-allocation-with-missing-credits-(absolute)'>Charging a leaf allocation with missing credits (Absolute)</a></td></tr>
+<tr><td><a href='#example-charging-a-leaf-allocation-with-missing-credits-(differential)'>Charging a leaf allocation with missing credits (Differential)</a></td></tr>
+<tr><td><a href='#example-creating-a-sub-allocation-(deposit-operation)'>Creating a sub-allocation (deposit operation)</a></td></tr>
+<tr><td><a href='#example-creating-a-new-root-allocation-(transfer-operation)'>Creating a new root allocation (transfer operation)</a></td></tr>
 </tbody></table>
 
 
@@ -84,7 +89,7 @@ In the examples below, we will be using a consistent set of [`Product`](/docs/re
 <tbody>
 <tr>
 <td><a href='#charge'><code>charge</code></a></td>
-<td><i>No description</i></td>
+<td>Records usage in the system</td>
 </tr>
 <tr>
 <td><a href='#check'><code>check</code></a></td>
@@ -1409,8 +1414,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 <th>Actors</th>
 <td><ul>
 <li>The UCloud/Core service user (<code>ucloud</code>)</li>
-<li>piRoot (<code>The PI of the root project</code>)</li>
-<li>piLeaf (<code>The PI of the leaf project</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the leaf project (<code>piLeaf</code>)</li>
 </ul></td>
 </tr>
 </table>
@@ -1420,6 +1425,11 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 </summary>
 
 ```kotlin
+
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
+
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
@@ -1428,7 +1438,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    The PI of the root project
+    piRoot
 ).orThrow()
 
 /*
@@ -1468,7 +1478,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    The PI of the leaf project
+    piLeaf
 ).orThrow()
 
 /*
@@ -1500,6 +1510,12 @@ PageV2(
     next = null, 
 )
 */
+
+/* As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500. */
+
+
+/* We now perform our charge of a single core hour. */
+
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
@@ -1524,6 +1540,10 @@ BulkResponse(
     responses = listOf(true), 
 )
 */
+
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
+
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
@@ -1532,7 +1552,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    The PI of the root project
+    piRoot
 ).orThrow()
 
 /*
@@ -1564,6 +1584,11 @@ PageV2(
     next = null, 
 )
 */
+
+/* On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+that balance shows the overall balance for the entire subtree. The local balance of the root 
+remains unaffected, since this wasn't consumed by the root.  */
+
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
@@ -1572,7 +1597,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    The PI of the leaf project
+    piLeaf
 ).orThrow()
 
 /*
@@ -1604,6 +1629,9 @@ PageV2(
     next = null, 
 )
 */
+
+/* In the leaf allocation, we see that this has affected both the balance and the local balance. */
+
 ```
 
 
@@ -1615,7 +1643,12 @@ PageV2(
 </summary>
 
 ```typescript
-// Authenticated as The PI of the root project
+
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
+
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -1661,7 +1694,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as The PI of the leaf project
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -1708,6 +1741,12 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+
+/* As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500. */
+
+
+/* We now perform our charge of a single core hour. */
+
 // Authenticated as ucloud
 await callAPI(AccountingApi.charge(
     {
@@ -1739,7 +1778,11 @@ await callAPI(AccountingApi.charge(
     ]
 }
 */
-// Authenticated as The PI of the root project
+
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
+
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -1785,7 +1828,12 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as The PI of the leaf project
+
+/* On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+that balance shows the overall balance for the entire subtree. The local balance of the root 
+remains unaffected, since this wasn't consumed by the root.  */
+
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -1832,6 +1880,9 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+
+/* In the leaf allocation, we see that this has affected both the balance and the local balance. */
+
 ```
 
 
@@ -1848,7 +1899,11 @@ await callAPI(AccountingWalletsApi.browse(
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# Authenticated as The PI of the root project
+# In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+# hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+# which we will be referring to as the leaf, since it has no children.
+
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1885,7 +1940,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as The PI of the leaf project
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1923,6 +1978,10 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500.
+
+# We now perform our charge of a single core hour.
+
 # Authenticated as ucloud
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
     "items": [
@@ -1952,7 +2011,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #     ]
 # }
 
-# Authenticated as The PI of the root project
+# The response, as expected, that we had enough credits for the transaction. This would have been 
+# false if _any_ of the allocation in the hierarchy runs out of credits.
+
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1989,7 +2051,11 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as The PI of the leaf project
+# On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+# that balance shows the overall balance for the entire subtree. The local balance of the root 
+# remains unaffected, since this wasn't consumed by the root. 
+
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -2027,6 +2093,4707 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# In the leaf allocation, we see that this has affected both the balance and the local balance.
+
+```
+
+
+</details>
+
+
+## Example: Charging a leaf allocation (Differential)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the leaf project (<code>piLeaf</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 1000, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 500, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* As we can see, in our initial state, the root has 1000 GB remaining and the leaf has 500. */
+
+
+/* We now perform our charge of 100 GB on the leaf. */
+
+Accounting.charge.call(
+    bulkRequestOf(ChargeWalletRequestItem(
+        description = "A charge for compute usage", 
+        numberOfProducts = 1, 
+        payer = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        performedBy = "user", 
+        product = ProductReference(
+            category = "example-storage", 
+            id = "example-storage", 
+            provider = "example", 
+        ), 
+        transactionId = "charge-1", 
+        units = 100, 
+    )),
+    ucloud
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(true), 
+)
+*/
+
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 900, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
+balance shows the overall balance for the entire subtree. The local balance of the root remains 
+unaffected, since this wasn't consumed by the root. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 400, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 400, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* In the leaf allocation, we see that this has affected both the balance and the local balance.  */
+
+
+/* We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation. */
+
+Accounting.charge.call(
+    bulkRequestOf(ChargeWalletRequestItem(
+        description = "A charge for compute usage", 
+        numberOfProducts = 1, 
+        payer = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        performedBy = "user", 
+        product = ProductReference(
+            category = "example-storage", 
+            id = "example-storage", 
+            provider = "example", 
+        ), 
+        transactionId = "charge-1", 
+        units = 50, 
+    )),
+    ucloud
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(true), 
+)
+*/
+
+/* Again, this allocation succeeds. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 850, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 950, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* This charge has affected the local and current balance of the root by the expected 50 GB. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 400, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 400, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
+and their ancestors. A descendant is never directly updated by such an operation. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+which we will be referring to as the leaf, since it has no children. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 1000,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* As we can see, in our initial state, the root has 1000 GB remaining and the leaf has 500. */
+
+
+/* We now perform our charge of 100 GB on the leaf. */
+
+// Authenticated as ucloud
+await callAPI(AccountingApi.charge(
+    {
+        "items": [
+            {
+                "payer": {
+                    "type": "project",
+                    "projectId": "leaf-project"
+                },
+                "units": 100,
+                "numberOfProducts": 1,
+                "product": {
+                    "id": "example-storage",
+                    "category": "example-storage",
+                    "provider": "example"
+                },
+                "performedBy": "user",
+                "description": "A charge for compute usage",
+                "transactionId": "charge-1"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        true
+    ]
+}
+*/
+
+/* The response, as expected, that we had enough credits for the transaction. This would have been 
+false if _any_ of the allocation in the hierarchy runs out of credits. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 900,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
+balance shows the overall balance for the entire subtree. The local balance of the root remains 
+unaffected, since this wasn't consumed by the root. */
+
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 400,
+                    "initialBalance": 500,
+                    "localBalance": 400,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* In the leaf allocation, we see that this has affected both the balance and the local balance.  */
+
+
+/* We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation. */
+
+// Authenticated as ucloud
+await callAPI(AccountingApi.charge(
+    {
+        "items": [
+            {
+                "payer": {
+                    "type": "project",
+                    "projectId": "root-project"
+                },
+                "units": 50,
+                "numberOfProducts": 1,
+                "product": {
+                    "id": "example-storage",
+                    "category": "example-storage",
+                    "provider": "example"
+                },
+                "performedBy": "user",
+                "description": "A charge for compute usage",
+                "transactionId": "charge-1"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        true
+    ]
+}
+*/
+
+/* Again, this allocation succeeds. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 850,
+                    "initialBalance": 1000,
+                    "localBalance": 950,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* This charge has affected the local and current balance of the root by the expected 50 GB. */
+
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 400,
+                    "initialBalance": 500,
+                    "localBalance": 400,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
+and their ancestors. A descendant is never directly updated by such an operation. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+# hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+# which we will be referring to as the leaf, since it has no children.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 1000,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# As we can see, in our initial state, the root has 1000 GB remaining and the leaf has 500.
+
+# We now perform our charge of 100 GB on the leaf.
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+    "items": [
+        {
+            "payer": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "units": 100,
+            "numberOfProducts": 1,
+            "product": {
+                "id": "example-storage",
+                "category": "example-storage",
+                "provider": "example"
+            },
+            "performedBy": "user",
+            "description": "A charge for compute usage",
+            "transactionId": "charge-1"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         true
+#     ]
+# }
+
+# The response, as expected, that we had enough credits for the transaction. This would have been 
+# false if _any_ of the allocation in the hierarchy runs out of credits.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 900,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
+# balance shows the overall balance for the entire subtree. The local balance of the root remains 
+# unaffected, since this wasn't consumed by the root.
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 400,
+#                     "initialBalance": 500,
+#                     "localBalance": 400,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# In the leaf allocation, we see that this has affected both the balance and the local balance. 
+
+# We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation.
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+    "items": [
+        {
+            "payer": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "units": 50,
+            "numberOfProducts": 1,
+            "product": {
+                "id": "example-storage",
+                "category": "example-storage",
+                "provider": "example"
+            },
+            "performedBy": "user",
+            "description": "A charge for compute usage",
+            "transactionId": "charge-1"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         true
+#     ]
+# }
+
+# Again, this allocation succeeds.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 850,
+#                     "initialBalance": 1000,
+#                     "localBalance": 950,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# This charge has affected the local and current balance of the root by the expected 50 GB.
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 400,
+#                     "initialBalance": 500,
+#                     "localBalance": 400,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
+# and their ancestors. A descendant is never directly updated by such an operation.
+
+```
+
+
+</details>
+
+
+## Example: Charging a leaf allocation with missing credits (Absolute)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the node project (child of root) (<code>piNode</code>)</li>
+<li>The PI of the leaf project (child of node) (<code>piLeaf</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show what happens when an allocation is unable to carry the full charge. 
+We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+has no children. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 550, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 50, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "node-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52", "62"), 
+            balance = 450, 
+            endDate = null, 
+            id = "62", 
+            initialBalance = 500, 
+            localBalance = 450, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+this state by applying a 400 core hour charge on the node and another 50 core hours on the leaf. */
+
+
+/* We now attempt to perform a charge of 100 core hours on the leaf. */
+
+Accounting.charge.call(
+    bulkRequestOf(ChargeWalletRequestItem(
+        description = "A charge for compute usage", 
+        numberOfProducts = 1, 
+        payer = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        performedBy = "user", 
+        product = ProductReference(
+            category = "example-slim", 
+            id = "example-slim-1", 
+            provider = "example", 
+        ), 
+        transactionId = "charge-1", 
+        units = 100, 
+    )),
+    ucloud
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(false), 
+)
+*/
+
+/* Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+before the charge, only has 50 core hours remaining. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 450, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = -50, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "node-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52", "62"), 
+            balance = 350, 
+            endDate = null, 
+            id = "62", 
+            initialBalance = 500, 
+            localBalance = 350, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+negatives. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show what happens when an allocation is unable to carry the full charge. 
+We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+has no children. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 550,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "node-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 50,
+                    "initialBalance": 500,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "62",
+                    "allocationPath": [
+                        "42",
+                        "52",
+                        "62"
+                    ],
+                    "balance": 450,
+                    "initialBalance": 500,
+                    "localBalance": 450,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+this state by applying a 400 core hour charge on the node and another 50 core hours on the leaf. */
+
+
+/* We now attempt to perform a charge of 100 core hours on the leaf. */
+
+// Authenticated as ucloud
+await callAPI(AccountingApi.charge(
+    {
+        "items": [
+            {
+                "payer": {
+                    "type": "project",
+                    "projectId": "leaf-project"
+                },
+                "units": 100,
+                "numberOfProducts": 1,
+                "product": {
+                    "id": "example-slim-1",
+                    "category": "example-slim",
+                    "provider": "example"
+                },
+                "performedBy": "user",
+                "description": "A charge for compute usage",
+                "transactionId": "charge-1"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        false
+    ]
+}
+*/
+
+/* Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+before the charge, only has 50 core hours remaining. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 450,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "node-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": -50,
+                    "initialBalance": 500,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "62",
+                    "allocationPath": [
+                        "42",
+                        "52",
+                        "62"
+                    ],
+                    "balance": 350,
+                    "initialBalance": 500,
+                    "localBalance": 350,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+negatives. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show what happens when an allocation is unable to carry the full charge. 
+# We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+# single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+# has no children.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 550,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "node-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 50,
+#                     "initialBalance": 500,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "62",
+#                     "allocationPath": [
+#                         "42",
+#                         "52",
+#                         "62"
+#                     ],
+#                     "balance": 450,
+#                     "initialBalance": 500,
+#                     "localBalance": 450,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+# this state by applying a 400 core hour charge on the node and another 50 core hours on the leaf.
+
+# We now attempt to perform a charge of 100 core hours on the leaf.
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+    "items": [
+        {
+            "payer": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "units": 100,
+            "numberOfProducts": 1,
+            "product": {
+                "id": "example-slim-1",
+                "category": "example-slim",
+                "provider": "example"
+            },
+            "performedBy": "user",
+            "description": "A charge for compute usage",
+            "transactionId": "charge-1"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         false
+#     ]
+# }
+
+# Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+# before the charge, only has 50 core hours remaining.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 450,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "node-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": -50,
+#                     "initialBalance": 500,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "62",
+#                     "allocationPath": [
+#                         "42",
+#                         "52",
+#                         "62"
+#                     ],
+#                     "balance": 350,
+#                     "initialBalance": 500,
+#                     "localBalance": 350,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+# balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+# negatives.
+
+```
+
+
+</details>
+
+
+## Example: Charging a leaf allocation with missing credits (Differential)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the node project (child of root) (<code>piNode</code>)</li>
+<li>The PI of the leaf project (child of node) (<code>piLeaf</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show what happens when an allocation is unable to carry the full charge. 
+We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+has no children. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 550, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 50, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "node-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52", "62"), 
+            balance = 450, 
+            endDate = null, 
+            id = "62", 
+            initialBalance = 500, 
+            localBalance = 450, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+this state by applying a 400 GB charge on the node and another 50 GB on the leaf. */
+
+
+/* We now attempt to perform a charge of 110 GB on the leaf. */
+
+Accounting.charge.call(
+    bulkRequestOf(ChargeWalletRequestItem(
+        description = "A charge for compute usage", 
+        numberOfProducts = 1, 
+        payer = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        performedBy = "user", 
+        product = ProductReference(
+            category = "example-storage", 
+            id = "example-storage", 
+            provider = "example", 
+        ), 
+        transactionId = "charge-1", 
+        units = 110, 
+    )),
+    ucloud
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(false), 
+)
+*/
+
+/* Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+before the charge, only has 50 GB remaining. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 490, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = -10, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "node-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52", "62"), 
+            balance = 390, 
+            endDate = null, 
+            id = "62", 
+            initialBalance = 500, 
+            localBalance = 390, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+negatives. */
+
+
+/* We now assume that the leaf deletes all their data. The accounting system records this as a charge 
+for 0 units (GB). */
+
+Accounting.charge.call(
+    bulkRequestOf(ChargeWalletRequestItem(
+        description = "A charge for compute usage", 
+        numberOfProducts = 1, 
+        payer = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        performedBy = "user", 
+        product = ProductReference(
+            category = "example-storage", 
+            id = "example-storage", 
+            provider = "example", 
+        ), 
+        transactionId = "charge-1", 
+        units = 0, 
+    )),
+    ucloud
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(true), 
+)
+*/
+
+/* This charge succeeds, as it is bringing the balance back into the positive. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 490, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 1000, 
+            localBalance = 1000, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 100, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 500, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "node-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52", "62"), 
+            balance = 500, 
+            endDate = null, 
+            id = "62", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-storage", 
+            name = "example-storage", 
+            provider = "example", 
+        ), 
+        productType = ProductType.STORAGE, 
+        unit = ProductPriceUnit.PER_UNIT, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show what happens when an allocation is unable to carry the full charge. 
+We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+has no children. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 550,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "node-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 50,
+                    "initialBalance": 500,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "62",
+                    "allocationPath": [
+                        "42",
+                        "52",
+                        "62"
+                    ],
+                    "balance": 450,
+                    "initialBalance": 500,
+                    "localBalance": 450,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+this state by applying a 400 GB charge on the node and another 50 GB on the leaf. */
+
+
+/* We now attempt to perform a charge of 110 GB on the leaf. */
+
+// Authenticated as ucloud
+await callAPI(AccountingApi.charge(
+    {
+        "items": [
+            {
+                "payer": {
+                    "type": "project",
+                    "projectId": "leaf-project"
+                },
+                "units": 110,
+                "numberOfProducts": 1,
+                "product": {
+                    "id": "example-storage",
+                    "category": "example-storage",
+                    "provider": "example"
+                },
+                "performedBy": "user",
+                "description": "A charge for compute usage",
+                "transactionId": "charge-1"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        false
+    ]
+}
+*/
+
+/* Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+before the charge, only has 50 GB remaining. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 490,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "node-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": -10,
+                    "initialBalance": 500,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "62",
+                    "allocationPath": [
+                        "42",
+                        "52",
+                        "62"
+                    ],
+                    "balance": 390,
+                    "initialBalance": 500,
+                    "localBalance": 390,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+negatives. */
+
+
+/* We now assume that the leaf deletes all their data. The accounting system records this as a charge 
+for 0 units (GB). */
+
+// Authenticated as ucloud
+await callAPI(AccountingApi.charge(
+    {
+        "items": [
+            {
+                "payer": {
+                    "type": "project",
+                    "projectId": "leaf-project"
+                },
+                "units": 0,
+                "numberOfProducts": 1,
+                "product": {
+                    "id": "example-storage",
+                    "category": "example-storage",
+                    "provider": "example"
+                },
+                "performedBy": "user",
+                "description": "A charge for compute usage",
+                "transactionId": "charge-1"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        true
+    ]
+}
+*/
+
+/* This charge succeeds, as it is bringing the balance back into the positive. */
+
+// Authenticated as piRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 490,
+                    "initialBalance": 1000,
+                    "localBalance": 1000,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "node-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 100,
+                    "initialBalance": 500,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-storage",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "62",
+                    "allocationPath": [
+                        "42",
+                        "52",
+                        "62"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "STORAGE",
+            "chargeType": "DIFFERENTIAL_QUOTA",
+            "unit": "PER_UNIT"
+        }
+    ],
+    "next": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show what happens when an allocation is unable to carry the full charge. 
+# We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+# single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+# has no children.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 550,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "node-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 50,
+#                     "initialBalance": 500,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "62",
+#                     "allocationPath": [
+#                         "42",
+#                         "52",
+#                         "62"
+#                     ],
+#                     "balance": 450,
+#                     "initialBalance": 500,
+#                     "localBalance": 450,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+# this state by applying a 400 GB charge on the node and another 50 GB on the leaf.
+
+# We now attempt to perform a charge of 110 GB on the leaf.
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+    "items": [
+        {
+            "payer": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "units": 110,
+            "numberOfProducts": 1,
+            "product": {
+                "id": "example-storage",
+                "category": "example-storage",
+                "provider": "example"
+            },
+            "performedBy": "user",
+            "description": "A charge for compute usage",
+            "transactionId": "charge-1"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         false
+#     ]
+# }
+
+# Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+# before the charge, only has 50 GB remaining.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 490,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "node-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": -10,
+#                     "initialBalance": 500,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "62",
+#                     "allocationPath": [
+#                         "42",
+#                         "52",
+#                         "62"
+#                     ],
+#                     "balance": 390,
+#                     "initialBalance": 500,
+#                     "localBalance": 390,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+# balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+# negatives.
+
+# We now assume that the leaf deletes all their data. The accounting system records this as a charge 
+# for 0 units (GB).
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/charge" -d '{
+    "items": [
+        {
+            "payer": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "units": 0,
+            "numberOfProducts": 1,
+            "product": {
+                "id": "example-storage",
+                "category": "example-storage",
+                "provider": "example"
+            },
+            "performedBy": "user",
+            "description": "A charge for compute usage",
+            "transactionId": "charge-1"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         true
+#     ]
+# }
+
+# This charge succeeds, as it is bringing the balance back into the positive.
+
+# Authenticated as piRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 490,
+#                     "initialBalance": 1000,
+#                     "localBalance": 1000,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "node-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 100,
+#                     "initialBalance": 500,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-storage",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "62",
+#                     "allocationPath": [
+#                         "42",
+#                         "52",
+#                         "62"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "STORAGE",
+#             "chargeType": "DIFFERENTIAL_QUOTA",
+#             "unit": "PER_UNIT"
+#         }
+#     ],
+#     "next": null
+# }
+
+```
+
+
+</details>
+
+
+## Example: Creating a sub-allocation (deposit operation)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the leaf project (child of root) (<code>piLeaf</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
+have an existing allocation as a child. This is the recommended way of creating allocations. 
+Resources are not immediately removed from the parent allocation. In addition, workspaces can 
+over-allocate resources. For example, a workspace can deposit more resources than they have into 
+sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
+examples, all allocations in a hierarchy must be able to carry a charge. */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 500, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = emptyList(), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
+
+
+/* We now perform a deposit operation with the leaf workspace as the target. */
+
+Accounting.deposit.call(
+    bulkRequestOf(DepositToWalletRequestItem(
+        amount = 100, 
+        description = "Create sub-allocation", 
+        endDate = null, 
+        recipient = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        sourceAllocation = "42", 
+        startDate = null, 
+        transactionId = "14502961595596327281634045862011", 
+    )),
+    piRoot
+).orThrow()
+
+/*
+Unit
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 500, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piLeaf
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42", "52"), 
+            balance = 100, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 100, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "leaf-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
+However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
+parent, indicated by the path.  */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
+have an existing allocation as a child. This is the recommended way of creating allocations. 
+Resources are not immediately removed from the parent allocation. In addition, workspaces can 
+over-allocate resources. For example, a workspace can deposit more resources than they have into 
+sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
+examples, all allocations in a hierarchy must be able to carry a charge. */
+
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
+
+
+/* We now perform a deposit operation with the leaf workspace as the target. */
+
+// Authenticated as piRoot
+await callAPI(AccountingApi.deposit(
+    {
+        "items": [
+            {
+                "recipient": {
+                    "type": "project",
+                    "projectId": "leaf-project"
+                },
+                "sourceAllocation": "42",
+                "amount": 100,
+                "description": "Create sub-allocation",
+                "startDate": null,
+                "endDate": null,
+                "transactionId": "14502961595596327281634045862011"
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+// Authenticated as piLeaf
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "42",
+                        "52"
+                    ],
+                    "balance": 100,
+                    "initialBalance": 100,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
+However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
+parent, indicated by the path.  */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
+# have an existing allocation as a child. This is the recommended way of creating allocations. 
+# Resources are not immediately removed from the parent allocation. In addition, workspaces can 
+# over-allocate resources. For example, a workspace can deposit more resources than they have into 
+# sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
+# examples, all allocations in a hierarchy must be able to carry a charge.
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+# resources at the moment.
+
+# We now perform a deposit operation with the leaf workspace as the target.
+
+# Authenticated as piRoot
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/deposit" -d '{
+    "items": [
+        {
+            "recipient": {
+                "type": "project",
+                "projectId": "leaf-project"
+            },
+            "sourceAllocation": "42",
+            "amount": 100,
+            "description": "Create sub-allocation",
+            "startDate": null,
+            "endDate": null,
+            "transactionId": "14502961595596327281634045862011"
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# Authenticated as piLeaf
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "leaf-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "42",
+#                         "52"
+#                     ],
+#                     "balance": 100,
+#                     "initialBalance": 100,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
+# However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
+# parent, indicated by the path. 
+
+```
+
+
+</details>
+
+
+## Example: Creating a new root allocation (transfer operation)
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The PI of the root project (<code>piRoot</code>)</li>
+<li>The PI of the new root project (<code>piSecondRoot</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
+
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 500, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 500, 
+            localBalance = 500, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = emptyList(), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "second-root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
+
+
+/* We now perform a transfer operation with the leaf workspace as the target. */
+
+Accounting.transfer.call(
+    bulkRequestOf(TransferToWalletRequestItem(
+        amount = 100, 
+        categoryId = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        endDate = null, 
+        source = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        startDate = null, 
+        target = WalletOwner.Project(
+            projectId = "second-root-project", 
+        ), 
+        transactionId = "-61502635092191502671634045862012", 
+    )),
+    piRoot
+).orThrow()
+
+/*
+Unit
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("42"), 
+            balance = 400, 
+            endDate = null, 
+            id = "42", 
+            initialBalance = 500, 
+            localBalance = 400, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+Wallets.browse.call(
+    WalletBrowseRequest(
+        consistency = null, 
+        filterType = null, 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    piSecondRoot
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Wallet(
+        allocations = listOf(WalletAllocation(
+            allocationPath = listOf("52"), 
+            balance = 100, 
+            endDate = null, 
+            id = "52", 
+            initialBalance = 100, 
+            localBalance = 100, 
+            startDate = 1633941615074, 
+        )), 
+        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
+        chargeType = ChargeType.ABSOLUTE, 
+        owner = WalletOwner.Project(
+            projectId = "second-root-project", 
+        ), 
+        paysFor = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
+        ), 
+        productType = ProductType.COMPUTE, 
+        unit = ProductPriceUnit.UNITS_PER_HOUR, 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
+
+// Authenticated as piSecondRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 500,
+                    "initialBalance": 500,
+                    "localBalance": 500,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+resources at the moment. */
+
+
+/* We now perform a transfer operation with the leaf workspace as the target. */
+
+// Authenticated as piRoot
+await callAPI(AccountingApi.transfer(
+    {
+        "items": [
+            {
+                "categoryId": {
+                    "name": "example-slim",
+                    "provider": "example"
+                },
+                "target": {
+                    "type": "project",
+                    "projectId": "second-root-project"
+                },
+                "source": {
+                    "type": "project",
+                    "projectId": "root-project"
+                },
+                "amount": 100,
+                "startDate": null,
+                "endDate": null,
+                "transactionId": "-61502635092191502671634045862012"
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+// Authenticated as piSecondRoot
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "42",
+                    "allocationPath": [
+                        "42"
+                    ],
+                    "balance": 400,
+                    "initialBalance": 500,
+                    "localBalance": 400,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(AccountingWalletsApi.browse(
+    {
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "filterType": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "owner": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "paysFor": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "allocations": [
+                {
+                    "id": "52",
+                    "allocationPath": [
+                        "52"
+                    ],
+                    "balance": 100,
+                    "initialBalance": 100,
+                    "localBalance": 100,
+                    "startDate": 1633941615074,
+                    "endDate": null
+                }
+            ],
+            "chargePolicy": "EXPIRE_FIRST",
+            "productType": "COMPUTE",
+            "chargeType": "ABSOLUTE",
+            "unit": "UNITS_PER_HOUR"
+        }
+    ],
+    "next": null
+}
+*/
+
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show how a workspace can transfer money to another workspace. This is not 
+# the recommended way of creating granting resources. This approach immediately removes all resources 
+# from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+# allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+# should only use transfers if they wish to give away resources that they otherwise will not be able 
+# to consume. 
+
+# Authenticated as piSecondRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 500,
+#                     "initialBalance": 500,
+#                     "localBalance": 500,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "second-root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+# resources at the moment.
+
+# We now perform a transfer operation with the leaf workspace as the target.
+
+# Authenticated as piRoot
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/transfer" -d '{
+    "items": [
+        {
+            "categoryId": {
+                "name": "example-slim",
+                "provider": "example"
+            },
+            "target": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "source": {
+                "type": "project",
+                "projectId": "root-project"
+            },
+            "amount": 100,
+            "startDate": null,
+            "endDate": null,
+            "transactionId": "-61502635092191502671634045862012"
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# Authenticated as piSecondRoot
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "42",
+#                     "allocationPath": [
+#                         "42"
+#                     ],
+#                     "balance": 400,
+#                     "initialBalance": 500,
+#                     "localBalance": 400,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "owner": {
+#                 "type": "project",
+#                 "projectId": "second-root-project"
+#             },
+#             "paysFor": {
+#                 "name": "example-slim",
+#                 "provider": "example"
+#             },
+#             "allocations": [
+#                 {
+#                     "id": "52",
+#                     "allocationPath": [
+#                         "52"
+#                     ],
+#                     "balance": 100,
+#                     "initialBalance": 100,
+#                     "localBalance": 100,
+#                     "startDate": 1633941615074,
+#                     "endDate": null
+#                 }
+#             ],
+#             "chargePolicy": "EXPIRE_FIRST",
+#             "productType": "COMPUTE",
+#             "chargeType": "ABSOLUTE",
+#             "unit": "UNITS_PER_HOUR"
+#         }
+#     ],
+#     "next": null
+# }
+
+# After inspecting the allocations, we see that the original (root) allocation has changed. The 
+# system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+# The new allocation does not have a parent.
+
 ```
 
 
@@ -2042,11 +6809,77 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Records usage in the system_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#chargewalletrequestitem'>ChargeWalletRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Internal UCloud services invoke this endpoint to record usage from a workspace. Providers report data 
+indirectly to this API through the outgoing `Control` API. This endpoint causes changes in the balances 
+of the targeted allocation and ancestors. UCloud will change the `balance` and `localBalance` property 
+of the targeted allocation. Ancestors of the targeted allocation will only update their `balance`.
+
+UCloud returns a boolean, for every request, indicating if the charge was successful. A charge is 
+successful if no affected allocation went into a negative balance.
+
+---
+
+__📝 NOTE:__ Unsuccessful charges are still deducted in their balances.
+
+---
+
+The semantics of `charge` depends on the Product's payment model.
+
+__Absolute:__
+
+- UCloud calculates the change in balances by multiplying: the Product's pricePerUnit, the number of 
+  units, the number of periods
+- UCloud subtracts this change from the balances
+
+__Differential:__
+
+- UCloud calculates the change in balances by comparing the units with the current `localBalance`
+- UCloud subtracts this change from the balances
+- Note: This change can cause the balance to go up, if the usage is lower than last period
+
+#### Selecting Allocations
+
+The charge operation targets a wallet (by combining the ProductCategoryId and WalletOwner). This means 
+that the charge operation have multiple allocations to consider. We explain the approach for absolute 
+payment models. The approach is similar for differential products.
+
+UCloud first finds a set of leaf allocations which, when combined, can carry the full change. UCloud 
+first finds a set of candidates. We do this by sorting allocations by the Wallet's `chargePolicy`. By 
+default, this means that UCloud prioritizes allocations that expire soon. UCloud only considers 
+allocations which are active and have a positive balance.
+
+---
+
+__📝 NOTE:__ UCloud does not consider ancestors at this point in the process.
+
+---
+
+UCloud now creates the list of allocations which it will use. We do this by performing a rolling sum of 
+the balances. UCloud adds an allocation to the set if the rolling sum has not yet reached the total 
+amount.
+
+UCloud will use the full balance of each selected allocation. The only exception is the last element, 
+which might use less. If the change in balance is never reached, then UCloud will further charge the 
+first selected allocation. In this case, the priority allocation will have to pay the difference.
+
+Finally, the system updates the balances of each selected leaf, and all of their ancestors.
+
+__Examples:__
+
+| Example |
+|---------|
+| [Charging a root allocation (Absolute)](/docs/reference/accounting_charge-absolute-single.md) |
+| [Charging a leaf allocation (Absolute)](/docs/reference/accounting_charge-absolute-multi.md) |
+| [Charging a leaf allocation with missing credits (Absolute)](/docs/reference/accounting_charge-absolute-multi-missing.md) |
+| [Charging a root allocation (Differential)](/docs/reference/accounting_charge-differential-single.md) |
+| [Charging a leaf allocation (Differential)](/docs/reference/accounting_charge-differential-multi.md) |
+| [Charging a leaf allocation with missing credits (Differential)](/docs/reference/accounting_charge-differential-multi-missing.md) |
 
 
 ### `check`
