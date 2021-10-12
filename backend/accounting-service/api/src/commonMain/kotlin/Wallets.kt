@@ -5,20 +5,44 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.actor
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.checkMinimumValue
+import dk.sdu.cloud.calls.comment
+import dk.sdu.cloud.calls.description
+import dk.sdu.cloud.calls.documentation
+import dk.sdu.cloud.calls.httpBrowse
+import dk.sdu.cloud.calls.httpRetrieve
+import dk.sdu.cloud.calls.httpUpdate
+import dk.sdu.cloud.calls.serializerEntry
+import dk.sdu.cloud.calls.serializerLookupTable
+import dk.sdu.cloud.calls.success
+import dk.sdu.cloud.calls.ucloudCore
+import dk.sdu.cloud.calls.useCase
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 @Serializable
-@Deprecated("APIs will switch to WalletOwner instead")
-enum class WalletOwnerType {
-    USER,
-    PROJECT
-}
-
-@Serializable
+@UCloudApiDoc(
+    """
+    Wallets hold allocations which grant access to a provider's resources.
+ 
+    You can find more information about WalletAllocations
+    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+""", importance = 1000
+)
 data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
@@ -34,12 +58,22 @@ data class Wallet(
  * ORDERED takes the wallet allocation in a user specified order.
  */
 @Serializable
+@UCloudApiDoc("A policy for how to select a WalletAllocation in a single Wallet")
 enum class AllocationSelectorPolicy {
+    @UCloudApiDoc("Use the WalletAllocation which is closest to expiration")
     EXPIRE_FIRST,
     // ORDERED (Planned not yet implemented)
 }
 
 @Serializable
+@UCloudApiDoc(
+    """
+    An allocation grants access to resources
+    
+    You can find more information about WalletAllocations
+    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+""", importance = 990
+)
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
@@ -61,7 +95,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-            "expire automatically"
+                "expire automatically"
     )
     val endDate: Long?
 )
@@ -107,18 +141,12 @@ data class SubAllocation(
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class WalletsBrowseSubAllocationsRequest(
-    val sortBy: SortSubAllocationsBy? = null,
     val filterType: ProductType? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-
-enum class SortSubAllocationsBy {
-    GRANT_ALLOCATION,
-    PRODUCT_CATEGORY
-}
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
@@ -162,7 +190,23 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
               product-specific unit or in DKK.
             - All $TYPE_REF Product s in a category share the exact same payment model
 
+            Allocators grant access to $Resource s via $TYPE_REF WalletAllocation s. In a simplified view, an 
+            allocation is:
+
+            - An initial balance, specified in the "unit of allocation" which the $TYPE_REF Product specifies. 
+              For example: 1000 DKK or 500 Core Hours.
+            - Start date and optional end date.
+            - An optional parent allocation.
+            - A current balance, the balance remaining for this allocation and all descendants.
+            - A local balance, the balance remaining if it had no descendants
+
+            UCloud combines allocations of the same category into a $TYPE_REF Wallet. Every $TYPE_REF Wallet has 
+            exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md). 
+            $TYPE_REF Wallet s create a natural hierarchical structure. Below we show an example of this:
+
             ![](/backend/accounting-service/wiki/allocations.png)
+            
+            __Figure:__ Allocations create a natural _allocation hierarchy_.
         """.trimIndent()
     }
 
@@ -170,20 +214,44 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         "push"
     ) {
         httpUpdate(baseContext, "push", roles = Roles.SERVICE)
+
+        documentation {
+            summary = "Pushes a Wallet to the catalog (Not yet implemented)"
+        }
     }
 
     val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
+
+        documentation {
+            summary = "Browses the catalog of accessible Wallets"
+        }
     }
 
     val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
-        CommonErrorMessage>("browseSubAllocations") {
+            CommonErrorMessage>("browseSubAllocations") {
         httpBrowse(baseContext, "subAllocation")
+
+        documentation {
+            summary = "Browses the catalog of sub-allocations"
+            description = """
+                This endpoint will find all $TYPE_REF WalletAllocation s which are direct children of one of your
+                accessible $TYPE_REF WalletAllocation s.
+            """.trimIndent()
+        }
     }
 
     val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
-        CommonErrorMessage>("retrieveRecipient") {
+            CommonErrorMessage>("retrieveRecipient") {
         httpRetrieve(baseContext, "recipient")
+
+        documentation {
+            summary = "Retrieves information about a potential WalletAllocation recipient"
+            description = """
+                You can use this endpoint to find information about a Workspace. This is useful when creating a 
+                sub-allocation.
+            """.trimIndent()
+        }
     }
 }
 
@@ -336,6 +404,359 @@ object Accounting : CallDescriptionContainer("accounting") {
         serializerLookupTable = mapOf(
             serializerEntry(WalletOwner.User.serializer()),
             serializerEntry(WalletOwner.Project.serializer())
+        )
+
+        description = """
+            The accounting system of UCloud has three core operations.
+
+            The three core operations of the UCloud accounting system are:
+
+            - $CALL_REF accounting.charge: Records usage in the system. For absolute payment models, this will deduct 
+              the balance and local balance of an allocation. All ancestor allocations have their balance deducted by 
+              the same amount. The local balances of an ancestor remains unchanged. 
+            - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
+              will have the current allocation as a parent. The balance of the parent allocation is not changed.
+            - $CALL_REF accounting.transfer: Creates a new root allocation from a parent allocation. The new allocation 
+              will have no parents. The balance of the parent allocation is immediately removed, in full.
+
+            ---
+
+            __📝 NOTE:__ We recommend that you first read and understand the 
+            [Wallet system](/docs/developer-guide/accounting-and-projects/accounting/wallets.md) of UCloud.
+
+            ---
+            
+            __📝 Provider Note:__ This API is invoked by internal UCloud/Core services. As a 
+            $TYPE_REF dk.sdu.cloud.provider.api.Provider, you will be indirectly calling this API through the outgoing
+            `Control` APIs.
+            
+            ---
+            
+            We recommend that you study the examples below and look at the corresponding call documentation to 
+            understand the accounting system of UCloud.
+            
+            ## A note on the examples
+
+            In the examples below, we will be using a consistent set of $TYPE_REF Product s:
+
+            - `example-slim-1` / `example-slim` @ `example`
+               - Type: Compute
+               - `ChargeType.ABSOLUTE`
+               - `ProductPriceUnit.UNITS_PER_HOUR`
+               - Price per unit: 1
+            - `example-storage` / `example-storage` @ `example`
+               - Type: Storage
+               - `ChargeType.DIFFERENTIAL_QUOTA`
+               - `ProductPriceUnit.PER_UNIT`
+               - Price per unit: 1
+        """.trimIndent()
+    }
+
+    private const val chargeAbsoluteSingleUseCase = "charge-absolute-single"
+    private const val chargeDifferentialSingleUseCase = "charge-differential-single"
+    private const val chargeAbsoluteMultiUseCase = "charge-absolute-multi"
+    private const val chargeDifferentialMultiUseCase = "charge-differential-multi"
+    private const val chargeAbsoluteMultiMissingUseCase = "charge-absolute-multi-missing"
+    private const val chargeDifferentialMultiMissingUseCase = "charge-differential-multi-missing"
+
+    override fun documentation() {
+        val defaultOwner: WalletOwner = WalletOwner.Project("my-research")
+        val absoluteProductReference = ProductReference("example-slim-1", "example-slim", "example")
+        val differentialProductReference = ProductReference("example-storage", "example-storage", "example")
+
+        fun allocation(
+            path: List<String>,
+            balance: Long,
+            localBalance: Long = balance,
+            initialBalance: Long = balance
+        ): WalletAllocation {
+            return WalletAllocation(
+                path.last(), path,
+                balance, initialBalance, localBalance,
+                1633941615074L,
+                null,
+            )
+        }
+
+        fun walletPage(
+            type: ChargeType,
+            vararg allocations: WalletAllocation,
+            owner: WalletOwner = defaultOwner,
+        ): PageV2<Wallet> {
+            val productCategoryId = when (type) {
+                ChargeType.ABSOLUTE -> ProductCategoryId("example-slim", "example")
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductCategoryId("example-storage", "example")
+            }
+
+            val productType = when (type) {
+                ChargeType.ABSOLUTE -> ProductType.COMPUTE
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductType.STORAGE
+            }
+
+            val productPriceUnit = when (type) {
+                ChargeType.ABSOLUTE -> ProductPriceUnit.UNITS_PER_HOUR
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductPriceUnit.PER_UNIT
+            }
+
+            return PageV2(
+                50,
+                listOf(
+                    Wallet(
+                        owner,
+                        productCategoryId,
+                        listOf(*allocations),
+                        AllocationSelectorPolicy.EXPIRE_FIRST,
+                        productType,
+                        type,
+                        productPriceUnit
+                    )
+                ),
+                null
+            )
+        }
+
+        useCase(
+            chargeAbsoluteSingleUseCase,
+            "Charging a root allocation (Absolute)",
+            flow = {
+                val ucloud = ucloudCore()
+
+                comment("""
+                    In this example, we will be performing some simple charge requests for an absolute 
+                    product. Before and after each charge, we will show the current state of the system.
+                    We will perform the charges on a root allocation, that is, it has no ancestors.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 1000, 1000, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("Currently, the allocation has a balance of 1000.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The charge returns true, indicating that we had enough credits to complete the request.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 999, 999, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("As expected, a single credit was removed from our current balance and local balance.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 998, 998, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("A second charge further deducts 1 from the balance, as expected.")
+            }
+        )
+
+        useCase(
+            chargeDifferentialSingleUseCase,
+            "Charging a root allocation (Differential)",
+            flow = {
+                val ucloud = ucloudCore()
+
+                comment("""
+                    In this example, we will be performing some simple charge requests for a differential 
+                    product. Before and after each charge, we will show the current state of the system.
+                    We will perform the charges on a root allocation, that is, it has no ancestors.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 1000, 1000, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("Currently, the allocation shows that we have 1000 GB unused.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            100, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for storage usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The charge returns true, indicating that we had enough credits to complete the request.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 900, 900, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("The charge has correctly record our usage. It now shows that we have 900 GB unused.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            50, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for storage usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The new charge reports that we are only using 50 GB, that is data was removed since last " +
+                        "period.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 950, 950, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("This results in 950 GB being unused.")
+            }
+        )
+
+        useCase(
+            chargeAbsoluteSingleUseCase,
+            "Charging a leaf allocation (Absolute)",
+            flow = {
+                val ucloud = ucloudCore()
+                val piRoot = actor("The PI of the root project", "piRoot")
+                val piLeaf = actor("The PI of the leaf project", "piLeaf")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 1000, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 500, 500, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 999, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 499, 499, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+            }
         )
     }
 

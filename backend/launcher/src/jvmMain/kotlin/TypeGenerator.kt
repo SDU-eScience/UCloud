@@ -606,7 +606,7 @@ private fun CharSequence.findEndOfIdentifier(startIndex: Int): Pair<Int, Boolean
         if (nextChar == '\n' || nextChar.isWhitespace()) {
             val peek1 = getOrNull(cursor)
             val peek2 = getOrNull(cursor + 1)
-            if (peek1 == 's' || peek1 == 'S') {
+            if (peek1 == 's' || peek1 == 'S' || peek1 == '.') {
                 if (peek2 == null || !peek2.isLetterOrDigit()) {
                     return Pair(cursor, false)
                 }

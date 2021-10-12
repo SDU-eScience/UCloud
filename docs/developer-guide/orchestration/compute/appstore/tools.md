@@ -16,8 +16,8 @@ _Tools define bundles of software binaries and other assets (e.g. container and 
 All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s in UCloud consist of two components: the 
 [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  and the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application..md)  The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  defines the computational environment. This includes
 software packages and other assets (e.g. configuration). A typical example would be a base-image for a container or a 
-virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  . This includes specifying the 
-input parameters and command-line invocation for the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  .
+virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md). This includes specifying the 
+input parameters and command-line invocation for the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md).
 
 ---
     

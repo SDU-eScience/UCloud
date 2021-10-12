@@ -16,7 +16,7 @@ data class BooleanFlagParameter(
 )
 ```
 The parameter referenced by `variableName` must be of type [`ApplicationParameter.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.Bool.md), and the value
-must be [`AppParamValue.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.AppParamValue.Bool.md)  . This invocation parameter will produce the `flag` if the variable's value is
+must be [`AppParamValue.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.AppParamValue.Bool.md). This invocation parameter will produce the `flag` if the variable's value is
 `true`. Otherwise, it will produce no values.
 
 __Example:__ Example (with true value)

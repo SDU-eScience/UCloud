@@ -15,7 +15,7 @@ _Products define the services exposed by a Provider._
 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose services into UCloud. But, different 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s to define the 
-services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  . As an example, a 
+services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md). As an example, a 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might have the following services:
 
 - __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
@@ -40,7 +40,7 @@ __Table:__ A single node-type split up into individual slices.
 
 UCloud represent these concepts in the following abstractions:
 
-- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
 - [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category
   run on identical hardware. 
 - [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
@@ -68,7 +68,7 @@ is familiar to them. In short, a [`Provider`](/docs/reference/dk.sdu.cloud.provi
       
 ---
 
-__📝 NOTE:__ To select a model, you must specify a [`ChargeType`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md)  and a [`ProductPriceUnit`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md)  . We have 
+__📝 NOTE:__ To select a model, you must specify a [`ChargeType`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md)  and a [`ProductPriceUnit`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md). We have 
 shown all valid combinations above.  
 
 ---
@@ -811,7 +811,7 @@ _Browse a set of products_
 |---------|----------|-------|
 |<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
 
 __Examples:__
 
@@ -853,7 +853,7 @@ _Creates a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.m
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only providers and UCloud administrators can create a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  . When this endpoint is
+Only providers and UCloud administrators can create a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md). When this endpoint is
 invoked by a provider, then the provider field of the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  must match the invoking user.
 
 The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  will become ready and visible in UCloud immediately after invoking this call.

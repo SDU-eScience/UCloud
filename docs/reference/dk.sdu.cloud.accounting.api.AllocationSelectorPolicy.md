@@ -6,6 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A policy for how to select a WalletAllocation in a single Wallet_
 
 ```kotlin
 enum class AllocationSelectorPolicy {
@@ -20,7 +21,7 @@ enum class AllocationSelectorPolicy {
 
 <details>
 <summary>
-<code>EXPIRE_FIRST</code>
+<code>EXPIRE_FIRST</code> Use the WalletAllocation which is closest to expiration
 </summary>
 
 

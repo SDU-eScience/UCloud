@@ -10,7 +10,6 @@ _The base type for requesting paginated content._
 
 ```kotlin
 data class WalletsBrowseSubAllocationsRequest(
-    val sortBy: SortSubAllocationsBy?,
     val filterType: ProductType?,
     val itemsPerPage: Int?,
     val next: String?,
@@ -52,17 +51,6 @@ paginate through the results.
 <summary>
 <b>Properties</b>
 </summary>
-
-<details>
-<summary>
-<code>sortBy</code>: <code><code><a href='#sortsuballocationsby'>SortSubAllocationsBy</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
 
 <details>
 <summary>

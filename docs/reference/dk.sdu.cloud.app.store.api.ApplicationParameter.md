@@ -35,7 +35,7 @@ use.
 
 When the user requests the creation of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they supply a lot of 
 information. This includes a reference to the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  and a set of [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s. 
-The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  . Every parameter has a type 
+The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md). Every parameter has a type 
 associated with it. This type controls the set of valid [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s it can take.
 
 <details>
