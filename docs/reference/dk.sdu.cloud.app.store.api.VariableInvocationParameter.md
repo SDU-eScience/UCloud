@@ -20,7 +20,7 @@ data class VariableInvocationParameter(
     val type: String /* "var" */,
 )
 ```
-The parameter receives a list of `variableNames`. Each must reference an [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  . It is 
+The parameter receives a list of `variableNames`. Each must reference an [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md). It is 
 valid to reference both optional and mandatory parameters. This invocation will produce zero values if all the 
 parameters have no value. This is regardless of the prefixes and suffixes.
 

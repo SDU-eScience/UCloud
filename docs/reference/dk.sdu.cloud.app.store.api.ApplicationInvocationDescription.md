@@ -35,10 +35,10 @@ In this environment, we must start some software. Any [`Job`](/docs/reference/dk
 this [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  will only run for as long as the software runs. You can specify the command-line 
 invocation through the `invocation` property. Each element in this list produce zero or more arguments for the 
 actual invocation. These [`InvocationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.InvocationParameter.md)s can reference the input `parameters` of the 
-[`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . In addition, you can set the `environment` variables through the same mechanism.
+[`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md). In addition, you can set the `environment` variables through the same mechanism.
 
 All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s have an [`ApplicationType`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationType.md)  associated with them. This `type` determines how the 
-user interacts with your [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . We support the following types:
+user interacts with your [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md). We support the following types:
 
 - `BATCH`: A non-interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  which runs without user input
 - `VNC`: An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a remote desktop interface

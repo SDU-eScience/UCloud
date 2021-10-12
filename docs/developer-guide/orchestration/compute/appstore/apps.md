@@ -16,8 +16,8 @@ _Applications specify the input parameters and invocation of a software package.
 All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s in UCloud consist of two components: the 
 [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  and the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application..md)  The [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  defines the computational environment. This includes
 software packages and other assets (e.g. configuration). A typical example would be a base-image for a container or a 
-virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  . This includes specifying the 
-input parameters and command-line invocation for the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md)  .
+virtual machine. The [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  describes how to invoke the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md). This includes specifying the 
+input parameters and command-line invocation for the [`Tool`](/docs/reference/dk.sdu.cloud.app.store.api.Tool.md).
 
 In concrete terms, the ["invocation"](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationInvocationDescription.md) of an [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md) 
 covers:
@@ -2967,10 +2967,10 @@ In this environment, we must start some software. Any [`Job`](/docs/reference/dk
 this [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  will only run for as long as the software runs. You can specify the command-line 
 invocation through the `invocation` property. Each element in this list produce zero or more arguments for the 
 actual invocation. These [`InvocationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.InvocationParameter.md)s can reference the input `parameters` of the 
-[`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . In addition, you can set the `environment` variables through the same mechanism.
+[`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md). In addition, you can set the `environment` variables through the same mechanism.
 
 All [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s have an [`ApplicationType`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationType.md)  associated with them. This `type` determines how the 
-user interacts with your [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  . We support the following types:
+user interacts with your [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md). We support the following types:
 
 - `BATCH`: A non-interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  which runs without user input
 - `VNC`: An interactive [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  exposing a remote desktop interface
@@ -3423,7 +3423,7 @@ use.
 
 When the user requests the creation of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they supply a lot of 
 information. This includes a reference to the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  and a set of [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s. 
-The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  . Every parameter has a type 
+The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md). Every parameter has a type 
 associated with it. This type controls the set of valid [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s it can take.
 
 <details>
@@ -5392,7 +5392,7 @@ data class BooleanFlagParameter(
 )
 ```
 The parameter referenced by `variableName` must be of type [`ApplicationParameter.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.Bool.md), and the value
-must be [`AppParamValue.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.AppParamValue.Bool.md)  . This invocation parameter will produce the `flag` if the variable's value is
+must be [`AppParamValue.Bool`](/docs/reference/dk.sdu.cloud.app.store.api.AppParamValue.Bool.md). This invocation parameter will produce the `flag` if the variable's value is
 `true`. Otherwise, it will produce no values.
 
 __Example:__ Example (with true value)
@@ -5589,7 +5589,7 @@ data class VariableInvocationParameter(
     val type: String /* "var" */,
 )
 ```
-The parameter receives a list of `variableNames`. Each must reference an [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  . It is 
+The parameter receives a list of `variableNames`. Each must reference an [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md). It is 
 valid to reference both optional and mandatory parameters. This invocation will produce zero values if all the 
 parameters have no value. This is regardless of the prefixes and suffixes.
 

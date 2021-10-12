@@ -145,7 +145,7 @@ fun generateCode() {
                         "Accounting",
                         listOf(
                             Chapter.Feature("wallets", "Wallets", Wallets),
-                            Chapter.Feature("allocations", "Allocations", Accounting),
+                            Chapter.Feature("allocations", "Accounting Operations", Accounting),
                             Chapter.Feature("visualization", "Visualization of Usage", Visualization)
                         )
                     ),

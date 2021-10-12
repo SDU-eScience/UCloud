@@ -6,6 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Wallets hold allocations which grant access to a provider's resources._
 
 ```kotlin
 data class Wallet(
@@ -18,6 +19,8 @@ data class Wallet(
     val unit: ProductPriceUnit?,
 )
 ```
+You can find more information about WalletAllocations
+[here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
 
 <details>
 <summary>

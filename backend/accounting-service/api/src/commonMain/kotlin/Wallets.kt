@@ -12,13 +12,14 @@ import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 @Serializable
-@Deprecated("APIs will switch to WalletOwner instead")
-enum class WalletOwnerType {
-    USER,
-    PROJECT
-}
-
-@Serializable
+@UCloudApiDoc(
+    """
+    Wallets hold allocations which grant access to a provider's resources.
+ 
+    You can find more information about WalletAllocations
+    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+""", importance = 1000
+)
 data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
@@ -34,12 +35,22 @@ data class Wallet(
  * ORDERED takes the wallet allocation in a user specified order.
  */
 @Serializable
+@UCloudApiDoc("A policy for how to select a WalletAllocation in a single Wallet")
 enum class AllocationSelectorPolicy {
+    @UCloudApiDoc("Use the WalletAllocation which is closest to expiration")
     EXPIRE_FIRST,
     // ORDERED (Planned not yet implemented)
 }
 
 @Serializable
+@UCloudApiDoc(
+    """
+    An allocation grants access to resources
+    
+    You can find more information about WalletAllocations
+    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+""", importance = 990
+)
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
@@ -61,7 +72,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-            "expire automatically"
+                "expire automatically"
     )
     val endDate: Long?,
     @UCloudApiDoc(
@@ -111,18 +122,12 @@ data class SubAllocation(
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class WalletsBrowseSubAllocationsRequest(
-    val sortBy: SortSubAllocationsBy? = null,
     val filterType: ProductType? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-
-enum class SortSubAllocationsBy {
-    GRANT_ALLOCATION,
-    PRODUCT_CATEGORY
-}
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
@@ -166,7 +171,23 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
               product-specific unit or in DKK.
             - All $TYPE_REF Product s in a category share the exact same payment model
 
+            Allocators grant access to $Resource s via $TYPE_REF WalletAllocation s. In a simplified view, an 
+            allocation is:
+
+            - An initial balance, specified in the "unit of allocation" which the $TYPE_REF Product specifies. 
+              For example: 1000 DKK or 500 Core Hours.
+            - Start date and optional end date.
+            - An optional parent allocation.
+            - A current balance, the balance remaining for this allocation and all descendants.
+            - A local balance, the balance remaining if it had no descendants
+
+            UCloud combines allocations of the same category into a $TYPE_REF Wallet. Every $TYPE_REF Wallet has 
+            exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md). 
+            $TYPE_REF Wallet s create a natural hierarchical structure. Below we show an example of this:
+
             ![](/backend/accounting-service/wiki/allocations.png)
+            
+            __Figure:__ Allocations create a natural _allocation hierarchy_.
         """.trimIndent()
     }
 
@@ -174,20 +195,44 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         "push"
     ) {
         httpUpdate(baseContext, "push", roles = Roles.SERVICE)
+
+        documentation {
+            summary = "Pushes a Wallet to the catalog (Not yet implemented)"
+        }
     }
 
     val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
+
+        documentation {
+            summary = "Browses the catalog of accessible Wallets"
+        }
     }
 
     val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
-        CommonErrorMessage>("browseSubAllocations") {
+            CommonErrorMessage>("browseSubAllocations") {
         httpBrowse(baseContext, "subAllocation")
+
+        documentation {
+            summary = "Browses the catalog of sub-allocations"
+            description = """
+                This endpoint will find all $TYPE_REF WalletAllocation s which are direct children of one of your
+                accessible $TYPE_REF WalletAllocation s.
+            """.trimIndent()
+        }
     }
 
     val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
-        CommonErrorMessage>("retrieveRecipient") {
+            CommonErrorMessage>("retrieveRecipient") {
         httpRetrieve(baseContext, "recipient")
+
+        documentation {
+            summary = "Retrieves information about a potential WalletAllocation recipient"
+            description = """
+                You can use this endpoint to find information about a Workspace. This is useful when creating a 
+                sub-allocation.
+            """.trimIndent()
+        }
     }
 }
 
@@ -231,7 +276,7 @@ data class ChargeWalletRequestItem(
 ) {
     init {
         checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
-        checkMinimumValue(this::units, units, 1)
+        checkMinimumValue(this::units, units, 0)
     }
 }
 
@@ -341,12 +386,1102 @@ object Accounting : CallDescriptionContainer("accounting") {
             serializerEntry(WalletOwner.User.serializer()),
             serializerEntry(WalletOwner.Project.serializer())
         )
+
+        description = """
+            The accounting system of UCloud has three core operations.
+
+            The three core operations of the UCloud accounting system are:
+
+            - $CALL_REF accounting.charge: Records usage in the system. For absolute payment models, this will deduct 
+              the balance and local balance of an allocation. All ancestor allocations have their balance deducted by 
+              the same amount. The local balances of an ancestor remains unchanged. 
+            - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
+              will have the current allocation as a parent. The balance of the parent allocation is not changed.
+            - $CALL_REF accounting.transfer: Creates a new root allocation from a parent allocation. The new allocation 
+              will have no parents. The balance of the parent allocation is immediately removed, in full.
+
+            ---
+
+            __📝 NOTE:__ We recommend that you first read and understand the 
+            [Wallet system](/docs/developer-guide/accounting-and-projects/accounting/wallets.md) of UCloud.
+
+            ---
+            
+            __📝 Provider Note:__ This API is invoked by internal UCloud/Core services. As a 
+            $TYPE_REF dk.sdu.cloud.provider.api.Provider, you will be indirectly calling this API through the outgoing
+            `Control` APIs.
+            
+            ---
+            
+            We recommend that you study the examples below and look at the corresponding call documentation to 
+            understand the accounting system of UCloud.
+            
+            ## A note on the examples
+
+            In the examples below, we will be using a consistent set of $TYPE_REF Product s:
+
+            - `example-slim-1` / `example-slim` @ `example`
+               - Type: Compute
+               - `ChargeType.ABSOLUTE`
+               - `ProductPriceUnit.UNITS_PER_HOUR`
+               - Price per unit: 1
+            - `example-storage` / `example-storage` @ `example`
+               - Type: Storage
+               - `ChargeType.DIFFERENTIAL_QUOTA`
+               - `ProductPriceUnit.PER_UNIT`
+               - Price per unit: 1
+        """.trimIndent()
+    }
+
+    private const val chargeAbsoluteSingleUseCase = "charge-absolute-single"
+    private const val chargeDifferentialSingleUseCase = "charge-differential-single"
+    private const val chargeAbsoluteMultiUseCase = "charge-absolute-multi"
+    private const val chargeDifferentialMultiUseCase = "charge-differential-multi"
+    private const val chargeAbsoluteMultiMissingUseCase = "charge-absolute-multi-missing"
+    private const val chargeDifferentialMultiMissingUseCase = "charge-differential-multi-missing"
+    private const val depositUseCase = "deposit"
+    private const val transferUseCase = "transfer"
+
+    override fun documentation() {
+        val defaultOwner: WalletOwner = WalletOwner.Project("my-research")
+        val absoluteProductReference = ProductReference("example-slim-1", "example-slim", "example")
+        val differentialProductReference = ProductReference("example-storage", "example-storage", "example")
+
+        fun allocation(
+            path: List<String>,
+            balance: Long,
+            localBalance: Long = balance,
+            initialBalance: Long = balance
+        ): WalletAllocation {
+            return WalletAllocation(
+                path.last(), path,
+                balance, initialBalance, localBalance,
+                1633941615074L,
+                null,
+            )
+        }
+
+        fun walletPage(
+            type: ChargeType,
+            vararg allocations: WalletAllocation,
+            owner: WalletOwner = defaultOwner,
+        ): PageV2<Wallet> {
+            val productCategoryId = when (type) {
+                ChargeType.ABSOLUTE -> ProductCategoryId("example-slim", "example")
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductCategoryId("example-storage", "example")
+            }
+
+            val productType = when (type) {
+                ChargeType.ABSOLUTE -> ProductType.COMPUTE
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductType.STORAGE
+            }
+
+            val productPriceUnit = when (type) {
+                ChargeType.ABSOLUTE -> ProductPriceUnit.UNITS_PER_HOUR
+                ChargeType.DIFFERENTIAL_QUOTA -> ProductPriceUnit.PER_UNIT
+            }
+
+            return PageV2(
+                50,
+                listOf(
+                    Wallet(
+                        owner,
+                        productCategoryId,
+                        listOf(*allocations),
+                        AllocationSelectorPolicy.EXPIRE_FIRST,
+                        productType,
+                        type,
+                        productPriceUnit
+                    )
+                ),
+                null
+            )
+        }
+
+        useCase(
+            chargeAbsoluteSingleUseCase,
+            "Charging a root allocation (Absolute)",
+            flow = {
+                val ucloud = ucloudCore()
+
+                comment("""
+                    In this example, we will be performing some simple charge requests for an absolute 
+                    product. Before and after each charge, we will show the current state of the system.
+                    We will perform the charges on a root allocation, that is, it has no ancestors.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 1000, 1000, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("Currently, the allocation has a balance of 1000.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The charge returns true, indicating that we had enough credits to complete the request.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 999, 999, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("As expected, a single credit was removed from our current balance and local balance.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 998, 998, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("A second charge further deducts 1 from the balance, as expected.")
+            }
+        )
+
+        useCase(
+            chargeDifferentialSingleUseCase,
+            "Charging a root allocation (Differential)",
+            flow = {
+                val ucloud = ucloudCore()
+
+                comment("""
+                    In this example, we will be performing some simple charge requests for a differential 
+                    product. Before and after each charge, we will show the current state of the system.
+                    We will perform the charges on a root allocation, that is, it has no ancestors.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 1000, 1000, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("Currently, the allocation shows that we have 1000 GB unused.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            100, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for storage usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The charge returns true, indicating that we had enough credits to complete the request.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 900, 900, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("The charge has correctly record our usage. It now shows that we have 900 GB unused.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            defaultOwner,
+                            50, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for storage usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("The new charge reports that we are only using 50 GB, that is data was removed since last " +
+                        "period.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 950, 950, 1000)
+                    ),
+                    ucloud
+                )
+
+                comment("This results in 950 GB being unused.")
+            }
+        )
+
+        useCase(
+            chargeAbsoluteMultiUseCase,
+            "Charging a leaf allocation (Absolute)",
+            flow = {
+                val ucloud = ucloudCore()
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piLeaf = actor("piLeaf", "The PI of the leaf project")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                comment("""
+                    In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+                    hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+                    which we will be referring to as the leaf, since it has no children.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 1000, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 500, 500, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has " +
+                    "500.")
+
+                comment("We now perform our charge of a single core hour.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            1, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("""
+                    The response, as expected, that we had enough credits for the transaction. This would have been 
+                    false if _any_ of the allocation in the hierarchy runs out of credits.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 999, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                comment("""
+                    On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
+                    that balance shows the overall balance for the entire subtree. The local balance of the root 
+                    remains unaffected, since this wasn't consumed by the root. 
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 499, 499, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("In the leaf allocation, we see that this has affected both the balance and the local balance.")
+            }
+        )
+
+        useCase(
+            chargeDifferentialMultiUseCase,
+            "Charging a leaf allocation (Differential)",
+            flow = {
+                val ucloud = ucloudCore()
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piLeaf = actor("piLeaf", "The PI of the leaf project")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                comment("""
+                    In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
+                    hierarchy we use consists of a single root allocation. The root allocation has a single child, 
+                    which we will be referring to as the leaf, since it has no children.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 1000, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), 500, 500, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("As we can see, in our initial state, the root has 1000 GB remaining and the leaf has 500.")
+                comment("We now perform our charge of 100 GB on the leaf.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            100, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("""
+                    The response, as expected, that we had enough credits for the transaction. This would have been 
+                    false if _any_ of the allocation in the hierarchy runs out of credits.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 900, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                comment("""
+                    On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
+                    balance shows the overall balance for the entire subtree. The local balance of the root remains 
+                    unaffected, since this wasn't consumed by the root.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), 400, 400, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    In the leaf allocation, we see that this has affected both the balance and the local balance. 
+                """.trimIndent())
+
+                comment("We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation.")
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            rootOwner,
+                            50, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("Again, this allocation succeeds.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 850, 950, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                comment("This charge has affected the local and current balance of the root by the expected 50 GB.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), 400, 400, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
+                    and their ancestors. A descendant is never directly updated by such an operation.
+                """.trimIndent())
+            }
+        )
+
+        useCase(
+            chargeAbsoluteMultiMissingUseCase,
+            "Charging a leaf allocation with missing credits (Absolute)",
+            flow = {
+                val ucloud = ucloudCore()
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piNode = actor("piNode", "The PI of the node project (child of root)")
+                val piLeaf = actor("piLeaf", "The PI of the leaf project (child of node)")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val nodeOwner = WalletOwner.Project("node-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                // 400 on node
+                // 50 on leaf
+
+                comment("""
+                    In this example, we will show what happens when an allocation is unable to carry the full charge. 
+                    We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+                    single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+                    has no children.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 550, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 50, 100, 500),
+                        owner = nodeOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52", "62"), 450, 450, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+                    this state by applying a 400 core hour charge on the node and another 50 core hours on the leaf.
+                """.trimIndent())
+
+                comment("""
+                    We now attempt to perform a charge of 100 core hours on the leaf.
+                """.trimIndent())
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            100, 1,
+                            absoluteProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(false)),
+                    ucloud
+                )
+
+                comment("""
+                    Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+                    before the charge, only has 50 core hours remaining.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 450, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), -50, 100, 500),
+                        owner = nodeOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52", "62"), 350, 350, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+                    balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+                    negatives.
+                """.trimIndent())
+            }
+        )
+
+        useCase(
+            chargeDifferentialMultiMissingUseCase,
+            "Charging a leaf allocation with missing credits (Differential)",
+            flow = {
+                val ucloud = ucloudCore()
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piNode = actor("piNode", "The PI of the node project (child of root)")
+                val piLeaf = actor("piLeaf", "The PI of the leaf project (child of node)")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val nodeOwner = WalletOwner.Project("node-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                // 400 on node
+                // 50 on leaf
+
+                comment("""
+                    In this example, we will show what happens when an allocation is unable to carry the full charge. 
+                    We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
+                    single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
+                    has no children.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 550, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), 50, 100, 500),
+                        owner = nodeOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52", "62"), 450, 450, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    As we can see from the allocations, they have already been in use. To be concrete, you can reach 
+                    this state by applying a 400 GB charge on the node and another 50 GB on the leaf.
+                """.trimIndent())
+
+                comment("""
+                    We now attempt to perform a charge of 110 GB on the leaf.
+                """.trimIndent())
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            110, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(false)),
+                    ucloud
+                )
+
+                comment("""
+                    Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
+                    before the charge, only has 50 GB remaining.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 490, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), -10, 100, 500),
+                        owner = nodeOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52", "62"), 390, 390, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
+                    balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
+                    negatives.
+                """.trimIndent())
+
+                comment("""
+                    We now assume that the leaf deletes all their data. The accounting system records this as a charge 
+                    for 0 units (GB).
+                """.trimIndent())
+
+                success(
+                    charge,
+                    bulkRequestOf(
+                        ChargeWalletRequestItem(
+                            leafOwner,
+                            0, 1,
+                            differentialProductReference,
+                            "user",
+                            "A charge for compute usage",
+                            "charge-1"
+                        ),
+                    ),
+                    ChargeWalletResponse(listOf(true)),
+                    ucloud
+                )
+
+                comment("This charge succeeds, as it is bringing the balance back into the positive.")
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42"), 490, 1000, 1000),
+                        owner = rootOwner,
+                    ),
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52"), 100, 100, 500),
+                        owner = nodeOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.DIFFERENTIAL_QUOTA,
+                        allocation(listOf("42", "52", "62"), 500, 500, 500),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+            }
+        )
+
+        useCase(
+            depositUseCase,
+            "Creating a sub-allocation (deposit operation)",
+            flow = {
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piLeaf = actor("piLeaf", "The PI of the leaf project (child of root)")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val leafOwner = WalletOwner.Project("leaf-project")
+
+                comment("""
+                    In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
+                    have an existing allocation as a child. This is the recommended way of creating allocations. 
+                    Resources are not immediately removed from the parent allocation. In addition, workspaces can 
+                    over-allocate resources. For example, a workspace can deposit more resources than they have into 
+                    sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
+                    examples, all allocations in a hierarchy must be able to carry a charge.
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 500, 500, 500),
+                        owner = rootOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+                    resources at the moment.
+                """.trimIndent())
+
+                comment("""
+                    We now perform a deposit operation with the leaf workspace as the target.
+                """.trimIndent())
+
+                success(
+                    deposit,
+                    bulkRequestOf(
+                        DepositToWalletRequestItem(
+                            leafOwner,
+                            "42",
+                            100,
+                            "Create sub-allocation"
+                        )
+                    ),
+                    Unit,
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 500, 500, 500),
+                        owner = rootOwner,
+                    ),
+                    piLeaf
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42", "52"), 100, 100, 100),
+                        owner = leafOwner,
+                    ),
+                    piLeaf
+                )
+
+                comment("""
+                    After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
+                    However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
+                    parent, indicated by the path. 
+                """.trimIndent())
+            }
+        )
+
+        useCase(
+            depositUseCase,
+            "Creating a new root allocation (transfer operation)",
+            flow = {
+                val piRoot = actor("piRoot", "The PI of the root project")
+                val piSecondRoot = actor("piSecondRoot", "The PI of the new root project")
+
+                val rootOwner = WalletOwner.Project("root-project")
+                val secondRootOwner = WalletOwner.Project("second-root-project")
+
+                comment("""
+                    In this example, we will show how a workspace can transfer money to another workspace. This is not 
+                    the recommended way of creating granting resources. This approach immediately removes all resources 
+                    from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+                    allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+                    should only use transfers if they wish to give away resources that they otherwise will not be able 
+                    to consume. 
+                """.trimIndent())
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 500, 500, 500),
+                        owner = rootOwner,
+                    ),
+                    piSecondRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        owner = secondRootOwner,
+                    ),
+                    piSecondRoot
+                )
+
+                comment("""
+                    Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
+                    resources at the moment.
+                """.trimIndent())
+
+                comment("""
+                    We now perform a transfer operation with the leaf workspace as the target.
+                """.trimIndent())
+
+                success(
+                    transfer,
+                    bulkRequestOf(
+                        TransferToWalletRequestItem(
+                            ProductCategoryId(absoluteProductReference.category, absoluteProductReference.provider),
+                            secondRootOwner,
+                            rootOwner,
+                            100,
+                        )
+                    ),
+                    Unit,
+                    piRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("42"), 400, 400, 500),
+                        owner = rootOwner,
+                    ),
+                    piSecondRoot
+                )
+
+                success(
+                    Wallets.browse,
+                    WalletBrowseRequest(),
+                    walletPage(
+                        ChargeType.ABSOLUTE,
+                        allocation(listOf("52"), 100, 100, 100),
+                        owner = secondRootOwner,
+                    ),
+                    piSecondRoot
+                )
+
+                comment("""
+                    After inspecting the allocations, we see that the original (root) allocation has changed. The 
+                    system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+                    The new allocation does not have a parent.
+                """.trimIndent())
+            }
+        )
     }
 
     val charge = call<BulkRequest<ChargeWalletRequestItem>, ChargeWalletResponse, CommonErrorMessage>(
         "charge"
     ) {
         httpUpdate(baseContext, "charge", roles = Roles.SERVICE)
+
+        documentation {
+            summary = "Records usage in the system"
+            description = """
+                Internal UCloud services invoke this endpoint to record usage from a workspace. Providers report data 
+                indirectly to this API through the outgoing `Control` API. This endpoint causes changes in the balances 
+                of the targeted allocation and ancestors. UCloud will change the `balance` and `localBalance` property 
+                of the targeted allocation. Ancestors of the targeted allocation will only update their `balance`.
+
+                UCloud returns a boolean, for every request, indicating if the charge was successful. A charge is 
+                successful if no affected allocation went into a negative balance.
+
+                ---
+                
+                __📝 NOTE:__ Unsuccessful charges are still deducted in their balances.
+                
+                ---
+
+                The semantics of `charge` depends on the Product's payment model.
+
+                __Absolute:__
+
+                - UCloud calculates the change in balances by multiplying: the Product's pricePerUnit, the number of 
+                  units, the number of periods
+                - UCloud subtracts this change from the balances
+
+                __Differential:__
+
+                - UCloud calculates the change in balances by comparing the units with the current `localBalance`
+                - UCloud subtracts this change from the balances
+                - Note: This change can cause the balance to go up, if the usage is lower than last period
+
+                #### Selecting Allocations
+
+                The charge operation targets a wallet (by combining the ProductCategoryId and WalletOwner). This means 
+                that the charge operation have multiple allocations to consider. We explain the approach for absolute 
+                payment models. The approach is similar for differential products.
+
+                UCloud first finds a set of leaf allocations which, when combined, can carry the full change. UCloud 
+                first finds a set of candidates. We do this by sorting allocations by the Wallet's `chargePolicy`. By 
+                default, this means that UCloud prioritizes allocations that expire soon. UCloud only considers 
+                allocations which are active and have a positive balance.
+
+                ---
+
+                __📝 NOTE:__ UCloud does not consider ancestors at this point in the process.
+                
+                ---
+
+                UCloud now creates the list of allocations which it will use. We do this by performing a rolling sum of 
+                the balances. UCloud adds an allocation to the set if the rolling sum has not yet reached the total 
+                amount.
+
+                UCloud will use the full balance of each selected allocation. The only exception is the last element, 
+                which might use less. If the change in balance is never reached, then UCloud will further charge the 
+                first selected allocation. In this case, the priority allocation will have to pay the difference.
+
+                Finally, the system updates the balances of each selected leaf, and all of their ancestors.
+            """.trimIndent()
+
+            useCaseReference(chargeAbsoluteSingleUseCase, "Charging a root allocation (Absolute)")
+            useCaseReference(chargeAbsoluteMultiUseCase, "Charging a leaf allocation (Absolute)")
+            useCaseReference(chargeAbsoluteMultiMissingUseCase,
+                "Charging a leaf allocation with missing credits (Absolute)")
+            useCaseReference(chargeDifferentialSingleUseCase, "Charging a root allocation (Differential)")
+            useCaseReference(chargeDifferentialMultiUseCase, "Charging a leaf allocation (Differential)")
+            useCaseReference(chargeDifferentialMultiMissingUseCase,
+                "Charging a leaf allocation with missing credits (Differential)")
+        }
     }
 
     val deposit = call<BulkRequest<DepositToWalletRequestItem>, DepositToWalletResponse, CommonErrorMessage>(
