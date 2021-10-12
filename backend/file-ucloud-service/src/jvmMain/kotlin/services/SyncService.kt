@@ -326,12 +326,21 @@ class SyncService(
     }
 
     suspend fun updatePermissions(folders: BulkRequest<SyncFolder>): BulkResponse<Unit?> {
-        println(folders)
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("ids", folders.items.map { it.id })
-                    setParameter("new_sync_types", folders.items.map { it.status.syncType })
+                    setParameter("ids", folders.items.filter { it.status.syncType == null }.map { it.id })
+                },
+                """
+                    delete from file_ucloud.sync_folders
+                    where id in (select unnest(:ids::bigint[]))
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", folders.items.filter { it.status.syncType != null }.map { it.id })
+                    setParameter("new_sync_types", folders.items.filter { it.status.syncType != null }.map { it.status.syncType })
                 },
                 """
                     update file_ucloud.sync_folders f set

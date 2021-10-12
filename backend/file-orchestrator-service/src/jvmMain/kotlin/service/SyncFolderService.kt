@@ -90,8 +90,18 @@ class SyncFolderService(
 
         session.sendPreparedStatement(
             {
-                setParameter("ids", mapping.map { it.first })
-                setParameter("sync_types", mapping.map { it.second.toString() })
+                setParameter("ids", mapping.filter { it.second == null }.map { it.first })
+            },
+            """
+                delete from file_orchestrator.sync_folders
+                where resource in (select unnest(:ids::bigint[]))
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                setParameter("ids", mapping.filter { it.second != null }.map { it.first })
+                setParameter("sync_types", mapping.filter { it.second != null }.map { it.second.toString() })
             },
             """
                 update file_orchestrator.sync_folders set
