@@ -226,6 +226,13 @@ typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
 
 @Serializable
+data class EditReferenceIdRequest(
+    val id: Long,
+    val newReferenceId: String?
+)
+typealias EditReferenceIdResponse = Unit
+
+@Serializable
 data class EditApplicationRequest(
     val id: Long,
     val newDocument: String,
@@ -319,7 +326,7 @@ data class Application(
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedBy: String? = null,
-    val deicReference: String? = null
+    val referenceId: String? = null
 )
 
 @Serializable
@@ -738,6 +745,11 @@ object Grants : CallDescriptionContainer("grant") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val editReferenceId = call<EditReferenceIdRequest, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
+        httpUpdate(baseContext, "editReference")
+    }
+
 
     /**
      * Closes an existing [Application]

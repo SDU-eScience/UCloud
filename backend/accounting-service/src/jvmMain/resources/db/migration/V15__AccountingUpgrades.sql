@@ -1107,7 +1107,7 @@ begin
             source_wallet.category,
             request.description,
             request.transaction_id,
-            request.application_id
+            request.application_id application_id
         from
             unpacked_requests request join
             accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
@@ -1747,7 +1747,7 @@ create unique index allow_applications_from_uniq on "grant".allow_applications_f
 alter table "grant".applications add foreign key (resources_owned_by) references project.projects(id);
 alter table "grant".applications add foreign key (requested_by) references auth.principals(id);
 alter table "grant".applications add foreign key (status_changed_by) references auth.principals(id);
-alter table "grant".applications add column deic_reference text default null;
+alter table "grant".applications add column reference_id text unique default null;
 
 alter table "grant".automatic_approval_limits add foreign key (project_id) references project.projects(id);
 alter table "grant".automatic_approval_limits add column product_category2 bigint references accounting.product_categories(id);
@@ -1844,7 +1844,7 @@ begin
         'statusChangedBy', application_in.status_changed_by,
         'requestedResources', resources_in,
         'resourcesOwnedByTitle', resources_owned_by_in.title,
-        'deicReference', application_in.deic_reference
+        'referenceId', application_in.reference_id
     );
 
     if application_in.grant_recipient_type = 'personal' then
@@ -1958,6 +1958,21 @@ $$;
 
 create or replace function "grant".application_status_trigger() returns trigger language plpgsql as $$
 begin
+    --
+    if (
+        (new.status_changed_by = old.status_changed_by) and
+        (new.status = old.status) and
+        (new.created_at = old.created_at) and
+        (new.document = old.document) and
+        (new.grant_recipient = old.grant_recipient) and
+        (new.grant_recipient_type = old.grant_recipient_type) and
+        (new.requested_by = old.requested_by) and
+        (new.resources_owned_by = old.resources_owned_by) and
+        (new.updated_at = old.updated_at) and
+        (new.reference_id != old.reference_id)
+        ) then
+            return null;
+    end if;
     if old.status = 'APPROVED' or old.status = 'REJECTED' then
         raise exception 'Cannot update a closed application';
     end if;

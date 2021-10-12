@@ -39,7 +39,7 @@ import {
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
-    editGrantApplication,
+    editGrantApplication, editReferenceId,
     findAffiliations,
     GrantApplication,
     GrantApplicationStatus,
@@ -450,6 +450,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const grantFinalized = isGrantFinalized(state.editingApplication?.status);
         const [loading, runWork] = useCloudCommand();
         const projectTitleRef = useRef<HTMLInputElement>(null);
+        const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         const history = useHistory();
         const dispatch = useDispatch();
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
@@ -481,6 +482,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             state.reload();
             setIsLocked(true);
         }, [state.reload]);
+
+        const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
 
         const submitRequest = useCallback(async () => {
             if (state.targetProject === undefined) {
@@ -540,6 +543,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [state.targetProject, state.documentRef, state.recipient, state.productCategories, projectTitleRef,
         state.editingApplication?.id, state.reload]);
+
+        const updateReferenceID = useCallback(async () => {
+            await runWork(editReferenceId({id: state.editingApplication!.id, newReferenceId: projectReferenceIdRef.current?.value}))
+            setIsEditingProjectReference(false);
+            state.reload();
+        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
 
         const approveRequest = useCallback(async () => {
             if (state.editingApplication !== undefined) {
@@ -757,6 +766,51 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                             </tbody>
                                                         </table>
                                                     </TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableCell verticalAlign="top">
+                                                        Reference ID
+                                                    </TableCell>
+                                                    { state.approver ?
+                                                        <TableCell>
+                                                            <table>
+                                                                <tbody>
+                                                                <tr>
+                                                                    {isEditingProjectReferenceId ? (
+                                                                        <>
+                                                                            <td>
+                                                                                <Input
+                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                    ref={projectReferenceIdRef}
+                                                                                />
+                                                                            </td>
+                                                                            <td>
+                                                                                <Button
+                                                                                    color="blue"
+                                                                                    onClick={updateReferenceID}
+                                                                                >
+                                                                                    Update Reference ID
+                                                                                </Button>
+                                                                            </td>
+                                                                        </>) : (
+                                                                        <>
+                                                                            <td>
+                                                                                {state.editingApplication?.referenceId ?? "No ID given"}
+                                                                            </td>
+                                                                            <td>
+                                                                                <Button
+                                                                                    onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                            </td>
+                                                                        </>)
+                                                                    }
+                                                                </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </TableCell> :
+                                                        <TableCell>
+                                                            {state.editingApplication?.referenceId ?? "No ID given"}
+                                                        </TableCell>
+                                                    }
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>

@@ -6,15 +6,7 @@ import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.grant.api.Application
-import dk.sdu.cloud.grant.api.ApplicationStatus
-import dk.sdu.cloud.grant.api.CreateApplication
-import dk.sdu.cloud.grant.api.EditApplicationRequest
-import dk.sdu.cloud.grant.api.GrantApplicationFilter
-import dk.sdu.cloud.grant.api.GrantRecipient
-import dk.sdu.cloud.grant.api.GrantsRetrieveProductsRequest
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.TransferApplicationRequest
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
@@ -299,6 +291,44 @@ class GrantApplicationService(
                             pc.provider = req.provider_id
                 """
         )
+    }
+
+    suspend fun editReferenceID(
+        actorAndProject: ActorAndProject,
+        request: EditReferenceIdRequest
+    ) {
+        if(request.newReferenceId == null) {
+            return
+        }
+        db.withSession(remapExceptions = true) { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("id", request.id)
+                    setParameter("newReference", request.newReferenceId)
+                },
+                """
+                    with
+                        permission_check as (
+                            select app.id, pm.username is not null as is_approver
+                            from
+                                "grant".applications app left join
+                                project.project_members pm on
+                                    app.resources_owned_by = pm.project_id and
+                                    (pm.role = 'ADMIN' or pm.role = 'PI') and
+                                    pm.username = :username
+                            where 
+                                app.id = :id and
+                                pm.username = :username
+                                
+                        )
+                    update "grant".applications app
+                    set reference_id = :newReference
+                    from permission_check pc
+                    where app.id = pc.id and pc.is_approver
+                """, debug = true
+            )
+        }
     }
 
     suspend fun editApplication(
