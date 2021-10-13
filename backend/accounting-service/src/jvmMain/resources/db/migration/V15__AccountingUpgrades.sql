@@ -340,7 +340,7 @@ create table accounting.new_transactions(
             source_allocation_id is not null and
             product_id is not null and
             number_of_products > 0 and
-            units > 0 and
+            units >= 0 and
             start_date is null and
             end_date is null
         )

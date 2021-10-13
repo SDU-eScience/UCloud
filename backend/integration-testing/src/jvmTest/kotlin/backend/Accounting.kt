@@ -1325,7 +1325,9 @@ class AccountingTest : IntegrationTest() {
                 }
             }
         }
-
+testFilter = { title, subtitle ->
+    title == "Deposit and charge" && subtitle == "Charge 0 on differential"
+}
         run {
             class In(
                 val rootBalance: Long,
@@ -1526,6 +1528,20 @@ class AccountingTest : IntegrationTest() {
                     )
 
                     check { balanceWasDeducted(input, output) }
+                }
+
+                case("Charge 0 on differential") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(Allocation(true, 100.DKK)),
+                            product = sampleStorageDifferential,
+                            units = 0,
+                            expectedChargeResults = listOf(true)
+                        )
+                    )
+
+                    check {  }
                 }
 
                 case("Charge missing payer") {
