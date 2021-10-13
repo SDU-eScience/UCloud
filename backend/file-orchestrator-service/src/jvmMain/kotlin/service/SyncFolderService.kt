@@ -7,18 +7,14 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
@@ -246,8 +242,6 @@ class SyncFolderService(
             collectionIds,
             listOf(Permission.READ)
         )
-
-
 
         session
             .sendPreparedStatement(

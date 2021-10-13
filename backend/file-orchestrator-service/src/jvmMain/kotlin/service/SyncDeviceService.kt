@@ -6,7 +6,6 @@ import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
