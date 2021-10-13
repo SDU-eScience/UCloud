@@ -1319,15 +1319,14 @@ class AccountingTest : IntegrationTest() {
                     }
 
                     case("$name with no products involved") {
-                        input(In(isProject, 100.DKK, 0))
-                        expectStatusCode(HttpStatusCode.BadRequest)
+                        input(In(isProject, 100.DKK, 0, expectedChargeResults = listOf(true)))
+                        //expectStatusCode(HttpStatusCode.BadRequest)
+                        check {  }
                     }
                 }
             }
         }
-testFilter = { title, subtitle ->
-    title == "Deposit and charge" && subtitle == "Charge 0 on differential"
-}
+
         run {
             class In(
                 val rootBalance: Long,
