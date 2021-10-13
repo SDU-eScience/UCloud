@@ -21,7 +21,7 @@ function Browse(): JSX.Element | null {
         emptyPageV2
     );
 
-    const [loading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     useTitle("Providers");
     const history = useHistory();

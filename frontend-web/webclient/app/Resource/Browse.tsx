@@ -365,7 +365,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<unknown>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer as ItemRenderer<Res>} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />

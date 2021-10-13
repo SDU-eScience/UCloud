@@ -25,7 +25,7 @@ enum Stage {
     PREVIEW,
 }
 
-const Create: React.FunctionComponent = props => {
+const Create: React.FunctionComponent = () => {
     const history = useHistory();
     const id = getQueryParam(history.location.search, "namespace");
     const [schema, setSchema] = useState<string>("{}");
@@ -33,7 +33,7 @@ const Create: React.FunctionComponent = props => {
     const [namespace, fetchNamespace] = useCloudAPI<FileMetadataTemplateNamespace | null>({noop: true}, null);
     const [latestTemplate, fetchLatestTemplate] = useCloudAPI<FileMetadataTemplate | null>({noop: true}, null);
     const [stage, setStage] = useState(Stage.INFO);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     const idRef = useRef<HTMLInputElement>(null);
     const titleRef = useRef<HTMLInputElement>(null);
@@ -176,12 +176,15 @@ const Create: React.FunctionComponent = props => {
     return <MainContainer
         header={
             <SelectableTextWrapper mb={"16px"}>
-                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO}
-                    children={"1. Info"} />
-                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA}
-                    children={"2. Schema"} />
-                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW}
-                    children={"3. Preview and save"} />
+                <SelectableText onClick={() => setStage(Stage.INFO)} selected={stage === Stage.INFO}>
+                    1. Info
+                </SelectableText>
+                <SelectableText onClick={() => setStage(Stage.SCHEMA)} selected={stage === Stage.SCHEMA}>
+                    2. Schema
+                </SelectableText>
+                <SelectableText onClick={() => setStage(Stage.PREVIEW)} selected={stage === Stage.PREVIEW}>
+                    3. Preview and save
+                </SelectableText>
             </SelectableTextWrapper>
         }
         headerSize={45}
