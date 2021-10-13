@@ -4,7 +4,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.mail.api.SendSupportEmailRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.SendSupportRequest
