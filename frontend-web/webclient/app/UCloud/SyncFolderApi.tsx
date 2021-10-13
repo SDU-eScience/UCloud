@@ -35,6 +35,7 @@ export interface SyncFolderUpdate extends ResourceUpdate {
 
 export interface SyncFolderFlags extends ResourceIncludeFlags {
     filterByPath?: string;
+    filterByUser?: string;
 }
 
 export interface SyncFolder extends Resource<SyncFolderUpdate, SyncFolderStatus, SyncFolderSpecification> {};

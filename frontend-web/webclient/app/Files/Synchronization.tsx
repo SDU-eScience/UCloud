@@ -12,6 +12,7 @@ import SyncDeviceApi, { SyncDevice } from "@/UCloud/SyncDeviceApi";
 import { PageV2 } from "@/UCloud";
 import { ResourceBrowse } from "@/Resource/Browse";
 import { Toggle } from "@/ui-components/Toggle";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText
@@ -31,7 +32,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
 }> = ({file, onDeviceSelect}) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder> | undefined>(
-        SyncFolderApi.browse({itemsPerPage: 1, filterByPath: file.id }),
+        SyncFolderApi.browse({itemsPerPage: 1, filterByPath: file.id, filterByUser: Client.username}),
         undefined
     );
 
@@ -103,6 +104,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                             deviceId: text
                         })
                     )}
+                    showProduct={false}
                 />
             </>
         ) : (

@@ -69,7 +69,8 @@ data class SyncFolderIncludeFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
     val filterByPath: String? = null,
-    val filterDeviceId: List<String>? = null
+    val filterDeviceId: List<String>? = null,
+    val filterUser: String? = null
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
