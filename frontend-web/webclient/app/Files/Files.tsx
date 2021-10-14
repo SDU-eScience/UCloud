@@ -44,8 +44,7 @@ export const FilesBrowse: React.FunctionComponent<{
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-        props.embedded === true &&
-        props.forceNavigationToPage !== true,
+        props.embedded === true && props.forceNavigationToPage !== true,
         []
     );
 
