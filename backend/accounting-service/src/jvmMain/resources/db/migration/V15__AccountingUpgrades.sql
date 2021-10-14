@@ -237,7 +237,9 @@ create table accounting.wallet_allocations(
     local_balance bigint not null,
 
     start_date timestamptz not null,
-    end_date timestamptz
+    end_date timestamptz,
+
+    granted_in bigint references "grant".applications(id) default null
 
     -- NOTE(Dan): we can trace this back to the original transaction by doing a reverse-lookup
 );
@@ -302,6 +304,11 @@ never expire. The following constraint is enforced: end_date is null or start_da
 $$;
 
 
+comment on column accounting.wallet_allocations.granted_in is $$
+References the application grant that is responsible for creating the allocation. This value can be null in the case that
+no application was made and that the resource was given another way (e.g. root-deposit).
+$$;
+
 ---- /Wallet allocations ----
 
 
@@ -333,7 +340,7 @@ create table accounting.new_transactions(
             source_allocation_id is not null and
             product_id is not null and
             number_of_products > 0 and
-            units > 0 and
+            units >= 0 and
             start_date is null and
             end_date is null
         )
@@ -440,11 +447,7 @@ insert into accounting.new_transactions
 select 'deposit', id, '_ucloud', balance, 'Initial balance', now(), uuid_generate_v4(), uuid_generate_v4()
 from new_allocations;
 
--- TODO(Dan): The allocation path is wrong. It needs to match the current project hierarchy, which I don't think we
---   can get without a full traversal of the project hierarchy [O(n) queries likely].
-
 ---- /Transfer all project balances ----
-
 
 ---- Add wallet owners to wallets ----
 
@@ -459,6 +462,35 @@ alter table accounting.wallets drop column account_id;
 alter table accounting.wallets drop column account_type;
 alter table accounting.wallets alter column owned_by set not null;
 create unique index on accounting.wallets (owned_by, category);
+
+
+-- reestablish project hierarchy in allocation paths
+create temporary table project_allocation_paths on commit drop as
+    with recursive project_tree (project_id, parent_id, title, path, allocation_path, product_cat, wallet_allocation) as (
+        select p1.id, p1.parent, p1.title, '' || p1.id, '' || wa.id, w.category, wa.id
+        from project.projects p1 join
+            accounting.wallet_owner wo on p1.id = wo.project_id join
+            accounting.wallets w on wo.id = w.owned_by join
+            accounting.wallet_allocations wa on wa.associated_wallet = w.id
+        where parent is null
+
+        union all
+
+        select p.id, tree.parent_id, p.title, tree.path || '/' || p.id, tree.allocation_path || '.' || wa.id, w.category, wa.id
+            from project.projects p join
+            project_tree tree on tree.project_id = p.parent join
+            accounting.wallet_owner wo on p.id = wo.project_id join
+            accounting.wallets w on wo.id = w.owned_by and w.category = tree.product_cat join
+            accounting.wallet_allocations wa on wa.associated_wallet = w.id
+        where parent = tree.project_id
+    )
+    select project_id, text2ltree(allocation_path) allocation_path, product_cat, wallet_allocation
+    from project_tree;
+
+update accounting.wallet_allocations
+set allocation_path = new_allo.allocation_path
+from project_allocation_paths new_allo
+where id = new_allo.wallet_allocation;
 
 ---- /Add wallet owners to wallets ----
 
@@ -1042,7 +1074,8 @@ create type accounting.deposit_request as (
     start_date timestamptz,
     end_date timestamptz,
     description text,
-    transaction_id text
+    transaction_id text,
+    application_id bigint
 );
 
 create or replace function accounting.deposit(
@@ -1055,7 +1088,7 @@ begin
         -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
         with unpacked_requests as (
             select initiated_by, recipient, recipient_is_project, source_allocation, desired_balance, start_date,
-                   end_date, description, transaction_id
+                   end_date, description, transaction_id, application_id
             from unnest(requests)
         )
         select
@@ -1073,7 +1106,8 @@ begin
             request.initiated_by,
             source_wallet.category,
             request.description,
-            request.transaction_id
+            request.transaction_id,
+            request.application_id application_id
         from
             unpacked_requests request join
             accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
@@ -1151,7 +1185,7 @@ begin
     with new_allocations as (
         insert into accounting.wallet_allocations
             (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
-             allocation_path)
+             allocation_path, granted_in)
         select
             r.idx,
             r.target_wallet,
@@ -1160,7 +1194,8 @@ begin
             r.desired_balance,
             r.start_date,
             r.end_date,
-            (r.source_allocation_path::text || '.' || r.idx::text)::ltree
+            (r.source_allocation_path::text || '.' || r.idx::text)::ltree,
+            r.application_id
         from deposit_result r
         where r.target_wallet is not null
         returning id, balance
@@ -1391,7 +1426,8 @@ create or replace function accounting.wallet_allocation_to_json(
         'initialBalance', allocation_in.initial_balance,
         'localBalance', allocation_in.local_balance,
         'startDate', floor(extract(epoch from allocation_in.start_date) * 1000),
-        'endDate', floor(extract(epoch from allocation_in.end_date) * 1000)
+        'endDate', floor(extract(epoch from allocation_in.end_date) * 1000),
+        'grantedIn', allocation_in.granted_in
     );
 $$;
 
@@ -1714,6 +1750,7 @@ create unique index allow_applications_from_uniq on "grant".allow_applications_f
 alter table "grant".applications add foreign key (resources_owned_by) references project.projects(id);
 alter table "grant".applications add foreign key (requested_by) references auth.principals(id);
 alter table "grant".applications add foreign key (status_changed_by) references auth.principals(id);
+alter table "grant".applications add column reference_id text unique default null;
 
 alter table "grant".automatic_approval_limits add foreign key (project_id) references project.projects(id);
 alter table "grant".automatic_approval_limits add column product_category2 bigint references accounting.product_categories(id);
@@ -1809,7 +1846,8 @@ begin
         'updatedAt', (floor(extract(epoch from application_in.updated_at) * 1000)),
         'statusChangedBy', application_in.status_changed_by,
         'requestedResources', resources_in,
-        'resourcesOwnedByTitle', resources_owned_by_in.title
+        'resourcesOwnedByTitle', resources_owned_by_in.title,
+        'referenceId', application_in.reference_id
     );
 
     if application_in.grant_recipient_type = 'personal' then
@@ -1923,6 +1961,21 @@ $$;
 
 create or replace function "grant".application_status_trigger() returns trigger language plpgsql as $$
 begin
+    --
+    if (
+        (new.status_changed_by = old.status_changed_by) and
+        (new.status = old.status) and
+        (new.created_at = old.created_at) and
+        (new.document = old.document) and
+        (new.grant_recipient = old.grant_recipient) and
+        (new.grant_recipient_type = old.grant_recipient_type) and
+        (new.requested_by = old.requested_by) and
+        (new.resources_owned_by = old.resources_owned_by) and
+        (new.updated_at = old.updated_at) and
+        (new.reference_id != old.reference_id)
+        ) then
+            return null;
+    end if;
     if old.status = 'APPROVED' or old.status = 'REJECTED' then
         raise exception 'Cannot update a closed application';
     end if;
@@ -2011,7 +2064,8 @@ begin
             result.start_date,
             result.end_date,
             'Grant application approved',
-            concat(result.approved_by, '-', uuid_generate_v4())
+            concat(result.approved_by, '-', uuid_generate_v4()),
+            result.application_id
         )::accounting.deposit_request req
         from approve_result result
     ) t;

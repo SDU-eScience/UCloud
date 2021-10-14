@@ -1,9 +1,12 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Providers](/docs/developer-guide/accounting-and-projects/providers.md)
+
 # `ProviderSupport`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A placeholder document used only to conform with the Resources API_
 
 ```kotlin
 data class ProviderSupport(
@@ -30,4 +33,5 @@ data class ProviderSupport(
 
 
 </details>
+
 

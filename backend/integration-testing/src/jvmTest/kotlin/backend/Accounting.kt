@@ -1319,8 +1319,9 @@ class AccountingTest : IntegrationTest() {
                     }
 
                     case("$name with no products involved") {
-                        input(In(isProject, 100.DKK, 0))
-                        expectStatusCode(HttpStatusCode.BadRequest)
+                        input(In(isProject, 100.DKK, 0, expectedChargeResults = listOf(true)))
+                        //expectStatusCode(HttpStatusCode.BadRequest)
+                        check {  }
                     }
                 }
             }
@@ -1526,6 +1527,20 @@ class AccountingTest : IntegrationTest() {
                     )
 
                     check { balanceWasDeducted(input, output) }
+                }
+
+                case("Charge 0 on differential") {
+                    input(
+                        In(
+                            rootBalance = 1000.DKK,
+                            chainFromRoot = listOf(Allocation(true, 100.DKK)),
+                            product = sampleStorageDifferential,
+                            units = 0,
+                            expectedChargeResults = listOf(true)
+                        )
+                    )
+
+                    check {  }
                 }
 
                 case("Charge missing payer") {

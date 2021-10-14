@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # Example: Creating a simple batch Job
 
 <table>
@@ -9,6 +11,12 @@
 <tr><th>Post-conditions</th><td><ul>
 <li>A Job is started in the user's workspace</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -17,7 +25,7 @@
 
 ```kotlin
 
-/* The user finds an interesting application from the catalogue */
+/* The user finds an interesting application from the catalog */
 
 val applications = AppStore.listAll.call(
     PaginationRequest(
@@ -234,7 +242,7 @@ BulkResponse(
 
 ```typescript
 
-/* The user finds an interesting application from the catalogue */
+/* The user finds an interesting application from the catalog */
 
 // Authenticated as user
 const applications = await callAPI(HpcAppsApi.listAll(
@@ -485,7 +493,7 @@ await callAPI(JobsApi.create(
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# The user finds an interesting application from the catalogue
+# The user finds an interesting application from the catalog
 
 # Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerPage=50&page=0" 
@@ -694,4 +702,5 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 
 </details>
+
 

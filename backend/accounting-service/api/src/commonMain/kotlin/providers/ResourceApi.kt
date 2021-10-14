@@ -142,7 +142,7 @@ abstract class ResourceApi<
                 )
 
                 documentation {
-                    summary = "Browses the catalogue of available resources"
+                    summary = "Browses the catalog of available resources"
                 }
             },
             requestType = ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
@@ -272,7 +272,7 @@ abstract class ResourceApi<
                 )
 
                 documentation {
-                    summary = "Searches the catalogue of available resources"
+                    summary = "Searches the catalog of available resources"
                 }
             },
             requestType = ResourceSearchRequest.serializer(typeInfo.flagsSerializer),

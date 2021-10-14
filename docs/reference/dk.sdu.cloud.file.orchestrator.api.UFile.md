@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+
 # `UFile`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  is a resource for storing, retrieving and organizing data in UCloud_
@@ -23,7 +25,7 @@ data class UFile(
 A file in UCloud ([`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)) closely follows the concept of a computer file you might already be familiar with.
 The functionality of a file is mostly determined by its [`type`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileStatus.md). The two most important
 types are the [`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) and [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) types. A
-[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  s. A directory can itself contain more
+[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)s. A directory can itself contain more
 directories, which leads to a natural tree-like structure. [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md)s, also referred to as a
 regular files, are data records which each contain a series of bytes.
 
@@ -258,4 +260,5 @@ A null value indicates that permissions are not supported by this resource type.
 
 
 </details>
+
 

@@ -5,17 +5,9 @@ import dk.sdu.cloud.app.aau.services.ResourceCache
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.provider.api.ProviderSpecification
-import dk.sdu.cloud.provider.api.Providers
-import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.service.*
-import kotlinx.coroutines.runBlocking
-import java.io.File
 import java.util.*
 
 data class ClientHolder(var client: AuthenticatedClient)

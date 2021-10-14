@@ -110,7 +110,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     }, []);
 
     return <MainContainer
-        header={<SharedByTabs sharedByMe={true} />}
+        header={<SharedByTabs sharedByMe />}
         headerSize={55}
         main={
             <>
@@ -225,10 +225,7 @@ const ShareGroup: React.FunctionComponent<{
 
 const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
     return <SelectableText
-        mr="1em"
-        cursor="pointer"
         selected={props.selected}
-        fontSize={3}
         onClick={props.onClick}
     >
         {props.children}

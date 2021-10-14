@@ -1,14 +1,15 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Wallets](/docs/developer-guide/accounting-and-projects/accounting/wallets.md)
+
 # `WalletsBrowseSubAllocationsRequest`
 
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
 
 ```kotlin
 data class WalletsBrowseSubAllocationsRequest(
-    val sortBy: SortSubAllocationsBy?,
     val filterType: ProductType?,
     val itemsPerPage: Int?,
     val next: String?,
@@ -50,17 +51,6 @@ paginate through the results.
 <summary>
 <b>Properties</b>
 </summary>
-
-<details>
-<summary>
-<code>sortBy</code>: <code><code><a href='#sortsuballocationsby'>SortSubAllocationsBy</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
 
 <details>
 <summary>
@@ -120,4 +110,5 @@ paginate through the results.
 
 
 </details>
+
 

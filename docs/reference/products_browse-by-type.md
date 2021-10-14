@@ -1,7 +1,15 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
+
 # Example: Browse products by type
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -162,4 +170,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 
 
 </details>
+
 

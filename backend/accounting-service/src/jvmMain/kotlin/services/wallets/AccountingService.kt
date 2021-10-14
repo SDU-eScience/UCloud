@@ -168,6 +168,7 @@ class AccountingService(
                     val endDates by parameterList<Long?>()
                     val descriptions by parameterList<String>()
                     val transactionIds by parameterList<String>()
+                    val applicationIds by parameterList<Long?>()
                     for (req in request.items) {
                         initiatedBy.add(actorAndProject.actor.safeUsername())
                         when (val recipient = req.recipient) {
@@ -186,6 +187,7 @@ class AccountingService(
                         endDates.add(req.endDate?.let { it / 1000 })
                         descriptions.add(req.description)
                         transactionIds.add(req.transactionId)
+                        applicationIds.add(null)
                     }
                 },
                 """
@@ -199,7 +201,8 @@ class AccountingService(
                             to_timestamp(unnest(:start_dates::bigint[])),
                             to_timestamp(unnest(:end_dates::bigint[])),
                             unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[])
+                            unnest(:transaction_ids::text[]),
+                            unnest(:application_ids::bigint[])
                         )::accounting.deposit_request req
                     )
                     select accounting.deposit(array_agg(req))
@@ -246,6 +249,7 @@ class AccountingService(
                 val balances by parameterList<Long?>()
                 val descriptions by parameterList<String?>()
                 val transactionIds by parameterList<String>()
+                val applicationIds by parameterList<Long?>()
                 setParameter("actor", actorAndProject.actor.safeUsername())
                 for (req in request.items) {
                     productCategories.add(req.categoryId.name)
@@ -257,6 +261,7 @@ class AccountingService(
                     balances.add(req.amount)
                     descriptions.add(req.description)
                     transactionIds.add(req.transactionId)
+                    applicationIds.add(null)
                 }
             }
 

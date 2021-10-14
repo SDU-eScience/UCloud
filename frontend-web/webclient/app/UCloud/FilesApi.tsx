@@ -109,8 +109,13 @@ interface FilesTrashRequestItem {
     id: string;
 }
 
+interface FilesEmptyTrashRequestItem {
+    id: string;
+}
+
 interface ExtraCallbacks {
     collection?: FileCollection;
+    directory?: UFile;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -373,6 +378,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
+                    cb.reload();
                 }
             },
             {
@@ -423,6 +429,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
+                    cb.reload();
                 }
             },
             {
@@ -461,6 +468,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
+                    cb.reload();
                 }
             },
             {
@@ -494,6 +502,19 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
+                icon: "refresh",
+                text: "Synchronization",
+                enabled: (selected, cb) => selected.length === 1,
+                onClick: async (selected, cb) => {
+                    dialogStore.addDialog(
+                        <SynchronizationSettings file={selected[0]} />,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle
+                    );
+                }
+            },
+            {
                 icon: "trash",
                 text: "Move to trash",
                 confirm: true,
@@ -503,6 +524,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
+                    }
+                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
+                        return false;
                     }
                     return selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
@@ -517,17 +541,51 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "refresh",
-                text: "Synchronization",
-                enabled: (selected, cb) => selected.length === 1,
+                icon: "trash",
+                text: "Empty Trash",
+                confirm: true,
+                color: "red",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
+                        return true;
+                    }
+                    return false
+                },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(
-                        <SynchronizationSettings file={selected[0]} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
+                    await cb.invokeCommand(
+                        this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
+                    cb.reload()
                 }
+            },
+            {
+                text: "Empty Trash",
+                icon: "trash",
+                color: "red",
+                primary: true,
+                canAppearInLocation: location => location === "SIDEBAR",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
+                        return true;
+                    }
+                    return false;
+                },
+                onClick: async (_, cb) => {
+                    await cb.invokeCommand(
+                        this.emptyTrash(bulkRequestOf({id: cb.directory?.id!}))
+                    );
+                    cb.reload()
+                },
             }
         ];
 
@@ -597,6 +655,18 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             context: "",
             method: "POST",
             path: this.baseContext + "/trash",
+            parameters: request,
+            payload: request
+        };
+    }
+
+    public emptyTrash(
+        request: BulkRequest<FilesEmptyTrashRequestItem>
+    ): APICallParameters<BulkRequest<FilesEmptyTrashRequestItem>> {
+        return {
+            context: "",
+            method: "POST",
+            path: this.baseContext + "/emptyTrash",
             parameters: request,
             payload: request
         };

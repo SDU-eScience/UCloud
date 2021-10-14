@@ -58,6 +58,11 @@ class GrantController(
             ok(Unit)
         }
 
+        implement(Grants.editReferenceId) {
+            applications.editReferenceID(actorAndProject, request)
+            ok(Unit)
+        }
+
         implement(Grants.ingoingApplications) {
             ok(applications.browseIngoingApplications(actorAndProject, request, request.filter))
         }

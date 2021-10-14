@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
@@ -10,6 +9,7 @@ import kotlin.reflect.KProperty
 
 const val TYPE_REF = "#TYPEREF#="
 const val CALL_REF = "#CALLREF#="
+const val CALL_REF_LINK = "#CALLREFLINK#="
 const val TYPE_REF_LINK = "#TYPEREFLINK#="
 
 @Retention
@@ -181,8 +181,27 @@ data class UseCase(
     }
 }
 
+fun MutableList<UseCaseNode>.ucloudCore(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("ucloud", "The UCloud/Core service user").also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.provider(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("provider", "The provider").also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.administrator(): UseCaseNode.Actor {
+    return UseCaseNode.Actor("admin", "A UCloud administrator").also { add(it) }
+}
+
+fun MutableList<UseCaseNode>.guest(details: String? = null): UseCaseNode.Actor {
+    return UseCaseNode.Actor(
+        if (details == null) "guest" else "guest ($details)",
+        "An unauthenticated user"
+    ).also { add(it) }
+}
+
 fun MutableList<UseCaseNode>.basicUser(): UseCaseNode.Actor {
-    return UseCaseNode.Actor("user", "An authenticated user")
+    return UseCaseNode.Actor("user", "An authenticated user").also { add(it) }
 }
 
 fun MutableList<UseCaseNode>.actor(name: String, description: String): UseCaseNode.Actor {
@@ -299,3 +318,69 @@ sealed class UseCaseNode {
         TYPESCRIPT
     }
 }
+
+sealed class ProviderApiRequirements {
+    object Optional : ProviderApiRequirements()
+    class List(val conditions: kotlin.collections.List<String>) : ProviderApiRequirements()
+    object Mandatory : ProviderApiRequirements()
+}
+
+fun CallDescriptionContainer.documentProviderCall(
+    call: CallDescription<*, *, *>,
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String = ""
+) {
+    val docs = providerDescriptionDocs(endUserCall, requirements, details)
+    document(call, UCloudApiDocC("${docs.first}\n\n${docs.second}"))
+}
+
+fun UCloudCallDocBuilder<*, *, *>.providerDescription(
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String = ""
+) {
+    val docs = providerDescriptionDocs(endUserCall, requirements, details)
+    summary = docs.first
+    description = docs.second
+}
+
+private fun providerDescriptionDocs(
+    endUserCall: CallDescription<*, *, *>,
+    requirements: ProviderApiRequirements,
+    details: String
+): Pair<String?, String> {
+    val summary = endUserCall.docOrNull?.summary
+    val description = buildString {
+        if (details.isNotEmpty()) {
+            appendLine("---")
+            appendLine()
+        }
+
+        append("__Implementation requirements:__ ")
+        when (requirements) {
+            ProviderApiRequirements.Optional -> appendLine("Optional")
+            ProviderApiRequirements.Mandatory -> appendLine("Mandatory")
+            is ProviderApiRequirements.List -> {
+                appendLine()
+                for (condition in requirements.conditions) {
+                    appendLine(" - $condition")
+                }
+            }
+        }
+
+        appendLine()
+        appendLine("For more information, see the end-user API ($CALL_REF ${endUserCall.fullName})")
+
+        if (details.isNotEmpty()) {
+            appendLine()
+            appendLine("---")
+            appendLine()
+            appendLine(details)
+        }
+    }
+    return Pair(summary, description)
+}
+
+@RequiresOptIn
+annotation class UCloudApiExampleValue

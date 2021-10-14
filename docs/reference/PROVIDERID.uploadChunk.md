@@ -1,7 +1,9 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Provider APIs](/docs/developer-guide/orchestration/storage/providers/README.md) / [Upload Protocol](/docs/developer-guide/orchestration/storage/providers/upload.md)
+
 # `PROVIDERID.uploadChunk`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Uploads a new chunk to the file at a given offset_
@@ -46,4 +48,5 @@ Providers MUST NOT respond to this call before the data has been written to disk
 
 Clients SHOULD avoid sending multiple chunks at the same time. Providers are allowed to reject parallel
 calls to this endpoint.
+
 

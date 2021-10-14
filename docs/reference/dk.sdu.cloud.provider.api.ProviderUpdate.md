@@ -1,10 +1,12 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Resources](/docs/developer-guide/core/resources.md)
+
 # `ProviderUpdate`
 
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Describes an update to the `Resource`_
+_Updates regarding a Provider, not currently in use_
 
 ```kotlin
 data class ProviderUpdate(
@@ -12,15 +14,6 @@ data class ProviderUpdate(
     val status: String?,
 )
 ```
-Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-use the full update history if you only wish to know the _current_ state of a `Resource`.
-
-An update will typically contain information similar to the `status` field, for example:
-
-- A state value. For example, a compute `Job` might be `RUNNING`.
-- Change in key metrics.
-- Bindings to related `Resource`s.
 
 <details>
 <summary>
@@ -52,4 +45,5 @@ An update will typically contain information similar to the `status` field, for 
 
 
 </details>
+
 

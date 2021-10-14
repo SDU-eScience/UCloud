@@ -1,10 +1,18 @@
-# Example: Extending a Job and cancelling it early
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
+# Example: Extending a Job and terminating it early
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
 <tr><th>Pre-conditions</th><td><ul>
 <li>The provider must support the extension API</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1038,4 +1046,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 
 </details>
+
 

@@ -30,7 +30,7 @@ import {
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Button, Flex, Grid, Icon, Input, Label, Text} from "@/ui-components";
+import {Box, Button, Flex, Grid, Icon, Input, Label, Link, Text} from "@/ui-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
@@ -285,6 +285,7 @@ const AllocationViewer: React.FunctionComponent<{
 
         setIsMoving(false);
     }, [isDeposit]);
+    const url = "/project/grants/view/" + allocation.grantedIn;
     return <HighlightedCard color={"red"} width={"400px"} onContextMenu={isMoving ? undefined : onContextMenu}>
         <TransferDepositModal isDeposit={isDeposit} isOpen={isMoving} onRequestClose={closeDepositing}
             onSubmit={onTransferSubmit} wallet={wallet} />
@@ -309,6 +310,7 @@ const AllocationViewer: React.FunctionComponent<{
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
+                <div> { allocation.grantedIn != null ? <><Link to={url} > Show Grant </Link> </> : <> Unknown Grant </>}  </div>
             </Flex>
         </Flex>
     </HighlightedCard>;

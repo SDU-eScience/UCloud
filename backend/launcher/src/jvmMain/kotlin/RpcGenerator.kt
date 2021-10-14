@@ -212,6 +212,7 @@ private fun generateCall(
             fieldDocs?.maturity ?: defaultMaturity,
             overriddenDocs?.synopsis ?: synopsis ?: fieldDocs?.synopsis,
             overriddenDocs?.description ?: description ?: fieldDocs?.description,
+            overriddenDocs?.importance ?: fieldDocs?.importance ?: 0,
         ),
         call,
     )

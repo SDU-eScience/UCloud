@@ -560,12 +560,33 @@ class FilesService(
             afterCall = { provider, _, response ->
                 registerTasks(
                     findTasksInBackgroundFromResponse(response)
+                        .map { TaskToRegister(provider, "Moving to trash", it, actorAndProject) }
+                        .toList()
+                )
+            }
+        )
+    }
+    suspend fun emptyTrash(
+        actorAndProject: ActorAndProject,
+        request: FilesEmptyTrashRequest
+    ): FilesEmptyTrashResponse {
+        return bulkProxyEdit(
+            actorAndProject,
+            request,
+            Permission.EDIT,
+            { it.filesApi.emptyTrash },
+            { extractPathMetadata(it.id).collection },
+            { req, collection -> FilesProviderEmptyTrashRequestItem(collection, req.id) },
+            afterCall = { provider, _, response ->
+                registerTasks(
+                    findTasksInBackgroundFromResponse(response)
                         .map { TaskToRegister(provider, "Emptying trash", it, actorAndProject) }
                         .toList()
                 )
             }
         )
     }
+
 
     private suspend inline fun <R : Any> verifyAndFetchByIdable(
         actorAndProject: ActorAndProject,

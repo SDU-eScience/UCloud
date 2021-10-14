@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Files](/docs/developer-guide/orchestration/storage/files.md)
+
 # Example: Browsing the contents of a folder
 
 <table>
@@ -7,6 +9,12 @@
 <li>A folder at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -244,4 +252,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 
 
 </details>
+
 

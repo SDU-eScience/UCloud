@@ -141,7 +141,7 @@ export function groupSummaryRequest(payload: PaginationRequest, projectOverride?
     };
 }
 
-export type UserStatusRequest = {};
+export type UserStatusRequest = Record<string, never>;
 
 export interface ProjectName {
     title: string;
@@ -445,7 +445,7 @@ export const deleteProject = (payload: {projectId: string}): APICallParameters =
     reloadId: Math.random()
 });
 
-interface LeaveProjectRequest {}
+type LeaveProjectRequest = Record<string, never>
 export function leaveProject(
     request: LeaveProjectRequest,
     projectOverride?: string

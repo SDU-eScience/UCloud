@@ -1,7 +1,51 @@
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/products.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/allocations.md'>Next section »</a>
+</p>
+
+
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / Wallets
 # Wallets
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Wallets hold allocations which grant access to a provider's resources._
+
+## Rationale
+
+[`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet.md)s are the core abstraction used in the accounting system of UCloud. This feature builds
+on top of various other features of UCloud. Here is a quick recap:
+
+- The users of UCloud are members of 
+  [Workspaces and Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md). These form 
+  the foundation of all collaboration in UCloud.
+- UCloud is an orchestrator of [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. UCloud delegates the responsibility of hosting [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s to 
+  [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s.
+- [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s define which services they support using [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s.
+- All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s belong in a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md). The category contains similar 
+  [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. Under normal circumstances, all products in a category run on the same system.
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s define a payment model. The model supports quotas (`DIFFERENTIAL_QUOTA`), one-time 
+  payments and periodic payments (`ABSOLUTE`). All absolute payment models support paying in a 
+  product-specific unit or in DKK.
+- All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category share the exact same payment model
+
+Allocators grant access to [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s via [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s. In a simplified view, an 
+allocation is:
+
+- An initial balance, specified in the "unit of allocation" which the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  specifies. 
+  For example: 1000 DKK or 500 Core Hours.
+- Start date and optional end date.
+- An optional parent allocation.
+- A current balance, the balance remaining for this allocation and all descendants.
+- A local balance, the balance remaining if it had no descendants
+
+UCloud combines allocations of the same category into a [`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet..md)  Every [`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet.md)  has 
+exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md). 
+[`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet.md)s create a natural hierarchical structure. Below we show an example of this:
+
+![](/backend/accounting-service/wiki/allocations.png)
+
+__Figure:__ Allocations create a natural _allocation hierarchy_.
 
 ## Table of Contents
 <details>
@@ -16,19 +60,19 @@
 <tbody>
 <tr>
 <td><a href='#browse'><code>browse</code></a></td>
-<td><i>No description</i></td>
+<td>Browses the catalog of accessible Wallets</td>
 </tr>
 <tr>
 <td><a href='#browsesuballocations'><code>browseSubAllocations</code></a></td>
-<td><i>No description</i></td>
+<td>Browses the catalog of sub-allocations</td>
 </tr>
 <tr>
 <td><a href='#retrieverecipient'><code>retrieveRecipient</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves information about a potential WalletAllocation recipient</td>
 </tr>
 <tr>
 <td><a href='#push'><code>push</code></a></td>
-<td><i>No description</i></td>
+<td>Pushes a Wallet to the catalog (Not yet implemented)</td>
 </tr>
 </tbody></table>
 
@@ -46,24 +90,20 @@
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#allocationselectorpolicy'><code>AllocationSelectorPolicy</code></a></td>
-<td><i>No description</i></td>
+<td><a href='#wallet'><code>Wallet</code></a></td>
+<td>Wallets hold allocations which grant access to a provider's resources.</td>
 </tr>
 <tr>
-<td><a href='#sortsuballocationsby'><code>SortSubAllocationsBy</code></a></td>
-<td><i>No description</i></td>
+<td><a href='#walletallocation'><code>WalletAllocation</code></a></td>
+<td>An allocation grants access to resources</td>
+</tr>
+<tr>
+<td><a href='#allocationselectorpolicy'><code>AllocationSelectorPolicy</code></a></td>
+<td>A policy for how to select a WalletAllocation in a single Wallet</td>
 </tr>
 <tr>
 <td><a href='#suballocation'><code>SubAllocation</code></a></td>
 <td>A parent allocator's view of a `WalletAllocation`</td>
-</tr>
-<tr>
-<td><a href='#wallet'><code>Wallet</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#walletallocation'><code>WalletAllocation</code></a></td>
-<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#walletowner'><code>WalletOwner</code></a></td>
@@ -107,10 +147,11 @@
 
 ### `browse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Browses the catalog of accessible Wallets_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -120,36 +161,43 @@
 
 ### `browseSubAllocations`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Browses the catalog of sub-allocations_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#walletsbrowsesuballocationsrequest'>WalletsBrowseSubAllocationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#suballocation'>SubAllocation</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This endpoint will find all [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s which are direct children of one of your
+accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s.
 
 
 ### `retrieveRecipient`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves information about a potential WalletAllocation recipient_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#walletsretrieverecipientrequest'>WalletsRetrieveRecipientRequest</a></code>|<code><a href='#walletsretrieverecipientresponse'>WalletsRetrieveRecipientResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+You can use this endpoint to find information about a Workspace. This is useful when creating a 
+sub-allocation.
 
 
 ### `push`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Pushes a Wallet to the catalog (Not yet implemented)_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -160,17 +208,26 @@
 
 ## Data Models
 
-### `AllocationSelectorPolicy`
+### `Wallet`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Wallets hold allocations which grant access to a provider's resources._
 
 ```kotlin
-enum class AllocationSelectorPolicy {
-    EXPIRE_FIRST,
-}
+data class Wallet(
+    val owner: WalletOwner,
+    val paysFor: ProductCategoryId,
+    val allocations: List<WalletAllocation>,
+    val chargePolicy: AllocationSelectorPolicy,
+    val productType: ProductType?,
+    val chargeType: ChargeType?,
+    val unit: ProductPriceUnit?,
+)
 ```
+You can find more information about WalletAllocations
+[here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
 
 <details>
 <summary>
@@ -179,7 +236,73 @@ enum class AllocationSelectorPolicy {
 
 <details>
 <summary>
-<code>EXPIRE_FIRST</code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>paysFor</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#walletallocation'>WalletAllocation</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>chargePolicy</code>: <code><code><a href='#allocationselectorpolicy'>AllocationSelectorPolicy</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>chargeType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md'>ChargeType</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>unit</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md'>ProductPriceUnit</a>?</code></code>
 </summary>
 
 
@@ -196,18 +319,26 @@ enum class AllocationSelectorPolicy {
 
 ---
 
-### `SortSubAllocationsBy`
+### `WalletAllocation`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An allocation grants access to resources_
 
 ```kotlin
-enum class SortSubAllocationsBy {
-    GRANT_ALLOCATION,
-    PRODUCT_CATEGORY,
-}
+data class WalletAllocation(
+    val id: String,
+    val allocationPath: List<String>,
+    val balance: Long,
+    val initialBalance: Long,
+    val localBalance: Long,
+    val startDate: Long,
+    val endDate: Long?,
+)
 ```
+You can find more information about WalletAllocations
+[here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
 
 <details>
 <summary>
@@ -216,7 +347,7 @@ enum class SortSubAllocationsBy {
 
 <details>
 <summary>
-<code>GRANT_ALLOCATION</code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique ID of this allocation
 </summary>
 
 
@@ -227,7 +358,100 @@ enum class SortSubAllocationsBy {
 
 <details>
 <summary>
-<code>PRODUCT_CATEGORY</code>
+<code>allocationPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code> A path, starting from the top, through the allocations that will be charged, when a charge is made
+</summary>
+
+
+
+Note that this allocation path will always include, as its last element, this allocation.
+
+
+</details>
+
+<details>
+<summary>
+<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The current balance of this wallet allocation's subtree
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>initialBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The initial balance which was granted to this allocation
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>localBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The current balance of this wallet allocation
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>startDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp for when this allocation becomes valid
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Timestamp for when this allocation becomes invalid, null indicates that this allocation does not expire automatically
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AllocationSelectorPolicy`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_A policy for how to select a WalletAllocation in a single Wallet_
+
+```kotlin
+enum class AllocationSelectorPolicy {
+    EXPIRE_FIRST,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>EXPIRE_FIRST</code> Use the WalletAllocation which is closest to expiration
 </summary>
 
 
@@ -246,7 +470,7 @@ enum class SortSubAllocationsBy {
 
 ### `SubAllocation`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A parent allocator's view of a `WalletAllocation`_
@@ -401,226 +625,9 @@ data class SubAllocation(
 
 ---
 
-### `Wallet`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-data class Wallet(
-    val owner: WalletOwner,
-    val paysFor: ProductCategoryId,
-    val allocations: List<WalletAllocation>,
-    val chargePolicy: AllocationSelectorPolicy,
-    val productType: ProductType?,
-    val chargeType: ChargeType?,
-    val unit: ProductPriceUnit?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>paysFor</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#walletallocation'>WalletAllocation</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargePolicy</code>: <code><code><a href='#allocationselectorpolicy'>AllocationSelectorPolicy</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md'>ChargeType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>unit</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md'>ProductPriceUnit</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `WalletAllocation`
-
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-
-
-
-```kotlin
-data class WalletAllocation(
-    val id: String,
-    val allocationPath: List<String>,
-    val balance: Long,
-    val initialBalance: Long,
-    val localBalance: Long,
-    val startDate: Long,
-    val endDate: Long?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique ID of this allocation
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>allocationPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code> A path, starting from the top, through the allocations that will be charged, when a charge is made
-</summary>
-
-
-
-Note that this allocation path will always include, as its last element, this allocation.
-
-
-</details>
-
-<details>
-<summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The current balance of this wallet allocation's subtree
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>initialBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The initial balance which was granted to this allocation
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>localBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The current balance of this wallet allocation
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>startDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Timestamp for when this allocation becomes valid
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Timestamp for when this allocation becomes invalid, null indicates that this allocation does not expire automatically
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `WalletOwner`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -637,7 +644,7 @@ sealed class WalletOwner {
 
 ### `WalletOwner.Project`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -669,7 +676,7 @@ data class Project(
 <code>type</code>: <code><code>String /* "project" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -686,7 +693,7 @@ data class Project(
 
 ### `WalletOwner.User`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -718,7 +725,7 @@ data class User(
 <code>type</code>: <code><code>String /* "user" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -735,7 +742,7 @@ data class User(
 
 ### `PushWalletChangeRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -795,7 +802,7 @@ data class PushWalletChangeRequestItem(
 
 ### `WalletBrowseRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -909,14 +916,13 @@ paginate through the results.
 
 ### `WalletsBrowseSubAllocationsRequest`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
 
 ```kotlin
 data class WalletsBrowseSubAllocationsRequest(
-    val sortBy: SortSubAllocationsBy?,
     val filterType: ProductType?,
     val itemsPerPage: Int?,
     val next: String?,
@@ -958,17 +964,6 @@ paginate through the results.
 <summary>
 <b>Properties</b>
 </summary>
-
-<details>
-<summary>
-<code>sortBy</code>: <code><code><a href='#sortsuballocationsby'>SortSubAllocationsBy</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
 
 <details>
 <summary>
@@ -1035,7 +1030,7 @@ paginate through the results.
 
 ### `WalletsRetrieveRecipientRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1071,7 +1066,7 @@ data class WalletsRetrieveRecipientRequest(
 
 ### `WalletsRetrieveRecipientResponse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

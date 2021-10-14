@@ -14,31 +14,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CALL_REF
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiDocC
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.actor
-import dk.sdu.cloud.calls.basicUser
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.docCallRef
-import dk.sdu.cloud.calls.document
-import dk.sdu.cloud.calls.documentation
-import dk.sdu.cloud.calls.httpCreate
-import dk.sdu.cloud.calls.httpUpdate
-import dk.sdu.cloud.calls.responseExample
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.title
-import dk.sdu.cloud.calls.useCase
-import dk.sdu.cloud.calls.useCaseReference
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
@@ -126,6 +102,9 @@ typealias FilesTrashResponse = BulkResponse<LongRunningTask?>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 
+typealias FilesEmptyTrashRequest = BulkRequest<FindByPath>
+typealias FilesEmptyTrashResponse = BulkResponse<LongRunningTask?>
+
 @Serializable
 data class FilesCreateUploadRequestItem(
     override val id: String,
@@ -203,6 +182,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     private const val downloadUseCase = "download"
     private const val createFolderUseCase = "create_folder"
     private const val moveToTrashUseCase = "move_to_trash"
+    private const val emptyingTrash = "empty_trash_folder"
     private const val browseUseCase = "browse"
     private const val retrieveUseCase = "retrieve"
     private const val deleteUseCase = "delete"
@@ -384,6 +364,36 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 )
             }
         )
+
+        useCase(
+            emptyingTrash,
+            "Emptying trash folder",
+            trigger = "User initiated",
+            preConditions = listOf(
+                "A trash folder located at /home/trash",
+                "The trash folder contains two files and a folder"
+            ),
+            postConditions = listOf(
+                "The folder and all children are removed from the trash folder",
+                "The files is removed from the trash folder"
+            ),
+            flow = {
+                val user = basicUser()
+                success(
+                    trash,
+                    bulkRequestOf(
+                        FindByPath("/home/trash")
+                    ),
+                    BulkResponse(
+                        listOf(
+                            LongRunningTask.Complete(),
+                        )
+                    ),
+                    user
+                )
+            }
+        )
+
 
         useCase(
             browseUseCase,
@@ -768,6 +778,41 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             )
 
             useCaseReference(moveToTrashUseCase, "Moving files to trash")
+        }
+    }
+
+    val emptyTrash = call<FilesEmptyTrashRequest, FilesEmptyTrashResponse, CommonErrorMessage>("emptyTrash") {
+        httpUpdate(baseContext, "emptyTrash")
+
+        documentation {
+            summary = "Permanently deletes all files from the selected trash folder thereby emptying it"
+            description = """
+                    This operation acts as a permanent delete for users. Users will NOT be able to restore the file 
+                    later, if needed. 
+                    
+                    Not all providers supports this endpoint. You can query $CALL_REF files.collections.browse
+                    or $CALL_REF files.collections.retrieve with the `includeSupport` flag.
+                    
+                    This is a long running task. As a result, this operation might respond with a status code which indicate
+                    that it will continue in the background. Progress of this job can be followed using the task API.
+                """.trimIndent()
+
+            responseExample(
+                HttpStatusCode.NotFound,
+                "Either the oldPath or newPath exists or you lack permissions"
+            )
+
+            responseExample(
+                HttpStatusCode.Forbidden,
+                "You lack permissions to perform this operation"
+            )
+
+            responseExample(
+                HttpStatusCode.BadRequest,
+                "This operation is not supported by the provider"
+            )
+
+            useCaseReference(emptyingTrash, "Moving files to trash")
         }
     }
 

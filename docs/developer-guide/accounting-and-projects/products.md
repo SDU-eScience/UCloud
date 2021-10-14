@@ -1,19 +1,159 @@
+<p align='center'>
+<a href='/docs/developer-guide/accounting-and-projects/providers.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/wallets.md'>Next section »</a>
+</p>
+
+
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Products
 # Products
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Products define the services exposed by a Provider._
+
+## Rationale
+
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose services into UCloud. But, different 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s to define the 
+services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md). As an example, a 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might have the following services:
+
+- __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
+- __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
+  GPU powered nodes for artificial intelligence.
+
+For many [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s, the story doesn't stop here. You can often allocate your 
+[`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s on a machine "slice". This can increase overall utilization, as users 
+aren't forced to request full nodes. A [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might advertise the following
+slices:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ A single node-type split up into individual slices.
+
+## Concepts
+
+UCloud represent these concepts in the following abstractions:
+
+- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
+- [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category
+  run on identical hardware. 
+- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
+
+Below, we show an example of how a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  can organize their services.
+
+![](/backend/accounting-service/wiki/products.png)
+
+__Figure:__ All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s have zero or more categories of every type, e.g. `example-slim`. 
+In a given category, the [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  has one or more slices.
+
+## Payment Model
+
+UCloud uses a flexible payment model, which allows [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s to use a model which
+is familiar to them. In short, a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  must first choose one of the following payment types:
+
+1. __Differential models__ ([`ChargeType.DIFFERENTIAL_QUOTA`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
+   1. Quota ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+2. __Absolute models__ ([`ChargeType.ABSOLUTE`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
+   1. One-time payment ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
+      [`ProductPriceUnit.CREDITS_PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+   2. Periodic payment ([`ProductPriceUnit.UNITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
+      [`ProductPriceUnit.CREDITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
+      
+---
+
+__📝 NOTE:__ To select a model, you must specify a [`ChargeType`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md)  and a [`ProductPriceUnit`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md). We have 
+shown all valid combinations above.  
+
+---
+
+Quotas put a strict limit on the "number of units" in concurrent use. UCloud measures this number in a 
+[`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  specific way. A unit is pre-defined and stable across the entirety of UCloud. A few quick 
+examples:
+
+- __Storage:__ Measured in GB (10⁹ bytes. 1 byte = 1 octet)
+- __Compute:__ Measured in hyper-threaded cores (vCPU)
+- __Public IPs:__ Measured in IP addresses
+- __Public links:__ Measured in public links
+
+If using an absolute model, then you must choose the unit of allocation:
+
+- You specify allocations in units (`UNITS_PER_X`). For example: 3000 IP addresses.
+- You specify allocations in money (`CREDITS_PER_X`). For example: 1000 DKK.
+
+---
+
+__📝 NOTE:__ For precision purposes, UCloud specifies all money sums as integers. As a result, 1 UCloud credit is equal 
+to one millionth of a Danish Crown (DKK).
+
+---
+
+When using periodic payments, you must also specify the length of a single period. [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s are not required to 
+report usage once for every period. But the reporting itself must specify usage in number of periods. 
+UCloud supports period lengths of a minute, one hour and one day.
+
+## Understanding the price
+
+All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s have a `pricePerUnit` property: 
+
+> The `pricePerUnit` specifies the cost of a single _unit_ in a single _period_.
+>
+> Products not paid with credits must have a `pricePerUnit` of 1. Quotas and one-time payments are always made for a 
+> single "period". 
+
+This can lead to some surprising results when defining compute products. Let's consider the example from 
+the beginning:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ Human-readable compute products.
+
+When implementing this in UCloud, a Provider might naively set the following prices:
+
+| Name | ChargeType | ProductPriceUnit | Price |
+|------|------------|------------------|-------|
+| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `200_000` |
+| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `400_000` |
+| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `800_000` |
+
+__Table:__ ️⚠️ Incorrect implementation of prices in UCloud ️⚠️
+
+__This is wrong.__ UCloud defines the price as the cost of using a single unit in a single period. The "unit of use" 
+for a compute product is a single vCPU.  Thus, a correct [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  implementation would over-report the usage by a 
+factor equal to the number of vCPUs in the machine. Instead, the price must be based on a single vCPU:
+
+| Name | ChargeType | ProductPriceUnit | Price |
+|------|------------|------------------|-------|
+| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
+
+__Table:__ ✅ Correct implementation of prices in UCloud ✅
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#example-browse-all-available-components'>1. Examples</a>
+<a href='#example-browse-all-available-products'>1. Examples</a>
 </summary>
 
 <table><thead><tr>
 <th>Description</th>
 </tr></thread>
 <tbody>
-<tr><td><a href='#example-browse-all-available-components'>Browse all available components</a></td></tr>
+<tr><td><a href='#example-browse-all-available-products'>Browse all available products</a></td></tr>
 <tr><td><a href='#example-browse-products-by-type'>Browse products by type</a></td></tr>
 <tr><td><a href='#example-retrieve-a-single-product'>Retrieve a single product</a></td></tr>
 </tbody></table>
@@ -64,27 +204,27 @@
 </tr>
 <tr>
 <td><a href='#product'><code>Product</code></a></td>
-<td><i>No description</i></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
 <td><a href='#product.compute'><code>Product.Compute</code></a></td>
-<td><i>No description</i></td>
+<td>A compute Product</td>
 </tr>
 <tr>
 <td><a href='#product.ingress'><code>Product.Ingress</code></a></td>
-<td><i>No description</i></td>
+<td>An ingress Product</td>
 </tr>
 <tr>
 <td><a href='#product.license'><code>Product.License</code></a></td>
-<td><i>No description</i></td>
+<td>A license Product</td>
 </tr>
 <tr>
 <td><a href='#product.networkip'><code>Product.NetworkIP</code></a></td>
-<td><i>No description</i></td>
+<td>An IP address Product</td>
 </tr>
 <tr>
 <td><a href='#product.storage'><code>Product.Storage</code></a></td>
-<td><i>No description</i></td>
+<td>A storage Product</td>
 </tr>
 <tr>
 <td><a href='#productcategoryid'><code>ProductCategoryId</code></a></td>
@@ -100,7 +240,7 @@
 </tr>
 <tr>
 <td><a href='#producttype'><code>ProductType</code></a></td>
-<td><i>No description</i></td>
+<td>A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)</td>
 </tr>
 <tr>
 <td><a href='#productsbrowserequest'><code>ProductsBrowseRequest</code></a></td>
@@ -115,9 +255,15 @@
 
 </details>
 
-## Example: Browse all available components
+## Example: Browse all available products
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -337,6 +483,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 ## Example: Browse products by type
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -502,6 +654,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 ## Example: Retrieve a single product
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -643,8 +801,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 
 ### `browse`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Browse a set of products_
@@ -653,20 +811,20 @@ _Browse a set of products_
 |---------|----------|-------|
 |<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  .
+This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
 
 __Examples:__
 
 | Example |
 |---------|
-| [Browse in the full product catalogue](/docs/reference/products_browse.md) |
+| [Browse in the full product catalog](/docs/reference/products_browse.md) |
 | [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
 
 
 ### `retrieve`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Retrieve a single product_
@@ -685,8 +843,8 @@ __Examples:__
 
 ### `create`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-![Auth: SERVICE, ADMIN, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=SERVICE,+ADMIN,+PROVIDER&color=informational&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: SERVICE, ADMIN, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=SERVICE,+ADMIN,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  in UCloud_
@@ -695,7 +853,7 @@ _Creates a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.m
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only providers and UCloud administrators can create a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  . When this endpoint is
+Only providers and UCloud administrators can create a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md). When this endpoint is
 invoked by a provider, then the provider field of the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  must match the invoking user.
 
 The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  will become ready and visible in UCloud immediately after invoking this call.
@@ -703,7 +861,7 @@ If no [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  has b
 
 ---
 
-__📝 NOTE:__ Must properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
+__📝 NOTE:__ Most properties of a [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md)  are immutable and must not be changed.
 As a result, you cannot create a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  later with different category properties.
 
 ---
@@ -717,7 +875,7 @@ always sequential and the incoming version number is always ignored by UCloud.
 
 ### `ChargeType`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -765,9 +923,10 @@ enum class ChargeType {
 
 ### `Product`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Products define the services exposed by a Provider._
 
 ```kotlin
 sealed class Product {
@@ -792,6 +951,7 @@ sealed class Product {
     class NetworkIP : Product()
 }
 ```
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -811,7 +971,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -822,7 +982,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a></code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a></code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -833,7 +993,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -844,22 +1004,26 @@ sealed class Product {
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Indicates that a Wallet is not required to use this Product
 </summary>
 
 
 
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
 
 
 </details>
 
 <details>
 <summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -869,7 +1033,7 @@ sealed class Product {
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -877,7 +1041,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -888,7 +1052,20 @@ sealed class Product {
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -899,7 +1076,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code> Classifier used to explain the type of Product
 </summary>
 
 
@@ -910,7 +1087,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a></code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -921,18 +1098,7 @@ sealed class Product {
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -951,9 +1117,10 @@ sealed class Product {
 
 ### `Product.Compute`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A compute Product_
 
 ```kotlin
 data class Compute(
@@ -976,6 +1143,9 @@ data class Compute(
     val type: String /* "compute" */,
 )
 ```
+| Unit | API |
+|------|-----|
+| Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
 
 <details>
 <summary>
@@ -984,7 +1154,7 @@ data class Compute(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -995,7 +1165,20 @@ data class Compute(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1006,7 +1189,7 @@ data class Compute(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -1017,18 +1200,7 @@ data class Compute(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1072,7 +1244,7 @@ data class Compute(
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -1083,7 +1255,20 @@ data class Compute(
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -1094,7 +1279,7 @@ data class Compute(
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1105,22 +1290,13 @@ data class Compute(
 
 <details>
 <summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -1152,7 +1328,7 @@ data class Compute(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1163,7 +1339,7 @@ data class Compute(
 <code>type</code>: <code><code>String /* "compute" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1180,9 +1356,10 @@ data class Compute(
 
 ### `Product.Ingress`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An ingress Product_
 
 ```kotlin
 data class Ingress(
@@ -1202,6 +1379,9 @@ data class Ingress(
     val type: String /* "ingress" */,
 )
 ```
+| Unit | API |
+|------|-----|
+| Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
 
 <details>
 <summary>
@@ -1210,7 +1390,7 @@ data class Ingress(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -1221,7 +1401,20 @@ data class Ingress(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1232,7 +1425,7 @@ data class Ingress(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -1243,7 +1436,7 @@ data class Ingress(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1254,7 +1447,7 @@ data class Ingress(
 
 <details>
 <summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -1265,7 +1458,20 @@ data class Ingress(
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -1276,7 +1482,7 @@ data class Ingress(
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1287,33 +1493,13 @@ data class Ingress(
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -1345,7 +1531,7 @@ data class Ingress(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1356,7 +1542,7 @@ data class Ingress(
 <code>type</code>: <code><code>String /* "ingress" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1373,9 +1559,10 @@ data class Ingress(
 
 ### `Product.License`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A license Product_
 
 ```kotlin
 data class License(
@@ -1396,6 +1583,9 @@ data class License(
     val type: String /* "license" */,
 )
 ```
+| Unit | API |
+|------|-----|
+| Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
 
 <details>
 <summary>
@@ -1404,7 +1594,7 @@ data class License(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -1415,7 +1605,20 @@ data class License(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1426,7 +1629,7 @@ data class License(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -1437,18 +1640,7 @@ data class License(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1470,7 +1662,7 @@ data class License(
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -1481,7 +1673,20 @@ data class License(
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -1492,7 +1697,7 @@ data class License(
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1503,22 +1708,13 @@ data class License(
 
 <details>
 <summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -1550,7 +1746,7 @@ data class License(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1561,7 +1757,7 @@ data class License(
 <code>type</code>: <code><code>String /* "license" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1578,9 +1774,10 @@ data class License(
 
 ### `Product.NetworkIP`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An IP address Product_
 
 ```kotlin
 data class NetworkIP(
@@ -1600,6 +1797,9 @@ data class NetworkIP(
     val type: String /* "network_ip" */,
 )
 ```
+| Unit | API |
+|------|-----|
+| Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
 
 <details>
 <summary>
@@ -1608,7 +1808,7 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -1619,7 +1819,20 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1630,7 +1843,7 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -1641,7 +1854,7 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1652,7 +1865,7 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -1663,7 +1876,20 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -1674,7 +1900,7 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1685,33 +1911,13 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -1743,7 +1949,7 @@ data class NetworkIP(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1754,7 +1960,7 @@ data class NetworkIP(
 <code>type</code>: <code><code>String /* "network_ip" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1771,9 +1977,10 @@ data class NetworkIP(
 
 ### `Product.Storage`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A storage Product_
 
 ```kotlin
 data class Storage(
@@ -1793,6 +2000,9 @@ data class Storage(
     val type: String /* "storage" */,
 )
 ```
+| Unit | API |
+|------|-----|
+| Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
 
 <details>
 <summary>
@@ -1801,7 +2011,7 @@ data class Storage(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
 
@@ -1812,7 +2022,20 @@ data class Storage(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+</summary>
+
+
+
+For more information go 
+[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1823,7 +2046,7 @@ data class Storage(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
 </summary>
 
 
@@ -1834,7 +2057,7 @@ data class Storage(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1845,7 +2068,7 @@ data class Storage(
 
 <details>
 <summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
 </summary>
 
 
@@ -1856,7 +2079,20 @@ data class Storage(
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
 
@@ -1867,7 +2103,7 @@ data class Storage(
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1878,33 +2114,13 @@ data class Storage(
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code>
+<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
+system's UI.
 
 
 </details>
@@ -1936,7 +2152,7 @@ data class Storage(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1947,7 +2163,7 @@ data class Storage(
 <code>type</code>: <code><code>String /* "storage" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1964,7 +2180,7 @@ data class Storage(
 
 ### `ProductCategoryId`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2008,7 +2224,7 @@ data class ProductCategoryId(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2024,7 +2240,7 @@ data class ProductCategoryId(
 
 ### `ProductPriceUnit`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2047,53 +2263,7 @@ enum class ProductPriceUnit {
 
 <details>
 <summary>
-<code>PER_UNIT</code> Used for resources which either: are charged once for the entire life-time (`ChargeType.ABSOLUTE`) or
-</summary>
-
-
-
-used to enforce a quota (`ChargeType.DIFFERENTIAL_QUOTA`).
-
-When used in combination with `ChargeType.ABSOLUTE` then this is typically used for resources such as:
-licenses, public IPs and links.
-
-When used in combination with `ChargeType.DIFFERENTIAL_QUOTA` it is used to enforce a quota. At any point in
-time, a user should never be allowed to use more units than specified in their current `balance`. For example,
-if `balance = 100` and `ProductType = ProductType.COMPUTE` then no more than 100 jobs should be allowed to run
-at any given point in time. Similarly, this can be used to enforce a storage quota.
-
-
-</details>
-
-<details>
-<summary>
-<code>CREDITS_PER_MINUTE</code> Used for resources which are charged periodically in a pre-defined currency.
-</summary>
-
-
-
-This `ProductPriceUnit` can only be used in combination with `ChargeType.ABSOLUTE`.
-
-The pre-defined currency is decided between the UCloud/Core and the provider out-of-band. UCloud only supports
-a single currency for the entire system.
-
-The accounting system only stores balances as an integer, for precision reasons. As a result, a charge using
-`CREDITS_PER_X` will always refer to one-millionth of the currency (for example: 1 Credit = 0.000001 DKK).
-
-This price unit comes in several variants: `MINUTE`, `HOUR`, `DAY`. This period is used to define the `units`
-of a `charge`. For example, if a `charge` is made on a product with `CREDITS_PER_MINUTE` then the `units`
-property refer to the number of minutes which have elapsed. The provider is not required to perform `charge`
-operations this often, it only serves to define the true meaning of `units` in the `charge` operation.
-
-The period used SHOULD always refer to monotonically increasing time. In practice, this means that a user should
-not be charged differently because of summer/winter time.
-
-
-</details>
-
-<details>
-<summary>
-<code>CREDITS_PER_HOUR</code> See `CREDITS_PER_MINUTE`
+<code>PER_UNIT</code>
 </summary>
 
 
@@ -2104,7 +2274,7 @@ not be charged differently because of summer/winter time.
 
 <details>
 <summary>
-<code>CREDITS_PER_DAY</code> See `CREDITS_PER_MINUTE`
+<code>CREDITS_PER_MINUTE</code>
 </summary>
 
 
@@ -2115,33 +2285,7 @@ not be charged differently because of summer/winter time.
 
 <details>
 <summary>
-<code>UNITS_PER_MINUTE</code> Used for resources which are charged periodically.
-</summary>
-
-
-
-This `ProductPriceUnit` can only be used in combination with `ChargeType.ABSOLUTE`.
-
-All allocations granted to a product of `UNITS_PER_X` specify the amount of units of the recipient can use.
-Some examples include:
-
-  - Core hours
-  - Public IP hours
-  
-This price unit comes in several variants: `MINUTE`, `HOUR`, `DAY`. This period is used to define the `units`
-of a `charge`. For example, if a `charge` is made on a product with `CREDITS_PER_MINUTE` then the `units`
-property refer to the number of minutes which have elapsed. The provider is not required to perform `charge`
-operations this often, it only serves to define the true meaning of `units` in the `charge` operation.
-
-The period used SHOULD always refer to monotonically increasing time. In practice, this means that a user should
-not be charged differently because of summer/winter time.
-
-
-</details>
-
-<details>
-<summary>
-<code>UNITS_PER_HOUR</code> See `UNITS_PER_MINUTE`
+<code>CREDITS_PER_HOUR</code>
 </summary>
 
 
@@ -2152,7 +2296,40 @@ not be charged differently because of summer/winter time.
 
 <details>
 <summary>
-<code>UNITS_PER_DAY</code> See `UNITS_PER_MINUTE`
+<code>CREDITS_PER_DAY</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>UNITS_PER_MINUTE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>UNITS_PER_HOUR</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>UNITS_PER_DAY</code>
 </summary>
 
 
@@ -2171,7 +2348,7 @@ not be charged differently because of summer/winter time.
 
 ### `ProductReference`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Contains a unique reference to a [Product](/backend/accounting-service/README.md)_
@@ -2232,9 +2409,10 @@ data class ProductReference(
 
 ### `ProductType`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)_
 
 ```kotlin
 enum class ProductType {
@@ -2245,6 +2423,13 @@ enum class ProductType {
     NETWORK_IP,
 }
 ```
+For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
+
+- `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
+- `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 
+- `INGRESS`: See [`Product.Ingress`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md) 
+- `LICENSE`: See [`Product.License`](/docs/reference/dk.sdu.cloud.accounting.api.Product.License.md) 
+- `NETWORK_IP`: See [`Product.NetworkIP`](/docs/reference/dk.sdu.cloud.accounting.api.Product.NetworkIP.md)
 
 <details>
 <summary>
@@ -2253,7 +2438,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>STORAGE</code>
+<code>STORAGE</code> See Product.Storage
 </summary>
 
 
@@ -2264,7 +2449,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>COMPUTE</code>
+<code>COMPUTE</code> See Product.Compute
 </summary>
 
 
@@ -2275,7 +2460,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>INGRESS</code>
+<code>INGRESS</code> See Product.Ingress
 </summary>
 
 
@@ -2286,7 +2471,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>LICENSE</code>
+<code>LICENSE</code> See Product.License
 </summary>
 
 
@@ -2297,7 +2482,7 @@ enum class ProductType {
 
 <details>
 <summary>
-<code>NETWORK_IP</code>
+<code>NETWORK_IP</code> See Product.NetworkIP
 </summary>
 
 
@@ -2316,7 +2501,7 @@ enum class ProductType {
 
 ### `ProductsBrowseRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -2502,7 +2687,7 @@ paginate through the results.
 
 ### `ProductsRetrieveRequest`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

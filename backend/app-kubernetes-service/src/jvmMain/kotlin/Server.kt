@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
 import dk.sdu.cloud.app.kubernetes.rpc.*
@@ -14,17 +13,10 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.IngressSupport
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.provider.api.ProviderSpecification
-import dk.sdu.cloud.provider.api.Providers
-import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient

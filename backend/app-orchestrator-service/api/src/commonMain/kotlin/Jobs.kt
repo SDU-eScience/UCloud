@@ -151,14 +151,12 @@ A `Job` is started by a user request containing the `specification` of a $TYPE_R
 orchestrator and passed to the provider referenced by the $TYPE_REF Job itself. Assuming that the provider accepts this
 information, the $TYPE_REF Job is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software
-correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
+correctly [here](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md).
 
 At this point, the provider has acted on this information by placing the $TYPE_REF Job in its own equivalent of
-a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-the $TYPE_REF Job
-is running, it will contact UCloud and place the $TYPE_REF Job in the `RUNNING` state. This indicates to UCloud that log files
-can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
-are available.
+a job queue. Once the provider realizes that the $TYPE_REF Job is running, it will contact UCloud and place the 
+$TYPE_REF Job in the `RUNNING` state. This indicates to UCloud that log files can be retrieved and that interactive
+interfaces (`VNC`/`WEB`) are available.
 
 Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A $TYPE_REF Job has
 terminated successfully if no internal error occurred in UCloud and in the provider. This means that a $TYPE_REF Job whose
@@ -168,8 +166,8 @@ state. Any $TYPE_REF Job which is in a terminal state can no longer receive any 
 
 At any point after the user submits the $TYPE_REF Job, they may request cancellation of the $TYPE_REF Job. This will
 stop the $TYPE_REF Job, delete any
-[ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).""", importance = 500
+[ephemeral resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#ephemeral-resources) and release
+any [bound resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#resources).""", importance = 500
 )
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -607,7 +605,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
             flow = {
                 val user = basicUser()
 
-                comment("The user finds an interesting application from the catalogue")
+                comment("The user finds an interesting application from the catalog")
 
                 val metadata = ApplicationMetadata(
                     "a-batch-application",
@@ -749,7 +747,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                 JobUpdate(
                                     JobState.RUNNING,
                                     status = "The job is now running",
-                                    timestamp = Time.now()
+                                    timestamp = 1633680152778
                                 )
                             ),
                             emptyList(),
@@ -781,7 +779,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                 JobUpdate(
                                     JobState.SUCCESS,
                                     status = "The job is no longer running",
-                                    timestamp = Time.now()
+                                    timestamp = 1633680152778
                                 )
                             ),
                             emptyList(),
@@ -832,7 +830,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                     user
                 )
 
-                comment("Note that the machine has support for the 'terminal' feature")
+                comment("📝 Note: The machine has support for the 'terminal' feature")
 
                 success(
                     openInteractiveSession,
@@ -1216,7 +1214,8 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                     1_000_000 * 500,
                                     500,
                                     start,
-                                    null
+                                    null,
+                                    2
                                 )
                             ),
                             AllocationSelectorPolicy.EXPIRE_FIRST,
@@ -1229,7 +1228,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                 )
 
                 comment("""
-                    Note, at this point the user has a very low amount of credits remaining.
+                    📝 Note: at this point the user has a very low amount of credits remaining.
                     It will only last a couple of minutes.
                 """.trimIndent())
 
@@ -1421,9 +1420,9 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         document(
             browse, UCloudApiDocC(
                 """
-                Browses the catalogue of all Jobs
+                Browses the catalog of all Jobs
                 
-                The catalogue of all $TYPE_REF Job s works through the normal pagination and the return value can be
+                The catalog of all $TYPE_REF Job s works through the normal pagination and the return value can be
                 adjusted through the [flags]($TYPE_REF_LINK JobIncludeFlags). This can include filtering by a specific
                 application or looking at $TYPE_REF Job s of a specific state, such as
                 (`RUNNING`)[$TYPE_REF_LINK JobState).
@@ -1525,5 +1524,8 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession")
+        documentation {
+            summary = "Opens an interactive session (e.g. terminal, web or VNC)"
+        }
     }
 }

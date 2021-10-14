@@ -1,7 +1,15 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # Example: Running out of compute credits
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -56,7 +64,7 @@ PageV2(
 )
 */
 
-/* Note, at this point the user has a very low amount of credits remaining.
+/* 📝 Note: at this point the user has a very low amount of credits remaining.
 It will only last a couple of minutes. */
 
 Jobs.create.call(
@@ -245,7 +253,7 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* Note, at this point the user has a very low amount of credits remaining.
+/* 📝 Note: at this point the user has a very low amount of credits remaining.
 It will only last a couple of minutes. */
 
 await callAPI(JobsApi.create(
@@ -435,7 +443,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Note, at this point the user has a very low amount of credits remaining.
+# 📝 Note: at this point the user has a very low amount of credits remaining.
 # It will only last a couple of minutes.
 
 curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/jobs" -d '{
@@ -545,4 +553,5 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 
 </details>
+
 

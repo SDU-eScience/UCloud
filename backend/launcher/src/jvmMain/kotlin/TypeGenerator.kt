@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.CALL_REF_LINK
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.TYPE_REF_LINK
@@ -580,6 +581,12 @@ fun processDocumentation(currentPackage: String?, docString: String): String {
                 }
             }
 
+            3 -> {
+                replaceTags(CALL_REF_LINK) { token ->
+                    "/docs/reference/${token}.md"
+                }
+            }
+
             else -> {
                 isRunning = false
             }
@@ -597,6 +604,13 @@ private fun CharSequence.findEndOfIdentifier(startIndex: Int): Pair<Int, Boolean
     while (cursor < stringLength) {
         val nextChar = get(cursor++)
         if (nextChar == '\n' || nextChar.isWhitespace()) {
+            val peek1 = getOrNull(cursor)
+            val peek2 = getOrNull(cursor + 1)
+            if (peek1 == 's' || peek1 == 'S' || peek1 == '.') {
+                if (peek2 == null || !peek2.isLetterOrDigit()) {
+                    return Pair(cursor, false)
+                }
+            }
             return Pair(cursor - 1, true)
         }
         if (nextChar != '.' && !nextChar.isJavaIdentifierPart()) {

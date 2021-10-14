@@ -1,11 +1,17 @@
+<p align='center'>
+<a href='/docs/developer-guide/orchestration/storage/filecollections.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/orchestration/storage/shares.md'>Next section »</a>
+</p>
+
+
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Files
 # Files
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Files in UCloud is a resource for storing, retrieving and organizing data in UCloud._
 
 ## Rationale
-
 
 The file-system of UCloud provide researchers with a way of storing large data-sets efficiently and securely. The
 file-system is one of UCloud's core features and almost all other features, either directly or indirectly, interact
@@ -20,7 +26,7 @@ with it. For example:
 A file in UCloud ([`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)) closely follows the concept of a computer file you might already be familiar with.
 The functionality of a file is mostly determined by its `type`. The two most important types are the
 [`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) and [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) types. A
-[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  s. A directory can itself contain more
+[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)s. A directory can itself contain more
 directories, which leads to a natural tree-like structure. [`FILE`s](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md), also referred to as a
 regular files, are data records which each contain a series of bytes.
 
@@ -33,7 +39,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 | [`Files`](/docs/developer-guide/orchestration/storage/files.md) | [`FilesProvider`](/docs/developer-guide/orchestration/storage/providers/files/ingoing.md) | [`FilesControl`](/docs/developer-guide/orchestration/storage/providers/files/outgoing.md) |
 
 ---
-
 
 ## Table of Contents
 <details>
@@ -51,6 +56,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr><td><a href='#example-downloading-a-file'>Downloading a file</a></td></tr>
 <tr><td><a href='#example-creating-a-folder'>Creating a folder</a></td></tr>
 <tr><td><a href='#example-moving-multiple-files-to-trash'>Moving multiple files to trash</a></td></tr>
+<tr><td><a href='#example-emptying-trash-folder'>Emptying trash folder</a></td></tr>
 <tr><td><a href='#example-browsing-the-contents-of-a-folder'>Browsing the contents of a folder</a></td></tr>
 <tr><td><a href='#example-retrieving-a-single-file'>Retrieving a single file</a></td></tr>
 <tr><td><a href='#example-deleting-a-file-permanently'>Deleting a file permanently</a></td></tr>
@@ -101,6 +107,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
 <td>Permanently deletes one or more files</td>
+</tr>
+<tr>
+<td><a href='#emptytrash'><code>emptyTrash</code></a></td>
+<td>Permanently deletes all files from the selected trash folder thereby emptying it</td>
 </tr>
 <tr>
 <td><a href='#move'><code>move</code></a></td>
@@ -461,6 +471,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file present at '/123/folder/file'</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -585,6 +601,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A file at '/123/folder/file</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -696,6 +718,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <tr><th>Post-conditions</th><td><ul>
 <li>A new file exists at '/123/folder/a</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -802,6 +830,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>The folder and all children are moved to the provider's trash folder</li>
 <li>The file is moved to the provider's trash folder</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -906,6 +940,114 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 </details>
 
 
+## Example: Emptying trash folder
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr><th>Trigger</th><td>User initiated</td></tr>
+<tr><th>Pre-conditions</th><td><ul>
+<li>A trash folder located at /home/trash</li>
+<li>The trash folder contains two files and a folder</li>
+</ul></td></tr>
+<tr><th>Post-conditions</th><td><ul>
+<li>The folder and all children are removed from the trash folder</li>
+<li>The files is removed from the trash folder</li>
+</ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+Files.trash.call(
+    bulkRequestOf(FindByPath(
+        id = "/home/trash", 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(LongRunningTask.Complete()), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(FilesApi.trash(
+    {
+        "items": [
+            {
+                "id": "/home/trash"
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "type": "complete"
+        }
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/trash" -d '{
+    "items": [
+        {
+            "id": "/home/trash"
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "type": "complete"
+#         }
+#     ]
+# }
+
+```
+
+
+</details>
+
+
 ## Example: Browsing the contents of a folder
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -914,6 +1056,12 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 <li>A folder at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1161,6 +1309,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 <li>A file at '/123/folder</li>
 <li>The user has READ permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1382,6 +1536,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 <li>A file at '/123/folder</li>
 <li>The user has EDIT permissions on the file</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1477,6 +1637,12 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 <tr><th>Pre-conditions</th><td><ul>
 <li>The user has access to the 'ucloud' provider</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -1698,8 +1864,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 
 ### `browse`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Browses the contents of a directory._
@@ -1718,8 +1884,8 @@ no longer exist then the provider should simply not include these results.
 
 ### `retrieve`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Retrieves information about a single file._
@@ -1736,8 +1902,8 @@ this information using [`files.collections.browse`](/docs/reference/files.collec
 
 ### `retrieveProducts`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Retrieve product support for all accessible providers_
@@ -1758,8 +1924,8 @@ See also:
 
 ### `copy`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Copies a file from one path to another_
@@ -1798,8 +1964,8 @@ __Examples:__
 
 ### `createDownload`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates a download session between the user and the provider_
@@ -1826,8 +1992,8 @@ __Examples:__
 
 ### `createFolder`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates one or more folders_
@@ -1855,8 +2021,8 @@ __Examples:__
 
 ### `createUpload`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates an upload session between the user and the provider_
@@ -1884,8 +2050,8 @@ __Examples:__
 
 ### `delete`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Permanently deletes one or more files_
@@ -1901,10 +2067,46 @@ It is not guaranteed that the provider will be able to detect this error scenari
 API can check if the file has been deleted by calling `retrieve` on the file.
 
 
+### `emptyTrash`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Permanently deletes all files from the selected trash folder thereby emptying it_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#findbypath'>FindByPath</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#longrunningtask'>LongRunningTask</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This operation acts as a permanent delete for users. Users will NOT be able to restore the file 
+later, if needed. 
+
+Not all providers supports this endpoint. You can query [`files.collections.browse`](/docs/reference/files.collections.browse.md) 
+or [`files.collections.retrieve`](/docs/reference/files.collections.retrieve.md)  with the `includeSupport` flag.
+
+This is a long running task. As a result, this operation might respond with a status code which indicate
+that it will continue in the background. Progress of this job can be followed using the task API.
+
+__Errors:__
+
+| Status Code | Description |
+|-------------|-------------|
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+| `400 Bad Request` | This operation is not supported by the provider |
+
+__Examples:__
+
+| Example |
+|---------|
+| [Moving files to trash](/docs/reference/files_empty_trash_folder.md) |
+
+
 ### `move`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Move a file from one path to another_
@@ -1937,8 +2139,8 @@ __Examples:__
 
 ### `trash`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Moves a file to the trash_
@@ -1974,8 +2176,8 @@ __Examples:__
 
 ### `updateAcl`
 
-![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)
-![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Updates the ACL of a single file._
@@ -1997,7 +2199,7 @@ __⚠️ WARNING:__ No providers currently support this API. Instead use the
 
 ### `UFile`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  is a resource for storing, retrieving and organizing data in UCloud_
@@ -2019,7 +2221,7 @@ data class UFile(
 A file in UCloud ([`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)) closely follows the concept of a computer file you might already be familiar with.
 The functionality of a file is mostly determined by its [`type`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileStatus.md). The two most important
 types are the [`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) and [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) types. A
-[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  s. A directory can itself contain more
+[`DIRECTORY`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md) is a container of [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)s. A directory can itself contain more
 directories, which leads to a natural tree-like structure. [`FILE`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileType.md)s, also referred to as a
 regular files, are data records which each contain a series of bytes.
 
@@ -2261,7 +2463,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `UFileStatus`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _General system-level stats about a file_
@@ -2431,7 +2633,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `FileIconHint`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A hint to clients about which icon should be used in user-interfaces when representing a `UFile`_
@@ -2504,7 +2706,7 @@ enum class FileIconHint {
 
 ### `FileType`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The type of a `UFile`_
@@ -2577,7 +2779,7 @@ enum class FileType {
 
 ### `UFileSpecification`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 __
@@ -2626,7 +2828,7 @@ data class UFileSpecification(
 
 ### `FileMetadataOrDeleted.Deleted`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Indicates that the metadata document has been deleted is no longer in use_
@@ -2707,7 +2909,7 @@ data class Deleted(
 <code>type</code>: <code><code>String /* "deleted" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2724,7 +2926,7 @@ data class Deleted(
 
 ### `FileMetadataHistory`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2772,7 +2974,7 @@ data class FileMetadataHistory(
 
 ### `FileMetadataOrDeleted`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2847,7 +3049,7 @@ sealed class FileMetadataOrDeleted {
 
 ### `FindByPath`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2883,7 +3085,7 @@ data class FindByPath(
 
 ### `LongRunningTask`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2900,7 +3102,7 @@ sealed class LongRunningTask {
 
 ### `LongRunningTask.Complete`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2920,7 +3122,7 @@ data class Complete(
 <code>type</code>: <code><code>String /* "complete" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2937,7 +3139,7 @@ data class Complete(
 
 ### `LongRunningTask.ContinuesInBackground`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2969,7 +3171,7 @@ data class ContinuesInBackground(
 <code>type</code>: <code><code>String /* "continues_in_background" */</code></code> The type discriminator
 </summary>
 
-![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2986,7 +3188,7 @@ data class ContinuesInBackground(
 
 ### `UFileIncludeFlags`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3251,7 +3453,7 @@ This value is `true` by default
 
 ### `UploadProtocol`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3287,7 +3489,7 @@ enum class UploadProtocol {
 
 ### `WriteConflictPolicy`
 
-![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)_
@@ -3365,7 +3567,7 @@ Note: This mode is not supported for all operations.
 
 ### `FilesCopyRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3425,7 +3627,7 @@ data class FilesCopyRequestItem(
 
 ### `FilesCreateDownloadRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3461,7 +3663,7 @@ data class FilesCreateDownloadRequestItem(
 
 ### `FilesCreateFolderRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3509,7 +3711,7 @@ data class FilesCreateFolderRequestItem(
 
 ### `FilesCreateUploadRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3569,7 +3771,7 @@ data class FilesCreateUploadRequestItem(
 
 ### `FilesMoveRequestItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3629,7 +3831,7 @@ data class FilesMoveRequestItem(
 
 ### `FilesCreateDownloadResponseItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3665,7 +3867,7 @@ data class FilesCreateDownloadResponseItem(
 
 ### `FilesCreateUploadResponseItem`
 
-![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

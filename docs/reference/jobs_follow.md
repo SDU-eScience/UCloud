@@ -1,3 +1,5 @@
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
+
 # Example: Following the progress of a Job
 
 <table>
@@ -5,6 +7,12 @@
 <tr><th>Pre-conditions</th><td><ul>
 <li>A running Job, with ID 123</li>
 </ul></td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
 </table>
 <details>
 <summary>
@@ -54,7 +62,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
-        timestamp = 1633332153848, 
+        timestamp = 1633680152778, 
     )), 
 )
 */
@@ -102,7 +110,7 @@ JobsFollowResponse(
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 
-        timestamp = 1633332153849, 
+        timestamp = 1633680152778, 
     )), 
 )
 */
@@ -138,4 +146,5 @@ JobsFollowResponse(
 
 
 </details>
+
 

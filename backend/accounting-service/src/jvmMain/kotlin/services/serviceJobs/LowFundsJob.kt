@@ -2,13 +2,11 @@ package dk.sdu.cloud.accounting.services.serviceJobs
 
 import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.mail.api.Mail
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -103,13 +101,13 @@ class LowFundsJob(
 
             }
 
-            val sendRequests = mutableListOf<SendRequest>()
+            val sendRequests = mutableListOf<SendRequestItem>()
             userAndWallets.forEach { (user, walletList) ->
                 val categories = walletList.map { it.category }
                 val providers = walletList.map { it.provider }
                 val projectIds = walletList.map { it.projectTitle }
                 sendRequests.add(
-                    SendRequest(
+                    SendRequestItem(
                         user,
                         Mail.LowFundsMail(
                             categories,
@@ -123,8 +121,8 @@ class LowFundsJob(
 
             sendRequests.chunked(100).forEach {
                 try {
-                    MailDescriptions.sendBulk.call(
-                        SendBulkRequest(it),
+                    MailDescriptions.sendToUser.call(
+                        bulkRequestOf(it),
                         serviceClient
                     ).orThrow()
                 } catch(ex: Exception) {

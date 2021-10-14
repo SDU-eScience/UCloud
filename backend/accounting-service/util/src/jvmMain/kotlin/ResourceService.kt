@@ -1133,7 +1133,6 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        println("PAGINATING")
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
