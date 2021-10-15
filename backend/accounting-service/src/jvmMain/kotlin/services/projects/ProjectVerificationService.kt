@@ -1,12 +1,13 @@
 package dk.sdu.cloud.accounting.services.projects
 
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService.Companion.VERIFICATION_REQUIRED_EVERY_X_DAYS
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.SendRequestItem
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -55,14 +56,14 @@ class ProjectVerificationService(
                             "${notificationStatus.statusCode} ${notificationStatus.error}")
                 }
 
-                val mailStatus = MailDescriptions.send.call(
-                    SendRequest(
+                val mailStatus = MailDescriptions.sendToUser.call(
+                    bulkRequestOf(SendRequestItem(
                         user,
                         Mail.VerificationReminderMail(
                             project,
                             role.name
                         )
-                    ),
+                    )),
                     serviceClient
                 )
 

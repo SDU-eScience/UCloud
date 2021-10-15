@@ -8,6 +8,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -224,7 +225,7 @@ class ProjectService(
         ctx.withSession { session ->
             val projectTitle = getProjectTitle(ctx, projectId)
             val messages = invitesTo.map { invitee ->
-                SendRequest(
+                SendRequestItem(
                     invitee,
                     Mail.ProjectInviteMail(
                         projectTitle
@@ -233,8 +234,8 @@ class ProjectService(
             }
 
             // We don't wish to fail if mails fail at sending
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(messages),
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(messages),
                 serviceClient
             )
         }
@@ -345,9 +346,9 @@ class ProjectService(
                 notify(NotificationType.PROJECT_USER_LEFT, admin, notificationMessage)
             }
 
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(allAdmins.map { admin ->
-                    SendRequest(
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(allAdmins.map { admin ->
+                    SendRequestItem(
                         admin,
                         Mail.UserLeftMail(
                             initiatedBy,
@@ -434,7 +435,7 @@ class ProjectService(
 
             val adminMessages = allAdmins
                 .map {
-                    SendRequest(
+                    SendRequestItem(
                         pi,
                         Mail.UserRemovedMail(
                             userToDelete,
@@ -443,15 +444,15 @@ class ProjectService(
                     )
                 }
 
-            val userMessage = SendRequest(
+            val userMessage = SendRequestItem(
                 userToDelete,
                 Mail.UserRemovedMailToUser(
                     projectTitle
                 )
             )
 
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(adminMessages + userMessage),
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(adminMessages + userMessage),
                 serviceClient
             ).orThrow()
         }
@@ -522,9 +523,9 @@ class ProjectService(
                 )
             }
 
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(allAdmins.map { admin ->
-                    SendRequest(
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(allAdmins.map { admin ->
+                    SendRequestItem(
                         admin,
                         Mail.UserRoleChangeMail(
                             memberToUpdate,

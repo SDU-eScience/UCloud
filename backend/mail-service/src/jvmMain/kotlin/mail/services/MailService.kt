@@ -190,17 +190,25 @@ class MailService(
             }
         }
 
-        val receivingEmail = if (recipientEmail == null) {
-            val getEmail = if (testMail == true) {
+        val receivingEmail = recipientEmail
+            ?: if (testMail == true) {
                 "test@email.dk"
             } else {
-                UserDescriptions.lookupEmail.call(
-                    LookupEmailRequest(recipient),
-                    authenticatedClient
-                ).orThrow().email
+                ctx.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("username", recipient)
+                        },
+                        """
+                                SELECT email 
+                                FROM "auth".principals
+                                WHERE :username=id
+                            """
+                    ).rows
+                        .singleOrNull()
+                        ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
             }
-            getEmail
-        } else recipientEmail
 
         val recipientAddress = InternetAddress(receivingEmail)
 

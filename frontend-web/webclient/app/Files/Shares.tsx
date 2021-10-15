@@ -12,7 +12,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
     isSearch?: boolean;
-    embedded?: boolean;
+    browseType: boolean;
 }> = props => {
     const location = useLocation();
     const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
@@ -36,7 +36,7 @@ export const ShareBrowse: React.FunctionComponent<{
     return <ResourceBrowse
         api={SharesApi}
         onSelect={props.onSelect}
-        embedded={props.embedded}
+        browseType={props.browseType}
         isSearch={props.isSearch}
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}

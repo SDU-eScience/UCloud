@@ -121,6 +121,7 @@ export interface WalletAllocation {
     localBalance: number;
     startDate: number;
     endDate?: number | null;
+    grantedIn?: number
 }
 
 export interface Wallet {

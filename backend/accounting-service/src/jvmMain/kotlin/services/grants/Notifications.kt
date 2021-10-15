@@ -1,12 +1,10 @@
 package dk.sdu.cloud.accounting.services.grants
 
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.GrantRecipient
-import dk.sdu.cloud.mail.api.Mail
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -113,7 +111,7 @@ class GrantNotificationService(
             return
         }
 
-        val sendRequests = ArrayList<SendRequest>()
+        val sendRequests = ArrayList<SendRequestItem>()
 
         with(notification) {
             val title = rows.first().title
@@ -140,7 +138,7 @@ class GrantNotificationService(
                     )
 
                     sendRequests.add(
-                        SendRequest(
+                        SendRequestItem(
                             admin,
                             adminMessage.mailToSend(ctx)
                         )
@@ -150,7 +148,7 @@ class GrantNotificationService(
 
             if (requestedBy != invokedBy && userMessage != null) {
                 sendRequests.add(
-                    SendRequest(
+                    SendRequestItem(
                         requestedBy,
                         userMessage.mailToSend(ctx)
                     )
@@ -165,8 +163,8 @@ class GrantNotificationService(
                 )
             }
 
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(sendRequests),
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(sendRequests),
                 serviceClient
             )
         }

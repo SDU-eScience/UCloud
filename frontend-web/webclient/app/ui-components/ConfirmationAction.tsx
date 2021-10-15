@@ -17,7 +17,6 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     --background: var(--${p => p.color}, #f00);
     --tick-stroke: var(--progress-active);
 
-    ${shakeAnimation};
     ${fontSize};
 
     outline: none;
@@ -39,6 +38,7 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     }
 
     & > .icons {
+        ${shakeAnimation};
         border-radius: 50%;
         top: 9px;
         left: 15px;
@@ -101,6 +101,7 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     }
 
     ul {
+        ${shakeAnimation};
         padding: 0;
         margin: 0;
         ${p => p.align !== "left" ? ({
@@ -163,6 +164,7 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     }
 
     .ucloud-native-icons {
+        ${shakeAnimation};
         position: absolute;
         left: 15px;
     }
@@ -289,11 +291,17 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }
 
         if (timer.current > 1500 && !wasReset.current) {
-            button.classList.add("shaking");
+            // button.classList.add("shaking");
+            for (let i = 0; i < button.children.length; i++) {
+                button.children.item(i)?.classList.add("shaking");
+            } 
             setShowHelp(true);
             setTimeout(() => {
                 setShowHelp(false);
-                buttonRef.current?.classList?.remove("shaking");
+                // buttonRef.current?.classList?.remove("shaking");
+                for (let i = 0; i < button.children.length; i++) {
+                    button.children.item(i)?.classList.remove("shaking");
+                } 
             }, 1500);
         }
         startedMap[tempStartedKey] = false;

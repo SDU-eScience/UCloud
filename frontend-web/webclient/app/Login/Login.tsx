@@ -531,10 +531,9 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         <Absolute top="4vw" left="8vw">
             <LoginBox width={"calc(96px + 10vw)"}>
                 <LoginIcon name={"deiCLogo"} size="100%" />
-                <Text textAlign="center" fontSize={"3vw"}>Type 1</Text>
+                <Text textAlign="center" fontSize={"1.6vw"}>Interactive HPC</Text>
             </LoginBox>
         </Absolute>
-
 
         <Absolute style={{overflow: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />

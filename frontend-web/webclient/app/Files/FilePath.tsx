@@ -2,7 +2,7 @@ import * as React from "react";
 import {pathComponents} from "@/Utilities/FileUtilities";
 import {joinToString} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
-import {default as fileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {api as fileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useEffect, useMemo, useState} from "react";
 
 let collectionCache: Record<string, string> = {};

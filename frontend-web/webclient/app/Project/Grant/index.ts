@@ -80,6 +80,7 @@ export interface GrantApplication {
     updatedAt: number;
     createdAt: number;
     statusChangedBy?: string;
+    referenceId?: string;
 }
 
 export type SubmitGrantApplicationRequest = CreateGrantApplication;
@@ -173,6 +174,23 @@ export function editGrantApplication(
         payload: request,
         reloadId: Math.random()
     };
+}
+
+export interface EditReferenceIDRequest {
+    id: number;
+    newReferenceId?: string
+}
+
+export function editReferenceId(
+    request:EditReferenceIDRequest
+): APICallParameters<EditReferenceIDRequest> {
+    return {
+        method: "POST",
+        path: "/grant/editReference",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    }
 }
 
 export interface ApproveGrantApplicationRequest {

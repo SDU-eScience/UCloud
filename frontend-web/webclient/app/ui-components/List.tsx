@@ -114,7 +114,7 @@ const ListStyle = styled.div<{fontSize?: string; }>`
     transition: background-color 0.3s;
     padding: 5px 0;
     width: 100%;
-    height: 62px;
+    height: 56px;
     align-items: center;
     display: flex;
 

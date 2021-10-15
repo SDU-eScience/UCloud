@@ -31,6 +31,7 @@ import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
+import {Spacer} from "@/ui-components/Spacer";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -58,7 +59,6 @@ function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
 
 export const SharesOutgoing: React.FunctionComponent = () => {
     useTitle("Shares (Outgoing)");
-    // useLoading(commandLoading);
     useSidebarPage(SidebarPages.Shares);
     useResourceSearch(SharesApi);
 
@@ -99,13 +99,13 @@ export const SharesOutgoing: React.FunctionComponent = () => {
             {page.length === 0 ?
                 <Heading.h3 textAlign={"center"}>
                     No shares
-                    <br/>
+                    <br />
                     <small>You can create a new share by clicking 'Share' on one of your files.</small>
                 </Heading.h3> :
                 null
             }
 
-            {page.map(it => <ShareGroup key={it.sourceFilePath} group={it} cb={callbacks}/>)}
+            {page.map(it => <ShareGroup key={it.sourceFilePath} group={it} cb={callbacks} />)}
         </Grid>;
     }, []);
 
@@ -129,6 +129,7 @@ const ShareGroup: React.FunctionComponent<{
 }> = ({group, cb}) => {
     const shares = useMemo(() => group.sharePreview.map(it => fakeShare(group.sourceFilePath, it)), [group]);
     const toggleSet = useToggleSet(shares);
+    const [isCreatingShare, setCreatingShare] = React.useState(false);
 
     const usernameInputRef = useRef<HTMLInputElement>(null);
     const [isEdit, setIsEdit] = useState(false);
@@ -152,56 +153,34 @@ const ShareGroup: React.FunctionComponent<{
         })));
 
         cb.reload();
+        setCreatingShare(false);
         usernameInput.value = "";
     }, [cb, isEdit, group.sourceFilePath]);
 
     return <HighlightedCard
         color={"blue"}
         title={
-            <>
-                <Icon
-                    name={"ftSharesFolder"}
-                    m={8}
-                    ml={0}
-                    size="20"
-                    color={"FtFolderColor"}
-                    color2={"FtFolderColor2"}
-                />
+            <Spacer
+                left={<>
+                    <Icon
+                        name="ftSharesFolder"
+                        m={8}
+                        ml={0}
+                        size="20"
+                        color="FtFolderColor"
+                        color2="FtFolderColor2"
+                    />
 
-                <Link to={buildQueryString("/files", {path: group.sourceFilePath})}>
-                    <Heading.h3><PrettyFilePath path={group.sourceFilePath}/></Heading.h3>
-                </Link>
-            </>
+                    <Link to={buildQueryString("/files", {path: group.sourceFilePath})}>
+                        <Heading.h3><PrettyFilePath path={group.sourceFilePath} /></Heading.h3>
+                    </Link>
+                </>}
+                right={isCreatingShare ? (
+                    null
+                ) : null}
+            />
         }
     >
-        <form onSubmit={onShare}>
-            <Flex mb={"16px"} mt={"8px"}>
-                <Input placeholder={"Username"} ref={usernameInputRef}/>
-
-                <RadioTilesContainer height={42} mx={"8px"} onClick={stopPropagation}>
-                    <RadioTile
-                        label={"Read"}
-                        onChange={setToRead}
-                        icon={"search"}
-                        name={"READ"}
-                        checked={!isEdit}
-                        height={40}
-                        fontSize={"0.5em"}
-                    />
-                    <RadioTile
-                        label={"Edit"}
-                        onChange={setToEdit}
-                        icon={"edit"}
-                        name={"EDIT"}
-                        checked={isEdit}
-                        height={40}
-                        fontSize={"0.5em"}
-                    />
-                </RadioTilesContainer>
-                <Button type={"submit"}><Icon name={"share"} color={"white"} size={"14px"} mr={".7em"}/> Share</Button>
-            </Flex>
-        </form>
-
         <List childPadding={"8px"} bordered={false}>
             {shares.map((share, idx) => (idx == 10 ? null :
                 <ItemRow
@@ -214,6 +193,36 @@ const ShareGroup: React.FunctionComponent<{
                     itemTitle={SharesApi.title}
                 />
             ))}
+            {isCreatingShare ? <form onSubmit={onShare}>
+                <Flex mb={"16px"} mt={"8px"}>
+                    <Input placeholder={"Username"} ref={usernameInputRef} />
+                    <Button type="submit" width="128px" ml="8px"><Icon name={"share"} color={"white"} size={"14px"} mr={".7em"} /> Share</Button>
+                    <RadioTilesContainer height={42} mx={"8px"} onClick={stopPropagation}>
+                        <RadioTile
+                            label={"Read"}
+                            onChange={setToRead}
+                            icon={"search"}
+                            name={"READ"}
+                            checked={!isEdit}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                        <RadioTile
+                            label={"Edit"}
+                            onChange={setToEdit}
+                            icon={"edit"}
+                            name={"EDIT"}
+                            checked={isEdit}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                    </RadioTilesContainer>
+                    <Icon onClick={() => setCreatingShare(false)} cursor="pointer" ml="6px" mt="8px" mr="14px" name="close" color="red" />
+                </Flex>
+            </form> : <Spacer
+                left={null}
+                right={<Button onClick={() => setCreatingShare(true)} mr="10px" width="136px" ml="8px"><Icon name="share" color="white" size="14px" mr=".7em" /> Share</Button>}
+            />}
         </List>
         {shares.length > 10 ?
             <Link to={buildQueryString("/shares", {filterIngoing: false, filterOriginalPath: group.sourceFilePath})}>
@@ -223,7 +232,7 @@ const ShareGroup: React.FunctionComponent<{
     </HighlightedCard>;
 };
 
-const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> = props => {
+const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = props => {
     return <SelectableText
         selected={props.selected}
         onClick={props.onClick}
