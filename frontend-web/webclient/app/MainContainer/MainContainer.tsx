@@ -26,7 +26,7 @@ export const MainContainer = ({
     const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
-    const pad = 14; // padding unit
+    const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
     const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
