@@ -1,4 +1,4 @@
-import {HttpClient} from "@/Authentication/lib";
+import {HttpClient} from "../Authentication/lib";
 import {emptyPage} from "@/DefaultObjects";
 import {Action} from "redux";
 import {IconName} from "@/ui-components/Icon";

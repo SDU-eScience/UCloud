@@ -60,10 +60,10 @@ interface CallParameters<T = any> {
 export class WebSocketConnection {
     private client: HttpClient;
     private socket: WebSocket;
-    private nextStreamId: number = 0;
-    private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
-    private internalClosed: boolean = false;
     private settings: WebSocketOpenSettings;
+    private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
+    private nextStreamId = 0;
+    private internalClosed = false;
 
     constructor(client: HttpClient, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
         this.client = client;
@@ -150,7 +150,7 @@ export class WebSocketConnection {
 
             if (!!message.type && !!message.streamId) {
                 const handler = this.handlers.get(message.streamId);
-                if (!!handler) {
+                if (handler) {
                     handler(message);
                 }
             }

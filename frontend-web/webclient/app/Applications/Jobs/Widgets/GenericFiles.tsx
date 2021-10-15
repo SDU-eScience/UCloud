@@ -2,18 +2,16 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
-import {useCallback, useLayoutEffect, useState} from "react";
+import {useCallback, useLayoutEffect} from "react";
 import styled from "styled-components";
-import {getProjectNames} from "@/Utilities/ProjectUtilities";
-import {useProjectStatus} from "@/Project/cache";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {fileName} from "@/Utilities/FileUtilities";
-import FilesApi from "@/UCloud/FilesApi";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
+import {BrowseType} from "@/Resource/BrowseType";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -54,7 +52,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
-            <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+            <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                 const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                 FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
                 dialogStore.success();

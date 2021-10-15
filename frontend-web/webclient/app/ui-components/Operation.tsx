@@ -1,6 +1,6 @@
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
+import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
@@ -110,7 +110,7 @@ const OperationComponent: React.FunctionComponent<{
         {...extraProps}
     >
         {As === ConfirmationButton ? null : <>
-            {op.icon ? <Icon size={20} mr="1em" name={op.icon}/> : null}
+            {op.icon ? <Icon size={20} mr="1em" name={op.icon} /> : null}
             <span>{op.text}</span>
         </>}
     </As>;
@@ -149,7 +149,7 @@ export const Operations: OperationsType = props => {
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
-    const operations: { elem: JSX.Element, priority: number, primary: boolean }[] = props.operations
+    const operations: {elem: JSX.Element, priority: number, primary: boolean}[] = props.operations
         .filter(op => op.enabled(selected, props.extra, props.all) !== false && op.canAppearInLocation?.(props.location) !== false)
         .map(op => {
             const enabled = op.enabled(selected, props.extra, props.all);
@@ -163,8 +163,8 @@ export const Operations: OperationsType = props => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
             const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
-                                             reasonDisabled={reasonDisabled} location={props.location} all={props.all}
-                                             onAction={closeDropdown}/>;
+                reasonDisabled={reasonDisabled} location={props.location} all={props.all}
+                onAction={closeDropdown} />;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
         })
@@ -204,15 +204,15 @@ export const Operations: OperationsType = props => {
         openFnRef: props.openFnRef,
         trigger: (
             props.selected.length === 0 ?
-            <Icon
-                onClick={preventDefault}
-                ml={"5px"}
-                mr={"10px"}
-                name={"ellipsis"}
-                size={"1em"}
-                rotation={90}
-                data-tag={props.dropdownTag}
-            /> : <Box ml={"33px"}/>
+                <Icon
+                    onClick={preventDefault}
+                    ml={"5px"}
+                    mr={"10px"}
+                    name={"ellipsis"}
+                    size={"1em"}
+                    rotation={90}
+                    data-tag={props.dropdownTag}
+                /> : <Box ml={"33px"} />
         )
     };
 
@@ -220,8 +220,8 @@ export const Operations: OperationsType = props => {
         case "IN_ROW":
             return <>
                 {primaryContent}
-                <Box mr={"10px"}/>
-                {content.length === 0 ? <Box ml={"30px"}/> :
+                <Box mr={"10px"} />
+                {content.length === 0 ? <Box ml={"30px"} /> :
                     <Flex alignItems={"center"} justifyContent={"center"}>
                         <ClickableDropdown {...dropdownProps}>
                             {content}
@@ -252,15 +252,15 @@ export const Operations: OperationsType = props => {
                         </Heading.h3>
                     }
                     {primaryContent}
-                    <Box mr={"10px"}/>
-                    {content.length === 0 ? <Box ml={"30px"}/> :
+                    <Box mr={"10px"} />
+                    {content.length === 0 ? <Box ml={"30px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}
                             </ClickableDropdown>
                         </Flex>
                     }
-                    <Box mr={"8px"}/>
+                    <Box mr={"8px"} />
                 </Flex>
             </>;
     }

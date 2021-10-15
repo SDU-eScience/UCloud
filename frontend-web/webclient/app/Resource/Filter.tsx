@@ -16,6 +16,7 @@ import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions
 import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
+import {BrowseType} from "./BrowseType";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
@@ -50,7 +51,7 @@ function mergeProperties(
 
 export const ResourceFilter: React.FunctionComponent<{
     pills: React.FunctionComponent<PillProps>[];
-    embedded?: boolean;
+    browseType: BrowseType;
     filterWidgets: React.FunctionComponent<FilterWidgetProps>[];
     sortEntries: SortEntry[];
     properties: Record<string, string>;
@@ -131,13 +132,15 @@ export const ResourceFilter: React.FunctionComponent<{
 
     const onlyFilter = props.sortEntries.length === 0;
 
+    const isEmbedded = props.browseType === BrowseType.Embedded;
+
     return <>
-        {props.embedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
+        {isEmbedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
             <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
             {onlyFilter ? "Filter" : "Sort and filter"}
         </Heading.h4>}
         <Grid gridGap={"8px"}>
-            <WidgetWrapper embedded={props.embedded} gridGap="12px">
+            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                     icon={"properties"} title={"Sort by"} options={sortOptions} />
                 {props.pills.map((Pill, idx) =>
@@ -151,11 +154,11 @@ export const ResourceFilter: React.FunctionComponent<{
                 </Button>
             }
         </Grid>
-        <Grid gridGap={props.embedded ? "8px" : "20px"}
+        <Grid gridGap={isEmbedded ? "8px" : "20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
 
             {onlyFilter ? null : <>
-                <WidgetWrapper embedded={props.embedded} gridGap="12px">
+                <WidgetWrapper embedded={isEmbedded} gridGap="12px">
                     <EnumFilterWidget
                         propertyName="column" icon="properties" title="Sort by" expanded={false}
                         id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
@@ -163,10 +166,10 @@ export const ResourceFilter: React.FunctionComponent<{
                     />
                 </WidgetWrapper>
 
-                {props.embedded ? null : <Divider />}
+                {isEmbedded ? null : <Divider />}
             </>}
 
-            <WidgetWrapper embedded={props.embedded} gridGap="12px">
+            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
@@ -589,16 +592,21 @@ export const CheckboxFilterWidget: React.FunctionComponent<{
         props.onPropertiesUpdated(properties);
     }, [isTrue, props.onPropertiesUpdated, props.propertyName]);
 
-    return <FilterWidget
-        icon={props.icon}
-        title={props.title}
-        onClick={onChange}
-        cursor={"pointer"}
-    >
-        <Box flexGrow={1} />
-        <Toggle onChange={onChange} checked={isChecked} />
-    </FilterWidget>
-};
+    return (
+        <Flex>
+            <Box mt="-3px">
+                <FilterWidget
+                    icon={props.icon}
+                    title={props.title}
+                    cursor="pointer"
+                    onClick={onChange}
+                />
+            </Box>
+            <Box flexGrow={1} />
+            <Toggle onChange={onChange} checked={isChecked} />
+        </Flex>
+    );
+}
 
 export function CheckboxFilter(
     icon: IconName,

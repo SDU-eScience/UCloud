@@ -1,6 +1,7 @@
 import * as React from "react";
-import {default as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -9,7 +10,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
-import FileCollectionsApi, {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
@@ -23,7 +24,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     isSearch?: boolean;
-    embedded?: boolean;
+    browseType: BrowseType;
     pathRef?: React.MutableRefObject<string>;
     forceNavigationToPage?: boolean;
 }> = props => {
@@ -31,9 +32,9 @@ export const FilesBrowse: React.FunctionComponent<{
     const location = useLocation();
     const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
     const [pathFromState, setPathFromState] = useState(
-        props.embedded !== true ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
+        props.browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
     );
-    const path = props.embedded === true ? pathFromState : pathFromQuery;
+    const path = props.browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
     const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
@@ -44,17 +45,18 @@ export const FilesBrowse: React.FunctionComponent<{
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-        props.embedded === true && props.forceNavigationToPage !== true,
+        props.browseType === BrowseType.Embedded &&
+        props.forceNavigationToPage !== true,
         []
     );
 
     const navigateToPath = useCallback((history: H.History, path: string) => {
-        if (props.embedded === true && !props.forceNavigationToPage) {
+        if (props.browseType === BrowseType.Embedded && !props.forceNavigationToPage) {
             setPathFromState(path);
         } else {
             history.push(buildQueryString("/files", {path: path}));
         }
-    }, [props.embedded, props.forceNavigationToPage]);
+    }, [props.browseType, props.forceNavigationToPage]);
 
     const navigateToFile = useCallback((history: H.History, file: UFile): "properties" | void => {
         if (file.status.type === "DIRECTORY") {
@@ -65,9 +67,9 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [navigateToPath]);
 
     useEffect(() => {
-        if (props.embedded !== true) setUploadPath(path);
+        if (props.browseType !== BrowseType.Embedded) setUploadPath(path);
         if (props.pathRef) props.pathRef.current = path;
-    }, [path, props.embedded, props.pathRef]);
+    }, [path, props.browseType, props.pathRef]);
 
     useEffect(() => {
         const components = pathComponents(path);
@@ -123,7 +125,7 @@ export const FilesBrowse: React.FunctionComponent<{
                     }}
                 />
             </DriveDropdown>
-            <BreadCrumbsBase embedded={props.embedded ?? false}>
+            <BreadCrumbsBase embedded={props.browseType === BrowseType.Embedded}>
                 {breadcrumbs.map((it, idx) => (
                     <span key={it} test-tag={it} title={it}
                         onClick={() => {
@@ -138,7 +140,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 ))}
             </BreadCrumbsBase>
         </Flex>;
-    }, [path, props.embedded, collection.data, drives.data]);
+    }, [path, props.browseType, collection.data, drives.data]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
@@ -163,7 +165,7 @@ export const FilesBrowse: React.FunctionComponent<{
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
-        embedded={props.embedded}
+        browseType={props.browseType}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}
         onRename={onRename}

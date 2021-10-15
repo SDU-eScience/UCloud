@@ -42,6 +42,7 @@ import {Avatar} from "@/AvataaarLib";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {EnumFilterWidget} from "@/Resource/Filter";
+import {BrowseType} from "./BrowseType";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -74,7 +75,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
-    embedded?: boolean;
+    browseType: BrowseType;
     isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
@@ -89,7 +90,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         {productsByProvider: {}}
     );
 
-    const includeOthers = !props.embedded;
+    const isEmbedded = props.browseType === BrowseType.Embedded;
+    const includeOthers = props.browseType !== BrowseType.Embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -183,12 +185,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, [props.inlineProduct]);
 
     const viewProperties = useCallback((res: Res) => {
-        if (props.embedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
+        if (isEmbedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
             history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, props.embedded, history, api, props.viewPropertiesInline]);
+    }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
@@ -199,7 +201,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             toggleSet.uncheckAll();
             reloadRef.current()
         },
-        embedded: props.embedded == true,
+        embedded: isEmbedded,
         onSelect,
         dispatch,
         history,
@@ -365,7 +367,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<unknown>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer as ItemRenderer<Res>} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />
@@ -375,7 +377,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
         viewProperties]);
 
-    if (!props.embedded) {
+    if (!isEmbedded) {
         useTitle(api.titlePlural);
         useLoading(commandLoading);
         useSidebarPage(api.page);
@@ -384,13 +386,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const main = !inlineInspecting ? <>
         <StandardBrowse pageSizeRef={pageSize} generateCall={generateFetch} pageRenderer={pageRenderer}
-            reloadRef={reloadRef} setRefreshFunction={props.embedded != true} onLoad={props.onResourcesLoaded} />
+            reloadRef={reloadRef} setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
-    if (props.embedded) {
+    if (isEmbedded) {
         return <Box ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 {inlineInspecting ?
@@ -401,8 +403,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             extra={callbacks} operations={operations} />
                         {props.header}
                         <ResourceFilter
-                            embedded
-                            pills={api.filterPills} filterWidgets={api.filterWidgets}
+                            pills={api.filterPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
                             onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
@@ -426,7 +427,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current}
+                            onApplyFilters={reloadRef.current} browseType={props.browseType}
                             readOnlyProperties={props.additionalFilters} />
                     </>
             }
