@@ -592,16 +592,21 @@ export const CheckboxFilterWidget: React.FunctionComponent<{
         props.onPropertiesUpdated(properties);
     }, [isTrue, props.onPropertiesUpdated, props.propertyName]);
 
-    return <FilterWidget
-        icon={props.icon}
-        title={props.title}
-        onClick={onChange}
-        cursor={"pointer"}
-    >
-        <Box flexGrow={1} />
-        <Toggle onChange={onChange} checked={isChecked} />
-    </FilterWidget>
-};
+    return (
+        <Flex>
+            <Box mt="-3px">
+                <FilterWidget
+                    icon={props.icon}
+                    title={props.title}
+                    cursor="pointer"
+                    onClick={onChange}
+                />
+            </Box>
+            <Box flexGrow={1} />
+            <Toggle onChange={onChange} checked={isChecked} />
+        </Flex>
+    );
+}
 
 export function CheckboxFilter(
     icon: IconName,

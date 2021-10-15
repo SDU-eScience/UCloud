@@ -10,7 +10,7 @@ import {useHistory, useLocation} from "react-router";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {Toggle} from "@/ui-components/Toggle";
 import {Icon, Input, Label, Select} from "@/ui-components";
-import {formatDistance, formatDuration} from "date-fns";
+import {formatDuration} from "date-fns";
 
 type MessageImportance = "TELL_ME_EVERYTHING" | "IMPLEMENTATION_DETAIL" | "THIS_IS_NORMAL" | "THIS_IS_ODD" |
     "THIS_IS_WRONG" | "THIS_IS_DANGEROUS";

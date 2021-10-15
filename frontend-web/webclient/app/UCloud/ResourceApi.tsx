@@ -287,7 +287,7 @@ export abstract class ResourceApi<Res extends Resource,
         };
     }
 
-    create(req: BulkRequest<Spec>): APICallParameters<BulkRequest<Spec>, BulkResponse<{} | null>> {
+    create(req: BulkRequest<Spec>): APICallParameters<BulkRequest<Spec>, BulkResponse<Record<string, never> | null>> {
         return {
             context: "",
             method: "POST",
@@ -297,7 +297,7 @@ export abstract class ResourceApi<Res extends Resource,
         };
     }
 
-    remove(req: BulkRequest<FindById>): APICallParameters<BulkRequest<FindById>, BulkResponse<{} | null>> {
+    remove(req: BulkRequest<FindById>): APICallParameters<BulkRequest<FindById>, BulkResponse<Record<string, never> | null>> {
         return {
             context: "",
             method: "DELETE",
@@ -307,7 +307,7 @@ export abstract class ResourceApi<Res extends Resource,
         };
     }
 
-    retrieveProducts(): APICallParameters<{}, SupportByProvider<Prod, Support>> {
+    retrieveProducts(): APICallParameters<Record<string, never>, SupportByProvider<Prod, Support>> {
         return {
             context: "",
             method: "GET",
