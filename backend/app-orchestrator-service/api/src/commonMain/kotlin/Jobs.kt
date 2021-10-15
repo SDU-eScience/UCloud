@@ -205,7 +205,7 @@ data class Job(
     val output: JobOutput? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.Compute, ComputeSupport> {
+) : Resource<Product.Compute, ComputeSupport>, DocVisualizable {
     @Suppress("OverridingDeprecatedMember")
     override val acl: List<ResourceAclEntry>? = null
 

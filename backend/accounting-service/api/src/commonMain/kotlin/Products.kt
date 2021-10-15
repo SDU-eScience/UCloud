@@ -15,7 +15,8 @@ typealias ProductArea = ProductType
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     A classifier for a $TYPE_REF Product
     
     For more information, see the individual $TYPE_REF Product s:
@@ -25,16 +26,21 @@ typealias ProductArea = ProductType
     - `INGRESS`: See $TYPE_REF Product.Ingress
     - `LICENSE`: See $TYPE_REF Product.License
     - `NETWORK_IP`: See $TYPE_REF Product.NetworkIP
-""")
+"""
+)
 enum class ProductType {
     @UCloudApiDoc("See Product.Storage")
     STORAGE,
+
     @UCloudApiDoc("See Product.Compute")
     COMPUTE,
+
     @UCloudApiDoc("See Product.Ingress")
     INGRESS,
+
     @UCloudApiDoc("See Product.License")
     LICENSE,
+
     @UCloudApiDoc("See Product.NetworkIP")
     NETWORK_IP
 }
@@ -48,6 +54,7 @@ enum class ChargeType {
 
 @UCloudApiOwnedBy(Products::class)
 enum class ProductPriceUnit {
+    CREDITS_PER_UNIT,
     PER_UNIT,
 
     CREDITS_PER_MINUTE,
@@ -64,9 +71,14 @@ enum class ProductPriceUnit {
 data class ProductCategoryId(
     val name: String,
     val provider: String
-) {
+) : DocVisualizable {
     @Deprecated("Renamed to name", ReplaceWith("name"))
-    val id: String get() = name
+    val id: String
+        get() = name
+
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Inline("$name / $provider")
+    }
 }
 
 @Serializable
@@ -79,60 +91,95 @@ data class ProductReference(
     val category: String,
     @UCloudApiDoc("The provider of the `Product`")
     val provider: String,
-)
+) : DocVisualizable {
+    override fun visualize(): DocVisualization = DocVisualization.Inline("$id / $category / $provider")
+}
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     Products define the services exposed by a Provider.
     
     For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
-""")
-sealed class Product {
+"""
+)
+sealed class Product : DocVisualizable {
     @UCloudApiDoc("The category groups similar products together, it also defines which provider owns the product")
     abstract val category: ProductCategoryId
-    @UCloudApiDoc("""
+
+    @UCloudApiDoc(
+        """
         The price of a single unit in a single period
         
         For more information go 
         [here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
-    """)
+    """
+    )
     abstract val pricePerUnit: Long
+
     @UCloudApiDoc("A unique name associated with this Product")
     abstract val name: String
+
     @UCloudApiDoc("A short (single-line) description of the Product")
     abstract val description: String
+
     @UCloudApiDoc("A integer used for changing the order in which products are displayed (ascending order)")
     abstract val priority: Int
+
     @UCloudApiDoc("A version number for this Product, managed by UCloud")
     abstract val version: Int
-    @UCloudApiDoc("""
+
+    @UCloudApiDoc(
+        """
         Indicates that a Wallet is not required to use this Product
         
         Under normal circumstances, a $TYPE_REF Wallet is always required. This is required even if a $TYPE_REF Product
         has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-    """)
+    """
+    )
     abstract val freeToUse: Boolean
+
     @UCloudApiDoc("Classifier used to explain the type of Product")
     abstract val productType: ProductType
+
     @UCloudApiDoc("The unit of price. Used in combination with chargeType to create a complete payment model.")
     abstract val unitOfPrice: ProductPriceUnit
-    @UCloudApiDoc("The category of payment model. Used in combination with unitOfPrice to create a complete payment " +
-        "model.")
+
+    @UCloudApiDoc(
+        "The category of payment model. Used in combination with unitOfPrice to create a complete payment " +
+            "model."
+    )
     abstract val chargeType: ChargeType
-    @UCloudApiDoc("""
+
+    @UCloudApiDoc(
+        """
         Flag to indicate that this Product is not publicly available
         
         ⚠️ WARNING: This doesn't make the $TYPE_REF Product secret. In only hides the $TYPE_REF Product from the grant
         system's UI.
-    """)
+    """
+    )
     abstract val hiddenInGrantApplications: Boolean
 
     @Deprecated("Replace with name", ReplaceWith("name"))
-    val id: String get() = name
+    val id: String
+        get() = name
 
     @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
     var balance: Long? = null
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Card(
+            "$name / ${category.name} / ${category.provider} (Product.${this::class.simpleName ?: ""})",
+            buildList {
+                add(DocStatLine.of("" to DocVisualization.Inline(description)))
+                addAll(visualizePaymentModel(pricePerUnit, chargeType, unitOfPrice))
+            },
+            emptyList(),
+        )
+    }
 
     protected fun verify() {
         checkMinimumValue(::pricePerUnit, pricePerUnit, 0)
@@ -152,8 +199,10 @@ sealed class Product {
             ProductPriceUnit.CREDITS_PER_HOUR,
             ProductPriceUnit.CREDITS_PER_DAY -> {
                 if (chargeType != ChargeType.ABSOLUTE) {
-                    throw RPCException("CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
-                        HttpStatusCode.BadRequest)
+                    throw RPCException(
+                        "CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
+                        HttpStatusCode.BadRequest
+                    )
                 }
             }
 
@@ -165,13 +214,15 @@ sealed class Product {
 
     @Serializable
     @SerialName("storage")
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A storage Product
         
         | Unit | API |
         |------|-----|
         | Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
-    """)
+    """
+    )
     data class Storage(
         override val name: String,
         override val pricePerUnit: Long,
@@ -185,6 +236,7 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.STORAGE
+
         init {
             verify()
         }
@@ -192,13 +244,15 @@ sealed class Product {
 
     @Serializable
     @SerialName("compute")
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A compute Product
         
         | Unit | API |
         |------|-----|
         | Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
-    """)
+    """
+    )
     data class Compute(
         override val name: String,
         override val pricePerUnit: Long,
@@ -223,17 +277,33 @@ sealed class Product {
             if (cpu != null) checkMinimumValue(::cpu, cpu, 0)
             if (memoryInGigs != null) checkMinimumValue(::memoryInGigs, memoryInGigs, 0)
         }
+
+        override fun visualize(): DocVisualization {
+            val baseVisualization = super.visualize() as DocVisualization.Card
+            return baseVisualization.copy(
+                lines = baseVisualization.lines + listOf(
+                    DocStatLine.of("" to DocVisualization.Inline(buildString {
+                        append("| ")
+                        if (cpu != null) append("$cpu vCPU | ")
+                        if (memoryInGigs != null) append("$memoryInGigs GB | ")
+                        if (gpu != null) append("$gpu GPU | ")
+                    }))
+                )
+            )
+        }
     }
 
     @Serializable
     @SerialName("ingress")
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         An ingress Product
         
         | Unit | API |
         |------|-----|
         | Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
-    """)
+    """
+    )
     data class Ingress(
         override val name: String,
         override val pricePerUnit: Long,
@@ -247,6 +317,7 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.INGRESS
+
         init {
             verify()
         }
@@ -254,13 +325,15 @@ sealed class Product {
 
     @Serializable
     @SerialName("license")
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A license Product
         
         | Unit | API |
         |------|-----|
         | Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
-    """)
+    """
+    )
     data class License(
         override val name: String,
         override val pricePerUnit: Long,
@@ -275,6 +348,7 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.LICENSE
+
         init {
             verify()
         }
@@ -282,13 +356,15 @@ sealed class Product {
 
     @Serializable
     @SerialName("network_ip")
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         An IP address Product
         
         | Unit | API |
         |------|-----|
         | Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
-    """)
+    """
+    )
     data class NetworkIP(
         override val name: String,
         override val pricePerUnit: Long,
@@ -302,8 +378,72 @@ sealed class Product {
         override val hiddenInGrantApplications: Boolean = false,
     ) : Product() {
         override val productType: ProductType = ProductType.NETWORK_IP
+
         init {
             verify()
+        }
+    }
+
+    companion object {
+        @OptIn(ExperimentalStdlibApi::class)
+        fun visualizePaymentModel(
+            pricePerUnit: Long?,
+            chargeType: ChargeType,
+            unitOfPrice: ProductPriceUnit
+        ): List<DocStatLine> {
+            return buildList {
+                when {
+                    chargeType == ChargeType.DIFFERENTIAL_QUOTA -> {
+                        add(DocStatLine.of("Payment model" to DocVisualization.Inline("Differential (Quota)")))
+                    }
+                    unitOfPrice == ProductPriceUnit.PER_UNIT -> {
+                        add(DocStatLine.of("Payment model" to DocVisualization.Inline("One-time payment (units)")))
+                    }
+                    unitOfPrice == ProductPriceUnit.CREDITS_PER_UNIT -> {
+                        val explanation = if (pricePerUnit == null) {
+                            "(DKK)"
+                        } else {
+                            "(${(pricePerUnit / 1_000_000.0)} DKK)"
+                        }
+
+                        add(
+                            DocStatLine.of(
+                                "Payment model" to DocVisualization.Inline(
+                                    "One-time payment " + explanation
+                                )
+                            )
+                        )
+                    }
+                    unitOfPrice == ProductPriceUnit.UNITS_PER_MINUTE ||
+                        unitOfPrice == ProductPriceUnit.UNITS_PER_HOUR ||
+                        unitOfPrice == ProductPriceUnit.UNITS_PER_DAY -> {
+                        add(
+                            DocStatLine.of(
+                                "Payment model" to DocVisualization.Inline(
+                                    "Periodic (per " +
+                                        "${unitOfPrice.name.substringAfterLast('_').lowercase()})"
+                                )
+                            )
+                        )
+                    }
+                    unitOfPrice == ProductPriceUnit.CREDITS_PER_MINUTE ||
+                        unitOfPrice == ProductPriceUnit.CREDITS_PER_HOUR ||
+                        unitOfPrice == ProductPriceUnit.CREDITS_PER_DAY -> {
+                        val explanation = if (pricePerUnit == null) {
+                            "(DKK)"
+                        } else {
+                            "(${pricePerUnit / 1_000_000.0}DKK/" +
+                                unitOfPrice.name.substringAfterLast('_').lowercase()
+                        }
+                        add(
+                            DocStatLine.of(
+                                "Payment model" to DocVisualization.Inline("Periodic $explanation")
+                            )
+                        )
+                    }
+                }
+
+            }
         }
     }
 }

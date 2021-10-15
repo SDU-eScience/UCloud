@@ -959,6 +959,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_create.png)
+
+</details>
+
 
 ## Example: Following the progress of a Job
 <table>
@@ -1103,6 +1112,15 @@ JobsFollowResponse(
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_follow.png)
 
 </details>
 
@@ -1475,6 +1493,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_terminal.png)
+
+</details>
+
 
 ## Example: Connecting two Jobs together
 <table>
@@ -1795,6 +1822,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_peers.png)
 
 </details>
 
@@ -2201,6 +2237,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_ingress.png)
+
+</details>
+
 
 ## Example: Using licensed software
 <table>
@@ -2442,6 +2487,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_license.png)
 
 </details>
 
@@ -2700,6 +2754,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_vnc.png)
+
+</details>
+
 
 ## Example: Using a web Application
 <table>
@@ -2932,6 +2995,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_web.png)
 
 </details>
 
@@ -3390,6 +3462,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_permissions.png)
 
 </details>
 
@@ -3944,6 +4025,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_credits.png)
 
 </details>
 
@@ -4991,6 +5081,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_extendAndCancel.png)
 
 </details>
 

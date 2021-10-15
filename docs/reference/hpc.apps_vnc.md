@@ -304,4 +304,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/hpc.apps_vnc.png)
+
+</details>
+
 

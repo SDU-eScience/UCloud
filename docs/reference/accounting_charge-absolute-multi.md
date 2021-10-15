@@ -694,4 +694,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-absolute-multi.png)
+
+</details>
+
 

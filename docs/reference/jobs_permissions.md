@@ -458,4 +458,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_permissions.png)
+
+</details>
+
 

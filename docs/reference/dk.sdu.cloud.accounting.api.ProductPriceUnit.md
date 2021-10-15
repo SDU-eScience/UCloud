@@ -9,6 +9,7 @@
 
 ```kotlin
 enum class ProductPriceUnit {
+    CREDITS_PER_UNIT,
     PER_UNIT,
     CREDITS_PER_MINUTE,
     CREDITS_PER_HOUR,
@@ -23,6 +24,17 @@ enum class ProductPriceUnit {
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>CREDITS_PER_UNIT</code>
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>

@@ -102,4 +102,13 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_delete.png)
+
+</details>
+
 

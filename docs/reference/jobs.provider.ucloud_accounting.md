@@ -396,4 +396,13 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_accounting.png)
+
+</details>
+
 

@@ -74,7 +74,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -229,7 +229,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -520,7 +520,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -567,6 +567,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -702,7 +703,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -749,6 +750,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -1037,7 +1039,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1075,6 +1077,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1187,7 +1190,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1225,6 +1228,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -1416,6 +1420,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-differential-multi-missing.png)
 
 </details>
 

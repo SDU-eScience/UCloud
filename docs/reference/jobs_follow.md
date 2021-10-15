@@ -147,4 +147,13 @@ JobsFollowResponse(
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_follow.png)
+
+</details>
+
 

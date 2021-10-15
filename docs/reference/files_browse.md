@@ -253,4 +253,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_browse.png)
+
+</details>
+
 

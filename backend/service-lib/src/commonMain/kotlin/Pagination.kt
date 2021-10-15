@@ -1,8 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -136,7 +134,10 @@ check if the end of results has been reached is by checking i `next == null`."""
 
     @UCloudApiDoc("The token used to fetch additional items from this result set")
     val next: String?,
-)
+) : DocVisualizable {
+    override fun visualize(): DocVisualization =
+        DocVisualization.Card("PageV2", emptyList(), items.map { visualizeValue(it) })
+}
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)

@@ -317,6 +317,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/tools/byNameAn
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/hpc.tools_docker.png)
+
+</details>
+
 
 ## Example: Retrieve a virtual machine based Tool
 <table>
@@ -492,6 +501,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/tools/byNameAn
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/hpc.tools_virtualMachine.png)
 
 </details>
 

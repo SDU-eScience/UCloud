@@ -277,4 +277,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_support.png)
+
+</details>
+
 

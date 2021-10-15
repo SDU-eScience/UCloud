@@ -310,6 +310,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/providers_provider.png)
+
+</details>
+
 
 ## Example: Registering a Provider
 <table>
@@ -767,6 +776,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/providers_registration.png)
+
+</details>
+
 
 ## Example: A Provider authenticating with UCloud/Core
 <table>
@@ -877,6 +895,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/providers_authentication.png)
 
 </details>
 
