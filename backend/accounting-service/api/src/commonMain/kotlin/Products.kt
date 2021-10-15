@@ -433,7 +433,7 @@ sealed class Product : DocVisualizable {
                             "(DKK)"
                         } else {
                             "(${pricePerUnit / 1_000_000.0}DKK/" +
-                                unitOfPrice.name.substringAfterLast('_').lowercase()
+                                unitOfPrice.name.substringAfterLast('_').lowercase() + ")"
                         }
                         add(
                             DocStatLine.of(
