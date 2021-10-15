@@ -199,7 +199,7 @@ interface TagGridProps {
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, columns, rows, tagBanList = [], favoriteStatus, onFavorite, linkToRun, refreshId}: TagGridProps
+    {tag, rows, tagBanList = [], favoriteStatus, onFavorite, linkToRun, refreshId}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(

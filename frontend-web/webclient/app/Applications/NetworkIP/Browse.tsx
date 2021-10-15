@@ -1,13 +1,13 @@
 import * as React from "react";
 import {default as NetworkIPApi, NetworkIP} from "@/UCloud/NetworkIPApi";
-import {ResourceBrowse} from "@/Resource/Browse";
+import {BrowseType, ResourceBrowse} from "@/Resource/Browse";
 import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
 
 export const NetworkIPBrowse: React.FunctionComponent<{
     provider?: string;
     onSelect?: (selection: NetworkIP) => void;
     isSearch?: boolean;
-    embedded?: boolean;
+    browseType: BrowseType;
 }> = props => {
     return <ResourceBrowse
         api={NetworkIPApi}
@@ -20,7 +20,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
         }
         headerSize={48}
         inlineCreationMode={"NONE"}
-        embedded={props.embedded}
+        browseType={props.browseType}
         isSearch={props.isSearch}
     />;
 };

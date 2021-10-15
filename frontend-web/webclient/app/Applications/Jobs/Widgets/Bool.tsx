@@ -37,13 +37,13 @@ export function BoolValidator(param: compute.ApplicationParameter): WidgetValida
     return {valid: true};
 }
 
-export const BoolSetter: WidgetSetter = (param, value) => {
+export function BoolSetter(param: compute.ApplicationParameter, value: compute.AppParameterValue): void {
     if (param.type !== "boolean") return;
 
     const selector = findElement(param);
     if (!selector) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.Bool).value ? "true" : "false";
-};
+}
 
 function findElement(param: ApplicationParameterNS.Bool): HTMLSelectElement | null {
     return document.getElementById(widgetId(param)) as HTMLSelectElement | null;

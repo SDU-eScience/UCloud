@@ -156,7 +156,7 @@ export abstract class ResourceApi<Res extends Resource,
         this.filterPills.push(p);
     }
 
-    public idIsUriEncoded: boolean = false;
+    public idIsUriEncoded = false;
 
     public abstract renderer: ItemRenderer<Res>;
     /*

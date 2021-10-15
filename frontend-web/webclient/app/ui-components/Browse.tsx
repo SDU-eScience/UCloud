@@ -21,6 +21,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -88,14 +89,15 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 }
 
 export interface ItemRenderer<T, CB = any> {
-    Icon?: React.FunctionComponent<{resource?: T, size: string;}>;
-    MainTitle?: React.FunctionComponent<{resource?: T;}>;
-    Stats?: React.FunctionComponent<{resource?: T}>;
-    ImportantStats?: React.FunctionComponent<{resource?: T, callbacks: CB}>;
+    Icon?: React.FunctionComponent<{resource?: T, size: string; browseType: BrowseType;}>;
+    MainTitle?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
+    Stats?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
+    ImportantStats?: React.FunctionComponent<{resource?: T; callbacks: CB; browseType: BrowseType}>;
 }
 
 interface ItemRowProps<T, CB> {
     item?: T;
+    browseType: BrowseType;
     renderer: ItemRenderer<T, CB>;
 
     toggleSet: ToggleSetHook<T>;
@@ -137,26 +139,26 @@ export const ItemRow = <T, CB>(
 
     return <ListRow
         onContextMenu={onContextMenu}
-        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} /> : null}
+        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} /> : null}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
                     inputRef={renameInputRef} onSubmit={onRename}
                     defaultValue={renameValue} /> :
-                renderer.MainTitle ? <renderer.MainTitle resource={props.item} /> : null
+                renderer.MainTitle ? <renderer.MainTitle browseType={props.browseType} resource={props.item} /> : null
         }
         isSelected={props.item && props.toggleSet.checked.has(props.item)}
         select={() => props.item ? props.toggleSet.toggle(props.item) : 0}
         navigate={props.navigate && props.item ? () => props.navigate?.(props.item!) : undefined}
         leftSub={
             <ListStatContainer>
-                {renderer.Stats ? <renderer.Stats resource={props.item} /> : null}
+                {renderer.Stats ? <renderer.Stats browseType={props.browseType} resource={props.item} /> : null}
             </ListStatContainer>
         }
         right={
             <>
                 {renderer.ImportantStats ?
-                    <renderer.ImportantStats resource={props.item} callbacks={props.callbacks} /> : null}
+                    <renderer.ImportantStats resource={props.item} browseType={props.browseType} callbacks={props.callbacks} /> : null}
                 {props.item ?
                     <Operations
                         selected={props.toggleSet.checked.items}
@@ -286,6 +288,7 @@ export function StandardList<T, CB = EmptyObject>(
             {items.map((it, idx) =>
                 <ItemRow
                     key={idx}
+                    browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}
                     renderer={props.renderer} callbacks={callbacks} operations={allOperations}
                     item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}
                     navigate={props.navigate}

@@ -18,13 +18,16 @@ import {EnumFilter} from "@/Resource/Filter";
 import Application = compute.Application;
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {stateToTitle} from "@/Applications/Jobs";
-import {Box, Flex, Icon} from "@/ui-components";
+import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {View} from "@/Applications/Jobs/View";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductCompute} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {BrowseType} from "@/Resource/BrowseType";
+import {formatDistanceToNow} from "date-fns/esm";
+import {ListRowStat} from "@/ui-components/List";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -203,10 +206,26 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     renderer: ItemRenderer<Job> = {
         MainTitle({resource}) {return <>{resource?.specification?.name ?? resource?.id ?? ""}</>},
-        Icon({resource, size}) {
+        Icon({resource, size, browseType}) {
+            if (browseType === BrowseType.Card) {
+                const job = resource as Job;
+                const [icon, color] = jobStateToIconAndColor(job.status.state);
+                return <Icon name={icon} color={color} mr={"8px"} />;
+            }
             return <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
         },
-        ImportantStats({resource}) {
+        Stats({resource, browseType}) {
+            if (resource == null || browseType !== BrowseType.Card) return null;
+            return (
+                <ListRowStat>
+                    {resource.specification.application.name} v{resource.specification.application.version}
+                </ListRowStat>
+            )
+        },
+        ImportantStats({resource, browseType}) {
+            if (browseType === BrowseType.Card) {
+                return <Text mr="-40px" fontSize="14px" color="gray">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
+            }
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
             return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"} />

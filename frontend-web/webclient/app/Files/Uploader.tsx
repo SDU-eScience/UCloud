@@ -16,7 +16,7 @@ import {supportedProtocols, Upload, UploadState} from "@/Files/Upload";
 import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
-import {default as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
+import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BulkResponse} from "@/UCloud";
