@@ -344,11 +344,7 @@ class SyncthingClient(
             }
         }
 
-        if (resp.status != HttpStatusCode.OK) {
-            return false
-        }
-
-        return true
+        return resp.status == HttpStatusCode.OK
     }
 
     suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {

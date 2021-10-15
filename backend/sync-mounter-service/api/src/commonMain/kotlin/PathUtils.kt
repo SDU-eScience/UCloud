@@ -79,25 +79,4 @@ fun extractPathMetadata(path: String): PathMetadata {
     val components = normalizedPath.components()
     val collection = components.getOrNull(0) ?: throw RPCException("Invalid path: $path", HttpStatusCode.BadRequest)
     return PathMetadata(collection)
-
-    /*
-    val firstComponent = components.getOrNull(0)
-    if (firstComponent == "home" || firstComponent == "projects") {
-        // Backwards compatible case of UCloud/Storage
-        val productReference = ProductReference("u1-cephfs", firstComponent, UCLOUD_PROVIDER)
-        val collection = if (firstComponent == "home") {
-            components.getOrNull(1)
-        } else {
-            val projectId = components.getOrNull(1)
-            val repository = components.getOrNull(2)
-            if (projectId != null && repository != null) {
-                "${projectId}_${repository}"
-            } else {
-                null
-            }
-        }
-
-        return PathMetadata(productReference, collection)
-    }
-     */
 }
