@@ -32,14 +32,14 @@ object Mounts: CallDescriptionContainer("sync.mounter") {
     private const val baseContext = "/api/sync/mount"
 
     val mount = call<MountRequest, MountResponse, CommonErrorMessage>("mount") {
-        httpCreate(baseContext, roles = Roles.PUBLIC)
+        httpCreate(baseContext, roles = Roles.PROVIDER)
     }
 
     val unmount = call<UnmountRequest, UnmountResponse, CommonErrorMessage>("unmount") {
-        httpDelete(baseContext, roles = Roles.PUBLIC)
+        httpDelete(baseContext, roles = Roles.PROVIDER)
     }
 
     val ready = call<ReadyRequest, ReadyResponse, CommonErrorMessage>("ready") {
-        httpRetrieve(baseContext, roles = Roles.PUBLIC)
+        httpRetrieve(baseContext, roles = Roles.PROVIDER)
     }
 }
