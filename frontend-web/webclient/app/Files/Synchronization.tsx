@@ -2,7 +2,6 @@ import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
 import {
     bulkRequestOf,
     emptyPageV2,
-    placeholderProduct,
 } from "@/DefaultObjects";
 import React from "react";
 import { useState } from "react";
@@ -30,6 +29,8 @@ import { Toggle } from "@/ui-components/Toggle";
 import { Client } from "@/Authentication/HttpClientInstance";
 import { ProductSyncFolder } from "@/Accounting";
 import { SupportByProvider } from "@/UCloud/ResourceApi";
+import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import { FileCollection } from "@/UCloud/FileCollectionsApi";
 
 const Tab: React.FunctionComponent<{
     selected: boolean;
@@ -50,8 +51,9 @@ const Tab: React.FunctionComponent<{
 
 export const SynchronizationSettings: React.FunctionComponent<{
     file: UFile;
+    provider: string;
     onDeviceSelect?: (selection: SyncDevice) => void;
-}> = ({ file, onDeviceSelect }) => {
+}> = ({ file, provider, onDeviceSelect }) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder>>(
         SyncFolderApi.browse({
@@ -89,15 +91,17 @@ export const SynchronizationSettings: React.FunctionComponent<{
 
     const toggleSyncFolder = async () => {
         if (!syncFolder) {
-            if (folderProducts.data?.productsByProvider["ucloud"][0].support) {
+            if (
+                folderProducts.data?.productsByProvider[provider] &&
+                folderProducts.data.productsByProvider[provider][0] &&
+                folderProducts.data.productsByProvider[provider][0].support
+            ) {
                 await invokeCommand(
                     SyncFolderApi.create(
                         bulkRequestOf({
                             path: file.id,
                             product:
-                                folderProducts.data.productsByProvider[
-                                    "ucloud"
-                                ][0].support.product,
+                                folderProducts.data.productsByProvider[provider][0].support.product,
                         })
                     ),
                     { defaultErrorHandler: false }
@@ -109,21 +113,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                     })
                 );
             } else {
-                await invokeCommand(
-                    SyncFolderApi.create(
-                        bulkRequestOf({
-                            path: file.id,
-                            product: placeholderProduct(),
-                        })
-                    ),
-                    { defaultErrorHandler: false }
-                );
-                fetchFolders(
-                    SyncFolderApi.browse({
-                        itemsPerPage: 1,
-                        filterByPath: file.id,
-                    })
-                );
+                snackbarStore.addFailure("Synchronization not supported by provider", false);
             }
         } else {
             if (syncFolder) {

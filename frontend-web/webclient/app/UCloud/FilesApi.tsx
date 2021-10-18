@@ -43,6 +43,7 @@ import {SynchronizationSettings} from "@/Files/Synchronization";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
+import { snackbarStore } from "@/Snackbar/SnackbarStore";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -504,14 +505,23 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 icon: "refresh",
                 text: "Synchronization",
-                enabled: (selected, cb) => selected.length === 1,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    return support && selected.length === 1;
+                },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(
-                        <SynchronizationSettings file={selected[0]} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
+
+                    if (provider) {
+                        dialogStore.addDialog(
+                            <SynchronizationSettings file={selected[0]} provider={provider} />,
+                            doNothing,
+                            true,
+                            this.fileSelectorModalStyle
+                        );
+                    } else {
+                        snackbarStore.addFailure("Synchronization not supported by provider", false);
+                    }
                 }
             },
             {

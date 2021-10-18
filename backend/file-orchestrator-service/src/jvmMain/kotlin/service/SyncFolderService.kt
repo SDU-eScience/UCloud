@@ -281,7 +281,7 @@ class SyncFolderService(
                 setParameter("filter_user", flags?.filterUser)
             },
             """
-                select *
+                select f.resource, f.device_id, f.path, f.sync_type
                 from file_orchestrator.sync_folders f
                 join provider.resource r on f.resource = r.id
                 where
