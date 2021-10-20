@@ -507,7 +507,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Synchronization",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    return support && selected.length === 1;
+                    return cb.embedded !== true &&
+                        support &&
+                        selected.length === 1 &&
+                        selected[0].permissions.myself.some(p => p === "ADMIN") &&
+                        selected[0].status.type === "DIRECTORY";
                 },
                 onClick: async (selected, cb) => {
                     const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
