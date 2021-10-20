@@ -403,4 +403,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs_ingress.png)
+
+</details>
+
 

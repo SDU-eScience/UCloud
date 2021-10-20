@@ -5,8 +5,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -14,6 +13,7 @@ interface ResourceIncludeFlags {
     val includeOthers: Boolean
     val includeUpdates: Boolean
     val includeSupport: Boolean
+
     @UCloudApiDoc("Includes `specification.resolvedProduct`")
     val includeProduct: Boolean
 
@@ -23,8 +23,10 @@ interface ResourceIncludeFlags {
     val filterProvider: String?
     val filterProductId: String?
     val filterProductCategory: String?
+
     @UCloudApiDoc("Filters by the provider ID. The value is comma-separated.")
     val filterProviderIds: String?
+
     @UCloudApiDoc("Filters by the resource ID. The value is comma-separated.")
     val filterIds: String?
 }
@@ -72,7 +74,15 @@ interface ResourceBilling {
 data class ResourceOwner(
     val createdBy: String,
     val project: String?,
-)
+) : DocVisualizable {
+    override fun visualize(): DocVisualization {
+        return if (project != null) {
+            DocVisualization.Inline("$createdBy in $project")
+        } else {
+            DocVisualization.Inline(createdBy)
+        }
+    }
+}
 
 interface ResourceSpecification {
     @UCloudApiDoc("""A reference to the product which backs this `Resource`""")
@@ -145,7 +155,7 @@ interface ResourceStatus<P : Product, Support : ProductSupport> {
 
     @UCloudApiDoc(
         "The resolved product referenced by `product`.\n\n" +
-                "This attribute is not included by default unless `includeProduct` is specified."
+            "This attribute is not included by default unless `includeProduct` is specified."
     )
     var resolvedProduct: P?
 }
@@ -170,7 +180,7 @@ provider. It is then up to the provider to implement the functionality of the `R
 __Figure:__ UCloud orchestrates with the provider to create a `Resource`
 """
 )
-interface Resource<P : Product, Support : ProductSupport> {
+interface Resource<P : Product, Support : ProductSupport> : DocVisualizable {
     @UCloudApiDoc(
         """A unique identifier referencing the `Resource`
 
@@ -217,4 +227,29 @@ resource."""
     val permissions: ResourcePermissions?
 
     val providerGeneratedId: String? get() = id
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Card(
+            "$id (${this::class.simpleName})",
+            buildList {
+                if (providerGeneratedId != null && providerGeneratedId != id) {
+                    add(DocStatLine.of("providerGeneratedId" to visualizeValue(providerGeneratedId)))
+                }
+
+                add(DocStatLine.of("owner" to visualizeValue(owner)))
+                add(DocStatLine.of("createdAt" to visualizeValue(createdAt)))
+                add(DocStatLine.of("specification" to visualizeValue(specification)))
+                if (updates.isNotEmpty()) {
+                    add(DocStatLine.of("updates" to visualizeValue(updates)))
+                }
+                if (permissions != null) {
+                    add(DocStatLine.of("permissions" to visualizeValue(permissions)))
+                }
+
+                add(DocStatLine.of("status" to visualizeValue(status)))
+            },
+            emptyList()
+        )
+    }
 }

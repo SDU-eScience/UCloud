@@ -34,7 +34,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piSecondRoot
+    piRoot
 ).orThrow()
 
 /*
@@ -121,7 +121,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "-61502635092191502671634045862012", 
+        transactionId = "2890049613505041541634303131571", 
     )),
     piRoot
 ).orThrow()
@@ -137,7 +137,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piSecondRoot
+    piRoot
 ).orThrow()
 
 /*
@@ -233,7 +233,7 @@ allowed to over-allocate resources. We recommend using deposit for almost all ca
 should only use transfers if they wish to give away resources that they otherwise will not be able 
 to consume.  */
 
-// Authenticated as piSecondRoot
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -279,6 +279,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -340,7 +341,7 @@ await callAPI(AccountingApi.transfer(
                 "amount": 100,
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-61502635092191502671634045862012"
+                "transactionId": "2890049613505041541634303131571"
             }
         ]
     }
@@ -350,7 +351,6 @@ await callAPI(AccountingApi.transfer(
 {
 }
 */
-// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -396,6 +396,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -469,7 +470,7 @@ The new allocation does not have a parent. */
 # should only use transfers if they wish to give away resources that they otherwise will not be able 
 # to consume. 
 
-# Authenticated as piSecondRoot
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -506,6 +507,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -555,7 +557,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "-61502635092191502671634045862012"
+            "transactionId": "2890049613505041541634303131571"
         }
     ]
 }'
@@ -564,7 +566,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # {
 # }
 
-# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -601,6 +602,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -643,6 +645,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_deposit.png)
 
 </details>
 

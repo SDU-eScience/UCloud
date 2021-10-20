@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
@@ -48,7 +48,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
     </Flex>;
 };
 
-export const PeerValidator: WidgetValidator = (param) => {
+export function PeerValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "peer") {
         const nameElem = findElementName(param);
         const jobElem = findElementJob(param);
@@ -63,7 +63,7 @@ export const PeerValidator: WidgetValidator = (param) => {
     }
 
     return {valid: true};
-};
+}
 
 export const PeerSetter: WidgetSetter = (param, value) => {
     if (param.type !== "peer") return;

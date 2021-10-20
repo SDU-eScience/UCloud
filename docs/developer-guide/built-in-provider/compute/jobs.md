@@ -438,6 +438,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/ucloud/jobs/ret
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_support.png)
+
+</details>
+
 
 ## Example: Declaring minimal support for virtual machines
 <table>
@@ -720,6 +729,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/ucloud/jobs/ret
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_minimalSupport.png)
 
 </details>
 
@@ -1780,6 +1798,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_createSimple.png)
+
+</details>
+
 
 ## Example: Accounting
 <table>
@@ -2176,6 +2203,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_accounting.png)
+
+</details>
+
 
 ## Example: Ensuring UCloud/Core and Provider are in-sync
 <table>
@@ -2506,6 +2542,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.ucloud_verify.png)
 
 </details>
 

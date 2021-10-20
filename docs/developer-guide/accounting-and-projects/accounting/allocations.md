@@ -774,6 +774,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-absolute-single.png)
+
+</details>
+
 
 ## Example: Charging a root allocation (Differential)
 <table>
@@ -1403,6 +1412,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-differential-single.png)
 
 </details>
 
@@ -2097,6 +2115,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-absolute-multi.png)
 
 </details>
 
@@ -3161,6 +3188,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-differential-multi.png)
+
+</details>
+
 
 ## Example: Charging a leaf allocation with missing credits (Absolute)
 <table>
@@ -3235,7 +3271,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -3390,7 +3426,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -3530,7 +3566,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -3577,6 +3613,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -3712,7 +3749,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -3759,6 +3796,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -3869,7 +3907,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -3907,6 +3945,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -4019,7 +4058,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -4057,6 +4096,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -4101,6 +4141,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-absolute-multi-missing.png)
 
 </details>
 
@@ -4178,7 +4227,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -4333,7 +4382,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piNode
 ).orThrow()
 
 /*
@@ -4624,7 +4673,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -4671,6 +4720,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -4806,7 +4856,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piNode
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -4853,6 +4903,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -5141,7 +5192,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -5179,6 +5230,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -5291,7 +5343,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piNode
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -5329,6 +5381,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -5523,6 +5576,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_charge-differential-multi-missing.png)
+
+</details>
+
 
 ## Example: Creating a sub-allocation (deposit operation)
 <table>
@@ -5557,7 +5619,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piRoot
 ).orThrow()
 
 /*
@@ -5638,7 +5700,7 @@ Accounting.deposit.call(
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "14502961595596327281634045862011", 
+        transactionId = "27700440971710466121634303131570", 
     )),
     piRoot
 ).orThrow()
@@ -5654,7 +5716,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piRoot
 ).orThrow()
 
 /*
@@ -5750,7 +5812,7 @@ over-allocate resources. For example, a workspace can deposit more resources tha
 sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
 examples, all allocations in a hierarchy must be able to carry a charge. */
 
-// Authenticated as piLeaf
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -5796,6 +5858,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -5851,7 +5914,7 @@ await callAPI(AccountingApi.deposit(
                 "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "14502961595596327281634045862011"
+                "transactionId": "27700440971710466121634303131570"
             }
         ]
     }
@@ -5861,7 +5924,6 @@ await callAPI(AccountingApi.deposit(
 {
 }
 */
-// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -5907,6 +5969,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piLeaf
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -5981,7 +6044,7 @@ parent, indicated by the path.  */
 # sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
 # examples, all allocations in a hierarchy must be able to carry a charge.
 
-# Authenticated as piLeaf
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6018,6 +6081,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6061,7 +6125,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "14502961595596327281634045862011"
+            "transactionId": "27700440971710466121634303131570"
         }
     ]
 }'
@@ -6070,7 +6134,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # {
 # }
 
-# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6107,6 +6170,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piLeaf
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6153,6 +6217,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_deposit.png)
+
+</details>
+
 
 ## Example: Creating a new root allocation (transfer operation)
 <table>
@@ -6187,7 +6260,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piSecondRoot
+    piRoot
 ).orThrow()
 
 /*
@@ -6274,7 +6347,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "-61502635092191502671634045862012", 
+        transactionId = "2890049613505041541634303131571", 
     )),
     piRoot
 ).orThrow()
@@ -6290,7 +6363,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piSecondRoot
+    piRoot
 ).orThrow()
 
 /*
@@ -6386,7 +6459,7 @@ allowed to over-allocate resources. We recommend using deposit for almost all ca
 should only use transfers if they wish to give away resources that they otherwise will not be able 
 to consume.  */
 
-// Authenticated as piSecondRoot
+// Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -6432,6 +6505,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -6493,7 +6567,7 @@ await callAPI(AccountingApi.transfer(
                 "amount": 100,
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-61502635092191502671634045862012"
+                "transactionId": "2890049613505041541634303131571"
             }
         ]
     }
@@ -6503,7 +6577,6 @@ await callAPI(AccountingApi.transfer(
 {
 }
 */
-// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -6549,6 +6622,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -6622,7 +6696,7 @@ The new allocation does not have a parent. */
 # should only use transfers if they wish to give away resources that they otherwise will not be able 
 # to consume. 
 
-# Authenticated as piSecondRoot
+# Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6659,6 +6733,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6708,7 +6783,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "-61502635092191502671634045862012"
+            "transactionId": "2890049613505041541634303131571"
         }
     ]
 }'
@@ -6717,7 +6792,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # {
 # }
 
-# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6754,6 +6828,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -6796,6 +6871,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/accounting_deposit.png)
 
 </details>
 

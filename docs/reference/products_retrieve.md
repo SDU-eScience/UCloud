@@ -145,4 +145,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/products_retrieve.png)
+
+</details>
+
 

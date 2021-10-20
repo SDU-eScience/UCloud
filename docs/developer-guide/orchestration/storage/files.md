@@ -344,6 +344,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_rename_file.png)
+
+</details>
+
 
 ## Example: Copying a file to itself
 <table>
@@ -455,6 +464,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_copy_file_to_self.png)
 
 </details>
 
@@ -592,6 +610,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_upload.png)
+
+</details>
+
 
 ## Example: Downloading a file
 <table>
@@ -706,6 +733,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_download.png)
+
+</details>
+
 
 ## Example: Creating a folder
 <table>
@@ -813,6 +849,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_create_folder.png)
 
 </details>
 
@@ -939,6 +984,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_move_to_trash.png)
+
+</details>
+
 
 ## Example: Emptying trash folder
 <table>
@@ -1044,6 +1098,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_empty_trash_folder.png)
 
 </details>
 
@@ -1300,6 +1363,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_browse.png)
+
+</details>
+
 
 ## Example: Retrieving a single file
 <table>
@@ -1527,6 +1599,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_retrieve.png)
+
+</details>
+
 
 ## Example: Deleting a file permanently
 <table>
@@ -1626,6 +1707,15 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_delete.png)
 
 </details>
 
@@ -1855,6 +1945,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files_retrieve_products.png)
 
 </details>
 

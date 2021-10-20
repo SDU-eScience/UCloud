@@ -337,7 +337,7 @@ fun generateMarkdown(
             val content = generateMarkdownForExample(useCase)
             outs.println(content)
 
-            File(referenceFolder, "${container.namespace}_${useCase.id}.md")
+            File(referenceFolder, "${useCase.id}.md")
                 .writeText(
                     buildString {
                         appendLine(chapter.breadcrumbs(includeLeaf = true))
@@ -462,7 +462,7 @@ fun generateMarkdownForRemoteProcedureCall(
         outs.println("| Example |")
         outs.println("|---------|")
         for (example in useCaseExamples) {
-            outs.println("| [${example.description}](/docs/reference/${call.namespace}_${example.id}.md) |")
+            outs.println("| [${example.description}](/docs/reference/${example.id}.md) |")
         }
         outs.println()
     }
@@ -622,6 +622,13 @@ fun generateMarkdownForExample(useCase: UseCase): String {
         summary(
             "<b>Communication Flow:</b> Curl",
             useCase.curl()
+        )
+    )
+
+    outs.appendLine(
+        summary(
+            "<b>Communication Flow:</b> Visual",
+            useCase.visual()
         )
     )
     return out.toString()

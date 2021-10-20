@@ -477,6 +477,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_support.png)
+
+</details>
+
 
 ## Example: Declaring minimal support for virtual machines
 <table>
@@ -759,6 +768,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_minimalSupport.png)
 
 </details>
 
@@ -1819,6 +1837,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_createSimple.png)
+
+</details>
+
 
 ## Example: Accounting
 <table>
@@ -2215,6 +2242,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_accounting.png)
+
+</details>
+
 
 ## Example: Ensuring UCloud/Core and Provider are in-sync
 <table>
@@ -2545,6 +2581,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ```
 
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/jobs.provider.PROVIDERID_verify.png)
 
 </details>
 

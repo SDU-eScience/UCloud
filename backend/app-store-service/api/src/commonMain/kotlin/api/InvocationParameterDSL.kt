@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.store.api
 
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Logger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -11,7 +10,8 @@ private val log = Logger("InvocationParameter")
 typealias AppParametersWithValues = Map<ApplicationParameter, AppParameterValue?>
 
 @Serializable
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
 InvocationParameters supply values to either the command-line or environment variables.
 
 Every parameter can run in one of two contexts. They produce a value when combined with a $TYPE_REF ApplicationParameter 
@@ -22,7 +22,8 @@ and a $TYPE_REF AppParameterValue:
 
 For each of the $TYPE_REF InvocationParameter types, we will describe the value(s) they produce. We will also highlight 
 notable differences between CLI args and environment variables.
-""", importance = 920)
+""", importance = 920
+)
 sealed class InvocationParameter {
     abstract suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
@@ -54,12 +55,14 @@ data class EnvironmentVariableParameter(val variable: String) : InvocationParame
 
 @Serializable
 @SerialName("word")
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     A static value for an InvocationParameter
     
     This value is static and will always produce only a single value. As a result, you do not need to escape any values
     for this parameter.
-""", importance = 919)
+""", importance = 919
+)
 data class WordInvocationParameter(val word: String) : InvocationParameter() {
     override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
@@ -72,7 +75,8 @@ data class WordInvocationParameter(val word: String) : InvocationParameter() {
 
 @Serializable
 @SerialName("var")
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     An InvocationParameter which produces value(s) from parameters.
 
     The parameter receives a list of `variableNames`. Each must reference an $TYPE_REF ApplicationParameter . It is 
@@ -217,7 +221,8 @@ data class WordInvocationParameter(val word: String) : InvocationParameter() {
     ```bash
     "--entries" "--entry" "42--next" "--entry" "hello--next" "--endOfEntries"
     ```
-""", importance = 919)
+""", importance = 919
+)
 data class VariableInvocationParameter(
     val variableNames: List<String>,
     val prefixGlobal: String = "",
@@ -226,7 +231,7 @@ data class VariableInvocationParameter(
     val suffixVariable: String = "",
     val isPrefixVariablePartOfArg: Boolean = false,
     val isSuffixVariablePartOfArg: Boolean = false,
-) : InvocationParameter() {
+) : InvocationParameter(), DocVisualizable {
     override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext,
@@ -293,11 +298,33 @@ data class VariableInvocationParameter(
             result
         }
     }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Card(
+            this::class.simpleName ?: "",
+            buildList {
+                if (isPrefixVariablePartOfArg) add(DocStatLine.of("isPrefixVariablePartOfArg" to visualizeValue(true)))
+                if (isSuffixVariablePartOfArg) add(DocStatLine.of("isSuffixVariablePartOfArg" to visualizeValue(true)))
+                if (prefixGlobal != "") add(DocStatLine.of("prefixGlobal" to visualizeValue(prefixGlobal)))
+                if (prefixVariable != "") add(DocStatLine.of("prefixVariable" to visualizeValue(prefixVariable)))
+                if (suffixGlobal != "") add(DocStatLine.of("suffixGlobal" to visualizeValue(suffixGlobal)))
+                if (suffixVariable != "") add(DocStatLine.of("suffixVariable" to visualizeValue(suffixVariable)))
+                if (variableNames.size == 1) {
+                    add(DocStatLine.of("variables" to visualizeValue(variableNames.first())))
+                } else {
+                    add(DocStatLine.of("variables" to visualizeValue(variableNames)))
+                }
+            },
+            emptyList()
+        )
+    }
 }
 
 @Serializable
 @SerialName("bool_flag")
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     Produces a toggleable command-line flag
     
     The parameter referenced by `variableName` must be of type $TYPE_REF ApplicationParameter.Bool, and the value
@@ -381,7 +408,8 @@ data class VariableInvocationParameter(
     ```bash
     "--hello world"
     ```
-""", importance = 919)
+""", importance = 919
+)
 data class BooleanFlagParameter(
     val variableName: String,
     val flag: String,

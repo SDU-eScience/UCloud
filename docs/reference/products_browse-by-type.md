@@ -171,4 +171,13 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 
 </details>
 
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/products_browse-by-type.png)
+
+</details>
+
 

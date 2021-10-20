@@ -36,7 +36,7 @@ import {
 import {GrantApplicationList} from "@/Project/Grant/IngoingApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
-import FilesApi, {UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -55,6 +55,7 @@ import {
 import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
+import {BrowseType} from "@/Resource/BrowseType";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
@@ -383,6 +384,7 @@ function DashboardRuns({runs}: {
                     <ItemRow
                         key={job.id}
                         item={job}
+                        browseType={BrowseType.Card}
                         navigate={() => history.push(`/applications/properties/${job.id}`)}
                         renderer={JobsApi.renderer}
                         toggleSet={toggle}

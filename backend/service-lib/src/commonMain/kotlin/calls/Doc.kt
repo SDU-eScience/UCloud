@@ -61,7 +61,7 @@ interface UCloudCallDoc<R : Any, S : Any, E : Any> {
     }
 }
 
-class UCloudCallDocBuilder<R : Any, S : Any, E : Any> : UCloudCallDoc<R, S, E> {
+class UCloudCallDocBuilder<R : Any, S : Any, E : Any>(val namespace: String) : UCloudCallDoc<R, S, E> {
     override var summary: String? = null
     @Language("markdown", "", "")
     override var description: String? = null
@@ -72,7 +72,7 @@ class UCloudCallDocBuilder<R : Any, S : Any, E : Any> : UCloudCallDoc<R, S, E> {
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.documentation(
     handler: UCloudCallDocBuilder<R, S, E>.() -> Unit
 ) {
-    attributes[UCloudCallDoc.key] = UCloudCallDocBuilder<R, S, E>().also { it.handler() }
+    attributes[UCloudCallDoc.key] = UCloudCallDocBuilder<R, S, E>(namespace).also { it.handler() }
 }
 
 val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.docOrNull: UCloudCallDoc<R, S, E>?
@@ -84,7 +84,7 @@ fun UCloudCallDocBuilder<*, *, *>.responseExample(statusCode: HttpStatusCode, de
 }
 
 fun UCloudCallDocBuilder<*, *, *>.useCaseReference(useCaseId: String, description: String) {
-    useCaseReferences.add(UCloudCallDoc.UseCaseReference(useCaseId, description))
+    useCaseReferences.add(UCloudCallDoc.UseCaseReference(namespace + "_" + useCaseId, description))
 }
 
 expect fun CallDescriptionContainer.docCallRef(
@@ -152,7 +152,7 @@ fun CallDescriptionContainer.useCase(
     postConditions: List<String> = emptyList(),
     flow: MutableList<UseCaseNode>.() -> Unit,
 ) {
-    val useCase = UseCase(id, title, frequencyOfUse, trigger, preConditions, postConditions,
+    val useCase = UseCase(namespace + "_" + id, title, frequencyOfUse, trigger, preConditions, postConditions,
         ArrayList<UseCaseNode>().apply(flow))
 
     val allUseCases = attributes.getOrNull(useCasesKey) ?: run {
@@ -384,3 +384,31 @@ private fun providerDescriptionDocs(
 
 @RequiresOptIn
 annotation class UCloudApiExampleValue
+
+sealed class DocVisualization {
+    abstract var estimatedHeight: Int
+
+    data class Card(
+        val title: String,
+        val lines: List<DocStatLine>,
+        val children: List<DocVisualization>,
+        override var estimatedHeight: Int = -1
+    ) : DocVisualization()
+
+    data class Inline(val value: String, override var estimatedHeight: Int = -1) : DocVisualization()
+}
+
+data class DocStatLine(val stats: List<DocStat>) {
+    companion object {
+        fun of(vararg pairs: Pair<String, DocVisualization>): DocStatLine {
+            return DocStatLine(pairs.map { DocStat(it.first, it.second) })
+        }
+    }
+}
+data class DocStat(val name: String, val value: DocVisualization)
+
+interface DocVisualizable {
+    fun visualize(): DocVisualization
+}
+
+expect fun visualizeValue(value: Any?): DocVisualization

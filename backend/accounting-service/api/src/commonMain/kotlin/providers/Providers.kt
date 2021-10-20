@@ -45,6 +45,14 @@ data class Provider(
                 "billing=$billing, owner=$owner)"
     }
 
+    override fun visualize(): DocVisualization {
+        val baseVisualization = super.visualize() as DocVisualization.Card
+        return baseVisualization.copy(lines = baseVisualization.lines + listOf(
+            DocStatLine.of("refreshToken" to visualizeValue(refreshToken)),
+            DocStatLine.of("publicKey" to visualizeValue(publicKey)),
+        ))
+    }
+
     companion object {
         const val UCLOUD_CORE_PROVIDER = "ucloud_core"
     }
@@ -57,8 +65,21 @@ data class ProviderSpecification(
     val domain: String,
     val https: Boolean,
     val port: Int? = null,
-) : ResourceSpecification {
+) : ResourceSpecification, DocVisualizable {
     override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
+
+    override fun visualize(): DocVisualization = DocVisualization.Inline(buildString {
+        if (https) {
+            append("https://")
+        } else {
+            append("http://")
+        }
+        append(domain)
+        if (port != null) {
+            append(":")
+            append(port)
+        }
+    })
 }
 
 fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {

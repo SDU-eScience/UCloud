@@ -44,6 +44,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
 import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -410,7 +411,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
-                        <FilesBrowse embedded pathRef={pathRef} onSelect={async res => {
+                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -449,7 +450,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: ""};
                     dialogStore.addDialog(
-                        <FilesBrowse embedded={true} pathRef={pathRef} onSelect={async (res) => {
+                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -596,7 +597,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: async (_, cb) => {
                     await cb.invokeCommand(
-                        this.emptyTrash(bulkRequestOf({id: cb.directory?.id!}))
+                        this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                     );
                     cb.reload()
                 },
@@ -689,4 +690,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
-export default new FilesApi();
+const api = new FilesApi();
+
+export {api};

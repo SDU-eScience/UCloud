@@ -28,7 +28,129 @@ data class Wallet(
     val productType: ProductType? = null,
     val chargeType: ChargeType? = null,
     val unit: ProductPriceUnit? = null,
-)
+) : DocVisualizable {
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Card(
+            "${paysFor.name}@${paysFor.provider} (Wallet)",
+            buildList {
+                add(DocStatLine.of("owner" to visualizeValue(owner)))
+                if (chargeType != null && unit != null) {
+                    addAll(Product.visualizePaymentModel(null, chargeType, unit))
+                }
+            },
+            allocations.map { alloc ->
+                if (chargeType != null && unit != null && productType != null) {
+                    DocVisualization.Card(
+                        "${alloc.allocationPath.joinToString("/")} (WalletAllocation)",
+                        buildList {
+                            val initial = explainBalance(alloc.initialBalance, productType, unit)
+                            val current = explainBalance(alloc.balance, productType, unit)
+                            val local = explainBalance(alloc.localBalance, productType, unit)
+                            add(DocStatLine.of("Initial balance" to DocVisualization.Inline(initial)))
+                            add(DocStatLine.of("Current balance" to DocVisualization.Inline(current)))
+                            add(DocStatLine.of("Local balance" to DocVisualization.Inline(local)))
+
+                            if (alloc.endDate == null) {
+                                add(DocStatLine.of("" to DocVisualization.Inline("No expiration")))
+                            } else {
+                                add(DocStatLine.of("" to DocVisualization.Inline("Active")))
+                            }
+                        },
+                        emptyList()
+                    )
+                } else {
+                    visualizeValue(alloc)
+                }
+            }
+        )
+    }
+
+    companion object {
+        fun explainBalance(
+            balance: Long,
+            productType: ProductType,
+            unit: ProductPriceUnit
+        ): String {
+            val (suffix, normalizationFactor) = when (productType) {
+                ProductType.STORAGE -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("GB", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("GB minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("GB hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("GB days", 1.0)
+                    }
+                }
+                ProductType.COMPUTE -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("Core minutes", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("Core minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("Core hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("Core days", 1.0)
+                    }
+                }
+                ProductType.INGRESS -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("Ingresses", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("Ingress minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("Ingress hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("Ingress days", 1.0)
+                    }
+                }
+                ProductType.LICENSE -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("Licenses", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("License minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("License hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("License days", 1.0)
+                    }
+                }
+                ProductType.NETWORK_IP -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("IP addresses", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("IP address minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("IP address hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("IP address days", 1.0)
+                    }
+                }
+                ProductType.SYNCHRONIZATION -> {
+                    when (unit) {
+                        ProductPriceUnit.PER_UNIT -> Pair("Synchronization", 1.0)
+                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
+                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("Synchronization minutes", 1.0)
+                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("Synchronization hours", 1.0)
+                        ProductPriceUnit.UNITS_PER_DAY -> Pair("Synchronization days", 1.0)
+                    }
+                }
+            }
+
+            return "${balance * normalizationFactor} $suffix"
+        }
+    }
+}
 
 /*
  * EXPIRE_FIRST takes the wallet allocation with end date closes to now.
@@ -72,7 +194,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-                "expire automatically"
+            "expire automatically"
     )
     val endDate: Long?,
     @UCloudApiDoc(
@@ -210,7 +332,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
-            CommonErrorMessage>("browseSubAllocations") {
+        CommonErrorMessage>("browseSubAllocations") {
         httpBrowse(baseContext, "subAllocation")
 
         documentation {
@@ -223,7 +345,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
-            CommonErrorMessage>("retrieveRecipient") {
+        CommonErrorMessage>("retrieveRecipient") {
         httpRetrieve(baseContext, "recipient")
 
         documentation {
@@ -239,14 +361,18 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiOwnedBy(Wallets::class)
-sealed class WalletOwner {
+sealed class WalletOwner : DocVisualizable {
     @Serializable
     @SerialName("user")
-    data class User(val username: String) : WalletOwner()
+    data class User(val username: String) : WalletOwner() {
+        override fun visualize(): DocVisualization = DocVisualization.Inline("$username (User)")
+    }
 
     @Serializable
     @SerialName("project")
-    data class Project(val projectId: String) : WalletOwner()
+    data class Project(val projectId: String) : WalletOwner() {
+        override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
+    }
 }
 
 @Serializable
@@ -505,11 +631,13 @@ object Accounting : CallDescriptionContainer("accounting") {
             flow = {
                 val ucloud = ucloudCore()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will be performing some simple charge requests for an absolute 
                     product. Before and after each charge, we will show the current state of the system.
                     We will perform the charges on a root allocation, that is, it has no ancestors.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -589,11 +717,13 @@ object Accounting : CallDescriptionContainer("accounting") {
             flow = {
                 val ucloud = ucloudCore()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will be performing some simple charge requests for a differential 
                     product. Before and after each charge, we will show the current state of the system.
                     We will perform the charges on a root allocation, that is, it has no ancestors.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -653,8 +783,10 @@ object Accounting : CallDescriptionContainer("accounting") {
                     ucloud
                 )
 
-                comment("The new charge reports that we are only using 50 GB, that is data was removed since last " +
-                        "period.")
+                comment(
+                    "The new charge reports that we are only using 50 GB, that is data was removed since last " +
+                        "period."
+                )
 
                 success(
                     Wallets.browse,
@@ -681,11 +813,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                 val rootOwner = WalletOwner.Project("root-project")
                 val leafOwner = WalletOwner.Project("leaf-project")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
                     hierarchy we use consists of a single root allocation. The root allocation has a single child, 
                     which we will be referring to as the leaf, since it has no children.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -709,8 +843,10 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has " +
-                    "500.")
+                comment(
+                    "As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has " +
+                        "500."
+                )
 
                 comment("We now perform our charge of a single core hour.")
 
@@ -730,10 +866,12 @@ object Accounting : CallDescriptionContainer("accounting") {
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     The response, as expected, that we had enough credits for the transaction. This would have been 
                     false if _any_ of the allocation in the hierarchy runs out of credits.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -746,11 +884,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piRoot
                 )
 
-                comment("""
+                comment(
+                    """
                     On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
                     that balance shows the overall balance for the entire subtree. The local balance of the root 
                     remains unaffected, since this wasn't consumed by the root. 
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -778,11 +918,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                 val rootOwner = WalletOwner.Project("root-project")
                 val leafOwner = WalletOwner.Project("leaf-project")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
                     hierarchy we use consists of a single root allocation. The root allocation has a single child, 
                     which we will be referring to as the leaf, since it has no children.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -825,10 +967,12 @@ object Accounting : CallDescriptionContainer("accounting") {
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     The response, as expected, that we had enough credits for the transaction. This would have been 
                     false if _any_ of the allocation in the hierarchy runs out of credits.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -841,11 +985,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piRoot
                 )
 
-                comment("""
+                comment(
+                    """
                     On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
                     balance shows the overall balance for the entire subtree. The local balance of the root remains 
                     unaffected, since this wasn't consumed by the root.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -858,9 +1004,11 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     In the leaf allocation, we see that this has affected both the balance and the local balance. 
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 comment("We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation.")
 
@@ -906,10 +1054,12 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
                     and their ancestors. A descendant is never directly updated by such an operation.
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
 
@@ -929,12 +1079,14 @@ object Accounting : CallDescriptionContainer("accounting") {
                 // 400 on node
                 // 50 on leaf
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show what happens when an allocation is unable to carry the full charge. 
                     We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
                     single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
                     has no children.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -955,7 +1107,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42", "52"), 50, 100, 500),
                         owner = nodeOwner,
                     ),
-                    piLeaf
+                    piNode
                 )
 
                 success(
@@ -969,14 +1121,18 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     As we can see from the allocations, they have already been in use. To be concrete, you can reach 
                     this state by applying a 400 core hour charge on the node and another 50 core hours on the leaf.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We now attempt to perform a charge of 100 core hours on the leaf.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     charge,
@@ -994,10 +1150,12 @@ object Accounting : CallDescriptionContainer("accounting") {
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
                     before the charge, only has 50 core hours remaining.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -1018,7 +1176,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42", "52"), -50, 100, 500),
                         owner = nodeOwner,
                     ),
-                    piLeaf
+                    piNode
                 )
 
                 success(
@@ -1032,11 +1190,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
                     balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
                     negatives.
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
 
@@ -1056,12 +1216,14 @@ object Accounting : CallDescriptionContainer("accounting") {
                 // 400 on node
                 // 50 on leaf
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show what happens when an allocation is unable to carry the full charge. 
                     We will be using a more complex hierarchy. The hierarchy will have a single root. The root has a 
                     single child, the 'node' allocation. This node has a single child allocation, the leaf. The leaf 
                     has no children.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -1082,7 +1244,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42", "52"), 50, 100, 500),
                         owner = nodeOwner,
                     ),
-                    piLeaf
+                    piNode
                 )
 
                 success(
@@ -1096,14 +1258,18 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     As we can see from the allocations, they have already been in use. To be concrete, you can reach 
                     this state by applying a 400 GB charge on the node and another 50 GB on the leaf.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We now attempt to perform a charge of 110 GB on the leaf.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     charge,
@@ -1121,10 +1287,12 @@ object Accounting : CallDescriptionContainer("accounting") {
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     Even though the leaf, seen in isolation, has enough credits. The failure occurs in the node which, 
                     before the charge, only has 50 GB remaining.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -1145,7 +1313,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42", "52"), -10, 100, 500),
                         owner = nodeOwner,
                     ),
-                    piLeaf
+                    piNode
                 )
 
                 success(
@@ -1159,16 +1327,20 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     When we apply the charge, the node reaches a negative balance. If any allocation reaches a negative 
                     balance, then the charge has failed. As we can see, it is possible for a balance to go into the 
                     negatives.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We now assume that the leaf deletes all their data. The accounting system records this as a charge 
                     for 0 units (GB).
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     charge,
@@ -1233,14 +1405,16 @@ object Accounting : CallDescriptionContainer("accounting") {
                 val rootOwner = WalletOwner.Project("root-project")
                 val leafOwner = WalletOwner.Project("leaf-project")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
                     have an existing allocation as a child. This is the recommended way of creating allocations. 
                     Resources are not immediately removed from the parent allocation. In addition, workspaces can 
                     over-allocate resources. For example, a workspace can deposit more resources than they have into 
                     sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
                     examples, all allocations in a hierarchy must be able to carry a charge.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -1250,7 +1424,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42"), 500, 500, 500),
                         owner = rootOwner,
                     ),
-                    piLeaf
+                    piRoot
                 )
 
                 success(
@@ -1263,14 +1437,18 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
                     resources at the moment.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We now perform a deposit operation with the leaf workspace as the target.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     deposit,
@@ -1294,7 +1472,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42"), 500, 500, 500),
                         owner = rootOwner,
                     ),
-                    piLeaf
+                    piRoot
                 )
 
                 success(
@@ -1308,11 +1486,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piLeaf
                 )
 
-                comment("""
+                comment(
+                    """
                     After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
                     However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
                     parent, indicated by the path. 
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
 
@@ -1326,14 +1506,16 @@ object Accounting : CallDescriptionContainer("accounting") {
                 val rootOwner = WalletOwner.Project("root-project")
                 val secondRootOwner = WalletOwner.Project("second-root-project")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how a workspace can transfer money to another workspace. This is not 
                     the recommended way of creating granting resources. This approach immediately removes all resources 
                     from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
                     allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
                     should only use transfers if they wish to give away resources that they otherwise will not be able 
                     to consume. 
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     Wallets.browse,
@@ -1343,7 +1525,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42"), 500, 500, 500),
                         owner = rootOwner,
                     ),
-                    piSecondRoot
+                    piRoot
                 )
 
                 success(
@@ -1356,14 +1538,18 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piSecondRoot
                 )
 
-                comment("""
+                comment(
+                    """
                     Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
                     resources at the moment.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We now perform a transfer operation with the leaf workspace as the target.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     transfer,
@@ -1387,7 +1573,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                         allocation(listOf("42"), 400, 400, 500),
                         owner = rootOwner,
                     ),
-                    piSecondRoot
+                    piRoot
                 )
 
                 success(
@@ -1401,11 +1587,13 @@ object Accounting : CallDescriptionContainer("accounting") {
                     piSecondRoot
                 )
 
-                comment("""
+                comment(
+                    """
                     After inspecting the allocations, we see that the original (root) allocation has changed. The 
                     system has immediately removed all the resources. The leaf workspace now have a new allocation. 
                     The new allocation does not have a parent.
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
     }
@@ -1476,12 +1664,16 @@ object Accounting : CallDescriptionContainer("accounting") {
 
             useCaseReference(chargeAbsoluteSingleUseCase, "Charging a root allocation (Absolute)")
             useCaseReference(chargeAbsoluteMultiUseCase, "Charging a leaf allocation (Absolute)")
-            useCaseReference(chargeAbsoluteMultiMissingUseCase,
-                "Charging a leaf allocation with missing credits (Absolute)")
+            useCaseReference(
+                chargeAbsoluteMultiMissingUseCase,
+                "Charging a leaf allocation with missing credits (Absolute)"
+            )
             useCaseReference(chargeDifferentialSingleUseCase, "Charging a root allocation (Differential)")
             useCaseReference(chargeDifferentialMultiUseCase, "Charging a leaf allocation (Differential)")
-            useCaseReference(chargeDifferentialMultiMissingUseCase,
-                "Charging a leaf allocation with missing credits (Differential)")
+            useCaseReference(
+                chargeDifferentialMultiMissingUseCase,
+                "Charging a leaf allocation with missing credits (Differential)"
+            )
         }
     }
 
