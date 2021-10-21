@@ -279,6 +279,7 @@ class SyncFolderService(
                 setParameter("filter_path", flags?.filterByPath)
                 setParameter("filter_devices", flags?.filterDeviceId)
                 setParameter("filter_user", flags?.filterUser)
+                setParameter("filter_parent", flags?.filterByParent)
             },
             """
                 select f.resource, f.device_id, f.path, f.sync_type
@@ -286,6 +287,9 @@ class SyncFolderService(
                 join provider.resource r on f.resource = r.id
                 where
                     (:query::text is null or path ilike ('%' || :query || '%')) and
+                    (:filter_parent::text is null or 
+                        f.path like (:filter_parent::text || '/%')
+                    ) and
                     (:filter_path::text is null or :filter_path::text = path) and
                     (:filter_devices::text[] is null or
                         array_length(:filter_devices::text[], 1) < 1 or 
