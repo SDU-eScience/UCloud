@@ -64,13 +64,7 @@ class SyncFolderService(
                     type = 'sync_folder' and 
                     f.path like any((select unnest(:parentIds::text[])))
             """
-        ).rows
-
-        if (affectedFolders.size == 0) {
-            return
-        }
-
-        val mapping = affectedFolders.map { row ->
+        ).rows.map { row ->
             val folderId = row.getLong("resource") ?: 0
             val folderPath = row.getString("path") !!
             val resource = batch.items.first {
@@ -88,9 +82,13 @@ class SyncFolderService(
             Pair(folderId, newSyncType)
         }
 
+        if (affectedFolders.isEmpty()) {
+            return
+        }
+
         session.sendPreparedStatement(
             {
-                setParameter("ids", mapping.filter { it.second == null }.map { it.first })
+                setParameter("ids", affectedFolders.filter { it.second == null }.map { it.first })
             },
             """
                 delete from file_orchestrator.sync_folders
@@ -100,8 +98,8 @@ class SyncFolderService(
 
         session.sendPreparedStatement(
             {
-                setParameter("ids", mapping.filter { it.second != null }.map { it.first })
-                setParameter("sync_types", mapping.filter { it.second != null }.map { it.second.toString() })
+                setParameter("ids", affectedFolders.filter { it.second != null }.map { it.first })
+                setParameter("sync_types", affectedFolders.filter { it.second != null }.map { it.second.toString() })
             },
             """
                 update file_orchestrator.sync_folders set
@@ -113,7 +111,7 @@ class SyncFolderService(
 
         proxy.bulkProxy(
             ActorAndProject(Actor.System, null),
-            BulkRequest(mapping),
+            BulkRequest(affectedFolders),
             BulkProxyInstructions.pureProcedure(
                 service = this,
                 retrieveCall = { providerApi(it).onFilePermissionsUpdated },
