@@ -43,7 +43,7 @@
         "styled-components": "^5.3.1",
         "styled-system": "^5.1.5",
         "svgi": "^1.1.0",
-        "ua-parser-js": "^0.7.28",
+        "ua-parser-js": "0.7.28",
         "vfile": "5.1.1",
         "xterm": "^4.14.1",
         "xterm-addon-fit": "^0.5.0"
