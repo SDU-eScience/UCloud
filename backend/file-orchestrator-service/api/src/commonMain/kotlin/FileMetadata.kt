@@ -6,9 +6,16 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.WithStringId
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.ResourcePermissions
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 // ---
 
@@ -79,6 +86,114 @@ typealias FileMetadataBrowseResponse = PageV2<FileMetadataAttached>
 
 object FileMetadata : CallDescriptionContainer("files.metadata") {
     const val baseContext = "/api/files/metadata"
+
+    init {
+        description = """
+            Metadata documents form the foundation of data management in UCloud.
+            
+            UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
+            tag documents at a glance and search through them.
+
+            This feature consists of two parts:
+
+            1. __Metadata templates (previous section):__ Templates specify the schema. You can think of this as a way of 
+               defining _how_ your documents should look. We use them to generate user interfaces and visual 
+               representations of your documents.
+            2. __Metadata documents (you are here):__ Documents fill out the values of a template. When you create a 
+               document you must attach it to a file also.
+        """.trimIndent()
+    }
+
+    @OptIn(UCloudApiExampleValue::class)
+    override fun documentation() {
+        useCase(
+            "sensitivity",
+            "Sensitivity Document",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example, we will show how to create a metadata document and attach it to a file.")
+                comment("We already have a metadata template in the catalog:")
+
+                success(
+                    FileMetadataTemplateNamespaces.retrieveLatest,
+                    FindByStringId("15123"),
+                    sensitivityExample,
+                    user
+                )
+
+                comment("Using this, we can create a metadata document and attach it to our file")
+
+                val metadata = FileMetadataDocument.Spec(
+                    "15123",
+                    "1.0.0",
+                    JsonObject(
+                        mapOf(
+                            "sensitivity" to JsonPrimitive("SENSITIVE")
+                        )
+                    ),
+                    "New sensitivity"
+                )
+                success(
+                    create,
+                    bulkRequestOf(
+                        FileMetadataAddRequestItem(
+                            "/51231/my/file",
+                            metadata
+                        )
+                    ),
+                    FileMetadataAddMetadataResponse(listOf(FindByStringId("651233"))),
+                    user
+                )
+
+                comment("This specific template requires approval from a workspace admin. We can do this by calling " +
+                        "approve.")
+
+                success(
+                    approve,
+                    bulkRequestOf(FindByStringId("651233")),
+                    Unit,
+                    user
+                )
+
+                comment("We can view the metadata by adding includeMetadata = true when requesting any file")
+
+                success(
+                    Files.retrieve,
+                    ResourceRetrieveRequest(UFileIncludeFlags(includeMetadata = true), "51231"),
+                    UFile(
+                        "/51231/my/file",
+                        UFileSpecification(
+                            "51231",
+                            ProductReference("example-ssd", "example-ssd", "example")
+                        ),
+                        1635151675465L,
+                        UFileStatus(
+                            metadata = FileMetadataHistory(
+                                mapOf("sensitivity" to sensitivityExample),
+                                mapOf(
+                                    "sensitivity" to listOf(
+                                        FileMetadataDocument(
+                                            "651233",
+                                            metadata,
+                                            1635151675465L,
+                                            FileMetadataDocument.Status(
+                                                FileMetadataDocument.ApprovalStatus.Approved("user")
+                                            ),
+                                            "user"
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        ResourceOwner("user", null),
+                        ResourcePermissions(listOf(Permission.ADMIN), emptyList())
+                    ),
+                    user
+                )
+            }
+        )
+    }
 
     val create = call<FileMetadataAddMetadataRequest, FileMetadataAddMetadataResponse,
         CommonErrorMessage>("create") {

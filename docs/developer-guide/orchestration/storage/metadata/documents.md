@@ -9,11 +9,40 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Metadata documents form the foundation of data management in UCloud._
+
+## Rationale
+
+UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
+tag documents at a glance and search through them.
+
+This feature consists of two parts:
+
+1. __Metadata templates (previous section):__ Templates specify the schema. You can think of this as a way of 
+   defining _how_ your documents should look. We use them to generate user interfaces and visual 
+   representations of your documents.
+2. __Metadata documents (you are here):__ Documents fill out the values of a template. When you create a 
+   document you must attach it to a file also.
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-sensitivity-document'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-sensitivity-document'>Sensitivity Document</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -56,7 +85,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -136,6 +165,765 @@
 
 
 </details>
+
+## Example: Sensitivity Document
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will show how to create a metadata document and attach it to a file. */
+
+
+/* We already have a metadata template in the catalog: */
+
+FileMetadataTemplateNamespaces.retrieveLatest.call(
+    FindByStringId(
+        id = "15123", 
+    ),
+    user
+).orThrow()
+
+/*
+FileMetadataTemplate(
+    changeLog = "Initial version", 
+    createdAt = 0, 
+    description = "File sensitivity for files", 
+    inheritable = true, 
+    namespaceId = "sensitivity", 
+    namespaceName = null, 
+    namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+    requireApproval = true, 
+    schema = JsonObject(mapOf("type" to JsonLiteral(
+        content = "object", 
+        isString = true, 
+    )),"title" to JsonLiteral(
+        content = "UCloud File Sensitivity", 
+        isString = true, 
+    )),"required" to listOf(JsonLiteral(
+        content = "sensitivity", 
+        isString = true, 
+    ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+        content = "SENSITIVE", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "CONFIDENTIAL", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "PRIVATE", 
+        isString = true, 
+    ))),"type" to JsonLiteral(
+        content = "string", 
+        isString = true, 
+    )),"title" to JsonLiteral(
+        content = "File Sensitivity", 
+        isString = true, 
+    )),"enumNames" to listOf(JsonLiteral(
+        content = "Sensitive", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "Confidential", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "Private", 
+        isString = true, 
+    ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
+    title = "Sensitivity", 
+    uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+        content = "sensitivity", 
+        isString = true, 
+    ))),)), 
+    version = "1.0.0", 
+)
+*/
+
+/* Using this, we can create a metadata document and attach it to our file */
+
+FileMetadata.create.call(
+    bulkRequestOf(FileMetadataAddRequestItem(
+        fileId = "/51231/my/file", 
+        metadata = FileMetadataDocument.Spec(
+            changeLog = "New sensitivity", 
+            document = JsonObject(mapOf("sensitivity" to JsonLiteral(
+                content = "SENSITIVE", 
+                isString = true, 
+            )),)), 
+            templateId = "15123", 
+            version = "1.0.0", 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "651233", 
+    )), 
+)
+*/
+
+/* This specific template requires approval from a workspace admin. We can do this by calling approve. */
+
+FileMetadata.approve.call(
+    bulkRequestOf(FindByStringId(
+        id = "651233", 
+    )),
+    user
+).orThrow()
+
+/*
+Unit
+*/
+
+/* We can view the metadata by adding includeMetadata = true when requesting any file */
+
+Files.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = UFileIncludeFlags(
+            allowUnsupportedInclude = null, 
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterHiddenFiles = false, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeMetadata = true, 
+            includeOthers = false, 
+            includePermissions = null, 
+            includeProduct = false, 
+            includeSizes = null, 
+            includeSupport = false, 
+            includeTimestamps = null, 
+            includeUnixInfo = null, 
+            includeUpdates = false, 
+            path = null, 
+        ), 
+        id = "51231", 
+    ),
+    user
+).orThrow()
+
+/*
+UFile(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1635151675465, 
+    id = "/51231/my/file", 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = ResourcePermissions(
+        myself = listOf(Permission.ADMIN), 
+        others = emptyList(), 
+    ), 
+    specification = UFileSpecification(
+        collection = "51231", 
+        product = ProductReference(
+            category = "example-ssd", 
+            id = "example-ssd", 
+            provider = "example", 
+        ), 
+    ), 
+    status = UFileStatus(
+        accessedAt = null, 
+        icon = null, 
+        metadata = FileMetadataHistory(
+            metadata = mapOf("sensitivity" to listOf(FileMetadataDocument(
+                createdAt = 1635151675465, 
+                createdBy = "user", 
+                id = "651233", 
+                specification = FileMetadataDocument.Spec(
+                    changeLog = "New sensitivity", 
+                    document = JsonObject(mapOf("sensitivity" to JsonLiteral(
+                        content = "SENSITIVE", 
+                        isString = true, 
+                    )),)), 
+                    templateId = "15123", 
+                    version = "1.0.0", 
+                ), 
+                status = FileMetadataDocument.Status(
+                    approval = FileMetadataDocument.ApprovalStatus.Approved(
+                        approvedBy = "user", 
+                    ), 
+                ), 
+            ))), 
+            templates = mapOf("sensitivity" to FileMetadataTemplate(
+                changeLog = "Initial version", 
+                createdAt = 0, 
+                description = "File sensitivity for files", 
+                inheritable = true, 
+                namespaceId = "sensitivity", 
+                namespaceName = null, 
+                namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+                requireApproval = true, 
+                schema = JsonObject(mapOf("type" to JsonLiteral(
+                    content = "object", 
+                    isString = true, 
+                )),"title" to JsonLiteral(
+                    content = "UCloud File Sensitivity", 
+                    isString = true, 
+                )),"required" to listOf(JsonLiteral(
+                    content = "sensitivity", 
+                    isString = true, 
+                ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+                    content = "SENSITIVE", 
+                    isString = true, 
+                ), JsonLiteral(
+                    content = "CONFIDENTIAL", 
+                    isString = true, 
+                ), JsonLiteral(
+                    content = "PRIVATE", 
+                    isString = true, 
+                ))),"type" to JsonLiteral(
+                    content = "string", 
+                    isString = true, 
+                )),"title" to JsonLiteral(
+                    content = "File Sensitivity", 
+                    isString = true, 
+                )),"enumNames" to listOf(JsonLiteral(
+                    content = "Sensitive", 
+                    isString = true, 
+                ), JsonLiteral(
+                    content = "Confidential", 
+                    isString = true, 
+                ), JsonLiteral(
+                    content = "Private", 
+                    isString = true, 
+                ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
+                title = "Sensitivity", 
+                uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+                    content = "sensitivity", 
+                    isString = true, 
+                ))),)), 
+                version = "1.0.0", 
+            )), 
+        ), 
+        modifiedAt = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        sizeInBytes = null, 
+        sizeIncludingChildrenInBytes = null, 
+        type = FileType.FILE, 
+        unixGroup = null, 
+        unixMode = null, 
+        unixOwner = null, 
+    ), 
+    updates = emptyList(), 
+    providerGeneratedId = "/51231/my/file", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will show how to create a metadata document and attach it to a file. */
+
+
+/* We already have a metadata template in the catalog: */
+
+// Authenticated as user
+await callAPI(FilesMetadataTemplatesApi.retrieveLatest(
+    {
+        "id": "15123"
+    }
+);
+
+/*
+{
+    "namespaceId": "sensitivity",
+    "title": "Sensitivity",
+    "version": "1.0.0",
+    "schema": {
+        "type": "object",
+        "title": "UCloud File Sensitivity",
+        "required": [
+            "sensitivity"
+        ],
+        "properties": {
+            "sensitivity": {
+                "enum": [
+                    "SENSITIVE",
+                    "CONFIDENTIAL",
+                    "PRIVATE"
+                ],
+                "type": "string",
+                "title": "File Sensitivity",
+                "enumNames": [
+                    "Sensitive",
+                    "Confidential",
+                    "Private"
+                ]
+            }
+        },
+        "dependencies": {
+        }
+    },
+    "inheritable": true,
+    "requireApproval": true,
+    "description": "File sensitivity for files",
+    "changeLog": "Initial version",
+    "namespaceType": "COLLABORATORS",
+    "uiSchema": {
+        "ui:order": [
+            "sensitivity"
+        ]
+    },
+    "namespaceName": null,
+    "createdAt": 0
+}
+*/
+
+/* Using this, we can create a metadata document and attach it to our file */
+
+await callAPI(FilesMetadataApi.create(
+    {
+        "items": [
+            {
+                "fileId": "/51231/my/file",
+                "metadata": {
+                    "templateId": "15123",
+                    "version": "1.0.0",
+                    "document": {
+                        "sensitivity": "SENSITIVE"
+                    },
+                    "changeLog": "New sensitivity"
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "651233"
+        }
+    ]
+}
+*/
+
+/* This specific template requires approval from a workspace admin. We can do this by calling approve. */
+
+await callAPI(FilesMetadataApi.approve(
+    {
+        "items": [
+            {
+                "id": "651233"
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+
+/* We can view the metadata by adding includeMetadata = true when requesting any file */
+
+await callAPI(FilesApi.retrieve(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "includePermissions": null,
+            "includeTimestamps": null,
+            "includeSizes": null,
+            "includeUnixInfo": null,
+            "includeMetadata": true,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "path": null,
+            "allowUnsupportedInclude": null,
+            "filterHiddenFiles": false,
+            "filterIds": null
+        },
+        "id": "51231"
+    }
+);
+
+/*
+{
+    "id": "/51231/my/file",
+    "specification": {
+        "collection": "51231",
+        "product": {
+            "id": "example-ssd",
+            "category": "example-ssd",
+            "provider": "example"
+        }
+    },
+    "createdAt": 1635151675465,
+    "status": {
+        "type": "FILE",
+        "icon": null,
+        "sizeInBytes": null,
+        "sizeIncludingChildrenInBytes": null,
+        "modifiedAt": null,
+        "accessedAt": null,
+        "unixMode": null,
+        "unixOwner": null,
+        "unixGroup": null,
+        "metadata": {
+            "templates": {
+                "sensitivity": {
+                    "namespaceId": "sensitivity",
+                    "title": "Sensitivity",
+                    "version": "1.0.0",
+                    "schema": {
+                        "type": "object",
+                        "title": "UCloud File Sensitivity",
+                        "required": [
+                            "sensitivity"
+                        ],
+                        "properties": {
+                            "sensitivity": {
+                                "enum": [
+                                    "SENSITIVE",
+                                    "CONFIDENTIAL",
+                                    "PRIVATE"
+                                ],
+                                "type": "string",
+                                "title": "File Sensitivity",
+                                "enumNames": [
+                                    "Sensitive",
+                                    "Confidential",
+                                    "Private"
+                                ]
+                            }
+                        },
+                        "dependencies": {
+                        }
+                    },
+                    "inheritable": true,
+                    "requireApproval": true,
+                    "description": "File sensitivity for files",
+                    "changeLog": "Initial version",
+                    "namespaceType": "COLLABORATORS",
+                    "uiSchema": {
+                        "ui:order": [
+                            "sensitivity"
+                        ]
+                    },
+                    "namespaceName": null,
+                    "createdAt": 0
+                }
+            },
+            "metadata": {
+                "sensitivity": [
+                    {
+                        "type": "metadata",
+                        "id": "651233",
+                        "specification": {
+                            "templateId": "15123",
+                            "version": "1.0.0",
+                            "document": {
+                                "sensitivity": "SENSITIVE"
+                            },
+                            "changeLog": "New sensitivity"
+                        },
+                        "createdAt": 1635151675465,
+                        "status": {
+                            "approval": {
+                                "type": "approved",
+                                "approvedBy": "user"
+                            }
+                        },
+                        "createdBy": "user"
+                    }
+                ]
+            }
+        },
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "permissions": {
+        "myself": [
+            "ADMIN"
+        ],
+        "others": [
+        ]
+    },
+    "billing": {
+    },
+    "acl": null,
+    "updates": [
+    ]
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will show how to create a metadata document and attach it to a file.
+
+# We already have a metadata template in the catalog:
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemplates/retrieveLatest?id=15123" 
+
+# {
+#     "namespaceId": "sensitivity",
+#     "title": "Sensitivity",
+#     "version": "1.0.0",
+#     "schema": {
+#         "type": "object",
+#         "title": "UCloud File Sensitivity",
+#         "required": [
+#             "sensitivity"
+#         ],
+#         "properties": {
+#             "sensitivity": {
+#                 "enum": [
+#                     "SENSITIVE",
+#                     "CONFIDENTIAL",
+#                     "PRIVATE"
+#                 ],
+#                 "type": "string",
+#                 "title": "File Sensitivity",
+#                 "enumNames": [
+#                     "Sensitive",
+#                     "Confidential",
+#                     "Private"
+#                 ]
+#             }
+#         },
+#         "dependencies": {
+#         }
+#     },
+#     "inheritable": true,
+#     "requireApproval": true,
+#     "description": "File sensitivity for files",
+#     "changeLog": "Initial version",
+#     "namespaceType": "COLLABORATORS",
+#     "uiSchema": {
+#         "ui:order": [
+#             "sensitivity"
+#         ]
+#     },
+#     "namespaceName": null,
+#     "createdAt": 0
+# }
+
+# Using this, we can create a metadata document and attach it to our file
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/metadata" -d '{
+    "items": [
+        {
+            "fileId": "/51231/my/file",
+            "metadata": {
+                "templateId": "15123",
+                "version": "1.0.0",
+                "document": {
+                    "sensitivity": "SENSITIVE"
+                },
+                "changeLog": "New sensitivity"
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "651233"
+#         }
+#     ]
+# }
+
+# This specific template requires approval from a workspace admin. We can do this by calling approve.
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/metadata/approve" -d '{
+    "items": [
+        {
+            "id": "651233"
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# We can view the metadata by adding includeMetadata = true when requesting any file
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeMetadata=true&filterHiddenFiles=false&id=51231" 
+
+# {
+#     "id": "/51231/my/file",
+#     "specification": {
+#         "collection": "51231",
+#         "product": {
+#             "id": "example-ssd",
+#             "category": "example-ssd",
+#             "provider": "example"
+#         }
+#     },
+#     "createdAt": 1635151675465,
+#     "status": {
+#         "type": "FILE",
+#         "icon": null,
+#         "sizeInBytes": null,
+#         "sizeIncludingChildrenInBytes": null,
+#         "modifiedAt": null,
+#         "accessedAt": null,
+#         "unixMode": null,
+#         "unixOwner": null,
+#         "unixGroup": null,
+#         "metadata": {
+#             "templates": {
+#                 "sensitivity": {
+#                     "namespaceId": "sensitivity",
+#                     "title": "Sensitivity",
+#                     "version": "1.0.0",
+#                     "schema": {
+#                         "type": "object",
+#                         "title": "UCloud File Sensitivity",
+#                         "required": [
+#                             "sensitivity"
+#                         ],
+#                         "properties": {
+#                             "sensitivity": {
+#                                 "enum": [
+#                                     "SENSITIVE",
+#                                     "CONFIDENTIAL",
+#                                     "PRIVATE"
+#                                 ],
+#                                 "type": "string",
+#                                 "title": "File Sensitivity",
+#                                 "enumNames": [
+#                                     "Sensitive",
+#                                     "Confidential",
+#                                     "Private"
+#                                 ]
+#                             }
+#                         },
+#                         "dependencies": {
+#                         }
+#                     },
+#                     "inheritable": true,
+#                     "requireApproval": true,
+#                     "description": "File sensitivity for files",
+#                     "changeLog": "Initial version",
+#                     "namespaceType": "COLLABORATORS",
+#                     "uiSchema": {
+#                         "ui:order": [
+#                             "sensitivity"
+#                         ]
+#                     },
+#                     "namespaceName": null,
+#                     "createdAt": 0
+#                 }
+#             },
+#             "metadata": {
+#                 "sensitivity": [
+#                     {
+#                         "type": "metadata",
+#                         "id": "651233",
+#                         "specification": {
+#                             "templateId": "15123",
+#                             "version": "1.0.0",
+#                             "document": {
+#                                 "sensitivity": "SENSITIVE"
+#                             },
+#                             "changeLog": "New sensitivity"
+#                         },
+#                         "createdAt": 1635151675465,
+#                         "status": {
+#                             "approval": {
+#                                 "type": "approved",
+#                                 "approvedBy": "user"
+#                             }
+#                         },
+#                         "createdBy": "user"
+#                     }
+#                 ]
+#             }
+#         },
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "permissions": {
+#         "myself": [
+#             "ADMIN"
+#         ],
+#         "others": [
+#         ]
+#     },
+#     "billing": {
+#     },
+#     "acl": null,
+#     "updates": [
+#     ]
+# }
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files.metadata_sensitivity.png)
+
+</details>
+
 
 
 ## Remote Procedure Calls
