@@ -43,7 +43,7 @@ import {SynchronizationSettings} from "@/Files/Synchronization";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
-import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
@@ -203,9 +203,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = findSensitivity(resource);
             return <Flex>
-                {resource.status.synced === true ? 
+                {resource.status.synced === true ?
                     <Icon size={24} name="refresh" color="midGray" marginTop={7} marginRight={10} />
-                : null}
+                    : null}
                 <Sensitivity sensitivity={sensitivity} />
             </Flex>;
         },

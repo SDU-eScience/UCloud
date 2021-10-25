@@ -1,8 +1,8 @@
-import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
-import { bulkRequestOf, emptyPageV2 } from "@/DefaultObjects";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import React from "react";
-import { useState } from "react";
-import { UFile } from "@/UCloud/FilesApi";
+import {useState} from "react";
+import {UFile} from "@/UCloud/FilesApi";
 import SyncFolderApi, {
     SyncFolder,
     SyncFolderSupport,
@@ -16,18 +16,18 @@ import {
     SelectableText,
     SelectableTextWrapper,
 } from "@/ui-components";
-import { TextSpan } from "@/ui-components/Text";
-import { copyToClipboard } from "@/UtilityFunctions";
-import { useEffect } from "react";
-import SyncDeviceApi, { SyncDevice } from "@/UCloud/SyncDeviceApi";
-import { PageV2 } from "@/UCloud";
-import { ResourceBrowse } from "@/Resource/Browse";
-import { Toggle } from "@/ui-components/Toggle";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { ProductSyncFolder } from "@/Accounting";
-import { SupportByProvider } from "@/UCloud/ResourceApi";
-import { snackbarStore } from "@/Snackbar/SnackbarStore";
-import { FileCollection } from "@/UCloud/FileCollectionsApi";
+import {TextSpan} from "@/ui-components/Text";
+import {copyToClipboard} from "@/UtilityFunctions";
+import {useEffect} from "react";
+import SyncDeviceApi, {SyncDevice} from "@/UCloud/SyncDeviceApi";
+import {PageV2} from "@/UCloud";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {Toggle} from "@/ui-components/Toggle";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {ProductSyncFolder} from "@/Accounting";
+import {SupportByProvider} from "@/UCloud/ResourceApi";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FileCollection} from "@/UCloud/FileCollectionsApi";
 
 const Tab: React.FunctionComponent<{
     selected: boolean;
@@ -50,7 +50,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     file: UFile;
     provider: string;
     onDeviceSelect?: (selection: SyncDevice) => void;
-}> = ({ file, provider, onDeviceSelect }) => {
+}> = ({file, provider, onDeviceSelect}) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder>>(
         SyncFolderApi.browse({
@@ -98,7 +98,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                                 support.product,
                         })
                     ),
-                    { defaultErrorHandler: false }
+                    {defaultErrorHandler: false}
                 );
                 fetchFolders(
                     SyncFolderApi.browse({
@@ -115,7 +115,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
         } else {
             if (syncFolder) {
                 await invokeCommand(
-                    SyncFolderApi.remove(bulkRequestOf({ id: syncFolder.id }))
+                    SyncFolderApi.remove(bulkRequestOf({id: syncFolder.id}))
                 );
                 setUcloudDeviceId(undefined);
                 setSyncFolder(undefined);
