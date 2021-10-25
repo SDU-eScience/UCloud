@@ -35,7 +35,7 @@ export const FilesBrowse: React.FunctionComponent<{
         props.browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
     );
     const path = props.browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
-    const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
+    const additionalFilters = useMemo((() => ({path, includeMetadata: "true", includeSyncStatus: "true"})), [path]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);

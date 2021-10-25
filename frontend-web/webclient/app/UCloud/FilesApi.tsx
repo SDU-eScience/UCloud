@@ -11,7 +11,7 @@ import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, FtIcon, Link} from "@/ui-components";
+import {Box, Button, Flex, FtIcon, Icon, Link} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -59,6 +59,7 @@ export interface UFileStatus extends ResourceStatus {
     unixOwner?: number;
     unixGroup?: number;
     metadata?: FileMetadataHistory;
+    synced?: boolean;
 }
 
 export interface UFileSpecification extends ResourceSpecification {
@@ -71,6 +72,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeSizes?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
+    includeSyncStatus?: boolean;
     path?: string;
 }
 
@@ -200,7 +202,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         ImportantStats({resource}) {
             if (!resource) return null;
             const sensitivity = findSensitivity(resource);
-            return <div><Sensitivity sensitivity={sensitivity} /></div>;
+            return <Flex>
+                {resource.status.synced === true ? 
+                    <Icon size={24} name="refresh" color="midGray" marginTop={7} marginRight={10} />
+                : null}
+                <Sensitivity sensitivity={sensitivity} />
+            </Flex>;
         },
         Stats({resource}) {
             if (resource == null) return null;

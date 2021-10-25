@@ -107,6 +107,7 @@ data class UFileIncludeFlags(
     val includeSizes: Boolean? = null,
     val includeUnixInfo: Boolean? = null,
     val includeMetadata: Boolean? = null,
+    val includeSyncStatus: Boolean? = null,
 
     override val filterCreatedBy: String? = null,
     override val filterCreatedAfter: Long? = null,
@@ -298,6 +299,9 @@ data class UFileStatus(
 
     @UCloudApiDoc("User-defined metadata for this file. See `FileMetadataTemplate` for details.")
     val metadata: FileMetadataHistory? = null,
+
+    @UCloudApiDoc("If the file is added to synchronization or not")
+    val synced: Boolean? = null,
 
     override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
     override var resolvedProduct: Product.Storage? = null,
