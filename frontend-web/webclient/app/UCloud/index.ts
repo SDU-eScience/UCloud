@@ -948,7 +948,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/files" + "/browse", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, includeSyncStatus: request.includeSyncStatus, allowUnsupportedInclude: request.allowUnsupportedInclude, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, sortBy: request.sortBy, sortOrder: request.sortOrder}),
+        path: buildQueryString("/api/files" + "/browse", request),
         parameters: request,
         reloadId: Math.random(),
     };

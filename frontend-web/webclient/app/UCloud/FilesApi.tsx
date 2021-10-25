@@ -203,7 +203,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = findSensitivity(resource);
             return <Flex>
-                {resource.status.synced === true ?
+                {resource.status.synced ?
                     <Icon size={24} name="refresh" color="midGray" marginTop={7} marginRight={10} />
                     : null}
                 <Sensitivity sensitivity={sensitivity} />
