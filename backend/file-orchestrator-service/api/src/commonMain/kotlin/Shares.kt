@@ -10,6 +10,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
@@ -133,6 +134,114 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
         Product.Storage, ShareSupport>("shares") {
     override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
             Product.Storage, ShareSupport>()
+
+    init {
+        description = """
+            Shares provide users a way of collaborating on individual folders in a personal workspaces.
+
+            This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
+            other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
+            how to use this feature. We generally recommend that you use a full-blown project for collaboration.
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase(
+            "complete",
+            "Complete example",
+            flow = {
+                val alice = actor("alice", "A UCloud user named Alice")
+                val bob = actor("bob", "A UCloud user named Bob")
+
+                comment("""
+                    In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
+                    share references a UFile.
+                """.trimIndent())
+
+                val spec = Share.Spec(
+                    "bob",
+                    "/5123/work/my-project/my-collaboration",
+                    listOf(Permission.EDIT),
+                    ProductReference("share", "example-ssd", "example")
+                )
+                success(
+                    create,
+                    bulkRequestOf(
+                        spec
+                    ),
+                    BulkResponse(listOf(FindByStringId("6342"))),
+                    alice
+                )
+
+                comment("""
+                    This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares.
+                """.trimIndent())
+
+                success(
+                    browse,
+                    ResourceBrowseRequest(
+                        ShareFlags(filterIngoing = true),
+                    ),
+                    PageV2(
+                        50,
+                        listOf(
+                            Share(
+                                "6342",
+                                spec,
+                                1635151675465L,
+                                Share.Status(
+                                    null,
+                                    Share.State.PENDING
+                                ),
+                                emptyList(),
+                                ResourceOwner("alice", null),
+                                ResourcePermissions(listOf(Permission.READ), null),
+                            )
+                        ),
+                        null
+                    ),
+                    bob
+                )
+
+                comment("Bob now approves this share request")
+
+                success(
+                    approve,
+                    bulkRequestOf(FindByStringId("6342")),
+                    Unit,
+                    bob
+                )
+
+                comment("And the file is now shared and available at the path /6412")
+
+                success(
+                    browse,
+                    ResourceBrowseRequest(
+                        ShareFlags(filterIngoing = true),
+                    ),
+                    PageV2(
+                        50,
+                        listOf(
+                            Share(
+                                "6342",
+                                spec,
+                                1635151675465L,
+                                Share.Status(
+                                    "/6412",
+                                    Share.State.APPROVED
+                                ),
+                                emptyList(),
+                                ResourceOwner("alice", null),
+                                ResourcePermissions(listOf(Permission.READ), null),
+                            )
+                        ),
+                        null
+                    ),
+                    bob
+                )
+            }
+        )
+    }
 
     val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
         httpUpdate(baseContext, "approve")
