@@ -16,6 +16,7 @@ export const ShareBrowse: React.FunctionComponent<{
 }> = props => {
     const location = useLocation();
     const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
+    const filterRejected = getQueryParam(location.search, "filterRejected") !== "false";
     const filterOriginalPath = getQueryParam(location.search, "filterOriginalPath");
     const avatars = useAvatars();
 
@@ -24,6 +25,9 @@ export const ShareBrowse: React.FunctionComponent<{
         result["filterIngoing"] = filterIngoing.toString()
         if (filterOriginalPath) {
             result["filterOriginalPath"] = filterOriginalPath;
+        }
+        if (filterRejected) {
+            result["filterRejected"] = filterRejected.toString();
         }
         return result;
     }, [filterIngoing]);

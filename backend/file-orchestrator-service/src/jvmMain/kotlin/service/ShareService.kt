@@ -17,6 +17,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilesMoveRequestItem
 import dk.sdu.cloud.file.orchestrator.api.OutgoingShareGroup
@@ -30,6 +31,10 @@ import dk.sdu.cloud.file.orchestrator.api.SharesUpdatePermissionsRequest
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.provider.api.UpdatedAcl
@@ -41,6 +46,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 
 typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
@@ -154,6 +160,23 @@ class ShareService(
                 HttpStatusCode.BadRequest
             )
         }
+        //Check user exists
+        val returnedUsers = session.sendPreparedStatement(
+            {
+                idWithSpec.split {
+                    into("username") {it.second.sharedWith}
+                }
+            },
+            """
+                select *
+                from "auth".principals
+                where id in (select unnest(:username::text[]))
+            """
+        ).rows
+        if (idWithSpec.size != returnedUsers.size) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+
         val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()
         collections.retrieveBulk(
             actorAndProject,
@@ -190,6 +213,19 @@ class ShareService(
                 from requests
             """
         )
+        idWithSpec.forEach {
+            NotificationDescriptions.create.call(
+                CreateNotification(
+                    it.second.sharedWith,
+                    Notification(
+                        NotificationType.SHARE_REQUEST.name,
+                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        meta = JsonObject(emptyMap())
+                    )
+                ),
+                serviceClient
+            )
+        }
     }
 
     override suspend fun onUpdate(
@@ -521,6 +557,7 @@ class ShareService(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())
                 setParameter("filter_ingoing", flags?.filterIngoing)
+                setParameter("filter_rejected", flags?.filterRejected)
                 setParameter("query", query)
             },
             """
@@ -532,6 +569,11 @@ class ShareService(
                         :filter_ingoing::boolean is null or
                         (:filter_ingoing = true and :username = s.shared_with) or
                         (:filter_ingoing = false and :username is distinct from s.shared_with)
+                    ) and
+                    (
+                        :filter_rejected::boolean is null or
+                        (:filter_rejected = true and 'REJECTED' is distinct from s.state) or
+                        (:filter_rejected = false and true)
                     ) and
                     (
                         :query::text is null or

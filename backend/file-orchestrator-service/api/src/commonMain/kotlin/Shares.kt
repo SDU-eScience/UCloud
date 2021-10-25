@@ -95,6 +95,7 @@ data class ShareFlags(
     override val filterProviderIds: String? = null,
     val filterIngoing: Boolean = false,
     val filterOriginalPath: String? = null,
+    val filterRejected: String? = null,
     override val filterIds: String? = null,
 ) : ResourceIncludeFlags
 

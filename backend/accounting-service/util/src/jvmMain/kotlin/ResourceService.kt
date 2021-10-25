@@ -374,7 +374,7 @@ abstract class ResourceService<
                                             returning resource_id
                                         )
                                     select distinct resource_id from acl_entries;
-                                """,
+                                """
                             )
                             .rows
                             .map { it.getLong(0)!! }
@@ -839,7 +839,7 @@ abstract class ResourceService<
                     """
                 ).rows.map { it.getLong(0)!! }
 
-            check(generatedIds.size == request.items.size)
+            check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )
 
             createSpecifications(
                 actorAndProject,
