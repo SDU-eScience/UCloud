@@ -6,6 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Finds a list of a user's unclaimed [Gift]s_
 
 | Request | Response | Error |
 |---------|----------|-------|

@@ -1,6 +1,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Accounting Operations](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
 
-# Example: Creating a sub-allocation (deposit operation)
+# Example: Creating a new root allocation (transfer operation)
 
 <table>
 <tr><th>Frequency of use</th><td>Common</td></tr>
@@ -8,7 +8,7 @@
 <th>Actors</th>
 <td><ul>
 <li>The PI of the root project (<code>piRoot</code>)</li>
-<li>The PI of the leaf project (child of root) (<code>piLeaf</code>)</li>
+<li>The PI of the new root project (<code>piSecondRoot</code>)</li>
 </ul></td>
 </tr>
 </table>
@@ -19,12 +19,12 @@
 
 ```kotlin
 
-/* In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
-have an existing allocation as a child. This is the recommended way of creating allocations. 
-Resources are not immediately removed from the parent allocation. In addition, workspaces can 
-over-allocate resources. For example, a workspace can deposit more resources than they have into 
-sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
-examples, all allocations in a hierarchy must be able to carry a charge. */
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
 
 Wallets.browse.call(
     WalletBrowseRequest(
@@ -75,7 +75,7 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piSecondRoot
 ).orThrow()
 
 /*
@@ -85,7 +85,7 @@ PageV2(
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "leaf-project", 
+            projectId = "second-root-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -104,19 +104,25 @@ PageV2(
 resources at the moment. */
 
 
-/* We now perform a deposit operation with the leaf workspace as the target. */
+/* We now perform a transfer operation with the leaf workspace as the target. */
 
-Accounting.deposit.call(
-    bulkRequestOf(DepositToWalletRequestItem(
+Accounting.transfer.call(
+    bulkRequestOf(TransferToWalletRequestItem(
         amount = 100, 
-        description = "Create sub-allocation", 
-        endDate = null, 
-        recipient = WalletOwner.Project(
-            projectId = "leaf-project", 
+        categoryId = ProductCategoryId(
+            id = "example-slim", 
+            name = "example-slim", 
+            provider = "example", 
         ), 
-        sourceAllocation = "42", 
+        endDate = null, 
+        source = WalletOwner.Project(
+            projectId = "root-project", 
+        ), 
         startDate = null, 
-        transactionId = "40500269650371873311635150794809", 
+        target = WalletOwner.Project(
+            projectId = "second-root-project", 
+        ), 
+        transactionId = "-28702500701003358831635150794809", 
     )),
     piRoot
 ).orThrow()
@@ -140,12 +146,12 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
-            balance = 500, 
+            balance = 400, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
             initialBalance = 500, 
-            localBalance = 500, 
+            localBalance = 400, 
             startDate = 1633941615074, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
@@ -173,14 +179,14 @@ Wallets.browse.call(
         itemsToSkip = null, 
         next = null, 
     ),
-    piLeaf
+    piSecondRoot
 ).orThrow()
 
 /*
 PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
-            allocationPath = listOf("42", "52"), 
+            allocationPath = listOf("52"), 
             balance = 100, 
             endDate = null, 
             grantedIn = 1, 
@@ -192,7 +198,7 @@ PageV2(
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
         chargeType = ChargeType.ABSOLUTE, 
         owner = WalletOwner.Project(
-            projectId = "leaf-project", 
+            projectId = "second-root-project", 
         ), 
         paysFor = ProductCategoryId(
             id = "example-slim", 
@@ -207,9 +213,9 @@ PageV2(
 )
 */
 
-/* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
-However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
-parent, indicated by the path.  */
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
 
 ```
 
@@ -223,12 +229,12 @@ parent, indicated by the path.  */
 
 ```typescript
 
-/* In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
-have an existing allocation as a child. This is the recommended way of creating allocations. 
-Resources are not immediately removed from the parent allocation. In addition, workspaces can 
-over-allocate resources. For example, a workspace can deposit more resources than they have into 
-sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
-examples, all allocations in a hierarchy must be able to carry a charge. */
+/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
+the recommended way of creating granting resources. This approach immediately removes all resources 
+from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+should only use transfers if they wish to give away resources that they otherwise will not be able 
+to consume.  */
 
 // Authenticated as piRoot
 await callAPI(AccountingWalletsApi.browse(
@@ -277,7 +283,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -295,7 +301,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "leaf-project"
+                "projectId": "second-root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -317,23 +323,29 @@ await callAPI(AccountingWalletsApi.browse(
 resources at the moment. */
 
 
-/* We now perform a deposit operation with the leaf workspace as the target. */
+/* We now perform a transfer operation with the leaf workspace as the target. */
 
 // Authenticated as piRoot
-await callAPI(AccountingApi.deposit(
+await callAPI(AccountingApi.transfer(
     {
         "items": [
             {
-                "recipient": {
-                    "type": "project",
-                    "projectId": "leaf-project"
+                "categoryId": {
+                    "name": "example-slim",
+                    "provider": "example"
                 },
-                "sourceAllocation": "42",
+                "target": {
+                    "type": "project",
+                    "projectId": "second-root-project"
+                },
+                "source": {
+                    "type": "project",
+                    "projectId": "root-project"
+                },
                 "amount": 100,
-                "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "40500269650371873311635150794809"
+                "transactionId": "-28702500701003358831635150794809"
             }
         ]
     }
@@ -372,9 +384,9 @@ await callAPI(AccountingWalletsApi.browse(
                     "allocationPath": [
                         "42"
                     ],
-                    "balance": 500,
+                    "balance": 400,
                     "initialBalance": 500,
-                    "localBalance": 500,
+                    "localBalance": 400,
                     "startDate": 1633941615074,
                     "endDate": null,
                     "grantedIn": 1
@@ -389,7 +401,7 @@ await callAPI(AccountingWalletsApi.browse(
     "next": null
 }
 */
-// Authenticated as piLeaf
+// Authenticated as piSecondRoot
 await callAPI(AccountingWalletsApi.browse(
     {
         "itemsPerPage": null,
@@ -407,7 +419,7 @@ await callAPI(AccountingWalletsApi.browse(
         {
             "owner": {
                 "type": "project",
-                "projectId": "leaf-project"
+                "projectId": "second-root-project"
             },
             "paysFor": {
                 "name": "example-slim",
@@ -417,7 +429,6 @@ await callAPI(AccountingWalletsApi.browse(
                 {
                     "id": "52",
                     "allocationPath": [
-                        "42",
                         "52"
                     ],
                     "balance": 100,
@@ -438,9 +449,9 @@ await callAPI(AccountingWalletsApi.browse(
 }
 */
 
-/* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
-However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
-parent, indicated by the path.  */
+/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
+system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+The new allocation does not have a parent. */
 
 ```
 
@@ -458,12 +469,12 @@ parent, indicated by the path.  */
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
 
-# In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
-# have an existing allocation as a child. This is the recommended way of creating allocations. 
-# Resources are not immediately removed from the parent allocation. In addition, workspaces can 
-# over-allocate resources. For example, a workspace can deposit more resources than they have into 
-# sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
-# examples, all allocations in a hierarchy must be able to carry a charge.
+# In this example, we will show how a workspace can transfer money to another workspace. This is not 
+# the recommended way of creating granting resources. This approach immediately removes all resources 
+# from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
+# allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
+# should only use transfers if they wish to give away resources that they otherwise will not be able 
+# to consume. 
 
 # Authenticated as piRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
@@ -503,7 +514,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -512,7 +523,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "leaf-project"
+#                 "projectId": "second-root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -532,22 +543,28 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 # Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
 # resources at the moment.
 
-# We now perform a deposit operation with the leaf workspace as the target.
+# We now perform a transfer operation with the leaf workspace as the target.
 
 # Authenticated as piRoot
-curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/deposit" -d '{
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/accounting/transfer" -d '{
     "items": [
         {
-            "recipient": {
-                "type": "project",
-                "projectId": "leaf-project"
+            "categoryId": {
+                "name": "example-slim",
+                "provider": "example"
             },
-            "sourceAllocation": "42",
+            "target": {
+                "type": "project",
+                "projectId": "second-root-project"
+            },
+            "source": {
+                "type": "project",
+                "projectId": "root-project"
+            },
             "amount": 100,
-            "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "40500269650371873311635150794809"
+            "transactionId": "-28702500701003358831635150794809"
         }
     ]
 }'
@@ -576,9 +593,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "allocationPath": [
 #                         "42"
 #                     ],
-#                     "balance": 500,
+#                     "balance": 400,
 #                     "initialBalance": 500,
-#                     "localBalance": 500,
+#                     "localBalance": 400,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
 #                     "grantedIn": 1
@@ -593,7 +610,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# Authenticated as piLeaf
+# Authenticated as piSecondRoot
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
 
 # {
@@ -602,7 +619,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #         {
 #             "owner": {
 #                 "type": "project",
-#                 "projectId": "leaf-project"
+#                 "projectId": "second-root-project"
 #             },
 #             "paysFor": {
 #                 "name": "example-slim",
@@ -612,7 +629,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                 {
 #                     "id": "52",
 #                     "allocationPath": [
-#                         "42",
 #                         "52"
 #                     ],
 #                     "balance": 100,
@@ -632,9 +648,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #     "next": null
 # }
 
-# After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
-# However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
-# parent, indicated by the path. 
+# After inspecting the allocations, we see that the original (root) allocation has changed. The 
+# system has immediately removed all the resources. The leaf workspace now have a new allocation. 
+# The new allocation does not have a parent.
 
 ```
 
@@ -646,7 +662,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 <b>Communication Flow:</b> Visual
 </summary>
 
-![](/docs/diagrams/accounting_deposit.png)
+![](/docs/diagrams/accounting_transfer.png)
 
 </details>
 
