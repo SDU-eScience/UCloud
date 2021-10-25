@@ -1,6 +1,8 @@
 package dk.sdu.cloud.calls
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -30,6 +32,7 @@ actual fun visualizeValue(value: Any?): DocVisualization {
         }
 
         is String -> DocVisualization.Inline(value)
+
         is JsonObject -> {
             DocVisualization.Card(
                 "Json",
@@ -40,6 +43,11 @@ actual fun visualizeValue(value: Any?): DocVisualization {
                 emptyList()
             )
         }
+
+        is JsonPrimitive -> {
+            DocVisualization.Inline(value.contentOrNull.toString())
+        }
+
         is BulkRequest<*> -> {
             DocVisualization.Card(
                 "BulkRequest",
@@ -47,6 +55,7 @@ actual fun visualizeValue(value: Any?): DocVisualization {
                 value.items.map { visualizeValue(it) }
             )
         }
+
         is BulkResponse<*> -> {
             DocVisualization.Card(
                 "BulkResponse",
@@ -54,6 +63,7 @@ actual fun visualizeValue(value: Any?): DocVisualization {
                 value.responses.map { visualizeValue(it) }
             )
         }
+
         is Unit -> DocVisualization.Card("Unit", emptyList(), listOf(DocVisualization.Inline("An empty object")))
         is Boolean, is Number -> DocVisualization.Inline(value.toString())
         is Enum<*> -> DocVisualization.Inline(value.name)

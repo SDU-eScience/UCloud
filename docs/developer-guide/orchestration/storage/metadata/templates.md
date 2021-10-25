@@ -9,11 +9,45 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Metadata templates define the schema for metadata documents._
+
+## Rationale
+
+UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
+tag documents at a glance and search through them.
+
+This feature consists of two parts:
+
+1. __Metadata templates (you are here):__ Templates specify the schema. You can think of this as a way of 
+   defining _how_ your documents should look. We use them to generate user interfaces and visual 
+   representations of your documents.
+2. __Metadata documents (next section):__ Documents fill out the values of a template. When you create a 
+   document you must attach it to a file also.
+
+At a technical level, we implement metadata templates using [JSON schema](https://json-schema.org/). 
+This gives you a fair amount of flexibility to control the format of documents. Of course, not everything 
+is machine-checkable. To mitigate this, templates can require that changes go through an approval process.
+Only administrators of a workspace can approve such changes.
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-the-sensitivity-template'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-the-sensitivity-template'>The Sensitivity Template</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -64,7 +98,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -104,6 +138,750 @@
 
 
 </details>
+
+## Example: The Sensitivity Template
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+FileMetadataTemplateNamespaces.createTemplate.call(
+    bulkRequestOf(FileMetadataTemplate(
+        changeLog = "Initial version", 
+        createdAt = 0, 
+        description = "File sensitivity for files", 
+        inheritable = true, 
+        namespaceId = "sensitivity", 
+        namespaceName = null, 
+        namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+        requireApproval = true, 
+        schema = JsonObject(mapOf("type" to JsonLiteral(
+            content = "object", 
+            isString = true, 
+        )),"title" to JsonLiteral(
+            content = "UCloud File Sensitivity", 
+            isString = true, 
+        )),"required" to listOf(JsonLiteral(
+            content = "sensitivity", 
+            isString = true, 
+        ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+            content = "SENSITIVE", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "CONFIDENTIAL", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "PRIVATE", 
+            isString = true, 
+        ))),"type" to JsonLiteral(
+            content = "string", 
+            isString = true, 
+        )),"title" to JsonLiteral(
+            content = "File Sensitivity", 
+            isString = true, 
+        )),"enumNames" to listOf(JsonLiteral(
+            content = "Sensitive", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "Confidential", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "Private", 
+            isString = true, 
+        ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
+        title = "Sensitivity", 
+        uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+            content = "sensitivity", 
+            isString = true, 
+        ))),)), 
+        version = "1.0.0", 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FileMetadataTemplateAndVersion(
+        id = "15123", 
+        version = "1.0.0", 
+    )), 
+)
+*/
+FileMetadataTemplateNamespaces.retrieveLatest.call(
+    FindByStringId(
+        id = "15123", 
+    ),
+    user
+).orThrow()
+
+/*
+FileMetadataTemplate(
+    changeLog = "Initial version", 
+    createdAt = 0, 
+    description = "File sensitivity for files", 
+    inheritable = true, 
+    namespaceId = "sensitivity", 
+    namespaceName = null, 
+    namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+    requireApproval = true, 
+    schema = JsonObject(mapOf("type" to JsonLiteral(
+        content = "object", 
+        isString = true, 
+    )),"title" to JsonLiteral(
+        content = "UCloud File Sensitivity", 
+        isString = true, 
+    )),"required" to listOf(JsonLiteral(
+        content = "sensitivity", 
+        isString = true, 
+    ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+        content = "SENSITIVE", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "CONFIDENTIAL", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "PRIVATE", 
+        isString = true, 
+    ))),"type" to JsonLiteral(
+        content = "string", 
+        isString = true, 
+    )),"title" to JsonLiteral(
+        content = "File Sensitivity", 
+        isString = true, 
+    )),"enumNames" to listOf(JsonLiteral(
+        content = "Sensitive", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "Confidential", 
+        isString = true, 
+    ), JsonLiteral(
+        content = "Private", 
+        isString = true, 
+    ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
+    title = "Sensitivity", 
+    uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+        content = "sensitivity", 
+        isString = true, 
+    ))),)), 
+    version = "1.0.0", 
+)
+*/
+FileMetadataTemplateNamespaces.browseTemplates.call(
+    FileMetadataTemplatesBrowseTemplatesRequest(
+        consistency = null, 
+        id = "15123", 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+    ),
+    user
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(FileMetadataTemplate(
+        changeLog = "Initial version", 
+        createdAt = 0, 
+        description = "File sensitivity for files", 
+        inheritable = true, 
+        namespaceId = "sensitivity", 
+        namespaceName = null, 
+        namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+        requireApproval = true, 
+        schema = JsonObject(mapOf("type" to JsonLiteral(
+            content = "object", 
+            isString = true, 
+        )),"title" to JsonLiteral(
+            content = "UCloud File Sensitivity", 
+            isString = true, 
+        )),"required" to listOf(JsonLiteral(
+            content = "sensitivity", 
+            isString = true, 
+        ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+            content = "SENSITIVE", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "CONFIDENTIAL", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "PRIVATE", 
+            isString = true, 
+        ))),"type" to JsonLiteral(
+            content = "string", 
+            isString = true, 
+        )),"title" to JsonLiteral(
+            content = "File Sensitivity", 
+            isString = true, 
+        )),"enumNames" to listOf(JsonLiteral(
+            content = "Sensitive", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "Confidential", 
+            isString = true, 
+        ), JsonLiteral(
+            content = "Private", 
+            isString = true, 
+        ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
+        title = "Sensitivity", 
+        uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+            content = "sensitivity", 
+            isString = true, 
+        ))),)), 
+        version = "1.0.0", 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+FileMetadataTemplateNamespaces.browse.call(
+    ResourceBrowseRequest(
+        consistency = null, 
+        flags = FileMetadataTemplateNamespaceFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterName = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+        sortBy = null, 
+        sortDirection = SortDirection.ascending, 
+    ),
+    user
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(FileMetadataTemplateNamespace(
+        acl = null, 
+        billing = ResourceBilling.Free, 
+        createdAt = 1635151675465, 
+        id = "15123", 
+        owner = ResourceOwner(
+            createdBy = "user", 
+            project = null, 
+        ), 
+        permissions = ResourcePermissions(
+            myself = listOf(Permission.ADMIN), 
+            others = emptyList(), 
+        ), 
+        specification = FileMetadataTemplateNamespace.Spec(
+            name = "sensitivity", 
+            namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
+            product = ProductReference(
+                category = "", 
+                id = "", 
+                provider = "ucloud_core", 
+            ), 
+        ), 
+        status = FileMetadataTemplateNamespace.Status(
+            latestTitle = "Sensitivity", 
+            resolvedProduct = null, 
+            resolvedSupport = null, 
+        ), 
+        updates = emptyList(), 
+        providerGeneratedId = "15123", 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(FilesMetadataTemplatesApi.createTemplate(
+    {
+        "items": [
+            {
+                "namespaceId": "sensitivity",
+                "title": "Sensitivity",
+                "version": "1.0.0",
+                "schema": {
+                    "type": "object",
+                    "title": "UCloud File Sensitivity",
+                    "required": [
+                        "sensitivity"
+                    ],
+                    "properties": {
+                        "sensitivity": {
+                            "enum": [
+                                "SENSITIVE",
+                                "CONFIDENTIAL",
+                                "PRIVATE"
+                            ],
+                            "type": "string",
+                            "title": "File Sensitivity",
+                            "enumNames": [
+                                "Sensitive",
+                                "Confidential",
+                                "Private"
+                            ]
+                        }
+                    },
+                    "dependencies": {
+                    }
+                },
+                "inheritable": true,
+                "requireApproval": true,
+                "description": "File sensitivity for files",
+                "changeLog": "Initial version",
+                "namespaceType": "COLLABORATORS",
+                "uiSchema": {
+                    "ui:order": [
+                        "sensitivity"
+                    ]
+                },
+                "namespaceName": null,
+                "createdAt": 0
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "15123",
+            "version": "1.0.0"
+        }
+    ]
+}
+*/
+await callAPI(FilesMetadataTemplatesApi.retrieveLatest(
+    {
+        "id": "15123"
+    }
+);
+
+/*
+{
+    "namespaceId": "sensitivity",
+    "title": "Sensitivity",
+    "version": "1.0.0",
+    "schema": {
+        "type": "object",
+        "title": "UCloud File Sensitivity",
+        "required": [
+            "sensitivity"
+        ],
+        "properties": {
+            "sensitivity": {
+                "enum": [
+                    "SENSITIVE",
+                    "CONFIDENTIAL",
+                    "PRIVATE"
+                ],
+                "type": "string",
+                "title": "File Sensitivity",
+                "enumNames": [
+                    "Sensitive",
+                    "Confidential",
+                    "Private"
+                ]
+            }
+        },
+        "dependencies": {
+        }
+    },
+    "inheritable": true,
+    "requireApproval": true,
+    "description": "File sensitivity for files",
+    "changeLog": "Initial version",
+    "namespaceType": "COLLABORATORS",
+    "uiSchema": {
+        "ui:order": [
+            "sensitivity"
+        ]
+    },
+    "namespaceName": null,
+    "createdAt": 0
+}
+*/
+await callAPI(FilesMetadataTemplatesApi.browseTemplates(
+    {
+        "id": "15123",
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "namespaceId": "sensitivity",
+            "title": "Sensitivity",
+            "version": "1.0.0",
+            "schema": {
+                "type": "object",
+                "title": "UCloud File Sensitivity",
+                "required": [
+                    "sensitivity"
+                ],
+                "properties": {
+                    "sensitivity": {
+                        "enum": [
+                            "SENSITIVE",
+                            "CONFIDENTIAL",
+                            "PRIVATE"
+                        ],
+                        "type": "string",
+                        "title": "File Sensitivity",
+                        "enumNames": [
+                            "Sensitive",
+                            "Confidential",
+                            "Private"
+                        ]
+                    }
+                },
+                "dependencies": {
+                }
+            },
+            "inheritable": true,
+            "requireApproval": true,
+            "description": "File sensitivity for files",
+            "changeLog": "Initial version",
+            "namespaceType": "COLLABORATORS",
+            "uiSchema": {
+                "ui:order": [
+                    "sensitivity"
+                ]
+            },
+            "namespaceName": null,
+            "createdAt": 0
+        }
+    ],
+    "next": null
+}
+*/
+await callAPI(FilesMetadataTemplatesApi.browse(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null,
+            "filterName": null
+        },
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "sortBy": null,
+        "sortDirection": "ascending"
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "id": "15123",
+            "specification": {
+                "name": "sensitivity",
+                "namespaceType": "COLLABORATORS",
+                "product": {
+                    "id": "",
+                    "category": "",
+                    "provider": "ucloud_core"
+                }
+            },
+            "createdAt": 1635151675465,
+            "status": {
+                "latestTitle": "Sensitivity",
+                "resolvedSupport": null,
+                "resolvedProduct": null
+            },
+            "updates": [
+            ],
+            "owner": {
+                "createdBy": "user",
+                "project": null
+            },
+            "permissions": {
+                "myself": [
+                    "ADMIN"
+                ],
+                "others": [
+                ]
+            },
+            "billing": {
+            },
+            "acl": null
+        }
+    ],
+    "next": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as user
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/metadataTemplates/templates" -d '{
+    "items": [
+        {
+            "namespaceId": "sensitivity",
+            "title": "Sensitivity",
+            "version": "1.0.0",
+            "schema": {
+                "type": "object",
+                "title": "UCloud File Sensitivity",
+                "required": [
+                    "sensitivity"
+                ],
+                "properties": {
+                    "sensitivity": {
+                        "enum": [
+                            "SENSITIVE",
+                            "CONFIDENTIAL",
+                            "PRIVATE"
+                        ],
+                        "type": "string",
+                        "title": "File Sensitivity",
+                        "enumNames": [
+                            "Sensitive",
+                            "Confidential",
+                            "Private"
+                        ]
+                    }
+                },
+                "dependencies": {
+                }
+            },
+            "inheritable": true,
+            "requireApproval": true,
+            "description": "File sensitivity for files",
+            "changeLog": "Initial version",
+            "namespaceType": "COLLABORATORS",
+            "uiSchema": {
+                "ui:order": [
+                    "sensitivity"
+                ]
+            },
+            "namespaceName": null,
+            "createdAt": 0
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "15123",
+#             "version": "1.0.0"
+#         }
+#     ]
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemplates/retrieveLatest?id=15123" 
+
+# {
+#     "namespaceId": "sensitivity",
+#     "title": "Sensitivity",
+#     "version": "1.0.0",
+#     "schema": {
+#         "type": "object",
+#         "title": "UCloud File Sensitivity",
+#         "required": [
+#             "sensitivity"
+#         ],
+#         "properties": {
+#             "sensitivity": {
+#                 "enum": [
+#                     "SENSITIVE",
+#                     "CONFIDENTIAL",
+#                     "PRIVATE"
+#                 ],
+#                 "type": "string",
+#                 "title": "File Sensitivity",
+#                 "enumNames": [
+#                     "Sensitive",
+#                     "Confidential",
+#                     "Private"
+#                 ]
+#             }
+#         },
+#         "dependencies": {
+#         }
+#     },
+#     "inheritable": true,
+#     "requireApproval": true,
+#     "description": "File sensitivity for files",
+#     "changeLog": "Initial version",
+#     "namespaceType": "COLLABORATORS",
+#     "uiSchema": {
+#         "ui:order": [
+#             "sensitivity"
+#         ]
+#     },
+#     "namespaceName": null,
+#     "createdAt": 0
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemplates/browseTemplates?id=15123" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "namespaceId": "sensitivity",
+#             "title": "Sensitivity",
+#             "version": "1.0.0",
+#             "schema": {
+#                 "type": "object",
+#                 "title": "UCloud File Sensitivity",
+#                 "required": [
+#                     "sensitivity"
+#                 ],
+#                 "properties": {
+#                     "sensitivity": {
+#                         "enum": [
+#                             "SENSITIVE",
+#                             "CONFIDENTIAL",
+#                             "PRIVATE"
+#                         ],
+#                         "type": "string",
+#                         "title": "File Sensitivity",
+#                         "enumNames": [
+#                             "Sensitive",
+#                             "Confidential",
+#                             "Private"
+#                         ]
+#                     }
+#                 },
+#                 "dependencies": {
+#                 }
+#             },
+#             "inheritable": true,
+#             "requireApproval": true,
+#             "description": "File sensitivity for files",
+#             "changeLog": "Initial version",
+#             "namespaceType": "COLLABORATORS",
+#             "uiSchema": {
+#                 "ui:order": [
+#                     "sensitivity"
+#                 ]
+#             },
+#             "namespaceName": null,
+#             "createdAt": 0
+#         }
+#     ],
+#     "next": null
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemplates/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "id": "15123",
+#             "specification": {
+#                 "name": "sensitivity",
+#                 "namespaceType": "COLLABORATORS",
+#                 "product": {
+#                     "id": "",
+#                     "category": "",
+#                     "provider": "ucloud_core"
+#                 }
+#             },
+#             "createdAt": 1635151675465,
+#             "status": {
+#                 "latestTitle": "Sensitivity",
+#                 "resolvedSupport": null,
+#                 "resolvedProduct": null
+#             },
+#             "updates": [
+#             ],
+#             "owner": {
+#                 "createdBy": "user",
+#                 "project": null
+#             },
+#             "permissions": {
+#                 "myself": [
+#                     "ADMIN"
+#                 ],
+#                 "others": [
+#                 ]
+#             },
+#             "billing": {
+#             },
+#             "acl": null
+#         }
+#     ],
+#     "next": null
+# }
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files.metadataTemplates_sensitivity.png)
+
+</details>
+
 
 
 ## Remote Procedure Calls
