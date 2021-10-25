@@ -22,7 +22,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>personalProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>personalProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a personal project
 </summary>
 
 
@@ -33,7 +33,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>newProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>newProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a new project
 </summary>
 
 
@@ -44,7 +44,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>existingProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>existingProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is an existing project
 </summary>
 
 

@@ -17,6 +17,7 @@ data class WalletAllocation(
     val localBalance: Long,
     val startDate: Long,
     val endDate: Long?,
+    val grantedIn: Long?,
 )
 ```
 You can find more information about WalletAllocations
@@ -97,6 +98,17 @@ Note that this allocation path will always include, as its last element, this al
 <details>
 <summary>
 <code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Timestamp for when this allocation becomes invalid, null indicates that this allocation does not expire automatically
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> ID reference to which grant application this allocation was granted in
 </summary>
 
 

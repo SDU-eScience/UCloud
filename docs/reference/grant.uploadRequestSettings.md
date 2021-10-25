@@ -6,6 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Uploads [ProjectApplicationSettings] to be associated with a project. The project must be enabled._
 
 | Request | Response | Error |
 |---------|----------|-------|

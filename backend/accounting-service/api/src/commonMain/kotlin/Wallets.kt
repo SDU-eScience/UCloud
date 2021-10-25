@@ -1064,9 +1064,6 @@ object Accounting : CallDescriptionContainer("accounting") {
                 val nodeOwner = WalletOwner.Project("node-project")
                 val leafOwner = WalletOwner.Project("leaf-project")
 
-                // 400 on node
-                // 50 on leaf
-
                 comment(
                     """
                     In this example, we will show what happens when an allocation is unable to carry the full charge. 
@@ -1485,7 +1482,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         )
 
         useCase(
-            depositUseCase,
+            transferUseCase,
             "Creating a new root allocation (transfer operation)",
             flow = {
                 val piRoot = actor("piRoot", "The PI of the root project")
@@ -1669,12 +1666,32 @@ object Accounting : CallDescriptionContainer("accounting") {
         "deposit"
     ) {
         httpUpdate(baseContext, "deposit")
+
+        documentation {
+            summary = "Creates a new sub-allocation from a parent allocation"
+            description = """
+                The new allocation will have the current allocation as a parent. The balance of the parent allocation 
+                is not changed.
+            """.trimIndent()
+
+            useCaseReference(depositUseCase, "Creating a sub-allocation")
+        }
     }
 
     val transfer = call<BulkRequest<TransferToWalletRequestItem>, TransferToWalletResponse, CommonErrorMessage>(
         "transfer"
     ) {
         httpUpdate(baseContext, "transfer")
+
+        documentation {
+            summary = "Creates a new root allocation from a parent allocation"
+            description = """
+                The new allocation will have no parents. The balance of the parent allocation is immediately removed, 
+                in full.
+            """.trimIndent()
+
+            useCaseReference(transferUseCase, "Creating a new root allocation")
+        }
     }
 
     val updateAllocation = call<BulkRequest<UpdateAllocationRequestItem>, UpdateAllocationResponse, CommonErrorMessage>(

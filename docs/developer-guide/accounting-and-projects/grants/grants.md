@@ -9,31 +9,36 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_---_
+_            Grants provide a way for users of UCloud to apply for resources._
 
 ## Rationale
 
-__📝 NOTE:__ Section being reworked (see issue #2026)
+In order for any user to use UCloud they must have credits. Credits are required for use of any compute or 
+            storage. There are only two ways of receiving any credits, either through an admin directly granting you the 
+            credits or by receiving them from a project.
+
+            Grants acts as a more user-friendly gateway to receiving resources from a project. Every
+            `Application` goes through the following steps:
+
+            1. User submits application to relevant project using `Grants.submitApplication`
+            2. Project administrator of `Application.resourcesOwnedBy` reviews the application
+               - User and reviewer can comment on the application via `Grants.commentOnApplication`
+               - User and reviewer can perform edits to the application via `Grants.editApplication`
+            3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
+            4. If the `Application` was approved then resources are granted to the `Application.grantRecipient`
+            
+            ---
+    
+__⚠️ WARNING:__ The API listed on this page will likely change to conform with our
+[API conventions](/docs/developer-guide/core/api-conventions.md). Be careful when building integrations. The following
+changes are expected:
+
+- RPC names will change to conform with the conventions
+- RPC request and response types will change to conform with the conventions
+- RPCs which return a page will be collapsed into a single `browse` endpoint
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
 
 ---
-
-[Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any
-[GrantRecipient]
-
-In order for any user to use UCloud they must have resources. Resources, see
-[dk.sdu.cloud.accounting.api.Wallets], are required for use of any compute or storage. There are only two
-ways of receiving any credits, either through an admin directly granting you the credits or by receiving
-them from a project.
-
-The [Grants] service acts as a more user-friendly gateway to receiving resources from a project. Every
-[Application] goes through the following steps:
-
-1. User submits application to relevant project using [Grants.submitApplication]
-2. Project administrator of [Application.resourcesOwnedBy] reviews the application
-   - User and reviewer can comment on the application via [Grants.commentOnApplication]
-   - User and reviewer can perform edits to the application via [Grants.editApplication]
-3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
-4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]
 
 ## Table of Contents
 <details>
@@ -48,27 +53,27 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 <tbody>
 <tr>
 <td><a href='#browseprojects'><code>browseProjects</code></a></td>
-<td><i>No description</i></td>
+<td>Endpoint for users to browse projects which they can send grant [Application]s to</td>
 </tr>
 <tr>
 <td><a href='#fetchdescription'><code>fetchDescription</code></a></td>
-<td><i>No description</i></td>
+<td>Fetches a description of a project</td>
 </tr>
 <tr>
 <td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
-<td><i>No description</i></td>
+<td>Fetches a logo for a project</td>
 </tr>
 <tr>
 <td><a href='#ingoingapplications'><code>ingoingApplications</code></a></td>
-<td><i>No description</i></td>
+<td>Lists active [Application]s which are 'ingoing' (received by) to a project</td>
 </tr>
 <tr>
 <td><a href='#isenabled'><code>isEnabled</code></a></td>
-<td><i>No description</i></td>
+<td>If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive grant [Application]s.</td>
 </tr>
 <tr>
 <td><a href='#outgoingapplications'><code>outgoingApplications</code></a></td>
-<td><i>No description</i></td>
+<td>Lists all active [Application]s made by the calling user</td>
 </tr>
 <tr>
 <td><a href='#readrequestsettings'><code>readRequestSettings</code></a></td>
@@ -76,7 +81,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#readtemplates'><code>readTemplates</code></a></td>
-<td><i>No description</i></td>
+<td>Reads the templates for a new grant [Application]</td>
 </tr>
 <tr>
 <td><a href='#retrieveaffiliations'><code>retrieveAffiliations</code></a></td>
@@ -88,39 +93,43 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#approveapplication'><code>approveApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Approves an existing [Application] this will trigger granting of resources to the [Application.grantRecipient]</td>
 </tr>
 <tr>
 <td><a href='#closeapplication'><code>closeApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Closes an existing [Application]</td>
 </tr>
 <tr>
 <td><a href='#commentonapplication'><code>commentOnApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Adds a comment to an existing [Application]</td>
 </tr>
 <tr>
 <td><a href='#deletecomment'><code>deleteComment</code></a></td>
-<td><i>No description</i></td>
+<td>Deletes a comment from an existing [Application]</td>
 </tr>
 <tr>
 <td><a href='#editapplication'><code>editApplication</code></a></td>
+<td>Performs an edit to an existing [Application]</td>
+</tr>
+<tr>
+<td><a href='#editreferenceid'><code>editReferenceId</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#rejectapplication'><code>rejectApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Rejects an [Application]</td>
 </tr>
 <tr>
 <td><a href='#setenabledstatus'><code>setEnabledStatus</code></a></td>
-<td><i>No description</i></td>
+<td>Enables a project to receive [Application]</td>
 </tr>
 <tr>
 <td><a href='#submitapplication'><code>submitApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Submits an [Application] to a project</td>
 </tr>
 <tr>
 <td><a href='#transferapplication'><code>transferApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Transfers application to other root project</td>
 </tr>
 <tr>
 <td><a href='#uploaddescription'><code>uploadDescription</code></a></td>
@@ -128,19 +137,19 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
-<td><i>No description</i></td>
+<td>Uploads a logo for a project, which is enabled</td>
 </tr>
 <tr>
 <td><a href='#uploadrequestsettings'><code>uploadRequestSettings</code></a></td>
-<td><i>No description</i></td>
+<td>Uploads [ProjectApplicationSettings] to be associated with a project. The project must be enabled.</td>
 </tr>
 <tr>
 <td><a href='#uploadtemplates'><code>uploadTemplates</code></a></td>
-<td><i>No description</i></td>
+<td>Uploads templates used for new grant Applications</td>
 </tr>
 <tr>
 <td><a href='#viewapplication'><code>viewApplication</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves an active [Application]</td>
 </tr>
 </tbody></table>
 
@@ -171,7 +180,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#automaticapprovalsettings'><code>AutomaticApprovalSettings</code></a></td>
-<td><i>No description</i></td>
+<td>Settings which control if an Application should be automatically approved</td>
 </tr>
 <tr>
 <td><a href='#comment'><code>Comment</code></a></td>
@@ -203,7 +212,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#projectapplicationsettings'><code>ProjectApplicationSettings</code></a></td>
-<td><i>No description</i></td>
+<td>Settings for grant Applications</td>
 </tr>
 <tr>
 <td><a href='#projectwithtitle'><code>ProjectWithTitle</code></a></td>
@@ -211,19 +220,19 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#usercriteria'><code>UserCriteria</code></a></td>
-<td><i>No description</i></td>
+<td>Describes some criteria which match a user</td>
 </tr>
 <tr>
 <td><a href='#usercriteria.anyone'><code>UserCriteria.Anyone</code></a></td>
-<td><i>No description</i></td>
+<td>Matches any user</td>
 </tr>
 <tr>
 <td><a href='#usercriteria.emaildomain'><code>UserCriteria.EmailDomain</code></a></td>
-<td><i>No description</i></td>
+<td>Matches any user with an email domain equal to `domain`</td>
 </tr>
 <tr>
 <td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
-<td><i>No description</i></td>
+<td>Matches any user with an organization matching [org] </td>
 </tr>
 <tr>
 <td><a href='#approveapplicationrequest'><code>ApproveApplicationRequest</code></a></td>
@@ -247,6 +256,10 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 </tr>
 <tr>
 <td><a href='#editapplicationrequest'><code>EditApplicationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#editreferenceidrequest'><code>EditReferenceIdRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -343,11 +356,14 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Endpoint for users to browse projects which they can send grant [Application]s to_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#browseprojectsrequest'>BrowseProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Concretely, this will return a list for which the user matches the criteria listed in
+[ProjectApplicationSettings.allowRequestsFrom].
 
 
 ### `fetchDescription`
@@ -356,6 +372,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Fetches a description of a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -369,6 +386,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Fetches a logo for a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -382,6 +400,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Lists active [Application]s which are 'ingoing' (received by) to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -395,6 +414,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive grant [Application]s._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -408,6 +428,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Lists all active [Application]s made by the calling user_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -434,11 +455,14 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Reads the templates for a new grant [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#readtemplatesrequest'>ReadTemplatesRequest</a></code>|<code><a href='#uploadtemplatesrequest'>UploadTemplatesRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+User interfaces should display the relevant template, based on who will be the 
+[Application.grantRecipient].
 
 
 ### `retrieveAffiliations`
@@ -473,11 +497,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Approves an existing [Application] this will trigger granting of resources to the [Application.grantRecipient]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#approveapplicationrequest'>ApproveApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Only the grant reviewer can perform this action.
 
 
 ### `closeApplication`
@@ -486,11 +512,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Closes an existing [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#closeapplicationrequest'>CloseApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This action is identical to [rejectApplication] except it can be performed by the [Application] creator.
 
 
 ### `commentOnApplication`
@@ -499,11 +527,14 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Adds a comment to an existing [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#commentonapplicationrequest'>CommentOnApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Only the [Application] creator and [Application] reviewers are allowed to comment on the 
+[Application].
 
 
 ### `deleteComment`
@@ -512,11 +543,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Deletes a comment from an existing [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#deletecommentrequest'>DeleteCommentRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+The comment can only be deleted by the author of the comment.
 
 
 ### `editApplication`
@@ -525,10 +558,25 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Performs an edit to an existing [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#editapplicationrequest'>EditApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+Both the creator and any of the grant reviewers are allowed to edit the application.
+
+
+### `editReferenceId`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#editreferenceidrequest'>EditReferenceIdRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -538,11 +586,16 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Rejects an [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#rejectapplicationrequest'>RejectApplicationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+The [Application] cannot receive any new change to it and the [Application] creator must re-submit the
+[Application].
+
+Only the grant reviewer can perform this action.
 
 
 ### `setEnabledStatus`
@@ -551,11 +604,14 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Enables a project to receive [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#setenabledstatusrequest'>SetEnabledStatusRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Note that a project will not be able to receive any applications until its
+[ProjectApplicationSettings.allowRequestsFrom] allow for it.
 
 
 ### `submitApplication`
@@ -564,11 +620,14 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Submits an [Application] to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#createapplication'>CreateApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+In order for the user to submit an application they must match any criteria in
+[ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
 
 
 ### `transferApplication`
@@ -577,6 +636,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Transfers application to other root project_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -603,11 +663,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Uploads a logo for a project, which is enabled_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#uploadlogorequest'>UploadLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Only project administrators of the project can upload a logo
 
 
 ### `uploadRequestSettings`
@@ -616,6 +678,7 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Uploads [ProjectApplicationSettings] to be associated with a project. The project must be enabled._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -629,11 +692,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Uploads templates used for new grant Applications_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#uploadtemplatesrequest'>UploadTemplatesRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Only project administrators of the project can upload new templates. The project needs to be enabled.
 
 
 ### `viewApplication`
@@ -642,11 +707,13 @@ The [Grants] service acts as a more user-friendly gateway to receiving resources
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves an active [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#viewapplicationrequest'>ViewApplicationRequest</a></code>|<code><a href='#applicationwithcomments'>ApplicationWithComments</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Only the creator and grant reviewers are allowed to view any given [Application].
 
 
 
@@ -673,6 +740,7 @@ data class Application(
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedBy: String?,
+    val referenceId: String?,
 )
 ```
 
@@ -816,6 +884,17 @@ data class Application(
 <details>
 <summary>
 <code>statusChangedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>referenceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -969,6 +1048,7 @@ data class ApplicationWithComments(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Settings which control if an Application should be automatically approved_
 
 ```kotlin
 data class AutomaticApprovalSettings(
@@ -976,6 +1056,10 @@ data class AutomaticApprovalSettings(
     val maxResources: List<ResourceRequest>,
 )
 ```
+The `Application` will be automatically approved if the all of the following is true:
+- The requesting user matches any of the criteria in `from`
+- The user has only requested resources (`Application.requestedResources`) which are present in `maxResources`
+- None of the resource requests exceed the numbers specified in `maxResources`
 
 <details>
 <summary>
@@ -1386,6 +1470,7 @@ data class PersonalProject(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Settings for grant Applications_
 
 ```kotlin
 data class ProjectApplicationSettings(
@@ -1394,6 +1479,8 @@ data class ProjectApplicationSettings(
     val excludeRequestsFrom: List<UserCriteria>,
 )
 ```
+A user will be allowed to apply for grants to this project if they match any of the criteria listed in
+`allowRequestsFrom`.
 
 <details>
 <summary>
@@ -1494,6 +1581,7 @@ data class ProjectWithTitle(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Describes some criteria which match a user_
 
 ```kotlin
 sealed class UserCriteria {
@@ -1502,6 +1590,7 @@ sealed class UserCriteria {
     class WayfOrganization : UserCriteria()
 }
 ```
+This is used in conjunction with actions that require authorization.
 
 
 
@@ -1512,6 +1601,7 @@ sealed class UserCriteria {
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Matches any user_
 
 ```kotlin
 data class Anyone(
@@ -1549,6 +1639,7 @@ data class Anyone(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Matches any user with an email domain equal to `domain`_
 
 ```kotlin
 data class EmailDomain(
@@ -1598,6 +1689,7 @@ data class EmailDomain(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Matches any user with an organization matching [org] _
 
 ```kotlin
 data class WayfOrganization(
@@ -1605,6 +1697,7 @@ data class WayfOrganization(
     val type: String /* "wayf" */,
 )
 ```
+The organization is currently derived from the information we receive from WAYF.
 
 <details>
 <summary>
@@ -1944,6 +2037,54 @@ data class EditApplicationRequest(
 <details>
 <summary>
 <code>newResources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#resourcerequest'>ResourceRequest</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `EditReferenceIdRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class EditReferenceIdRequest(
+    val id: Long,
+    val newReferenceId: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>newReferenceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -2863,7 +3004,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>personalProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>personalProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a personal project
 </summary>
 
 
@@ -2874,7 +3015,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>newProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>newProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a new project
 </summary>
 
 
@@ -2885,7 +3026,7 @@ data class UploadTemplatesRequest(
 
 <details>
 <summary>
-<code>existingProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>existingProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is an existing project
 </summary>
 
 

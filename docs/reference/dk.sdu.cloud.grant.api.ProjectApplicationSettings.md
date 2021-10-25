@@ -6,6 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Settings for grant Applications_
 
 ```kotlin
 data class ProjectApplicationSettings(
@@ -14,6 +15,8 @@ data class ProjectApplicationSettings(
     val excludeRequestsFrom: List<UserCriteria>,
 )
 ```
+A user will be allowed to apply for grants to this project if they match any of the criteria listed in
+`allowRequestsFrom`.
 
 <details>
 <summary>

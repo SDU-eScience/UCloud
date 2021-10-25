@@ -44,6 +44,7 @@ PageV2(
             allocationPath = listOf("42"), 
             balance = 550, 
             endDate = null, 
+            grantedIn = 1, 
             id = "42", 
             initialBalance = 1000, 
             localBalance = 1000, 
@@ -84,6 +85,7 @@ PageV2(
             allocationPath = listOf("42", "52"), 
             balance = 50, 
             endDate = null, 
+            grantedIn = 1, 
             id = "52", 
             initialBalance = 500, 
             localBalance = 100, 
@@ -124,6 +126,7 @@ PageV2(
             allocationPath = listOf("42", "52", "62"), 
             balance = 450, 
             endDate = null, 
+            grantedIn = 1, 
             id = "62", 
             initialBalance = 500, 
             localBalance = 450, 
@@ -199,6 +202,7 @@ PageV2(
             allocationPath = listOf("42"), 
             balance = 450, 
             endDate = null, 
+            grantedIn = 1, 
             id = "42", 
             initialBalance = 1000, 
             localBalance = 1000, 
@@ -239,6 +243,7 @@ PageV2(
             allocationPath = listOf("42", "52"), 
             balance = -50, 
             endDate = null, 
+            grantedIn = 1, 
             id = "52", 
             initialBalance = 500, 
             localBalance = 100, 
@@ -279,6 +284,7 @@ PageV2(
             allocationPath = listOf("42", "52", "62"), 
             balance = 350, 
             endDate = null, 
+            grantedIn = 1, 
             id = "62", 
             initialBalance = 500, 
             localBalance = 350, 
@@ -357,7 +363,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 1000,
                     "localBalance": 1000,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -404,7 +411,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500,
                     "localBalance": 100,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -452,7 +460,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500,
                     "localBalance": 450,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -540,7 +549,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 1000,
                     "localBalance": 1000,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -587,7 +597,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500,
                     "localBalance": 100,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -635,7 +646,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500,
                     "localBalance": 350,
                     "startDate": 1633941615074,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 1
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -698,7 +710,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 1000,
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -736,7 +749,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500,
 #                     "localBalance": 100,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -775,7 +789,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500,
 #                     "localBalance": 450,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -849,7 +864,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 1000,
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -887,7 +903,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500,
 #                     "localBalance": 100,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -926,7 +943,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500,
 #                     "localBalance": 350,
 #                     "startDate": 1633941615074,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 1
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
