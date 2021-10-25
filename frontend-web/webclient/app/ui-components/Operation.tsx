@@ -145,7 +145,7 @@ export const Operations: OperationsType = props => {
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
     if (props.location === "IN_ROW" && !props.row) return null;
 
-    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 

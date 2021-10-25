@@ -50,6 +50,7 @@ export interface ShareUpdate extends ResourceUpdate {
 
 export interface ShareFlags extends ResourceIncludeFlags {
     filterIngoing?: boolean | null;
+    filterRejected?: boolean | null;
     filterOriginalPath?: string | null;
 }
 
@@ -231,7 +232,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
-                        share.owner.createdBy !== Client.username
+                        share.owner.createdBy !== Client.username && share.status.state !== "REJECTED"
                     )
                 },
                 onClick: async (selected, cb) => {
