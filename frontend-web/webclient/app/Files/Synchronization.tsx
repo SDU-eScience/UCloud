@@ -88,19 +88,14 @@ export const SynchronizationSettings: React.FunctionComponent<{
 
     const toggleSyncFolder = async () => {
         if (!syncFolder) {
-            if (
-                folderProducts.data?.productsByProvider[provider] &&
-                folderProducts.data.productsByProvider[provider][0] &&
-                folderProducts.data.productsByProvider[provider][0].support
-            ) {
+            const support = folderProducts.data?.productsByProvider[provider]?.[0].support;
+            if (support != null) {
                 await invokeCommand(
                     SyncFolderApi.create(
                         bulkRequestOf({
                             path: file.id,
                             product:
-                                folderProducts.data.productsByProvider[
-                                    provider
-                                ][0].support.product,
+                                support.product,
                         })
                     ),
                     { defaultErrorHandler: false }
