@@ -9,11 +9,60 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_A FileCollection is an entrypoint to a user's files_
+
+## Rationale
+
+This entrypoint allows the user to access all the files they have access to within a single project. It is important to
+note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
+below:
+
+| Name              | Typical path                | Comment                                                     |
+|-------------------|-----------------------------|-------------------------------------------------------------|
+| Home directory    | `/home/$username/`     | The home folder is typically the main collection for a user |
+| Work directory    | `/work/$projectId/`    | The project 'home' folder                                   |
+| Scratch directory | `/scratch/$projectId/` | Temporary storage for a project                             |
+
+The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
+play an important role in accounting and resource management. A file collection can have a quota attached to it and
+billing information is also stored in this object. Each file collection can be attached to a different product type, and
+as a result, can have different billing information attached to it. This is, for example, useful if a storage provider
+has both fast and slow tiers of storage, which is typically billed very differently.
+
+All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
+title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
+if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
+
+---
+
+__📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+
+| End-User | Provider (Ingoing) | Control (Outgoing) |
+|----------|--------------------|--------------------|
+| [`FileCollections`](/docs/developer-guide/orchestration/storage/filecollections.md) | [`FileCollectionsProvider`](/docs/developer-guide/orchestration/storage/providers/drives/ingoing.md) | [`FileCollectionsControl`](/docs/developer-guide/orchestration/storage/providers/drives/outgoing.md) |
+
+---
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-an-example-collection'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-an-example-collection'>An example collection</a></td></tr>
+<tr><td><a href='#example-renaming-a-collection'>Renaming a collection</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -60,7 +109,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -86,7 +135,7 @@
 </tr>
 <tr>
 <td><a href='#filecollection'><code>FileCollection</code></a></td>
-<td>A `FileCollection` is an entrypoint to a user's files</td>
+<td></td>
 </tr>
 <tr>
 <td><a href='#filecollection.spec'><code>FileCollection.Spec</code></a></td>
@@ -108,6 +157,873 @@
 
 
 </details>
+
+## Example: An example collection
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example we will see a simple collection. This collection models the 'home' directory of a user. */
+
+
+/* 📝 NOTE: Collections are identified by a unique (UCloud provided) ID */
+
+FileCollections.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = FileCollectionIncludeFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "54123", 
+    ),
+    user
+).orThrow()
+
+/*
+FileCollection(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1635151675465, 
+    id = "54123", 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = ResourcePermissions(
+        myself = listOf(Permission.ADMIN), 
+        others = emptyList(), 
+    ), 
+    providerGeneratedId = null, 
+    specification = FileCollection.Spec(
+        product = ProductReference(
+            category = "example-ssd", 
+            id = "example-ssd", 
+            provider = "example", 
+        ), 
+        title = "Home", 
+    ), 
+    status = FileCollection.Status(
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+    ), 
+    updates = emptyList(), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example we will see a simple collection. This collection models the 'home' directory of a user. */
+
+
+/* 📝 NOTE: Collections are identified by a unique (UCloud provided) ID */
+
+// Authenticated as user
+await callAPI(FilesCollectionsApi.retrieve(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "54123"
+    }
+);
+
+/*
+{
+    "id": "54123",
+    "specification": {
+        "title": "Home",
+        "product": {
+            "id": "example-ssd",
+            "category": "example-ssd",
+            "provider": "example"
+        }
+    },
+    "createdAt": 1635151675465,
+    "status": {
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "updates": [
+    ],
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "permissions": {
+        "myself": [
+            "ADMIN"
+        ],
+        "others": [
+        ]
+    },
+    "providerGeneratedId": null,
+    "acl": null,
+    "billing": {
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example we will see a simple collection. This collection models the 'home' directory of a user.
+
+# 📝 NOTE: Collections are identified by a unique (UCloud provided) ID
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=54123" 
+
+# {
+#     "id": "54123",
+#     "specification": {
+#         "title": "Home",
+#         "product": {
+#             "id": "example-ssd",
+#             "category": "example-ssd",
+#             "provider": "example"
+#         }
+#     },
+#     "createdAt": 1635151675465,
+#     "status": {
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "updates": [
+#     ],
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "permissions": {
+#         "myself": [
+#             "ADMIN"
+#         ],
+#         "others": [
+#         ]
+#     },
+#     "providerGeneratedId": null,
+#     "acl": null,
+#     "billing": {
+#     }
+# }
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files.collections_retrieve.png)
+
+</details>
+
+
+## Example: Renaming a collection
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example, we will see how a user can rename one of their collections. */
+
+
+/* 📝 NOTE: Renaming must be supported by the provider */
+
+FileCollections.retrieveProducts.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+SupportByProvider(
+    productsByProvider = mapOf("ucloud" to listOf(ResolvedSupport(
+        product = Product.Storage(
+            category = ProductCategoryId(
+                id = "example-ssd", 
+                name = "example-ssd", 
+                provider = "example", 
+            ), 
+            chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
+            description = "Fast storage", 
+            freeToUse = false, 
+            hiddenInGrantApplications = false, 
+            name = "example-ssd", 
+            pricePerUnit = 1, 
+            priority = 0, 
+            productType = ProductType.STORAGE, 
+            unitOfPrice = ProductPriceUnit.PER_UNIT, 
+            version = 1, 
+            balance = null, 
+            id = "example-ssd", 
+        ), 
+        support = FSSupport(
+            collection = FSCollectionSupport(
+                aclModifiable = null, 
+                usersCanCreate = true, 
+                usersCanDelete = true, 
+                usersCanRename = true, 
+            ), 
+            files = FSFileSupport(
+                aclModifiable = false, 
+                isReadOnly = false, 
+                trashSupported = false, 
+            ), 
+            product = ProductReference(
+                category = "example-ssd", 
+                id = "example-ssd", 
+                provider = "example", 
+            ), 
+            stats = FSProductStatsSupport(
+                accessedAt = null, 
+                createdAt = null, 
+                modifiedAt = null, 
+                sizeInBytes = null, 
+                sizeIncludingChildrenInBytes = null, 
+                unixGroup = null, 
+                unixOwner = null, 
+                unixPermissions = null, 
+            ), 
+        ), 
+    ))), 
+)
+*/
+
+/* As we can see, the provider does support the rename operation. We now look at our collections. */
+
+FileCollections.browse.call(
+    ResourceBrowseRequest(
+        consistency = null, 
+        flags = FileCollectionIncludeFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+        sortBy = null, 
+        sortDirection = SortDirection.ascending, 
+    ),
+    user
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(FileCollection(
+        acl = null, 
+        billing = ResourceBilling.Free, 
+        createdAt = 1635151675465, 
+        id = "54123", 
+        owner = ResourceOwner(
+            createdBy = "user", 
+            project = null, 
+        ), 
+        permissions = ResourcePermissions(
+            myself = listOf(Permission.ADMIN), 
+            others = emptyList(), 
+        ), 
+        providerGeneratedId = null, 
+        specification = FileCollection.Spec(
+            product = ProductReference(
+                category = "example-ssd", 
+                id = "example-ssd", 
+                provider = "example", 
+            ), 
+            title = "Home", 
+        ), 
+        status = FileCollection.Status(
+            resolvedProduct = null, 
+            resolvedSupport = null, 
+        ), 
+        updates = emptyList(), 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* Using the unique ID, we can rename the collection */
+
+FileCollections.rename.call(
+    bulkRequestOf(FileCollectionsRenameRequestItem(
+        id = "54123", 
+        newTitle = "My Awesome Drive", 
+    )),
+    user
+).orThrow()
+
+/*
+Unit
+*/
+
+/* The new title is observed when we browse the collections one more time */
+
+FileCollections.browse.call(
+    ResourceBrowseRequest(
+        consistency = null, 
+        flags = FileCollectionIncludeFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+        sortBy = null, 
+        sortDirection = SortDirection.ascending, 
+    ),
+    user
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(FileCollection(
+        acl = null, 
+        billing = ResourceBilling.Free, 
+        createdAt = 1635151675465, 
+        id = "54123", 
+        owner = ResourceOwner(
+            createdBy = "user", 
+            project = null, 
+        ), 
+        permissions = ResourcePermissions(
+            myself = listOf(Permission.ADMIN), 
+            others = emptyList(), 
+        ), 
+        providerGeneratedId = null, 
+        specification = FileCollection.Spec(
+            product = ProductReference(
+                category = "example-ssd", 
+                id = "example-ssd", 
+                provider = "example", 
+            ), 
+            title = "My Awesome Drive", 
+        ), 
+        status = FileCollection.Status(
+            resolvedProduct = null, 
+            resolvedSupport = null, 
+        ), 
+        updates = emptyList(), 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example, we will see how a user can rename one of their collections. */
+
+
+/* 📝 NOTE: Renaming must be supported by the provider */
+
+// Authenticated as user
+await callAPI(FilesCollectionsApi.retrieveProducts(
+    {
+    }
+);
+
+/*
+{
+    "productsByProvider": {
+        "ucloud": [
+            {
+                "product": {
+                    "balance": null,
+                    "name": "example-ssd",
+                    "pricePerUnit": 1,
+                    "category": {
+                        "name": "example-ssd",
+                        "provider": "example"
+                    },
+                    "description": "Fast storage",
+                    "priority": 0,
+                    "version": 1,
+                    "freeToUse": false,
+                    "unitOfPrice": "PER_UNIT",
+                    "chargeType": "DIFFERENTIAL_QUOTA",
+                    "hiddenInGrantApplications": false,
+                    "productType": "STORAGE"
+                },
+                "support": {
+                    "product": {
+                        "id": "example-ssd",
+                        "category": "example-ssd",
+                        "provider": "example"
+                    },
+                    "stats": {
+                        "sizeInBytes": null,
+                        "sizeIncludingChildrenInBytes": null,
+                        "modifiedAt": null,
+                        "createdAt": null,
+                        "accessedAt": null,
+                        "unixPermissions": null,
+                        "unixOwner": null,
+                        "unixGroup": null
+                    },
+                    "collection": {
+                        "aclModifiable": null,
+                        "usersCanCreate": true,
+                        "usersCanDelete": true,
+                        "usersCanRename": true
+                    },
+                    "files": {
+                        "aclModifiable": false,
+                        "trashSupported": false,
+                        "isReadOnly": false
+                    }
+                }
+            }
+        ]
+    }
+}
+*/
+
+/* As we can see, the provider does support the rename operation. We now look at our collections. */
+
+await callAPI(FilesCollectionsApi.browse(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "sortBy": null,
+        "sortDirection": "ascending"
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "id": "54123",
+            "specification": {
+                "title": "Home",
+                "product": {
+                    "id": "example-ssd",
+                    "category": "example-ssd",
+                    "provider": "example"
+                }
+            },
+            "createdAt": 1635151675465,
+            "status": {
+                "resolvedSupport": null,
+                "resolvedProduct": null
+            },
+            "updates": [
+            ],
+            "owner": {
+                "createdBy": "user",
+                "project": null
+            },
+            "permissions": {
+                "myself": [
+                    "ADMIN"
+                ],
+                "others": [
+                ]
+            },
+            "providerGeneratedId": null,
+            "acl": null,
+            "billing": {
+            }
+        }
+    ],
+    "next": null
+}
+*/
+
+/* Using the unique ID, we can rename the collection */
+
+await callAPI(FilesCollectionsApi.rename(
+    {
+        "items": [
+            {
+                "id": "54123",
+                "newTitle": "My Awesome Drive"
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+
+/* The new title is observed when we browse the collections one more time */
+
+await callAPI(FilesCollectionsApi.browse(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "sortBy": null,
+        "sortDirection": "ascending"
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "id": "54123",
+            "specification": {
+                "title": "My Awesome Drive",
+                "product": {
+                    "id": "example-ssd",
+                    "category": "example-ssd",
+                    "provider": "example"
+                }
+            },
+            "createdAt": 1635151675465,
+            "status": {
+                "resolvedSupport": null,
+                "resolvedProduct": null
+            },
+            "updates": [
+            ],
+            "owner": {
+                "createdBy": "user",
+                "project": null
+            },
+            "permissions": {
+                "myself": [
+                    "ADMIN"
+                ],
+                "others": [
+                ]
+            },
+            "providerGeneratedId": null,
+            "acl": null,
+            "billing": {
+            }
+        }
+    ],
+    "next": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example, we will see how a user can rename one of their collections.
+
+# 📝 NOTE: Renaming must be supported by the provider
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/retrieveProducts" 
+
+# {
+#     "productsByProvider": {
+#         "ucloud": [
+#             {
+#                 "product": {
+#                     "balance": null,
+#                     "name": "example-ssd",
+#                     "pricePerUnit": 1,
+#                     "category": {
+#                         "name": "example-ssd",
+#                         "provider": "example"
+#                     },
+#                     "description": "Fast storage",
+#                     "priority": 0,
+#                     "version": 1,
+#                     "freeToUse": false,
+#                     "unitOfPrice": "PER_UNIT",
+#                     "chargeType": "DIFFERENTIAL_QUOTA",
+#                     "hiddenInGrantApplications": false,
+#                     "productType": "STORAGE"
+#                 },
+#                 "support": {
+#                     "product": {
+#                         "id": "example-ssd",
+#                         "category": "example-ssd",
+#                         "provider": "example"
+#                     },
+#                     "stats": {
+#                         "sizeInBytes": null,
+#                         "sizeIncludingChildrenInBytes": null,
+#                         "modifiedAt": null,
+#                         "createdAt": null,
+#                         "accessedAt": null,
+#                         "unixPermissions": null,
+#                         "unixOwner": null,
+#                         "unixGroup": null
+#                     },
+#                     "collection": {
+#                         "aclModifiable": null,
+#                         "usersCanCreate": true,
+#                         "usersCanDelete": true,
+#                         "usersCanRename": true
+#                     },
+#                     "files": {
+#                         "aclModifiable": false,
+#                         "trashSupported": false,
+#                         "isReadOnly": false
+#                     }
+#                 }
+#             }
+#         ]
+#     }
+# }
+
+# As we can see, the provider does support the rename operation. We now look at our collections.
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "id": "54123",
+#             "specification": {
+#                 "title": "Home",
+#                 "product": {
+#                     "id": "example-ssd",
+#                     "category": "example-ssd",
+#                     "provider": "example"
+#                 }
+#             },
+#             "createdAt": 1635151675465,
+#             "status": {
+#                 "resolvedSupport": null,
+#                 "resolvedProduct": null
+#             },
+#             "updates": [
+#             ],
+#             "owner": {
+#                 "createdBy": "user",
+#                 "project": null
+#             },
+#             "permissions": {
+#                 "myself": [
+#                     "ADMIN"
+#                 ],
+#                 "others": [
+#                 ]
+#             },
+#             "providerGeneratedId": null,
+#             "acl": null,
+#             "billing": {
+#             }
+#         }
+#     ],
+#     "next": null
+# }
+
+# Using the unique ID, we can rename the collection
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/files/collections/rename" -d '{
+    "items": [
+        {
+            "id": "54123",
+            "newTitle": "My Awesome Drive"
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# The new title is observed when we browse the collections one more time
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "id": "54123",
+#             "specification": {
+#                 "title": "My Awesome Drive",
+#                 "product": {
+#                     "id": "example-ssd",
+#                     "category": "example-ssd",
+#                     "provider": "example"
+#                 }
+#             },
+#             "createdAt": 1635151675465,
+#             "status": {
+#                 "resolvedSupport": null,
+#                 "resolvedProduct": null
+#             },
+#             "updates": [
+#             ],
+#             "owner": {
+#                 "createdBy": "user",
+#                 "project": null
+#             },
+#             "permissions": {
+#                 "myself": [
+#                     "ADMIN"
+#                 ],
+#                 "others": [
+#                 ]
+#             },
+#             "providerGeneratedId": null,
+#             "acl": null,
+#             "billing": {
+#             }
+#         }
+#     ],
+#     "next": null
+# }
+
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/files.collections_rename.png)
+
+</details>
+
 
 
 ## Remote Procedure Calls
@@ -566,7 +1482,7 @@ data class FSSupport(
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `FileCollection` is an entrypoint to a user's files_
+__
 
 ```kotlin
 data class FileCollection(
@@ -582,25 +1498,6 @@ data class FileCollection(
     val billing: ResourceBilling.Free,
 )
 ```
-This entrypoint allows the user to access all the files they have access to within a single project. It is important to
-note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
-below:
-
-| Name              | Typical path                | Comment                                                     |
-|-------------------|-----------------------------|-------------------------------------------------------------|
-| Home directory    | `/home/$username/`     | The home folder is typically the main collection for a user |
-| Work directory    | `/work/$projectId/`    | The project 'home' folder                                   |
-| Scratch directory | `/scratch/$projectId/` | Temporary storage for a project                             |
-
-The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
-play an important role in accounting and resource management. A file collection can have a quota attached to it and
-billing information is also stored in this object. Each file collection can be attached to a different product type, and
-as a result, can have different billing information attached to it. This is, for example, useful if a storage provider
-has both fast and slow tiers of storage, which is typically billed very differently.
-
-All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
-title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
-if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
 
 <details>
 <summary>

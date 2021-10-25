@@ -437,27 +437,7 @@ data class FileCollectionIncludeFlags(
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc(
-    """A `FileCollection` is an entrypoint to a user's files
-
-This entrypoint allows the user to access all the files they have access to within a single project. It is important to
-note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
-below:
-
-| Name              | Typical path                | Comment                                                     |
-|-------------------|-----------------------------|-------------------------------------------------------------|
-| Home directory    | `/home/${"$"}username/`     | The home folder is typically the main collection for a user |
-| Work directory    | `/work/${"$"}projectId/`    | The project 'home' folder                                   |
-| Scratch directory | `/scratch/${"$"}projectId/` | Temporary storage for a project                             |
-
-The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
-play an important role in accounting and resource management. A file collection can have a quota attached to it and
-billing information is also stored in this object. Each file collection can be attached to a different product type, and
-as a result, can have different billing information attached to it. This is, for example, useful if a storage provider
-has both fast and slow tiers of storage, which is typically billed very differently.
-
-All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
-title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
-if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
+    """
 """
 )
 @Serializable
