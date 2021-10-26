@@ -6,7 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `Resource` is the core data model used to synchronize tasks between UCloud and a_
+_A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
 
 ```kotlin
 data class Share(
@@ -22,22 +22,7 @@ data class Share(
     val providerGeneratedId: String?,
 )
 ```
-[provider](/backend/provider-service/README.md).
-
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 
 <details>
 <summary>
@@ -91,7 +76,7 @@ The ID is unique across a provider for a single resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.Share.Update.md'>Share.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#share.update'>Share.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
 </summary>
 
 

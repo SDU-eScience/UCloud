@@ -491,7 +491,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieve?
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

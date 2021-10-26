@@ -49,6 +49,7 @@ data class FileMetadataTemplateNamespace(
     ) : ResourceStatus<Product, FileMetadataTemplateSupport>
 
     @Serializable
+    @UCloudApiOwnedBy(FileMetadataTemplateNamespaces::class)
     data class Update(override val timestamp: Long, override val status: String?) : ResourceUpdate
 }
 

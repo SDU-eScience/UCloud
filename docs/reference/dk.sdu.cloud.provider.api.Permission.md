@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Resources](/docs/developer-guide/core/resources.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Introduction to Resources](/docs/developer-guide/orchestration/resources.md)
 
 # `Permission`
 
@@ -6,7 +6,7 @@
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Base type for all permissions of the UCloud authorization model_
+_The UCloud permission model_
 
 ```kotlin
 enum class Permission {

@@ -281,6 +281,7 @@ data class JobBilling(
 ) : ResourceBilling
 
 @Serializable
+@UCloudApiOwnedBy(Jobs::class)
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,

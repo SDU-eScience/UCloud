@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / [Templates](/docs/developer-guide/orchestration/storage/metadata/templates.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / [Metadata Templates](/docs/developer-guide/orchestration/storage/metadata/templates.md)
 
 # Example: The Sensitivity Template
 
@@ -735,7 +735,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemp
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

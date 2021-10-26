@@ -161,23 +161,9 @@ interface ResourceStatus<P : Product, Support : ProductSupport> {
 }
 
 @UCloudApiDoc(
-    """A `Resource` is the core data model used to synchronize tasks between UCloud and a
-    [provider](/backend/provider-service/README.md).
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.
 
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 """
 )
 interface Resource<P : Product, Support : ProductSupport> : DocVisualizable {

@@ -144,6 +144,10 @@ only be responsible for facilitating direct communication. A common example of t
 <td>A placeholder document used only to conform with the Resources API</td>
 </tr>
 <tr>
+<td><a href='#providerupdate'><code>ProviderUpdate</code></a></td>
+<td>Updates regarding a Provider, not currently in use</td>
+</tr>
+<tr>
 <td><a href='#resourcebilling.free'><code>ResourceBilling.Free</code></a></td>
 <td>Contains information related to the accounting/billing of a `Resource`</td>
 </tr>
@@ -310,7 +314,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -776,7 +780,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -898,7 +902,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -1163,7 +1167,7 @@ The ID is unique across a provider for a single resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ProviderUpdate.md'>ProviderUpdate</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#providerupdate'>ProviderUpdate</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
 </summary>
 
 
@@ -1574,6 +1578,55 @@ data class ProviderSupport(
 <details>
 <summary>
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProviderUpdate`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Updates regarding a Provider, not currently in use_
+
+```kotlin
+data class ProviderUpdate(
+    val timestamp: Long,
+    val status: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
 </summary>
 
 

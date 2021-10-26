@@ -4,8 +4,8 @@
 </p>
 
 
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / Templates
-# Templates
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Metadata](/docs/developer-guide/orchestration/storage/metadata/README.md) / Metadata Templates
+# Metadata Templates
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
@@ -112,7 +112,7 @@ Only administrators of a workspace can approve such changes.
 </tr>
 <tr>
 <td><a href='#filemetadatatemplatenamespace'><code>FileMetadataTemplateNamespace</code></a></td>
-<td>A `Resource` is the core data model used to synchronize tasks between UCloud and a</td>
+<td>A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.</td>
 </tr>
 <tr>
 <td><a href='#filemetadatatemplatenamespace.spec'><code>FileMetadataTemplateNamespace.Spec</code></a></td>
@@ -121,6 +121,10 @@ Only administrators of a workspace can approve such changes.
 <tr>
 <td><a href='#filemetadatatemplatenamespace.status'><code>FileMetadataTemplateNamespace.Status</code></a></td>
 <td>Describes the current state of the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#filemetadatatemplatenamespace.update'><code>FileMetadataTemplateNamespace.Update</code></a></td>
+<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#filemetadatatemplatenamespaceflags'><code>FileMetadataTemplateNamespaceFlags</code></a></td>
@@ -873,7 +877,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemp
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -1071,7 +1075,7 @@ data class FileMetadataTemplateAndVersion(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `Resource` is the core data model used to synchronize tasks between UCloud and a_
+_A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
 
 ```kotlin
 data class FileMetadataTemplateNamespace(
@@ -1087,22 +1091,7 @@ data class FileMetadataTemplateNamespace(
     val providerGeneratedId: String?,
 )
 ```
-[provider](/backend/provider-service/README.md).
-
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 
 <details>
 <summary>
@@ -1156,7 +1145,7 @@ The ID is unique across a provider for a single resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update.md'>FileMetadataTemplateNamespace.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#filemetadatatemplatenamespace.update'>FileMetadataTemplateNamespace.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
 </summary>
 
 
@@ -1348,6 +1337,64 @@ this will contain information such as:
 
 
 This attribute is not included by default unless `includeProduct` is specified.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FileMetadataTemplateNamespace.Update`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes an update to the `Resource`_
+
+```kotlin
+data class Update(
+    val timestamp: Long,
+    val status: String?,
+)
+```
+Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+use the full update history if you only wish to know the _current_ state of a `Resource`.
+
+An update will typically contain information similar to the `status` field, for example:
+
+- A state value. For example, a compute `Job` might be `RUNNING`.
+- Change in key metrics.
+- Bindings to related `Resource`s.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
+</summary>
+
+
+
 
 
 </details>

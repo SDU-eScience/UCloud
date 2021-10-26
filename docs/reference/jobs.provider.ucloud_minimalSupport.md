@@ -285,7 +285,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/ucloud/jobs/ret
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

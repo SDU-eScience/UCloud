@@ -49,6 +49,7 @@ data class Share(
     ) : ResourceSpecification
 
     @Serializable
+    @UCloudApiOwnedBy(Shares::class)
     data class Update(
         val newState: State,
         val shareAvailableAt: String?,
@@ -167,9 +168,7 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
                 )
                 success(
                     create,
-                    bulkRequestOf(
-                        spec
-                    ),
+                    bulkRequestOf(spec),
                     BulkResponse(listOf(FindByStringId("6342"))),
                     alice
                 )

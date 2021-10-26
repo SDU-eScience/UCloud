@@ -37,6 +37,7 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
 import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
@@ -119,6 +120,7 @@ fun Chapter.previous(): Chapter? {
     }
 }
 
+@OptIn(UCloudApiExampleValue::class)
 fun generateCode() {
     val structure = Chapter.Node(
         "developer-guide",
@@ -163,6 +165,7 @@ fun generateCode() {
                 "orchestration",
                 "Orchestration of Resources",
                 listOf(
+                    Chapter.Feature("resources", "Introduction to Resources", Resources),
                     Chapter.Node(
                         "storage",
                         "Storage",
@@ -174,8 +177,8 @@ fun generateCode() {
                                 "metadata",
                                 "Metadata",
                                 listOf(
-                                    Chapter.Feature("templates", "Templates", FileMetadataTemplateNamespaces),
-                                    Chapter.Feature("documents", "Documents", FileMetadata)
+                                    Chapter.Feature("templates", "Metadata Templates", FileMetadataTemplateNamespaces),
+                                    Chapter.Feature("documents", "Metadata Documents", FileMetadata)
                                 )
                             ),
                             Chapter.Node(
@@ -336,7 +339,6 @@ fun generateCode() {
                 listOf(
                     Chapter.Feature("types", "Core Types", CoreTypes),
                     Chapter.Feature("api-conventions", "API Conventions", ApiConventions),
-                    Chapter.Feature("resources", "Resources", Resources),
                     Chapter.Node(
                         "users",
                         "Users",
