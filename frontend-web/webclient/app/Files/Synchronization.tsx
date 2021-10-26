@@ -28,6 +28,7 @@ import {ProductSyncFolder} from "@/Accounting";
 import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 const Tab: React.FunctionComponent<{
     selected: boolean;
@@ -147,7 +148,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                         header={<></>}
                         api={SyncDeviceApi}
                         onSelect={onDeviceSelect}
-                        embedded={true}
+                        browseType={BrowseType.Embedded}
                         onInlineCreation={(text, product, cb) => ({
                             product: {
                                 id: product.name,

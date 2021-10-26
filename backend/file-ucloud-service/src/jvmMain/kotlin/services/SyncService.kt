@@ -190,8 +190,7 @@ class SyncService(
                 }
             }
 
-            val grouped = devices.groupBy { it.second.id }
-            grouped.forEach { (_, requests) ->
+            devices.groupBy { it.second.id }.forEach { (_, requests) ->
                 Mounts.unmount.call(
                     UnmountRequest(
                         requests.map { MountFolderId(it.first) }
@@ -309,8 +308,7 @@ class SyncService(
                     }
                 }
 
-                val grouped = devices.groupBy { it.second.id }
-                grouped.forEach { (_, requests) ->
+                devices.groupBy { it.second.id }.forEach { (_, requests) ->
                     Mounts.unmount.call(
                         UnmountRequest(
                             requests.map { MountFolderId(it.first) }
