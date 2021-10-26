@@ -526,7 +526,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     if (provider) {
                         dialogStore.addDialog(
-                            <SynchronizationSettings file={selected[0]} provider={provider} />,
+                            <SynchronizationSettings file={selected[0]} provider={provider} onSuccess={() => cb.reload()} />,
                             doNothing,
                             true,
                             this.fileSelectorModalStyle

@@ -49,8 +49,9 @@ const Tab: React.FunctionComponent<{
 export const SynchronizationSettings: React.FunctionComponent<{
     file: UFile;
     provider: string;
+    onSuccess: () => void;
     onDeviceSelect?: (selection: SyncDevice) => void;
-}> = ({file, provider, onDeviceSelect}) => {
+}> = ({file, provider, onSuccess, onDeviceSelect}) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder>>(
         SyncFolderApi.browse({
@@ -121,6 +122,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                 setSyncFolder(undefined);
             }
         }
+        onSuccess();
     };
 
     return (
