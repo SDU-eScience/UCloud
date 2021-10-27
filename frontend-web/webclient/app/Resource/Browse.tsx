@@ -285,7 +285,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle resource={resource} /> : null;
+                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
@@ -319,7 +319,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </div>
                 }
             </>}
-            {RemainingStats ? <RemainingStats resource={resource} /> : null}
+            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
@@ -343,6 +343,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
                     <ItemRow
+                        browseType={props.browseType}
                         renderer={modifiedRenderer as ItemRenderer<unknown>}
                         itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         operations={operations} callbacks={callbacks}
@@ -367,7 +368,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<Res>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer as ItemRenderer<Res, any>} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />

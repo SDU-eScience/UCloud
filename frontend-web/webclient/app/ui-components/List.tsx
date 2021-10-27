@@ -20,16 +20,16 @@ function useChildPadding(
 }
 
 const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
-  font-size: ${props => props.fontSize};
+    font-size: ${props => props.fontSize};
 
-  & > * {
-    ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
-    ${useChildPadding};
-  }
+    & > * {
+        ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
+        ${useChildPadding};
+    }
 
-  & > *:last-child {
-    ${props => props.bordered ? "border-bottom: 0px;" : null}
-  }
+    & > *:last-child {
+        ${props => props.bordered ? "border-bottom: 0px;" : null}
+    }
 `;
 
 List.defaultProps = {
