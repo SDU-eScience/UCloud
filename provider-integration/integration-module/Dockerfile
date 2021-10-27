@@ -11,6 +11,8 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
 RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
 
 # Test users
+RUN groupadd -g 997 munge
+RUN useradd -u 999 -g 997 munge
 RUN useradd --system --user-group ucloud 
 RUN mkdir -p /var/run/ucloud/envoy
 RUN chown -R ucloud: /var/run/ucloud
@@ -31,7 +33,12 @@ WORKDIR /opt/ucloud
 
 
 
-FROM DEVELOPMENT AS SLURM
+FROM DEVELOPMENT AS ucloud-im
 
 RUN apt-get -qq -y install munge slurm-client 
 WORKDIR /opt/ucloud
+
+
+
+FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
+RUN useradd --user-group testuser
