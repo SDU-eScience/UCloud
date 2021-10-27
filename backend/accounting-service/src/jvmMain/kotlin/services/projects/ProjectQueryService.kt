@@ -8,6 +8,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
