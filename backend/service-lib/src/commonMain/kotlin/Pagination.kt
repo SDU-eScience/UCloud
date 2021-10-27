@@ -139,6 +139,10 @@ check if the end of results has been reached is by checking i `next == null`."""
         DocVisualization.Card("PageV2", emptyList(), items.map { visualizeValue(it) })
 }
 
+fun <T> singlePageOf(vararg items: T): PageV2<T> {
+    return PageV2(50, listOf(*items), null)
+}
+
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
 data class NormalizedPaginationRequestV2(

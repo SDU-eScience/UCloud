@@ -18,6 +18,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.singlePageOf
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
@@ -99,6 +100,32 @@ data class ExampleResourceFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
 ) : ResourceIncludeFlags
+
+@UCloudApiExampleValue
+private val simpleResource = ExampleResource(
+    "1234",
+    ExampleResource.Spec(
+        0, 100,
+        ProductReference("example-compute", "example-compute", "example")
+    ),
+    1635170395571L,
+    ExampleResource.Status(ExampleResource.State.RUNNING, 10),
+    listOf(
+        ExampleResource.Update(
+            1635170395571L,
+            "We are about to start counting!",
+            ExampleResource.State.PENDING
+        ),
+        ExampleResource.Update(
+            1635170395571L,
+            "We are now counting!",
+            ExampleResource.State.RUNNING,
+            10
+        )
+    ),
+    ResourceOwner("user", null),
+    ResourcePermissions(listOf(Permission.ADMIN), emptyList())
+)
 
 @OptIn(UCloudApiExampleValue::class)
 typealias ExampleResourcesSuper = ResourceApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
@@ -209,30 +236,7 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
     }
 
     override fun documentation() {
-        val simpleResource = ExampleResource(
-            "1234",
-            ExampleResource.Spec(
-                0, 100,
-                ProductReference("example-compute", "example-compute", "example")
-            ),
-            1635170395571L,
-            ExampleResource.Status(ExampleResource.State.RUNNING, 10),
-            listOf(
-                ExampleResource.Update(
-                    1635170395571L,
-                    "We are about to start counting!",
-                    ExampleResource.State.PENDING
-                ),
-                ExampleResource.Update(
-                    1635170395571L,
-                    "We are now counting!",
-                    ExampleResource.State.RUNNING,
-                    10
-                )
-            ),
-            ResourceOwner("user", null),
-            ResourcePermissions(listOf(Permission.ADMIN), emptyList())
-        )
+
 
         useCase(
             "browse",
@@ -541,6 +545,10 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             }
         )
     }
+
+    override val create = super.create!!
+    override val delete = super.delete!!
+    override val search = super.search!!
 }
 
 @UCloudApiExampleValue
@@ -548,6 +556,130 @@ object ResourceProvider : ResourceProviderApi<ExampleResource, ExampleResource.S
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example", "PROVIDERID") {
     override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
             ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
+
+    init {
+        description = """
+Providers deal almost exclusively with UCloud through resource provider APIs.
+
+We have already told you about the end-user APIs for resources. UCloud uses resources to synchronize work between 
+UCloud/Core and the provider. We achieve this synchronization through two different APIs:
+
+- __The ingoing API (Provider)__: This API handles requests, ultimately, from the end-user. UCloud/Core proxies the 
+  information from the end-user. During the proxy-step, UCloud/Core performs validation, authentication, authorization 
+  and auditing. 
+- __The outgoing API (Control):__ The outgoing API is the provider's chance to send requests back to UCloud/Core. 
+  For example, we use this API for: auditing, updates and queries about the catalog. 
+
+In this document, we will cover the ingoing API. This API, in most cases, mirrors the end-user API for write 
+operations. UCloud expands the API by replacing most request types with a fully-qualified form. This means we replace 
+specifications and references with full resource objects.
+
+## A Note on the Examples
+
+The examples in this section follow the same scenario as the end-user API.
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase(
+            "simple_create",
+            "Creation of Resources",
+            flow = {
+                val ucloud = ucloudCore()
+                val provider = provider()
+
+                comment("""
+                    In this example, we show a simple creation request. The creation request is always initiated by a 
+                    user.
+                """.trimIndent())
+
+                success(
+                    create,
+                    bulkRequestOf(simpleResource),
+                    bulkResponseOf(null),
+                    ucloud
+                )
+
+                comment("In this case, the provider decided not to attach a provider generated ID.")
+                comment("The provider can, at a later point in time, retrieve this resource from UCloud/Core.")
+
+                success(
+                    ResourceControl.retrieve,
+                    ResourceRetrieveRequest(ExampleResourceFlags(), simpleResource.id),
+                    simpleResource,
+                    provider
+                )
+            }
+        )
+
+        useCase(
+            "generated_id",
+            "Looking up resources by provider generated ID",
+            flow = {
+                val ucloud = ucloudCore()
+                val provider = provider()
+
+                success(
+                    create,
+                    bulkRequestOf(simpleResource),
+                    bulkResponseOf(FindByStringId("mhxas1")),
+                    ucloud
+                )
+
+                success(
+                    ResourceControl.browse,
+                    ResourceBrowseRequest(ExampleResourceFlags(filterProviderIds = "mhxas1")),
+                    singlePageOf(simpleResource),
+                    provider
+                )
+            }
+        )
+
+        useCase(
+            "create_failure",
+            "Dealing with failures",
+            flow = {
+                val ucloud = ucloudCore()
+                val provider = provider()
+
+                failure(
+                    create,
+                    bulkRequestOf(simpleResource),
+                    CommonErrorMessage("The counting engines failed to start"),
+                    HttpStatusCode.InternalServerError,
+                    ucloud
+                )
+            }
+        )
+
+        useCase(
+            "create_failure",
+            "Dealing with partial failures",
+            flow = {
+                val ucloud = ucloudCore()
+                val provider = provider()
+
+                comment("In this example, we will discover how a provider should deal with a partial failure.")
+
+                failure(
+                    create,
+                    bulkRequestOf(simpleResource, simpleResource.copy(id = "51214")),
+                    CommonErrorMessage("The counting engines failed to start"),
+                    HttpStatusCode.InternalServerError,
+                    ucloud
+                )
+
+                comment("""
+                    In this case, imagine that the provider failed to create the second resource. This should
+                    immediately trigger cleanup on the provider, if the first resource was already created. The provider
+                    should then respond with an appropriate error message. Providers should not attempt to only
+                    partially create the resources.
+                """.trimIndent())
+            }
+        )
+    }
+
+    override val delete = super.delete!!
 }
 
 @UCloudApiExampleValue
