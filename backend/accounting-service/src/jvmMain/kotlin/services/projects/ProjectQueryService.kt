@@ -938,6 +938,37 @@ class ProjectQueryService(
         }
     }
 
+    suspend fun listSubProjectsV2(
+        ctx: DBContext,
+        pagination: WithPaginationRequestV2,
+        actor: Actor,
+        id: String
+    ): PageV2<Project> {
+        return ctx.paginateV2(
+            actor,
+            pagination.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("username", actor.username)
+                    },
+                    """
+                        declare c cursor for
+                        select p.*
+                        from project.projects p, project.project_members pm
+                        where
+                            p.parent = :id and
+                            pm.project_id = p.id and
+                            pm.username = :username and
+                            (pm.role = 'ADMIN' or pm.role = 'PI')
+                    """.trimIndent()
+                )
+            },
+            mapper = { _, rows -> rows.map { it.toProject() } }
+        )
+    }
+
     suspend fun listSubProjects(
         ctx: DBContext,
         pagination: NormalizedPaginationRequest?,

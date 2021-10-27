@@ -12,6 +12,7 @@ import {useCallback, useEffect} from "react";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
+import {PaginationRequestV2} from "@/UCloud";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -254,7 +255,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string; parent: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent?: string; principalInvestigator?: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -304,6 +305,16 @@ export const listSubprojects = (parameters: ListSubprojectsRequest): APICallPara
     method: "GET",
     path: buildQueryString(
         "/projects/sub-projects",
+        parameters
+    ),
+    parameters,
+    reloadId: Math.random()
+});
+
+export const listSubprojectsV2 = (parameters: ListSubprojectsV2Request): APICallParameters<PaginationRequestV2> => ({
+    method: "GET",
+    path: buildQueryString(
+        "/projects/sub-projects-page-v2",
         parameters
     ),
     parameters,
@@ -360,6 +371,7 @@ export interface OutgoingInvite {
 
 export type ListOutgoingInvitesRequest = PaginationRequest;
 export type ListSubprojectsRequest = PaginationRequest;
+export type ListSubprojectsV2Request = PaginationRequestV2;
 
 export function listOutgoingInvites(
     request: ListOutgoingInvitesRequest

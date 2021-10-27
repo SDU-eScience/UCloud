@@ -110,7 +110,7 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListStyle = styled.div<{fontSize?: string; }>`
+const ListStyle = styled.div<{fontSize?: string;}>`
     transition: background-color 0.3s;
     padding: 5px 0;
     width: 100%;

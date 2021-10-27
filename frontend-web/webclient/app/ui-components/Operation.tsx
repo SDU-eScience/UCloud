@@ -119,22 +119,22 @@ const OperationComponent: React.FunctionComponent<{
     return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
 };
 
-interface OperationProps<T, R = undefined> {
+interface OperationProps<EntityType, Extras = undefined> {
     location: OperationLocation;
-    operations: Operation<T, R>[];
-    selected: T[];
-    extra: R;
+    operations: Operation<EntityType, Extras>[];
+    selected: EntityType[];
+    extra: Extras;
     entityNameSingular: string;
     entityNamePlural?: string;
     dropdownTag?: string;
-    row?: T;
+    row?: EntityType;
     showSelectedCount?: boolean;
     displayTitle?: boolean;
-    all?: T[];
+    all?: EntityType[];
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
 }
 
-type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
+type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
     JSX.Element | null;
 
 export const Operations: OperationsType = props => {
