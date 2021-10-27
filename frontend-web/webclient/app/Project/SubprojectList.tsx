@@ -3,27 +3,23 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useLocation} from "react-router";
-import {Box, Flex, Icon, Text, Tooltip} from "@/ui-components";
-import {listSubprojects, listSubprojectsV2, Project} from ".";
-import List, {ListRow} from "@/ui-components/List";
-import * as Pagination from "@/Pagination";
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {Box, Icon, Input, Text} from "@/ui-components";
+import {createProject, listSubprojectsV2, Project} from ".";
+import {ListRow} from "@/ui-components/List";
 import {stopPropagation} from "@/UtilityFunctions";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Operations, Operation} from "@/ui-components/Operation";
-import {PageV2} from "@/UCloud";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {ItemRow, StandardBrowse} from "@/ui-components/Browse";
-import {ResourceBrowse} from "@/Resource/Browse";
+import {StandardBrowse} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
-type ProjectOperation = Operation<Project, undefined>;
+type ProjectOperation = Operation<Project, {startCreation: () => void;}>;
 
 const projectOperations: ProjectOperation[] = [
     {
         enabled: () => true,
-        onClick: () => console.log("todo"),
+        onClick: (entries, extra) => extra.startCreation(),
         text: "Create subproject",
         canAppearInLocation: loc => loc === "SIDEBAR",
         color: "blue",
@@ -36,33 +32,53 @@ export default function SubprojectList(): JSX.Element | null {
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
 
+    const [, invokeCommand,] = useCloudCommand();
+
 
     const [creating, setCreating] = React.useState(false);
-    const creationRef = React.useRef<HTMLInputElement>();
+    const creationRef = React.useRef<HTMLInputElement>(null);
 
     const startCreation = React.useCallback(() => {
         setCreating(true);
     }, []);
+
+    const onCreate = React.useCallback(async () => {
+        setCreating(false);
+        const subprojectName = creationRef.current?.value ?? "";
+        if (!subprojectName) {
+            snackbarStore.addFailure("Invalid subproject name", false);
+            return;
+        }
+        invokeCommand(createProject({
+            title: subprojectName,
+            parent: subprojectFromQuery
+        }));
+    }, [creationRef, subprojectFromQuery]);
 
     const toggleSet = useToggleSet<Project>([]);
 
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text>Missing subproject</Text> :
-                <StandardBrowse
-                    generateCall={next => ({
-                        ...listSubprojectsV2({
-                            itemsPerPage: 50,
-                            next,
-                        }),
-                        projectOverride: subprojectFromQuery
-                    })}
-                    pageRenderer={pageRenderer}
-                    toggleSet={toggleSet}
-                />
+                <>
+                    {creating ? <ListRow left={<form onSubmit={onCreate}><Input ref={creationRef} /></form>} right={undefined} /> : null}
+                    <StandardBrowse
+                        generateCall={next => ({
+                            ...listSubprojectsV2({
+                                itemsPerPage: 50,
+                                next,
+                            }),
+                            projectOverride: subprojectFromQuery
+                        })}
+                        pageRenderer={pageRenderer}
+                        toggleSet={toggleSet}
+                    />
+                </>
         }
         sidebar={
-            <Box />
+            <Operations
+                location="SIDEBAR" operations={projectOperations} selected={[]} extra={{startCreation}} entityNameSingular={"Subproject"}
+            />
         }
     />;
 
