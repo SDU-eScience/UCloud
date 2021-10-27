@@ -11,6 +11,8 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
@@ -107,6 +109,15 @@ object Resources : ExampleResourcesSuper("example") {
     override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
             ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
 
+    const val readMeFirst = """
+        
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    """
+
     init {
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
@@ -202,7 +213,7 @@ object Resources : ExampleResourcesSuper("example") {
             "1234",
             ExampleResource.Spec(
                 0, 100,
-                ProductReference("example-product", "example-product", "example")
+                ProductReference("example-compute", "example-compute", "example")
             ),
             1635170395571L,
             ExampleResource.Status(ExampleResource.State.RUNNING, 10),
@@ -530,4 +541,18 @@ object Resources : ExampleResourcesSuper("example") {
             }
         )
     }
+}
+
+@UCloudApiExampleValue
+object ResourceProvider : ResourceProviderApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
+        ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example", "PROVIDERID") {
+    override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
+            ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
+}
+
+@UCloudApiExampleValue
+object ResourceControl : ResourceControlApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
+        ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example") {
+    override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
+            ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
 }

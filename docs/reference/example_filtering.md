@@ -71,8 +71,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -159,8 +159,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -241,8 +241,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 100,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },

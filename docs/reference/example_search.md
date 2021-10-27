@@ -70,8 +70,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -100,8 +100,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -130,8 +130,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -199,8 +199,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -276,8 +276,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -311,8 +311,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 200,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -346,8 +346,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 300,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -420,8 +420,8 @@ await callAPI(ExampleApi.search(
                 "start": 0,
                 "target": 300,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -488,8 +488,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 100,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -523,8 +523,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 200,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -558,8 +558,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 300,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -629,8 +629,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "start": 0,
 #                 "target": 300,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },

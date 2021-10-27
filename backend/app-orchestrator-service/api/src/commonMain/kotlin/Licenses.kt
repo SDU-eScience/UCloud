@@ -116,17 +116,19 @@ object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, Lice
         val Application = "$TYPE_REF dk.sdu.cloud.app.store.api.Application"
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
-            Licenses act as a key to certain restricted software.
+Licenses act as a key to certain restricted software.
 
-            Users must attach a license to a $Job for it to work. When attached, the software should be available. 
-            In most cases, a license is a parameter of an $Application .
+${Resources.readMeFirst}
 
-            ---
-            
-            📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
-            the responsibility of the provider to store this information.
-            
-            ---
+Users must attach a license to a $Job for it to work. When attached, the software should be available. 
+In most cases, a license is a parameter of an $Application .
+
+---
+
+📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
+the responsibility of the provider to store this information.
+
+---
         """.trimIndent()
     }
 

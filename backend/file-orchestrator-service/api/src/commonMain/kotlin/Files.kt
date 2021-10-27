@@ -18,6 +18,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
+import dk.sdu.cloud.provider.api.Resources
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -146,6 +147,8 @@ object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileInclu
 
         //language=markdown
         description = """Files in UCloud is a resource for storing, retrieving and organizing data in UCloud.
+
+${Resources.readMeFirst}
 
 The file-system of UCloud provide researchers with a way of storing large data-sets efficiently and securely. The
 file-system is one of UCloud's core features and almost all other features, either directly or indirectly, interact

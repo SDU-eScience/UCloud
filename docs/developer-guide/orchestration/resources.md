@@ -335,8 +335,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -424,8 +424,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -507,8 +507,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?inc
 #                 "start": 0,
 #                 "target": 100,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -592,8 +592,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?inc
 Resources.create.call(
     bulkRequestOf(ExampleResource.Spec(
         product = ProductReference(
-            category = "example-product", 
-            id = "example-product", 
+            category = "example-compute", 
+            id = "example-compute", 
             provider = "example", 
         ), 
         start = 0, 
@@ -652,8 +652,8 @@ ExampleResource(
     ), 
     specification = ExampleResource.Spec(
         product = ProductReference(
-            category = "example-product", 
-            id = "example-product", 
+            category = "example-compute", 
+            id = "example-compute", 
             provider = "example", 
         ), 
         start = 0, 
@@ -701,8 +701,8 @@ await callAPI(ExampleApi.create(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             }
@@ -752,8 +752,8 @@ await callAPI(ExampleApi.retrieve(
         "start": 0,
         "target": 100,
         "product": {
-            "id": "example-product",
-            "category": "example-product",
+            "id": "example-compute",
+            "category": "example-compute",
             "provider": "example"
         }
     },
@@ -819,8 +819,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "start": 0,
             "target": 100,
             "product": {
-                "id": "example-product",
-                "category": "example-product",
+                "id": "example-compute",
+                "category": "example-compute",
                 "provider": "example"
             }
         }
@@ -848,8 +848,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 #         "start": 0,
 #         "target": 100,
 #         "product": {
-#             "id": "example-product",
-#             "category": "example-product",
+#             "id": "example-compute",
+#             "category": "example-compute",
 #             "provider": "example"
 #         }
 #     },
@@ -975,8 +975,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -1063,8 +1063,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -1145,8 +1145,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 100,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -1274,8 +1274,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -1304,8 +1304,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -1334,8 +1334,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -1403,8 +1403,8 @@ PageV2(
         ), 
         specification = ExampleResource.Spec(
             product = ProductReference(
-                category = "example-product", 
-                id = "example-product", 
+                category = "example-compute", 
+                id = "example-compute", 
                 provider = "example", 
             ), 
             start = 0, 
@@ -1480,8 +1480,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -1515,8 +1515,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 200,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -1550,8 +1550,8 @@ await callAPI(ExampleApi.browse(
                 "start": 0,
                 "target": 300,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -1624,8 +1624,8 @@ await callAPI(ExampleApi.search(
                 "start": 0,
                 "target": 300,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             },
@@ -1692,8 +1692,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 100,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -1727,8 +1727,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 200,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -1762,8 +1762,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 "start": 0,
 #                 "target": 300,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -1833,8 +1833,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "start": 0,
 #                 "target": 300,
 #                 "product": {
-#                     "id": "example-product",
-#                     "category": "example-product",
+#                     "id": "example-compute",
+#                     "category": "example-compute",
 #                     "provider": "example"
 #                 }
 #             },
@@ -2452,8 +2452,8 @@ involves two users: Alice and Bob. */
 Resources.create.call(
     bulkRequestOf(ExampleResource.Spec(
         product = ProductReference(
-            category = "example-product", 
-            id = "example-product", 
+            category = "example-compute", 
+            id = "example-compute", 
             provider = "example", 
         ), 
         start = 0, 
@@ -2561,8 +2561,8 @@ ExampleResource(
     ), 
     specification = ExampleResource.Spec(
         product = ProductReference(
-            category = "example-product", 
-            id = "example-product", 
+            category = "example-compute", 
+            id = "example-compute", 
             provider = "example", 
         ), 
         start = 0, 
@@ -2614,8 +2614,8 @@ await callAPI(ExampleApi.create(
                 "start": 0,
                 "target": 100,
                 "product": {
-                    "id": "example-product",
-                    "category": "example-product",
+                    "id": "example-compute",
+                    "category": "example-compute",
                     "provider": "example"
                 }
             }
@@ -2728,8 +2728,8 @@ await callAPI(ExampleApi.retrieve(
         "start": 0,
         "target": 100,
         "product": {
-            "id": "example-product",
-            "category": "example-product",
+            "id": "example-compute",
+            "category": "example-compute",
             "provider": "example"
         }
     },
@@ -2798,8 +2798,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "start": 0,
             "target": 100,
             "product": {
-                "id": "example-product",
-                "category": "example-product",
+                "id": "example-compute",
+                "category": "example-compute",
                 "provider": "example"
             }
         }
@@ -2866,8 +2866,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 #         "start": 0,
 #         "target": 100,
 #         "product": {
-#             "id": "example-product",
-#             "category": "example-product",
+#             "id": "example-compute",
+#             "category": "example-compute",
 #             "provider": "example"
 #         }
 #     },

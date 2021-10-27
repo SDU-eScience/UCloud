@@ -13,6 +13,13 @@ _Jobs in UCloud are the core abstraction used to describe units of computation._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
 in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
 ['nodes'](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md). The type of applications determine

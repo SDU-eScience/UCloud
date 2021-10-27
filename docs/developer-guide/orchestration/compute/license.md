@@ -13,6 +13,13 @@ _Licenses act as a key to certain restricted software._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 Users must attach a license to a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  for it to work. When attached, the software should be available. 
 In most cases, a license is a parameter of an [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md).
 

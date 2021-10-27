@@ -182,23 +182,25 @@ object FileMetadataTemplateNamespaces : ResourceApi<
 
     init {
         description = """
-            Metadata templates define the schema for metadata documents.
-            
-            UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
-            tag documents at a glance and search through them.
+Metadata templates define the schema for metadata documents.
 
-            This feature consists of two parts:
+${Resources.readMeFirst}
 
-            1. __Metadata templates (you are here):__ Templates specify the schema. You can think of this as a way of 
-               defining _how_ your documents should look. We use them to generate user interfaces and visual 
-               representations of your documents.
-            2. __Metadata documents (next section):__ Documents fill out the values of a template. When you create a 
-               document you must attach it to a file also.
+UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
+tag documents at a glance and search through them.
 
-            At a technical level, we implement metadata templates using [JSON schema](https://json-schema.org/). 
-            This gives you a fair amount of flexibility to control the format of documents. Of course, not everything 
-            is machine-checkable. To mitigate this, templates can require that changes go through an approval process.
-            Only administrators of a workspace can approve such changes.
+This feature consists of two parts:
+
+1. __Metadata templates (you are here):__ Templates specify the schema. You can think of this as a way of 
+   defining _how_ your documents should look. We use them to generate user interfaces and visual 
+   representations of your documents.
+2. __Metadata documents (next section):__ Documents fill out the values of a template. When you create a 
+   document you must attach it to a file also.
+
+At a technical level, we implement metadata templates using [JSON schema](https://json-schema.org/). 
+This gives you a fair amount of flexibility to control the format of documents. Of course, not everything 
+is machine-checkable. To mitigate this, templates can require that changes go through an approval process.
+Only administrators of a workspace can approve such changes.
         """.trimIndent()
     }
 

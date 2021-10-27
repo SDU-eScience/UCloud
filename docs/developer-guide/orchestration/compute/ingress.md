@@ -13,6 +13,13 @@ _Ingresses provide a way to attach custom links to interactive web-interfaces._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 When an interactive (web) application runs, it typically uses a provider generated URL. The ingress feature
 allows providers to give access to these [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s through a custom URL.
 

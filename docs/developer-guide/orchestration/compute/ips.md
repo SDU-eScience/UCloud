@@ -13,6 +13,13 @@ _Network IPs grant users access to an IP address resource._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 IPs are used in combination with [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s. This will attach an IP address to the compute resource. For 
 example, on a virtual machine, this might add a new network interface with the IP address.
 

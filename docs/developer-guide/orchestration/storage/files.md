@@ -13,6 +13,13 @@ _Files in UCloud is a resource for storing, retrieving and organizing data in UC
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 The file-system of UCloud provide researchers with a way of storing large data-sets efficiently and securely. The
 file-system is one of UCloud's core features and almost all other features, either directly or indirectly, interact
 with it. For example:

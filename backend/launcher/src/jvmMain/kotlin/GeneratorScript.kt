@@ -65,6 +65,8 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.favorite.api.ProjectFavorites
 import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.ResourceControl
+import dk.sdu.cloud.provider.api.ResourceProvider
 import dk.sdu.cloud.provider.api.Resources
 import dk.sdu.cloud.redis.cleaner.api.RedisCleaner
 import dk.sdu.cloud.slack.api.SlackDescriptions
@@ -185,6 +187,16 @@ fun generateCode() {
                                 "providers",
                                 "Provider APIs",
                                 listOf(
+                                    Chapter.Feature(
+                                        "resources",
+                                        "Introduction to Resources API for Providers",
+                                        ResourceProvider
+                                    ),
+                                    Chapter.Feature(
+                                        "control",
+                                        "Introduction to Resources Control API",
+                                        ResourceControl
+                                    ),
                                     Chapter.Node(
                                         "drives",
                                         "Drives (FileCollection)",

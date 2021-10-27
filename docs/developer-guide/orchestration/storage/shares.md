@@ -13,6 +13,13 @@ _Shares provide users a way of collaborating on individual folders in a personal
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
 other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
 how to use this feature. We generally recommend that you use a full-blown project for collaboration.

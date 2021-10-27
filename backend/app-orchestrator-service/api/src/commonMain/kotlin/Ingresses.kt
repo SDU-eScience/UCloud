@@ -138,10 +138,12 @@ object Ingresses : ResourceApi<
     init {
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
-            Ingresses provide a way to attach custom links to interactive web-interfaces.
+Ingresses provide a way to attach custom links to interactive web-interfaces.
 
-            When an interactive (web) application runs, it typically uses a provider generated URL. The ingress feature
-            allows providers to give access to these $Job s through a custom URL.
+${Resources.readMeFirst}
+
+When an interactive (web) application runs, it typically uses a provider generated URL. The ingress feature
+allows providers to give access to these $Job s through a custom URL.
         """.trimIndent()
     }
 

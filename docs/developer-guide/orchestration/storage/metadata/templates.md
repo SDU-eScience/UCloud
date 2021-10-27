@@ -13,6 +13,13 @@ _Metadata templates define the schema for metadata documents._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 UCloud supports arbitrary of files. This feature is useful for general data management. It allows users to 
 tag documents at a glance and search through them.
 

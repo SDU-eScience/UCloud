@@ -206,18 +206,20 @@ object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpda
     init {
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
-            Network IPs grant users access to an IP address resource.
-            
-            IPs are used in combination with $Job s. This will attach an IP address to the compute resource. For 
-            example, on a virtual machine, this might add a new network interface with the IP address.
-            
-            It is not a strict requirement that the IP address is visible inside the compute environment. However,
-            it is required that users can access the services exposed by a $Job through this API.
-            
-            If the firewall feature is supported by the provider, then users must define which ports are expected to be
-            in use by the $Job . If the firewall feature is not supported, then all ports must be open by default or
-            managed from within the compute environment. For example, the firewall feature is not supported if the
-            firewall is controlled by the virtual machine.
+Network IPs grant users access to an IP address resource.
+
+${Resources.readMeFirst}
+
+IPs are used in combination with $Job s. This will attach an IP address to the compute resource. For 
+example, on a virtual machine, this might add a new network interface with the IP address.
+
+It is not a strict requirement that the IP address is visible inside the compute environment. However,
+it is required that users can access the services exposed by a $Job through this API.
+
+If the firewall feature is supported by the provider, then users must define which ports are expected to be
+in use by the $Job . If the firewall feature is not supported, then all ports must be open by default or
+managed from within the compute environment. For example, the firewall feature is not supported if the
+firewall is controlled by the virtual machine.
         """.trimIndent()
     }
 
