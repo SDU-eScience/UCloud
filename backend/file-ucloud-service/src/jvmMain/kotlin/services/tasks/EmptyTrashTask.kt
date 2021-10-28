@@ -48,7 +48,6 @@ class EmptyTrashTask: TaskHandler {
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
-                println("attempting to delete ${internalFile}")
                 try {
                     nativeFs.delete(internalFile)
                     nativeFs.createDirectories(internalFile)
