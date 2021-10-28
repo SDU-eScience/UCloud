@@ -9,11 +9,47 @@
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Network IPs grant users access to an IP address resource._
+
+## Rationale
+
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
+IPs are used in combination with [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)s. This will attach an IP address to the compute resource. For 
+example, on a virtual machine, this might add a new network interface with the IP address.
+
+It is not a strict requirement that the IP address is visible inside the compute environment. However,
+it is required that users can access the services exposed by a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)  through this API.
+
+If the firewall feature is supported by the provider, then users must define which ports are expected to be
+in use by the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md). If the firewall feature is not supported, then all ports must be open by default or
+managed from within the compute environment. For example, the firewall feature is not supported if the
+firewall is controlled by the virtual machine.
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-create-and-configure-firewall'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-create-and-configure-firewall'>Create and configure firewall</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -60,7 +96,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -120,6 +156,535 @@
 
 
 </details>
+
+## Example: Create and configure firewall
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example we will see how to create and manage a public IP address */
+
+NetworkIPs.retrieveProducts.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+SupportByProvider(
+    productsByProvider = mapOf("example" to listOf(ResolvedSupport(
+        product = Product.NetworkIP(
+            category = ProductCategoryId(
+                id = "example-id", 
+                name = "example-id", 
+                provider = "example", 
+            ), 
+            chargeType = ChargeType.ABSOLUTE, 
+            description = "A public IP address", 
+            freeToUse = false, 
+            hiddenInGrantApplications = false, 
+            name = "example-ip", 
+            pricePerUnit = 1, 
+            priority = 0, 
+            productType = ProductType.NETWORK_IP, 
+            unitOfPrice = ProductPriceUnit.PER_UNIT, 
+            version = 1, 
+            balance = null, 
+            id = "example-ip", 
+        ), 
+        support = NetworkIPSupport(
+            firewall = NetworkIPSupport.Firewall(
+                enabled = true, 
+            ), 
+            product = ProductReference(
+                category = "example-ip", 
+                id = "example-ip", 
+                provider = "example", 
+            ), 
+        ), 
+    ))), 
+)
+*/
+
+/* We have a single product available to us. It supports the firewall feature. */
+
+NetworkIPs.create.call(
+    bulkRequestOf(NetworkIPSpecification(
+        firewall = NetworkIPSpecification.Firewall(
+            openPorts = listOf(PortRangeAndProto(
+                end = 1100, 
+                protocol = IPProtocol.TCP, 
+                start = 1000, 
+            )), 
+        ), 
+        product = ProductReference(
+            category = "example-ip", 
+            id = "example-ip", 
+            provider = "example", 
+        ), 
+    )),
+    user
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "5123", 
+    )), 
+)
+*/
+
+/* The IP address has been created and has ID 5123 */
+
+
+/* Updating the firewall causes existing ports to be removed. */
+
+NetworkIPs.updateFirewall.call(
+    bulkRequestOf(FirewallAndId(
+        firewall = NetworkIPSpecification.Firewall(
+            openPorts = listOf(PortRangeAndProto(
+                end = 80, 
+                protocol = IPProtocol.TCP, 
+                start = 80, 
+            )), 
+        ), 
+        id = "5123", 
+    )),
+    user
+).orThrow()
+
+/*
+Unit
+*/
+
+/* We can read the current state by retrieving the resource */
+
+NetworkIPs.retrieve.call(
+    ResourceRetrieveRequest(
+        flags = NetworkIPFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        id = "5123", 
+    ),
+    user
+).orThrow()
+
+/*
+NetworkIP(
+    acl = null, 
+    billing = ResourceBilling.Free, 
+    createdAt = 1635170395571, 
+    id = "5123", 
+    owner = ResourceOwner(
+        createdBy = "user", 
+        project = null, 
+    ), 
+    permissions = null, 
+    resolvedProduct = null, 
+    specification = NetworkIPSpecification(
+        firewall = NetworkIPSpecification.Firewall(
+            openPorts = listOf(PortRangeAndProto(
+                end = 80, 
+                protocol = IPProtocol.TCP, 
+                start = 80, 
+            )), 
+        ), 
+        product = ProductReference(
+            category = "example-ip", 
+            id = "example-ip", 
+            provider = "example", 
+        ), 
+    ), 
+    status = NetworkIPStatus(
+        boundTo = emptyList(), 
+        ipAddress = null, 
+        resolvedProduct = null, 
+        resolvedSupport = null, 
+        state = NetworkIPState.READY, 
+    ), 
+    updates = emptyList(), 
+    providerGeneratedId = "5123", 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example we will see how to create and manage a public IP address */
+
+// Authenticated as user
+await callAPI(NetworkipsApi.retrieveProducts(
+    {
+    }
+);
+
+/*
+{
+    "productsByProvider": {
+        "example": [
+            {
+                "product": {
+                    "balance": null,
+                    "name": "example-ip",
+                    "pricePerUnit": 1,
+                    "category": {
+                        "name": "example-id",
+                        "provider": "example"
+                    },
+                    "description": "A public IP address",
+                    "priority": 0,
+                    "version": 1,
+                    "freeToUse": false,
+                    "unitOfPrice": "PER_UNIT",
+                    "chargeType": "ABSOLUTE",
+                    "hiddenInGrantApplications": false,
+                    "productType": "NETWORK_IP"
+                },
+                "support": {
+                    "product": {
+                        "id": "example-ip",
+                        "category": "example-ip",
+                        "provider": "example"
+                    },
+                    "firewall": {
+                        "enabled": true
+                    }
+                }
+            }
+        ]
+    }
+}
+*/
+
+/* We have a single product available to us. It supports the firewall feature. */
+
+await callAPI(NetworkipsApi.create(
+    {
+        "items": [
+            {
+                "product": {
+                    "id": "example-ip",
+                    "category": "example-ip",
+                    "provider": "example"
+                },
+                "firewall": {
+                    "openPorts": [
+                        {
+                            "start": 1000,
+                            "end": 1100,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "5123"
+        }
+    ]
+}
+*/
+
+/* The IP address has been created and has ID 5123 */
+
+
+/* Updating the firewall causes existing ports to be removed. */
+
+await callAPI(NetworkipsApi.updateFirewall(
+    {
+        "items": [
+            {
+                "id": "5123",
+                "firewall": {
+                    "openPorts": [
+                        {
+                            "start": 80,
+                            "end": 80,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+
+/* We can read the current state by retrieving the resource */
+
+await callAPI(NetworkipsApi.retrieve(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIds": null
+        },
+        "id": "5123"
+    }
+);
+
+/*
+{
+    "id": "5123",
+    "specification": {
+        "product": {
+            "id": "example-ip",
+            "category": "example-ip",
+            "provider": "example"
+        },
+        "firewall": {
+            "openPorts": [
+                {
+                    "start": 80,
+                    "end": 80,
+                    "protocol": "TCP"
+                }
+            ]
+        }
+    },
+    "owner": {
+        "createdBy": "user",
+        "project": null
+    },
+    "createdAt": 1635170395571,
+    "status": {
+        "state": "READY",
+        "boundTo": [
+        ],
+        "ipAddress": null,
+        "resolvedSupport": null,
+        "resolvedProduct": null
+    },
+    "updates": [
+    ],
+    "resolvedProduct": null,
+    "permissions": null,
+    "billing": {
+    },
+    "acl": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example we will see how to create and manage a public IP address
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retrieveProducts" 
+
+# {
+#     "productsByProvider": {
+#         "example": [
+#             {
+#                 "product": {
+#                     "balance": null,
+#                     "name": "example-ip",
+#                     "pricePerUnit": 1,
+#                     "category": {
+#                         "name": "example-id",
+#                         "provider": "example"
+#                     },
+#                     "description": "A public IP address",
+#                     "priority": 0,
+#                     "version": 1,
+#                     "freeToUse": false,
+#                     "unitOfPrice": "PER_UNIT",
+#                     "chargeType": "ABSOLUTE",
+#                     "hiddenInGrantApplications": false,
+#                     "productType": "NETWORK_IP"
+#                 },
+#                 "support": {
+#                     "product": {
+#                         "id": "example-ip",
+#                         "category": "example-ip",
+#                         "provider": "example"
+#                     },
+#                     "firewall": {
+#                         "enabled": true
+#                     }
+#                 }
+#             }
+#         ]
+#     }
+# }
+
+# We have a single product available to us. It supports the firewall feature.
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/networkips" -d '{
+    "items": [
+        {
+            "product": {
+                "id": "example-ip",
+                "category": "example-ip",
+                "provider": "example"
+            },
+            "firewall": {
+                "openPorts": [
+                    {
+                        "start": 1000,
+                        "end": 1100,
+                        "protocol": "TCP"
+                    }
+                ]
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "5123"
+#         }
+#     ]
+# }
+
+# The IP address has been created and has ID 5123
+
+# Updating the firewall causes existing ports to be removed.
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/networkips/firewall" -d '{
+    "items": [
+        {
+            "id": "5123",
+            "firewall": {
+                "openPorts": [
+                    {
+                        "start": 80,
+                        "end": 80,
+                        "protocol": "TCP"
+                    }
+                ]
+            }
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# We can read the current state by retrieving the resource
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=5123" 
+
+# {
+#     "id": "5123",
+#     "specification": {
+#         "product": {
+#             "id": "example-ip",
+#             "category": "example-ip",
+#             "provider": "example"
+#         },
+#         "firewall": {
+#             "openPorts": [
+#                 {
+#                     "start": 80,
+#                     "end": 80,
+#                     "protocol": "TCP"
+#                 }
+#             ]
+#         }
+#     },
+#     "owner": {
+#         "createdBy": "user",
+#         "project": null
+#     },
+#     "createdAt": 1635170395571,
+#     "status": {
+#         "state": "READY",
+#         "boundTo": [
+#         ],
+#         "ipAddress": null,
+#         "resolvedSupport": null,
+#         "resolvedProduct": null
+#     },
+#     "updates": [
+#     ],
+#     "resolvedProduct": null,
+#     "permissions": null,
+#     "billing": {
+#     },
+#     "acl": null
+# }
+
+```
+
+
+</details>
+
+<details open>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/networkips_simple.png)
+
+</details>
+
 
 
 ## Remote Procedure Calls

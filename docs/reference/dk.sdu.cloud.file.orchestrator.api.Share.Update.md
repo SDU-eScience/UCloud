@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Resources](/docs/developer-guide/core/resources.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Shares](/docs/developer-guide/orchestration/storage/shares.md)
 
 # `Share.Update`
 
@@ -33,7 +33,7 @@ An update will typically contain information similar to the `status` field, for 
 
 <details>
 <summary>
-<code>newState</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.Share.State.md'>Share.State</a></code></code>
+<code>newState</code>: <code><code><a href='#share.state'>Share.State</a></code></code>
 </summary>
 
 

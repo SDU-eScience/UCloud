@@ -4,6 +4,8 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
@@ -132,6 +134,92 @@ object Ingresses : ResourceApi<
     IngressSupport>("ingresses") {
     override val typeInfo = ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate,
         IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>()
+
+    init {
+        val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
+        description = """
+Ingresses provide a way to attach custom links to interactive web-interfaces.
+
+${Resources.readMeFirst}
+
+When an interactive (web) application runs, it typically uses a provider generated URL. The ingress feature
+allows providers to give access to these $Job s through a custom URL.
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase(
+            "simple",
+            "Create and configure an Ingress",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example, we will see how to create and manage an ingress")
+
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.Ingress(
+                                        "example-ingress",
+                                        1L,
+                                        ProductCategoryId("example-ingress", "example-ingress"),
+                                        "An example ingress",
+                                        unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    ),
+                                    IngressSupport(
+                                        "app-",
+                                        ".example.com",
+                                        ProductReference("example-ingress", "example-ingress", "example")
+                                    ),
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("""
+                    We have a single product available. This product requires that all ingresses start with "app-" and 
+                    ends with ".example.com"
+                """.trimIndent())
+
+                comment("""
+                    📝 NOTE: Providers can perform additional validation. For example, must providers won't support 
+                    arbitrary levels of sub-domains. That is, must providers would reject the value 
+                    app-this.is.not.what.we.want.example.com.
+                """.trimIndent())
+
+                val spec = IngressSpecification(
+                    "app-mylink.example.com",
+                    ProductReference("example-ingress", "example-ingress", "example")
+                )
+
+                success(
+                    create,
+                    bulkRequestOf(spec),
+                    BulkResponse(listOf(FindByStringId("5127"))),
+                    user
+                )
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(IngressIncludeFlags(), "5127"),
+                    Ingress(
+                        "5127",
+                        spec,
+                        ResourceOwner("user", null),
+                        1635170395571L,
+                        IngressStatus(state = IngressState.READY)
+                    ),
+                    user
+                )
+            }
+        )
+    }
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!

@@ -117,6 +117,7 @@ data class ProviderStatus(
 ) : ResourceStatus<Product, ProviderSupport>
 
 @Serializable
+@UCloudApiOwnedBy(Providers::class)
 @UCloudApiDoc("Updates regarding a Provider, not currently in use")
 data class ProviderUpdate(
     override val timestamp: Long,

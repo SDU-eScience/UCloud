@@ -116,7 +116,7 @@ Accounting.deposit.call(
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "-71597465685287489161635161802574", 
+        transactionId = "-52830561993866994411635257471698", 
     )),
     piRoot
 ).orThrow()
@@ -333,7 +333,7 @@ await callAPI(AccountingApi.deposit(
                 "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-71597465685287489161635161802574"
+                "transactionId": "-52830561993866994411635257471698"
             }
         ]
     }
@@ -547,7 +547,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "-71597465685287489161635161802574"
+            "transactionId": "-52830561993866994411635257471698"
         }
     ]
 }'
@@ -641,7 +641,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

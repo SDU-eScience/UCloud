@@ -33,7 +33,6 @@ roles:
 
 volumeClaimTemplate:
   accessModes: [ "ReadWriteOnce" ]
-  storageClassName: "rbd"
   resources:
     requests:
       storage: 4Gi
