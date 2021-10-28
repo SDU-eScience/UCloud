@@ -3,7 +3,6 @@ import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    subprojectsCountRequest,
     listSubprojects,
     Project
 } from "@/Project";
@@ -172,15 +171,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </HighlightedCard>
                         )}
-                        {subprojects.data.itemsInTotal === 0 ? null :
-                            <HighlightedCard
-                                subtitle={<RightArrow />}
-                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
-                                title="Subprojects"
-                                icon="projects"
-                                color="green"
-                            />
-                        }
+                        <HighlightedCard
+                            subtitle={<RightArrow />}
+                            onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                            title="Subprojects"
+                            icon="projects"
+                            color="green"
+                        />
                     </ProjectDashboardGrid>
                 </>
             )}
@@ -188,9 +185,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 };
 
-export const RightArrow = (): JSX.Element => (
-    <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
-);
+export function RightArrow(): JSX.Element {
+    return (
+        <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
+    );
+}
 
 function noSubprojectsAndGrantsAreDisallowed(
     subprojects: number,

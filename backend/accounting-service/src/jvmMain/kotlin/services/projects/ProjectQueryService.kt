@@ -963,6 +963,7 @@ class ProjectQueryService(
                             pm.project_id = p.id and
                             pm.username = :username and
                             (pm.role = 'ADMIN' or pm.role = 'PI')
+                            order by p.title
                     """.trimIndent()
                 )
             },

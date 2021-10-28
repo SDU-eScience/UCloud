@@ -450,13 +450,6 @@ export interface ProjectAffiliationSelectorProps {
     onProjectSelect: (project: {project: string} | null) => void;
 }
 
-export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
-    method: "DELETE",
-    path: "/projects/subprojects",
-    payload,
-    reloadId: Math.random()
-});
-
 type LeaveProjectRequest = Record<string, never>
 export function leaveProject(
     request: LeaveProjectRequest,
