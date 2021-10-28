@@ -159,19 +159,12 @@ data class ExistsResponse(val exists: Boolean)
 @Serializable
 data class ListSubProjectsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-
-@Serializable
-data class ListSubProjectsRequestPageV2(
-    override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 
-typealias ListSubProjectsResponse = Page<Project>
-typealias ListSubProjectsResponsePageV2 = PageV2<Project>
+typealias ListSubProjectsResponse = PageV2<Project>
 
 typealias CountSubProjectsRequest = Unit
 typealias CountSubProjectsResponse = Long
@@ -795,32 +788,6 @@ implement(Descriptions.call) {
      * Lists sub-projects of an existing project in the PageV2 format
      */
 
-    val listSubProjectsPageV2 = call<ListSubProjectsRequestPageV2, ListSubProjectsResponsePageV2, CommonErrorMessage>("listSubProjectsPageV2") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.AUTHENTICATED
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"sub-projects-page-v2"
-            }
-
-            params {
-                +boundTo(ListSubProjectsRequestPageV2::itemsPerPage)
-                +boundTo(ListSubProjectsRequestPageV2::consistency)
-                +boundTo(ListSubProjectsRequestPageV2::itemsToSkip)
-                +boundTo(ListSubProjectsRequestPageV2::next)
-            }
-        }
-    }
-
-    /**
-     * Lists sub-projects of an existing project
-     */
     val listSubProjects = call<ListSubProjectsRequest, ListSubProjectsResponse, CommonErrorMessage>("listSubProjects") {
         auth {
             access = AccessRight.READ_WRITE
@@ -837,7 +804,9 @@ implement(Descriptions.call) {
 
             params {
                 +boundTo(ListSubProjectsRequest::itemsPerPage)
-                +boundTo(ListSubProjectsRequest::page)
+                +boundTo(ListSubProjectsRequest::consistency)
+                +boundTo(ListSubProjectsRequest::itemsToSkip)
+                +boundTo(ListSubProjectsRequest::next)
             }
         }
     }

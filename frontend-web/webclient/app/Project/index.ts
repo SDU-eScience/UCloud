@@ -301,20 +301,10 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     reloadId: Math.random()
 });
 
-export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequest> => ({
+export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequestV2> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/sub-projects",
-        parameters
-    ),
-    parameters,
-    reloadId: Math.random()
-});
-
-export const listSubprojectsV2 = (parameters: ListSubprojectsV2Request): APICallParameters<PaginationRequestV2> => ({
-    method: "GET",
-    path: buildQueryString(
-        "/projects/sub-projects-page-v2",
         parameters
     ),
     parameters,
@@ -370,8 +360,7 @@ export interface OutgoingInvite {
 }
 
 export type ListOutgoingInvitesRequest = PaginationRequest;
-export type ListSubprojectsRequest = PaginationRequest;
-export type ListSubprojectsV2Request = PaginationRequestV2;
+export type ListSubprojectsRequest = PaginationRequestV2;
 
 export function listOutgoingInvites(
     request: ListOutgoingInvitesRequest

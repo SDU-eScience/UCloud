@@ -4,7 +4,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
 import {Button, Flex, Icon, Input, Text} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojectsV2, Project, renameProject} from ".";
+import {createProject, setProjectArchiveStatus, listSubprojects, Project, renameProject} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -143,7 +143,7 @@ export default function SubprojectList(): JSX.Element | null {
 
 
     const generateCall = React.useCallback((next?: string) => ({
-        ...listSubprojectsV2({
+        ...listSubprojects({
             itemsPerPage: 50,
             next,
         }),

@@ -201,22 +201,11 @@ class ProjectController(
             ok(queries.addAncestors(db, ctx.securityPrincipal.toActor(), listOf(project)).single())
         }
 
-        implement(Projects.listSubProjectsPageV2) {
-            ok(
-                queries.listSubProjectsV2(
-                    db,
-                    request,
-                    ctx.securityPrincipal.toActor(),
-                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
-                )
-            )
-        }
-
         implement(Projects.listSubProjects) {
             ok(
                 queries.listSubProjects(
                     db,
-                    request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor()),
+                    request,
                     ctx.securityPrincipal.toActor(),
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )

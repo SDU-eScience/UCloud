@@ -3,8 +3,8 @@ import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    listSubprojects,
-    Project
+    Project,
+    listSubprojects
 } from "@/Project";
 import * as React from "react";
 import {Flex, Card, Icon, Box} from "@/ui-components";
@@ -68,7 +68,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
-        setSubprojects(listSubprojects({itemsPerPage: 10, page: 0}));
+        setSubprojects(listSubprojects({itemsPerPage: 10}));
         setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [projectId]);
