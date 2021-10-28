@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "slack"
-    version = "0.3.1"
+    version = "2021.3.0-alpha0"
     
     withAmbassador() {}
     

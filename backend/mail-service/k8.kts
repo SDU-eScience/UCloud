@@ -3,26 +3,9 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.4.1"
+    version = "2021.3.0-alpha0"
 
-    withAmbassador(null) {
-        services.add(
-            AmbassadorMapping(
-                """
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: mail
-                    prefix: ^/api/mail(/.*)?${'$'}
-                    prefix_regex: true
-                    rewrite: ""
-                    service: mail:8080
-                    timeout_ms: 0
-                    
-                """.trimIndent()
-            )
-        )
-    }
+    withAmbassador("/api/mail") {}
 
     withAmbassador {}
 
