@@ -25,6 +25,7 @@ import dk.sdu.cloud.provider.api.ResourceStatus
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -49,6 +50,7 @@ data class Share(
     ) : ResourceSpecification
 
     @Serializable
+    @UCloudApiOwnedBy(Shares::class)
     data class Update(
         val newState: State,
         val shareAvailableAt: String?,
@@ -137,13 +139,14 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
             Product.Storage, ShareSupport>()
 
     init {
-        description = """
-            Shares provide users a way of collaborating on individual folders in a personal workspaces.
+        description = """Shares provide users a way of collaborating on individual folders in a personal workspaces.
 
-            This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
-            other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
-            how to use this feature. We generally recommend that you use a full-blown project for collaboration.
-        """.trimIndent()
+${Resources.readMeFirst}
+
+This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
+other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
+how to use this feature. We generally recommend that you use a full-blown project for collaboration.
+        """
     }
 
     override fun documentation() {
@@ -167,9 +170,7 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
                 )
                 success(
                     create,
-                    bulkRequestOf(
-                        spec
-                    ),
+                    bulkRequestOf(spec),
                     BulkResponse(listOf(FindByStringId("6342"))),
                     alice
                 )

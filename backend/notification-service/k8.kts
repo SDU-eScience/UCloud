@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "notification"
-    version = "1.5.2"
+    version = "2021.3.0-alpha0"
 
     withAmbassador("/api/notifications") {}
 

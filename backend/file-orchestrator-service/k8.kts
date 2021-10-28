@@ -3,12 +3,12 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-orchestrator"
-    version = "0.1.0"
+    version = "2021.3.0-alpha0"
     
     withAmbassador() {}
     
     val deployment = withDeployment {
-        deploy.spec.replicas = 2
+        deployment.spec.replicas = 2
     }
     
     withPostgresMigration(deployment)

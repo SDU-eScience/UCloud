@@ -83,7 +83,7 @@ UCloud guarantees that no other job, regardless of compute provider, has the sam
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobUpdate.md'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
 </summary>
 
 

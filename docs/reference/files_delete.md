@@ -102,7 +102,7 @@ curl -XDELETE -H "Authorization: Bearer $accessToken" -H "Content-Type: content-
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

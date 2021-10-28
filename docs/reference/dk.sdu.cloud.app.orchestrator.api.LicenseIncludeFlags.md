@@ -9,10 +9,10 @@
 
 ```kotlin
 data class LicenseIncludeFlags(
-    val includeOthers: Boolean,
-    val includeUpdates: Boolean,
-    val includeSupport: Boolean,
-    val includeProduct: Boolean,
+    val includeOthers: Boolean?,
+    val includeUpdates: Boolean?,
+    val includeSupport: Boolean?,
+    val includeProduct: Boolean?,
     val filterCreatedBy: String?,
     val filterCreatedAfter: Long?,
     val filterCreatedBefore: Long?,
@@ -31,7 +31,7 @@ data class LicenseIncludeFlags(
 
 <details>
 <summary>
-<code>includeOthers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>includeOthers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -42,7 +42,7 @@ data class LicenseIncludeFlags(
 
 <details>
 <summary>
-<code>includeUpdates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>includeUpdates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -53,7 +53,7 @@ data class LicenseIncludeFlags(
 
 <details>
 <summary>
-<code>includeSupport</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>includeSupport</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -64,7 +64,7 @@ data class LicenseIncludeFlags(
 
 <details>
 <summary>
-<code>includeProduct</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Includes `specification.resolvedProduct`
+<code>includeProduct</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Includes `specification.resolvedProduct`
 </summary>
 
 

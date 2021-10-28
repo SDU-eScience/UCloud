@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Resources](/docs/developer-guide/core/resources.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Jobs](/docs/developer-guide/orchestration/compute/jobs.md)
 
 # `JobUpdate`
 
@@ -35,7 +35,7 @@ An update will typically contain information similar to the `status` field, for 
 
 <details>
 <summary>
-<code>state</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md'>JobState</a>?</code></code>
+<code>state</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
 </summary>
 
 
@@ -68,7 +68,7 @@ An update will typically contain information similar to the `status` field, for 
 
 <details>
 <summary>
-<code>expectedState</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md'>JobState</a>?</code></code>
+<code>expectedState</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
 </summary>
 
 

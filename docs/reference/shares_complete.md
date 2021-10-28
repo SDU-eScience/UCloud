@@ -60,6 +60,7 @@ Shares.browse.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            filterRejected = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -142,6 +143,7 @@ Shares.browse.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            filterRejected = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -258,6 +260,7 @@ await callAPI(SharesApi.browse(
             "filterProviderIds": null,
             "filterIngoing": true,
             "filterOriginalPath": null,
+            "filterRejected": null,
             "filterIds": null
         },
         "itemsPerPage": null,
@@ -350,6 +353,7 @@ await callAPI(SharesApi.browse(
             "filterProviderIds": null,
             "filterIngoing": true,
             "filterOriginalPath": null,
+            "filterRejected": null,
             "filterIds": null
         },
         "itemsPerPage": null,
@@ -568,7 +572,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

@@ -1,3 +1,10 @@
+config("*") { ctx -> 
+    Configuration.configure("domain", when (ctx.environment) {
+        "test", "development" -> "dev.cloud.sdu.dk"
+        else -> "cloud.sdu.dk"
+    })
+}
+
 config("ceph") { ctx ->
     configure("enabled", true)
 

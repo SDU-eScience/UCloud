@@ -178,7 +178,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/tools/byNameAn
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

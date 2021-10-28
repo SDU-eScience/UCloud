@@ -615,7 +615,7 @@ fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     return BulkRequest(items.toList())
 }
 
-fun <T : Any> bulkResponseOf(vararg items: T): BulkResponse<T> {
+fun <T> bulkResponseOf(vararg items: T): BulkResponse<T> {
     return BulkResponse(listOf(*items))
 }
 

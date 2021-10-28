@@ -465,6 +465,7 @@ data class FileCollection(
     }
 
     @Serializable
+    @UCloudApiOwnedBy(FileCollections::class)
     data class Update(
         override val timestamp: Long,
         override val status: String?,

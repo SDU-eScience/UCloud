@@ -18,6 +18,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
+import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
@@ -49,6 +50,8 @@ object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCo
     init {
         description = """
 A FileCollection is an entrypoint to a user's files
+
+${Resources.readMeFirst}
 
 This entrypoint allows the user to access all the files they have access to within a single project. It is important to
 note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed

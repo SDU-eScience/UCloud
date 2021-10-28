@@ -14,7 +14,7 @@ import kotlinx.serialization.encoding.Encoder
 
 @UCloudApiDoc(
     """
-        Base type for all permissions of the UCloud authorization model
+        The UCloud permission model
 
         This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of
         standard permissions that can be applied to a resource and its associated operations.

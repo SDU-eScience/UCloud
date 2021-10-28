@@ -4,6 +4,8 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
@@ -12,16 +14,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class LicenseIncludeFlags(
-    override val includeOthers: Boolean,
-    override val includeUpdates: Boolean,
-    override val includeSupport: Boolean,
-    override val includeProduct: Boolean,
-    override val filterCreatedBy: String?,
-    override val filterCreatedAfter: Long?,
-    override val filterCreatedBefore: Long?,
-    override val filterProvider: String?,
-    override val filterProductId: String?,
-    override val filterProductCategory: String?,
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
 ) : ResourceIncludeFlags
@@ -109,6 +111,87 @@ object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, Lice
         Product.License, LicenseSupport>("licenses") {
     override val typeInfo = ResourceTypeInfo<License, LicenseSpecification, LicenseUpdate,
             LicenseIncludeFlags, LicenseStatus, Product.License, LicenseSupport>()
+
+    init {
+        val Application = "$TYPE_REF dk.sdu.cloud.app.store.api.Application"
+        val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
+        description = """
+Licenses act as a key to certain restricted software.
+
+${Resources.readMeFirst}
+
+Users must attach a license to a $Job for it to work. When attached, the software should be available. 
+In most cases, a license is a parameter of an $Application .
+
+---
+
+📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
+the responsibility of the provider to store this information.
+
+---
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase(
+            "simple",
+            "Create and configure a license",
+            flow = {
+                val user = basicUser()
+                comment("In this example we will see how to create and manage a software license")
+
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.License(
+                                        "example-license",
+                                        1L,
+                                        ProductCategoryId("example-license", "example"),
+                                        "An example license",
+                                        unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    ),
+                                    LicenseSupport(
+                                        ProductReference("example-license", "example-license", "example")
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        LicenseSpecification(
+                            ProductReference("example-license", "example-license", "example"),
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("5123"))),
+                    user
+                )
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(LicenseIncludeFlags(), "5123"),
+                    License(
+                        "5123",
+                        LicenseSpecification(
+                            ProductReference("example-license", "example-license", "example"),
+                        ),
+                        ResourceOwner("user", null),
+                        1635170395571L,
+                        LicenseStatus(LicenseState.READY)
+                    ),
+                    user
+                )
+            }
+        )
+    }
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!
