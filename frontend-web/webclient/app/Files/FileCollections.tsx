@@ -25,7 +25,6 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         }
         return true;
     }, []);
-
     return <ResourceBrowse
         api={FileCollectionsApi}
         onSelect={props.onSelect}

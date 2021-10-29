@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.service
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
@@ -19,18 +20,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FilesMoveRequestItem
-import dk.sdu.cloud.file.orchestrator.api.OutgoingShareGroup
-import dk.sdu.cloud.file.orchestrator.api.Share
-import dk.sdu.cloud.file.orchestrator.api.ShareFlags
-import dk.sdu.cloud.file.orchestrator.api.ShareSupport
-import dk.sdu.cloud.file.orchestrator.api.Shares
-import dk.sdu.cloud.file.orchestrator.api.SharesControl
-import dk.sdu.cloud.file.orchestrator.api.SharesProvider
-import dk.sdu.cloud.file.orchestrator.api.SharesUpdatePermissionsRequest
-import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -39,11 +29,7 @@ import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
@@ -76,7 +62,7 @@ class ShareService(
 
     init {
         files.addMoveHandler(::onFilesMoved)
-        files.addDeleteHandler(::onFilesDeleted)
+        files.addTrashHandler(::onFilesDeleted)
     }
 
     private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
@@ -104,8 +90,7 @@ class ShareService(
         }
     }
 
-    private suspend fun onFilesDeleted(request: List<FindByStringId>) {
-        /*
+    private suspend fun onFilesDeleted(request: List<FindByPath>) {
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -122,19 +107,34 @@ class ShareService(
                             where
                                 e.path = original_file_path or
                                 original_file_path like e.path || '/%'
-                            returning s.resource, s.shared_with, s.permissions, s.state
-                        )
-                    delete from provider.resource_acl_entry entry
-                    using affected_shares share
-                    where
-                        share.state = 'APPROVED' and
-                        share.resource = entry.resource_id and
-                        share.shared_with = entry.username and
-                        entry.permission = some(share.permissions)
-                """
+                            returning s.resource, s.shared_with, s.permissions, s.state, split_part(s.available_at, '/', 2) available_at
+                        ),
+                        affected_file_collections as (
+                            delete from file_orchestrator.file_collections fc
+                            using affected_shares
+                            where
+                            fc.resource::text = affected_shares.available_at
+                            returning fc.resource
+                        ),
+                        delete_resources_updates as (
+                            delete from provider.resource_update ru
+                            using affected_shares share , affected_file_collections fc
+                            where
+                            ru.resource = share.resource or ru.resource = fc.resource
+                        ),
+                        delete_resource_acl as (
+                            delete from provider.resource_acl_entry entry
+                            using affected_shares share, affected_file_collections fc
+                            where
+                                share.resource = entry.resource_id or fc.resource = entry.resource_id
+                        )                       
+                    delete from provider.resource r
+                            using affected_shares share, affected_file_collections fc
+                            where
+                            r.id = share.resource or r.id = fc.resource
+                """, debug = true
             )
         }
-         */
     }
 
     override suspend fun updateAcl(
@@ -160,7 +160,7 @@ class ShareService(
                 HttpStatusCode.BadRequest
             )
         }
-        //Check user exists
+        //Check users exists
         val returnedUsers = session.sendPreparedStatement(
             {
                 idWithSpec.split {
@@ -185,34 +185,42 @@ class ShareService(
             ctx = session
         )
 
-        session.sendPreparedStatement(
-            {
-                idWithSpec.split {
-                    into("ids") { it.first }
-                    into("file_paths") { it.second.sourceFilePath.normalize() }
-                    into("shared_with") { it.second.sharedWith }
-                    into("permissions") {
-                        it.second.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+        try {
+            session.sendPreparedStatement(
+                {
+                    idWithSpec.split {
+                        into("ids") { it.first }
+                        into("file_paths") { it.second.sourceFilePath.normalize() }
+                        into("shared_with") { it.second.sharedWith }
+                        into("permissions") {
+                            it.second.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+                        }
                     }
-                }
-            },
-            """
-                with 
-                    requests as (
-                        select unnest(:ids::bigint[]) id, unnest(:file_paths::text[]) file_path,
-                               unnest(:shared_with::text[]) shared_with,
-                               regexp_split_to_array(unnest(:permissions::text[]), ',') permissions
-                    ),
-                    inserted_specs as (
-                        insert into file_orchestrator.shares (resource, original_file_path, shared_with, permissions) 
-                        select id, file_path, shared_with, permissions
-                        from requests
-                    )
-                insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
-                select null, shared_with, unnest(permissions), id
-                from requests
-            """
-        )
+                },
+                """
+                    with 
+                        requests as (
+                            select unnest(:ids::bigint[]) id, unnest(:file_paths::text[]) file_path,
+                                   unnest(:shared_with::text[]) shared_with,
+                                   regexp_split_to_array(unnest(:permissions::text[]), ',') permissions
+                        ),
+                        inserted_specs as (
+                            insert into file_orchestrator.shares (resource, original_file_path, shared_with, permissions) 
+                            select id, file_path, shared_with, permissions
+                            from requests
+                        )
+                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                    select null, shared_with, unnest(permissions), id
+                    from requests
+                """
+            )
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == "23505") {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared. Check shares page.")
+            }
+            else throw ex
+        }
+
         idWithSpec.forEach {
             NotificationDescriptions.create.call(
                 CreateNotification(

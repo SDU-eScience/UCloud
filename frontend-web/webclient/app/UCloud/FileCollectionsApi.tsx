@@ -109,6 +109,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;
             deleteOperation.enabled = (selected, cb, all) => {
+                console.log(selected.every(it => it.specification.product.id === "share"))
+                if (selected.find(it => it.specification.product.id === "share")) return false
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
