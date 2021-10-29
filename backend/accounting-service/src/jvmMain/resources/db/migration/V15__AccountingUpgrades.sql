@@ -39,6 +39,16 @@ set unit_of_price = case pc.product_type
 end
 where true;
 
+alter table accounting.products add column free_to_use boolean;
+update accounting.products p
+set
+    free_to_use = case
+        when p.price_per_unit = 0 and p.payment_model = 'FREE_BUT_REQUIRE_BALANCE' then false
+        when p.price_per_unit = 0 then true
+        else false
+    end
+where true;
+
 with per_unit_products as (
     select products.id product_id, product_categories.unit_of_price unit
     from
@@ -151,14 +161,6 @@ for each row execute procedure accounting.require_fixed_price_per_unit_for_free_
 
 alter table accounting.products add column version bigint not null default 1;
 
-alter table accounting.products add column free_to_use boolean;
-update accounting.products p
-set
-    free_to_use = case p.payment_model
-        when 'FREE_BUT_REQUIRE_BALANCE' then true
-        else false
-    end
-where true;
 alter table accounting.products alter column free_to_use set not null;
 
 alter table accounting.products drop column payment_model;
