@@ -80,8 +80,10 @@ class ProviderService(
                 setParameter("name", flags?.filterName)
             },
             """
-                select *
-                from provider.providers
+                select p.*
+                from
+                    accessible_resources resc join
+                    provider.providers p on (resc.r).id = resource
                 where
                     (:name::text is null or unique_name = :name) and
                     (:query::text is null or unique_name ilike '%' || :query || '%')

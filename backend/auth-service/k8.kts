@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "2021.3.0-alpha1"
+    version = "2021.3.0-alpha2"
 
     val tos = config<String>("tos", "Terms of Service")
     val tosVersion = config<Int>("tosVersion", "Terms of Service version")
@@ -21,7 +21,7 @@ bundle { ctx ->
     }
 
     val deployment = withDeployment(injectServiceSecrets = false) {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectSecret("auth-certs")
         injectSecret("auth-wayf", "/etc/wayf-certs")
         injectSecret("auth-wayf-config")

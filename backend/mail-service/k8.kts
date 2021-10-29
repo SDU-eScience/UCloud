@@ -10,7 +10,7 @@ bundle {
     withAmbassador {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 1
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectConfiguration("mail-config")
         injectSecret("alerting-tokens")
     }

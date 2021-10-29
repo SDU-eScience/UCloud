@@ -101,7 +101,15 @@ abstract class ResourceService<
 
     protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
-        return PartialQuery({}, "select * from $tableName")
+        return PartialQuery(
+            {},
+            """
+                select t.*
+                from
+                    accessible_resources resc join
+                    $tableName t on (resc.r).id = resource
+            """.trimIndent()
+        )
     }
 
     override suspend fun retrieve(
@@ -134,8 +142,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -193,8 +201,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -1153,8 +1161,8 @@ abstract class ResourceService<
                     """
                         declare c cursor for
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -1174,7 +1182,7 @@ abstract class ResourceService<
                         null
                     }
                 }.attachExtra(flags)
-            }
+            },
         )
     }
 

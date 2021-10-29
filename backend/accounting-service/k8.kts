@@ -7,10 +7,14 @@ bundle {
 
     withAmbassador("/api/accounting") {
         addSimpleMapping("/api/products")
+        addSimpleMapping("/api/gifts")
+        addSimpleMapping("/api/grant")
+        addSimpleMapping("/api/projects")
+        addSimpleMapping("/api/providers")
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 2)
     }
 
     withPostgresMigration(deployment)

@@ -3,6 +3,11 @@ config("*") { ctx ->
         "test", "development" -> "dev.cloud.sdu.dk"
         else -> "cloud.sdu.dk"
     })
+
+    Configuration.configure("defaultScale", when (ctx.environment) {
+        "test", "development" -> 1
+        else -> 3
+    })
 }
 
 config("ceph") { ctx ->

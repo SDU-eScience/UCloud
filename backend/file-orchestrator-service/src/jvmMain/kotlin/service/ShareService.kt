@@ -569,8 +569,10 @@ class ShareService(
                 setParameter("query", query)
             },
             """
-                select *
-                from file_orchestrator.shares s
+                select s.*
+                from
+                    accessible_resources resc join
+                    file_orchestrator.shares s on (resc.r).id = resource
                 where
                     (:filter_path::text is null or :filter_path = s.original_file_path) and
                     (
