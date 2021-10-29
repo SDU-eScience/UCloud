@@ -91,22 +91,45 @@ class ShareService(
     }
 
     private suspend fun onFilesDeleted(request: List<FindByPath>) {
+        println("onFilesDeleted")
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     request.split { into("paths") { it.id.normalize() } }
+                    request.split { into("available_at") { "/${it.id.normalize().split('/')[1]}" }}
                 },
                 """
                     with
                         entries as (
-                            select unnest(:paths::text[]) path
+                            select
+                                unnest(:paths::text[]) path,
+                                unnest(:available_at::text[]) available_at
                         ),
+                        --Locating sub folders that are shares.
+                        original_paths as (
+                            select resource as share_id, original_file_path, s.available_at, path share_path
+                            from file_orchestrator.shares s join entries on s.available_at=entries.available_at
+                        ),
+                        sub_shares as (
+                            select s.original_file_path
+                            from original_paths op
+                            join file_orchestrator.shares s on (
+                                s.original_file_path like (
+                                    select (
+                                        --Removes mount point, leaving only subpath
+                                        op.original_file_path || (select regexp_replace(op.share_path, '([\/]\d*)', '') || '/%')
+                                    )
+                                )
+                            )
+                        ),
+                        --Deleting shares and sub shares along with their resources.
                         affected_shares as (
                             delete from file_orchestrator.shares s
-                            using entries e
+                            using entries e, sub_shares sub
                             where
-                                e.path = original_file_path or
-                                original_file_path like e.path || '/%'
+                                e.path = s.original_file_path or
+                                sub.original_file_path = s.original_file_path or
+                                s.original_file_path like e.path || '/%'
                             returning s.resource, s.shared_with, s.permissions, s.state, split_part(s.available_at, '/', 2) available_at
                         ),
                         affected_file_collections as (
@@ -127,11 +150,12 @@ class ShareService(
                             using affected_shares share, affected_file_collections fc
                             where
                                 share.resource = entry.resource_id or fc.resource = entry.resource_id
-                        )                       
+                        )
                     delete from provider.resource r
                             using affected_shares share, affected_file_collections fc
                             where
                             r.id = share.resource or r.id = fc.resource
+
                 """, debug = true
             )
         }
