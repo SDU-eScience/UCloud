@@ -3,7 +3,6 @@ package dk.sdu.cloud
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
@@ -51,7 +50,6 @@ object Launcher : Loggable {
 
 val services = setOf<Service>(
     AccountingService,
-    ActivityService,
     AppOrchestratorService,
     AppStoreService,
     AuditIngestionService,
@@ -213,7 +211,7 @@ suspend fun main(args: Array<String>) {
                     Product.Storage(
                         "u1-cephfs",
                         1L,
-                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        ProductCategoryId("u1-cephfs", providerId),
                         unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
                         freeToUse = false,
                         description = "An example product for development use",
@@ -221,7 +219,7 @@ suspend fun main(args: Array<String>) {
                     Product.Storage(
                         "home",
                         1L,
-                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        ProductCategoryId("u1-cephfs", providerId),
                         unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
                         freeToUse = false,
                         description = "An example product for development use",
@@ -229,7 +227,7 @@ suspend fun main(args: Array<String>) {
                     Product.Storage(
                         "project-home",
                         1L,
-                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        ProductCategoryId("u1-cephfs", providerId),
                         unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
                         freeToUse = false,
                         description = "An example product for development use",
@@ -241,7 +239,7 @@ suspend fun main(args: Array<String>) {
             Accounting.rootDeposit.call(
                 bulkRequestOf(
                     RootDepositRequestItem(
-                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.Project(project),
                         1_000_000L * 1000_000L,
                         "Root deposit"
@@ -253,7 +251,7 @@ suspend fun main(args: Array<String>) {
                         "Root deposit"
                     ),
                     RootDepositRequestItem(
-                        ProductCategoryId("u1-cephfs_credits", providerId),
+                        ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.User("user"),
                         1_000_000L * 1000_000L,
                         "Root deposit"
