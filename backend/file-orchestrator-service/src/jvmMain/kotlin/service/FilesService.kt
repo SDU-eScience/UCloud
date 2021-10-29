@@ -254,6 +254,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
+        println("delete")
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -556,6 +557,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesTrashRequest
     ): FilesTrashResponse {
+        println("trash")
         return bulkProxyEdit(
             actorAndProject,
             request,
