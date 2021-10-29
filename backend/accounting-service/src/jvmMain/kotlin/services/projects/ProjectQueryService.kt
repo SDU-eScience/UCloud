@@ -960,25 +960,30 @@ class ProjectQueryService(
                         setParameter("id", id)
                         setParameter("username", actor.username)
                     },
-                    if (isAdmin)
+                    if (isAdmin) {
                         """
                             declare c cursor for
                             select p.*
-                            from project.projects p where p.parent = :id
+                            from
+                                project.projects p 
+                            where 
+                                p.parent = :id
                             order by p.title
-                            """.trimIndent()
-                    else
+                        """.trimIndent()
+                    } else {
                         """
-                        declare c cursor for
-                        select p.*
-                        from project.projects p, project.project_members pm
-                        where
-                            p.parent = :id and
-                            pm.project_id = p.id and
-                            pm.username = :username and
-                            (pm.role = 'ADMIN' or pm.role = 'PI')
+                            declare c cursor for
+                            select p.*
+                            from
+                                project.projects p join
+                                project.project_members pm on pm.project_id = p.id
+                            where
+                                p.parent = :id and
+                                pm.username = :username and
+                                (pm.role = 'ADMIN' or pm.role = 'PI')
                             order by p.title
-                    """.trimIndent()
+                        """.trimIndent()
+                    }
                 )
             },
             mapper = { _, rows -> rows.map { it.toProject() } }
