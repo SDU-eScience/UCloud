@@ -4,7 +4,6 @@ import dk.sdu.cloud.accounting.api.Accounting
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.alerting.api.Alerting
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
@@ -376,7 +375,6 @@ fun generateCode() {
                         listOf(
                             Chapter.Feature("auditing", "Auditing", Auditing),
                             Chapter.Feature("alerting", "Alerting", Alerting),
-                            Chapter.Feature("activity", "Activity", Activity),
                             Chapter.Node(
                                 "scripts",
                                 "Scripts",

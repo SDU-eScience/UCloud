@@ -39,6 +39,16 @@ set unit_of_price = case pc.product_type
 end
 where true;
 
+alter table accounting.products add column free_to_use boolean;
+update accounting.products p
+set
+    free_to_use = case
+        when p.price_per_unit = 0 and p.payment_model = 'FREE_BUT_REQUIRE_BALANCE' then false
+        when p.price_per_unit = 0 then true
+        else false
+    end
+where true;
+
 with per_unit_products as (
     select products.id product_id, product_categories.unit_of_price unit
     from
@@ -147,41 +157,10 @@ for each row execute procedure accounting.require_fixed_price_per_unit_for_free_
 
 ---- /Changes to product_categories ----
 
----- Update storage products ----
-
--- This migration splits all storage products into two variants. The original product becomes the credits variant and
--- a copy is created for quotas.
-
-update accounting.product_categories
-set category = category || '_credits'
-where product_type = 'STORAGE';
-
-with storage_products as (
-    select *
-    from accounting.product_categories
-    where product_categories.product_type = 'STORAGE'
-)
-insert into accounting.product_categories (provider, category, product_type, charge_type)
-select provider, replace(category, '_credits', '_quota'), product_type, 'DIFFERENTIAL_QUOTA'
-from storage_products;
-
--- TODO(Dan): Insert products and define price_per_unit for DIFFERENTIAL_QUOTA products
-
----- /Update storage products ----
-
-
 ---- Add new columns to products ----
 
 alter table accounting.products add column version bigint not null default 1;
 
-alter table accounting.products add column free_to_use boolean;
-update accounting.products p
-set
-    free_to_use = case p.payment_model
-        when 'FREE_BUT_REQUIRE_BALANCE' then true
-        else false
-    end
-where true;
 alter table accounting.products alter column free_to_use set not null;
 
 alter table accounting.products drop column payment_model;
@@ -1746,6 +1725,7 @@ create unique index allow_applications_from_uniq on "grant".allow_applications_f
 
 alter table "grant".applications add foreign key (resources_owned_by) references project.projects(id);
 alter table "grant".applications add foreign key (requested_by) references auth.principals(id);
+update "grant".applications set status_changed_by = '_ucloud' where status_changed_by = '_UCloud';
 alter table "grant".applications add foreign key (status_changed_by) references auth.principals(id);
 alter table "grant".applications add column reference_id text unique default null;
 
@@ -1783,6 +1763,18 @@ alter table "grant".gift_resources alter column product_category2 set not null;
 alter table "grant".gift_resources rename column product_category2 to product_category;
 
 alter table "grant".gifts add foreign key (resources_owned_by) references project.projects(id);
+
+with invalid_gift_claimers as (
+    select gc.gift_id as invalid_id, gc.user_id invalid_user
+    from
+        "grant".gifts_claimed gc left join
+        auth.principals p on gc.user_id = p.id
+    where
+        p.id is null
+)
+delete from "grant".gifts_claimed gc
+using invalid_gift_claimers
+where user_id = invalid_user and gift_id = invalid_id;
 
 alter table "grant".gifts_claimed add foreign key (user_id) references auth.principals(id);
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.integration
 import com.sun.jna.Platform
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.accounting.AccountingService
-import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
@@ -22,7 +21,6 @@ import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.integration.backend.sampleStorage
-import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.micro.Service
@@ -446,12 +444,10 @@ object UCloudLauncher : Loggable {
                 //AuditIngestionService,
                 RedisCleanerService,
                 ElasticManagementService,
-                KubernetesMonitorService
             )
 
             val services = setOf(
                 AccountingService,
-                ActivityService,
                 AppKubernetesService,
                 AppOrchestratorService,
                 AppStoreService,

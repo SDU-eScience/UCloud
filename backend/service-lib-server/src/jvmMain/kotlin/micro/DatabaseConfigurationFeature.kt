@@ -64,7 +64,8 @@ class DatabaseConfigurationFeature : MicroFeature {
                     credentials.username,
                     credentials.password,
                     safeSchemaName(ctx.serviceDescription),
-                    recreateSchema = false
+                    recreateSchema = false,
+                    validateMigrations = configuration.validateMigrations
                 )
 
                 if (shouldLog) {
@@ -97,7 +98,8 @@ class DatabaseConfigurationFeature : MicroFeature {
             val credentials: Credentials? = null,
             val database: String? = null,
             val port: Int? = null,
-            val logSql: Boolean = false
+            val logSql: Boolean = false,
+            val validateMigrations: Boolean = true,
         )
 
         // Postgres profile
@@ -137,5 +139,6 @@ data class DatabaseConfig(
     val defaultSchema: String,
     val recreateSchema: Boolean,
     val usePool: Boolean = true,
-    val poolSize: Int? = 50
+    val poolSize: Int? = 50,
+    val validateMigrations: Boolean = true,
 )
