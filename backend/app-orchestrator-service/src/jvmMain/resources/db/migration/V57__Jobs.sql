@@ -1,4 +1,50 @@
 drop table if exists app_orchestrator.job_information;
+
+with invalid_jobs as (
+    select j.id as invalid_id
+    from
+        app_orchestrator.jobs j left join
+        auth.principals u on j.launched_by = u.id
+    where u.id is null
+)
+update app_orchestrator.jobs j
+set launched_by = 'ghost'
+from invalid_jobs
+where invalid_id = j.id;
+
+update app_orchestrator.jobs
+set
+    product_category = 'u1-standard',
+    product_id = 'u1-standard-1'
+where
+    product_category = 'standard' and
+    product_provider = 'ucloud';
+
+create temporary table invalid_jobs_to_delete as
+select job.id as invalid_id
+from
+    app_orchestrator.jobs job left join
+    project.projects p on job.project = p.id
+where
+    p.id is null and
+    job.project is not null;
+
+delete from app_orchestrator.job_updates
+using invalid_jobs_to_delete
+where job_id = invalid_id;
+
+delete from app_orchestrator.job_input_parameters
+using invalid_jobs_to_delete
+where job_id = invalid_id;
+
+delete from app_orchestrator.job_resources
+using invalid_jobs_to_delete
+where job_id = invalid_id;
+
+delete from app_orchestrator.jobs
+using invalid_jobs_to_delete
+where id = invalid_id;
+
 insert into provider.resource (type, provider, created_by, project, product, provider_generated_id, created_at)
 select 'job', product_provider, launched_by, project,  p.id, j.id, j.created_at
 from

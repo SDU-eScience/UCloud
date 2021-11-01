@@ -20,6 +20,7 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
 import kotlinx.coroutines.future.await
+import java.util.concurrent.atomic.AtomicBoolean
 
 sealed class TransactionMode {
     abstract val readWrite: Boolean
@@ -173,7 +174,14 @@ class AsyncDBSessionFactory(
 
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
-        session.sendQuery("set jit = off")
+        if (setJitOff.get()) {
+            try {
+                session.sendQuery("set jit = off")
+            } catch (ex: Throwable) {
+                setJitOff.set(false)
+            }
+        }
+
         session.sendQuery("set search_path to \"$schema\",public")
         if (transactionMode == null) {
             session.sendQuery("begin")
@@ -187,5 +195,6 @@ class AsyncDBSessionFactory(
 
         val baseId = "DB-"
         private val sessionId = AtomicInteger(0)
+        private val setJitOff = AtomicBoolean(true)
     }
 }

@@ -290,7 +290,8 @@ class JobOrchestrator(
                     app, t
 
                 from
-                    app_orchestrator.jobs job join
+                    accessible_resources resc join
+                    app_orchestrator.jobs job on (resc.r).id = resource join
                     app_store.applications app on
                         job.application_name = app.name and job.application_version = app.version join
                     app_store.tools t on app.tool_name = t.name and app.tool_version = t.version left join

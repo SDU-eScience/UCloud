@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 
 typealias MoveHandler = suspend (batch: List<FilesMoveRequestItem>) -> Unit
 typealias DeleteHandler = suspend (batch: List<FindByStringId>) -> Unit
+typealias TrashHandler = suspend (batch: List<FindByPath>) -> Unit
 
 class FilesService(
     private val fileCollections: FileCollectionService,
@@ -30,6 +31,7 @@ class FilesService(
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
     private val moveHandlers = ArrayList<MoveHandler>()
     private val deleteHandlers = ArrayList<DeleteHandler>()
+    private val trashHandlers = ArrayList<TrashHandler>()
     private val proxy =
         ProviderProxy<StorageCommunication, Product.Storage, FSSupport, UFile>(providers, providerSupport)
     private val metadataCache = SimpleCache<Pair<ActorAndProject, String>, MetadataService.RetrieveWithHistory>(
@@ -44,6 +46,10 @@ class FilesService(
 
     fun addDeleteHandler(handler: DeleteHandler) {
         deleteHandlers.add(handler)
+    }
+
+    fun addTrashHandler(handler: TrashHandler) {
+        trashHandlers.add(handler)
     }
 
     private fun verifyReadRequest(request: UFileIncludeFlags, support: FSSupport) {
@@ -248,6 +254,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
+        println("delete")
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -550,6 +557,7 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesTrashRequest
     ): FilesTrashResponse {
+        println("trash")
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -557,7 +565,17 @@ class FilesService(
             { it.filesApi.trash },
             { extractPathMetadata(it.id).collection },
             { req, coll -> FilesProviderTrashRequestItem(coll, req.id) },
-            afterCall = { provider, _, response ->
+            afterCall = { provider, resources, response ->
+
+                val batch = ArrayList<FindByPath>()
+                for ((index, res) in resources.withIndex()) {
+                    if (response.responses[index] != null) {
+                        batch.add(res.first)
+                    }
+                }
+
+                trashHandlers.forEach { handler -> handler(batch) }
+
                 registerTasks(
                     findTasksInBackgroundFromResponse(response)
                         .map { TaskToRegister(provider, "Moving to trash", it, actorAndProject) }
@@ -577,7 +595,7 @@ class FilesService(
             { it.filesApi.emptyTrash },
             { extractPathMetadata(it.id).collection },
             { req, collection -> FilesProviderEmptyTrashRequestItem(collection, req.id) },
-            afterCall = { provider, _, response ->
+            afterCall = { provider, resources, response ->
                 registerTasks(
                     findTasksInBackgroundFromResponse(response)
                         .map { TaskToRegister(provider, "Emptying trash", it, actorAndProject) }
@@ -586,7 +604,6 @@ class FilesService(
             }
         )
     }
-
 
     private suspend inline fun <R : Any> verifyAndFetchByIdable(
         actorAndProject: ActorAndProject,

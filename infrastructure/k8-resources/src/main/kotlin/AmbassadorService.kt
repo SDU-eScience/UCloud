@@ -32,6 +32,7 @@ class AmbassadorService(
 
     override fun DeploymentContext.create() {
         val service = Service().apply {
+            val fixedSelector = if (appSelector == "auth") "ucloud-auth" else name
             metadata = ObjectMeta().apply {
                 this.name = this@AmbassadorService.name
                 annotations = mapOf(
@@ -57,7 +58,7 @@ class AmbassadorService(
                     }
                 )
 
-                selector = mapOf("app" to appSelector)
+                selector = mapOf("app" to fixedSelector)
             }
         }
 

@@ -26,4 +26,4 @@ create or replace function file_orchestrator.share_to_json(
             'state', share_in.state
         )
     )
-$$
+$$;
