@@ -106,6 +106,8 @@ export default function SubprojectList(): JSX.Element | null {
                 title: subprojectName,
                 parent: subprojectFromQuery
             }));
+            reloadRef.current();
+            toggleSet.uncheckAll();
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
@@ -142,13 +144,16 @@ export default function SubprojectList(): JSX.Element | null {
     }, []);
 
 
-    const generateCall = React.useCallback((next?: string) => ({
-        ...listSubprojects({
-            itemsPerPage: 50,
-            next,
-        }),
-        projectOverride: subprojectFromQuery
-    }), [subprojectFromQuery]);
+    const generateCall = React.useCallback((next?: string) => {
+        setCreating(false);
+        return ({
+            ...listSubprojects({
+                itemsPerPage: 50,
+                next,
+            }),
+            projectOverride: subprojectFromQuery
+        })
+    }, [subprojectFromQuery]);
 
 
     const extra = {
@@ -181,7 +186,24 @@ export default function SubprojectList(): JSX.Element | null {
 
     function pageRenderer(items: Project[]): JSX.Element {
         if (items.length === 0) {
-            return <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>;
+            return <>
+                <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>
+                {creating ?
+                    <List>
+                        <ListRow
+                            left={
+                                <form onSubmit={e => {stopPropagationAndPreventDefault(e); onCreate();}}>
+                                    <Flex height="56px">
+                                        <Button height="36px" mt="8px" color="green" type="submit">Create</Button>
+                                        <Button height="36px" mt="8px" color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
+                                        <Input noBorder placeholder="Project name..." ref={creationRef} />
+                                    </Flex>
+                                </form>
+                            }
+                            right={null}
+                        />
+                    </List> : null}
+            </>;
         }
         return (
             <List bordered onContextMenu={preventDefault}>
@@ -196,7 +218,7 @@ export default function SubprojectList(): JSX.Element | null {
                                 </Flex>
                             </form>
                         }
-                        right={undefined}
+                        right={null}
                     /> : null}
                 {items.map(p => p.id === renameId ? (
                     <form key={p.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(p.id)}}>
