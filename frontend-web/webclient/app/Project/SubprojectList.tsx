@@ -3,8 +3,8 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
-import {Button, Flex, Icon, Input, Text} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojects, Project, renameProject} from ".";
+import {Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
+import {createProject, setProjectArchiveStatus, listSubprojects, Project, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -14,28 +14,51 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
-type ProjectOperation = Operation<Project, {
+type ProjectOperation = Operation<MemberInProject, {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
     history: History;
 }>;
 
-const subprojectsRenderer: ItemRenderer<Project> = {
+const subprojectsRenderer: ItemRenderer<MemberInProject> = {
     MainTitle({resource}) {
         if (!resource) return null;
-        return <Text>{resource.title}</Text>;
+        return <Text>{resource.project.title}</Text>;
     },
     Icon() {
         return <Icon color={"iconColor"} color2={"iconColor2"} name="projects" />;
     },
     ImportantStats({resource}) {
-        if (!resource?.archived) return null;
-        return <Icon name="tags" />;
+        if (!resource) return null;
+        return <>
+            {resource.project.archived ? <Icon name="tags" /> : null}
+            {resource.role ? <Tooltip
+                tooltipContentWidth="80px"
+                wrapperOffsetLeft="0"
+                wrapperOffsetTop="4px"
+                right="0"
+                top="1"
+                mb="50px"
+                trigger={(
+                    <Icon
+                        size="30"
+                        squared={false}
+                        name={projectRoleToStringIcon(resource.role)}
+                        color="gray"
+                        color2="midGray"
+                        mr=".5em"
+                    />
+                )}
+            >
+                <Text fontSize={2}>{projectRoleToString(resource.role)}</Text>
+            </Tooltip> : null}
+        </>
     },
     Stats({resource}) {
-        return <ListRowStat>{resource?.fullPath}</ListRowStat>;
+        return <ListRowStat>{resource?.project.fullPath}</ListRowStat>;
     }
 }
 
@@ -49,26 +72,26 @@ const projectOperations: ProjectOperation[] = [
         primary: true
     },
     {
-        enabled: (selected) => selected.length === 1,
-        onClick: ([project], extra) => extra.history.push(`/subprojects/?subproject=${project.id}`),
+        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        onClick: ([{project}], extra) => extra.history.push(`/subprojects/?subproject=${project.id}`),
         text: "View subprojects",
         icon: "projects",
     },
     {
-        enabled: (selected) => selected.length === 1 && !selected[0].archived,
-        onClick: ([project], extras) => extras.onSetArchivedStatus(project.id, true),
+        enabled: (selected) => selected.length === 1 && !selected[0].project.archived && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, true),
         text: "Archive",
         icon: "tags"
     },
     {
-        enabled: (selected) => selected.length === 1 && selected[0].archived,
-        onClick: ([project], extras) => extras.onSetArchivedStatus(project.id, false),
+        enabled: (selected) => selected.length === 1 && selected[0].project.archived && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, false),
         text: "Unarchive",
         icon: "tags"
     },
     {
-        enabled: (selected) => selected.length === 1,
-        onClick: ([project], extras) => extras.startRename(project.id),
+        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        onClick: ([{project}], extras) => extras.startRename(project.id),
         text: "Rename",
         icon: "rename"
     }
@@ -92,7 +115,7 @@ export default function SubprojectList(): JSX.Element | null {
         setCreating(true);
     }, []);
 
-    const toggleSet = useToggleSet<Project>([]);
+    const toggleSet = useToggleSet<MemberInProject>([]);
 
     const onCreate = React.useCallback(async () => {
         setCreating(false);
@@ -155,7 +178,6 @@ export default function SubprojectList(): JSX.Element | null {
         })
     }, [subprojectFromQuery]);
 
-
     const extra = {
         startCreation,
         history,
@@ -184,7 +206,7 @@ export default function SubprojectList(): JSX.Element | null {
         }
     />;
 
-    function pageRenderer(items: Project[]): JSX.Element {
+    function pageRenderer(items: MemberInProject[]): JSX.Element {
         if (items.length === 0) {
             return <>
                 <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>
@@ -220,18 +242,18 @@ export default function SubprojectList(): JSX.Element | null {
                         }
                         right={null}
                     /> : null}
-                {items.map(p => p.id === renameId ? (
-                    <form key={p.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(p.id)}}>
+                {items.map((it) => it.project.id === renameId ? (
+                    <form key={it.project.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(it.project.id)}}>
                         <Flex height="56px">
                             <Button height="36px" mt="8px" color="green" type="submit">Create</Button>
                             <Button height="36px" mt="8px" color="red" type="button" onClick={() => setRenameId("")}>Cancel</Button>
-                            <Input noBorder placeholder="Project name..." defaultValue={p.title} ref={renameRef} />
+                            <Input noBorder placeholder="Project name..." defaultValue={it.project.title} ref={renameRef} />
                         </Flex>
                     </form>
                 ) : (
                     <ItemRow
-                        key={p.id}
-                        item={p}
+                        key={it.project.id}
+                        item={it}
                         browseType={BrowseType.MainContent}
                         renderer={subprojectsRenderer}
                         toggleSet={toggleSet}

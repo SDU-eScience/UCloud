@@ -164,7 +164,7 @@ data class ListSubProjectsRequest(
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 
-typealias ListSubProjectsResponse = PageV2<Project>
+typealias ListSubProjectsResponse = PageV2<MemberInProject>
 
 typealias CountSubProjectsRequest = Unit
 typealias CountSubProjectsResponse = Long

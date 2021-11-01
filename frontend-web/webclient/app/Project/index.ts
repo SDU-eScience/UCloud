@@ -220,6 +220,11 @@ export interface Project {
     fullPath?: string;
 }
 
+export interface MemberInProject {
+    role?: ProjectRole;
+    project: Project;
+}
+
 export interface ProjectGroup {
     id: string,
     title: string

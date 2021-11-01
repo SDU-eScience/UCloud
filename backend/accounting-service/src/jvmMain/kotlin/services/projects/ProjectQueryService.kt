@@ -937,7 +937,7 @@ class ProjectQueryService(
         pagination: WithPaginationRequestV2,
         actor: Actor,
         id: String
-    ): PageV2<Project> {
+    ): PageV2<MemberInProject> {
         val isAdmin = when (actor) {
             Actor.System -> true
 
@@ -959,34 +959,30 @@ class ProjectQueryService(
                     {
                         setParameter("id", id)
                         setParameter("username", actor.username)
+                        setParameter("isAdmin", isAdmin)
                     },
-                    if (isAdmin) {
-                        """
-                            declare c cursor for
-                            select p.*
-                            from
-                                project.projects p 
-                            where 
-                                p.parent = :id
-                            order by p.title
-                        """.trimIndent()
-                    } else {
-                        """
-                            declare c cursor for
-                            select p.*
-                            from
-                                project.projects p join
-                                project.project_members pm on pm.project_id = p.id
-                            where
-                                p.parent = :id and
-                                pm.username = :username and
-                                (pm.role = 'ADMIN' or pm.role = 'PI')
-                            order by p.title
-                        """.trimIndent()
-                    }
+                """
+                        declare c cursor for
+                        select p.*, pm.role
+                        from
+                            project.projects p left join
+                            project.project_members pm on
+                                pm.project_id = p.id and
+                                pm.username = :username,
+                            project.project_members parent_member
+                        where
+                            parent_member.project_id = :id and
+                            parent_member.username = :username and
+                            p.parent = :id and
+                            (:isAdmin = true or parent_member.role = 'ADMIN' or parent_member.role = 'PI')
+                        order by p.title
+                    """
                 )
             },
-            mapper = { _, rows -> rows.map { it.toProject() } }
+            mapper = { _, rows -> rows.map { row ->
+                val role = row.getField(ProjectMemberTable.role) as String?
+                MemberInProject(if (role == null) null else ProjectRole.valueOf(role), row.toProject()) }
+            }
         )
     }
 
