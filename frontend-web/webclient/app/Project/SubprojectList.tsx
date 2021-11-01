@@ -28,7 +28,7 @@ const subprojectsRenderer: ItemRenderer<Project> = {
         return <Text>{resource.title}</Text>;
     },
     Icon() {
-        return <Icon name="projects" />;
+        return <Icon color={"iconColor"} color2={"iconColor2"} name="projects" />;
     },
     ImportantStats({resource}) {
         if (!resource?.archived) return null;
