@@ -3,9 +3,9 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
-import {Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString} from ".";
+import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -18,15 +18,19 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
+import {Toggle} from "@/ui-components/Toggle";
 
-type ProjectOperation = Operation<MemberInProject, {
+interface MemberInProjectCallbacks {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
     history: History;
-}>;
+    setActiveProject: (id: string, title: string) => void;
+}
 
-const subprojectsRenderer: ItemRenderer<MemberInProject> = {
+type ProjectOperation = Operation<MemberInProject, MemberInProjectCallbacks>;
+
+const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallbacks> = {
     MainTitle({resource}) {
         if (!resource) return null;
         return <Text>{resource.project.title}</Text>;
@@ -34,10 +38,20 @@ const subprojectsRenderer: ItemRenderer<MemberInProject> = {
     Icon() {
         return <Icon color={"iconColor"} color2={"iconColor2"} name="projects" />;
     },
-    ImportantStats({resource}) {
+    ImportantStats({resource, callbacks}) {
         if (!resource) return null;
+        const projectId = useProjectId();
+        const isActive = projectId === resource.project.id;
         return <>
             {resource.project.archived ? <Icon name="tags" /> : null}
+            {resource.role ? <Box mt="7px" title="Set as active project" mr="12px">
+                <Toggle
+                    scale={1.5}
+                    activeColor="--green"
+                    checked={isActive}
+                    onChange={() => callbacks.setActiveProject(resource.project.id, resource.project.title)}
+                />
+            </Box> : null}
             {resource.role ? <Tooltip
                 tooltipContentWidth="80px"
                 wrapperOffsetLeft="0"
@@ -107,7 +121,13 @@ export default function SubprojectList(): JSX.Element | null {
     const history = useHistory();
 
     const dispatch = useDispatch();
-    const setProject = React.useCallback((id: string) => dispatchSetProjectAction(dispatch, id), [dispatch]);
+    const setProject = React.useCallback((id: string, title: string) => {
+        dispatchSetProjectAction(dispatch, id);
+        snackbarStore.addInformation(
+            `${title} is now the active project`,
+            false
+        );
+    }, [dispatch]);
 
     const [, invokeCommand,] = useCloudCommand();
 
@@ -184,25 +204,26 @@ export default function SubprojectList(): JSX.Element | null {
         })
     }, [subprojectFromQuery]);
 
-    const extra = {
+    const extra: MemberInProjectCallbacks = {
         startCreation,
         history,
         onSetArchivedStatus,
-        startRename: setRenameId
+        startRename: setRenameId,
+        setActiveProject: setProject
     };
 
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
-            <>
-            <Heading.h3 mb={16}>Subprojects</Heading.h3>
-                <StandardBrowse
-                    reloadRef={reloadRef}
-                    generateCall={generateCall}
-                    pageRenderer={pageRenderer}
-                    toggleSet={toggleSet}
-                />
-            </>
+                <>
+                    <Heading.h3 mb={16}>Subprojects</Heading.h3>
+                    <StandardBrowse
+                        reloadRef={reloadRef}
+                        generateCall={generateCall}
+                        pageRenderer={pageRenderer}
+                        toggleSet={toggleSet}
+                    />
+                </>
         }
         sidebar={
             <Operations
