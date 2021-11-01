@@ -4,7 +4,8 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
 import {Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojects, Project, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString} from ".";
+import * as Heading from "@/ui-components/Heading";
+import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -15,6 +16,8 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {useDispatch} from "react-redux";
+import {dispatchSetProjectAction} from "./Redux";
 
 type ProjectOperation = Operation<MemberInProject, {
     startCreation: () => void;
@@ -103,6 +106,9 @@ export default function SubprojectList(): JSX.Element | null {
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const history = useHistory();
 
+    const dispatch = useDispatch();
+    const setProject = React.useCallback((id: string) => dispatchSetProjectAction(dispatch, id), [dispatch]);
+
     const [, invokeCommand,] = useCloudCommand();
 
     const [creating, setCreating] = React.useState(false);
@@ -188,12 +194,15 @@ export default function SubprojectList(): JSX.Element | null {
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
+            <>
+            <Heading.h3 mb={16}>Subprojects</Heading.h3>
                 <StandardBrowse
                     reloadRef={reloadRef}
                     generateCall={generateCall}
                     pageRenderer={pageRenderer}
                     toggleSet={toggleSet}
                 />
+            </>
         }
         sidebar={
             <Operations
