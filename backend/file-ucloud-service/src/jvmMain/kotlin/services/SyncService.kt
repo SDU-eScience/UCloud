@@ -122,7 +122,7 @@ class SyncService(
                 devices.add(device)
             }
 
-            session.sendPreparedStatement(
+            val affectedRows = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { folder -> folder.id.toLong() })
                     setParameter("devices", devices.map { it.id })
@@ -146,23 +146,72 @@ class SyncService(
                     )
             """
             ).rowsAffected
-        }
 
-        affectedDevices.forEach { device ->
-            val mounter = Mounts.ready.call(Unit, authenticatedClient) //.withMounterInfo(device))
+            affectedDevices.forEach { device ->
 
-            // Mounter is ready when all folders added to syncthing on that device is mounted.
-            // Syncthing is ready when it's accessible.
-            if (mounter.statusCode != HttpStatusCode.OK || !mounter.orThrow().ready || !syncthing.isReady(device)) {
-                throw RPCException(
-                    "The synchronization feature is offline at the moment. Your folders will be synchronized when it returns online.",
-                    HttpStatusCode.ServiceUnavailable
-                )
+                // Mounter is ready when all folders added to syncthing on that device is mounted.
+                // Syncthing is ready when it's accessible.
+
+                var retries = 0
+                while (true) {
+                    if (retries == 3) {
+                        throw RPCException(
+                            "The synchronization feature is offline. Please try again later.",
+                            HttpStatusCode.ServiceUnavailable
+                        )
+                    }
+
+                    try {
+                        val mounter = Mounts.ready.call(Unit, authenticatedClient) //.withMounterInfo(device))
+
+                        if (
+                            mounter.statusCode != HttpStatusCode.OK ||
+                            !mounter.orThrow().ready ||
+                            !syncthing.isReady(device)
+                        ) {
+                            retries++
+                        } else {
+                            break
+                        }
+                    } catch (ex: Throwable) {
+                        retries++
+                    }
+                }
             }
+
+            affectedRows
         }
 
         if (affectedRows > 0) {
-            syncthing.writeConfig(affectedDevices.toList())
+            try {
+                syncthing.writeConfig(affectedDevices.toList())
+            } catch (ex: Throwable) {
+                request.items.forEach { folder ->
+                    Mounts.unmount.call(
+                        UnmountRequest(
+                            listOf(MountFolderId(folder.id.toLong()))
+                        ),
+                        authenticatedClient //.withMounterInfo(device)
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.InternalServerError,
+                            "Something went nuts here"
+                        )
+                    }
+                }
+
+                db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("ids", request.items.map { folder -> folder.id.toLong() })
+                        },
+                        """
+                            delete from file_ucloud.sync_folders
+                            where id in (select unnest(:ids:bigint[]))
+                        """
+                    )
+                }
+            }
         }
 
         return BulkResponse(emptyList())
@@ -200,8 +249,6 @@ class SyncService(
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
             }
-
-            devices.size
         }
 
         syncthing.writeConfig()
