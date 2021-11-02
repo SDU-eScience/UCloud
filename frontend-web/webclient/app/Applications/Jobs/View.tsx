@@ -36,6 +36,7 @@ import {
     usageExplainer
 } from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
+import {BrowseType} from "@/Resource/BrowseType";
 
 const enterAnimation = keyframes`
     from {
@@ -1112,7 +1113,7 @@ const OutputFilesWrapper = styled.div`
 const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <FilesBrowse embedded={true} pathRef={pathRef} forceNavigationToPage={true} />
+        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true} />
     </OutputFilesWrapper>;
 };
 
