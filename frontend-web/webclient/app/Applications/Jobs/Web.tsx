@@ -8,8 +8,18 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useParams} from "react-router";
 import { useEffect } from "react";
 import {compute} from "@/UCloud";
-import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
 import {bulkRequestOf} from "@/DefaultObjects";
+
+interface JobsOpenInteractiveSessionResponse {
+    responses: {
+        providerDomain: string;
+        providerId: string;
+        session: {
+            jobId: string;
+            rank: number
+        }
+    };
+}
 
 export const Web: React.FunctionComponent = () => {
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
@@ -22,8 +32,8 @@ export const Web: React.FunctionComponent = () => {
     useNoFrame();
 
     useEffect(() => {
-        if (sessionResp.data !== null && sessionResp.data.sessions.length > 0) {
-            const {providerDomain, session} = sessionResp.data.sessions[0];
+        if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
+            const {providerDomain, session} = sessionResp.data.responses[0];
             if (session.type !== "web") {
                 snackbarStore.addFailure(
                     "Unexpected response from UCloud. Unable to open web interface!",

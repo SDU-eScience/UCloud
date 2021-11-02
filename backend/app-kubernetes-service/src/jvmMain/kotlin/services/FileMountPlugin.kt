@@ -66,7 +66,12 @@ class FileMountPlugin(
             )
         }
 
-        fs.createDirectories(file)
+        try {
+            fs.createDirectories(file)
+        } catch (ex: FSException.NotFound) {
+            log.warn("Unable to create directory, needed for file mounts: $file")
+            throw ex
+        }
 
         val jobParameterJson = job.status.jobParametersJson
         if (jobParameterJson != null) {
