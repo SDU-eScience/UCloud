@@ -1,4 +1,3 @@
-import * as React from "react";
 import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {useHistory} from "react-router";
 import {useSearch, useSearchPlaceholder} from "@/DefaultObjects";
