@@ -12,6 +12,7 @@ import {useCallback, useEffect} from "react";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
+import {PaginationRequestV2} from "@/UCloud";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -219,6 +220,11 @@ export interface Project {
     fullPath?: string;
 }
 
+export interface MemberInProject {
+    role?: ProjectRole;
+    project: Project;
+}
+
 export interface ProjectGroup {
     id: string,
     title: string
@@ -254,7 +260,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string; parent: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent?: string; principalInvestigator?: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -300,7 +306,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     reloadId: Math.random()
 });
 
-export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequest> => ({
+export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequestV2> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/sub-projects",
@@ -359,7 +365,7 @@ export interface OutgoingInvite {
 }
 
 export type ListOutgoingInvitesRequest = PaginationRequest;
-export type ListSubprojectsRequest = PaginationRequest;
+export type ListSubprojectsRequest = PaginationRequestV2;
 
 export function listOutgoingInvites(
     request: ListOutgoingInvitesRequest
@@ -437,13 +443,6 @@ export interface ProjectAffiliationSelectorProps {
     visible: boolean;
     onProjectSelect: (project: {project: string} | null) => void;
 }
-
-export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
-    method: "DELETE",
-    path: "/projects/subprojects",
-    payload,
-    reloadId: Math.random()
-});
 
 type LeaveProjectRequest = Record<string, never>
 export function leaveProject(

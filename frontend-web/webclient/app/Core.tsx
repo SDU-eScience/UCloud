@@ -49,6 +49,7 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
+const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -152,7 +153,8 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/skus" component={Products} />
 
-                    <Route exact path="/projects" component={requireAuth(ProjectList)} />
+                    <Route exact path="/projects/" component={requireAuth(ProjectList)} />
+                    <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
                     <Route exact path="/project/resources" component={requireAuth(ProjectResources)} />
@@ -181,11 +183,7 @@ const Core = (): JSX.Element => (
                         path="/project/grants/view/:appId"
                         component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                     />
-                    <Route
-                        exact
-                        path="/project/members/:group?/:member?"
-                        component={requireAuth(ProjectMembers)}
-                    />
+                    <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)} />
                     <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
                     <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />

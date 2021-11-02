@@ -6103,17 +6103,7 @@ export function viewProject(
         reloadId: Math.random(),
     };
 }
-export function listSubProjects(
-    request: ListSubProjectsRequest
-): APICallParameters<ListSubProjectsRequest, Page<Project>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/projects" + "/sub-projects", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
+
 export function countSubProjects(): APICallParameters<{}, number /* int64 */> {
     return {
         context: "",
