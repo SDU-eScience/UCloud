@@ -262,7 +262,7 @@ data class SecurityScope internal constructor(
                 throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment' from '$rawScope'")
             }
 
-            val normalizedAccess = parts[1].toLowerCase()
+            val normalizedAccess = parts[1].lowercase()
             val access = AccessRight.values().find { it.scopeName == normalizedAccess }
                 ?: throw IllegalArgumentException("Bad access right in audience")
 

@@ -30,7 +30,6 @@ import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
-
 sealed class ServerMode {
     object User : ServerMode()
     object Server : ServerMode()
@@ -50,10 +49,10 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val databaseConfig = atomic("").freeze()
 
 @ThreadLocal
-val dbConnection: DBContext.Connection? by lazy {
+val dbConnection: DBContext.Connection by lazy {
     val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
     if (dbConfig == null) {
-        null
+        error("This plugin does not have access to a database")
     } else {
         Sqlite3Driver(dbConfig).openSession()
     }
@@ -77,7 +76,6 @@ private fun readSelfExecutablePath(): String {
     }
 }
 
-
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     val serverMode = when {
@@ -89,9 +87,6 @@ fun main(args: Array<String>) {
     val ownExecutable = readSelfExecutablePath()
     //signal(SIGCHLD, SIG_IGN) // Automatically reap children - commenting out as currently interferes with execve.kt
     signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
-
-
-
 
     runBlocking {
         val config = try {
@@ -111,7 +106,7 @@ fun main(args: Array<String>) {
             databaseConfig.getAndSet(config.server.dbFile)
 
             // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
-            val handler = MigrationHandler(dbConnection!!)
+            val handler = MigrationHandler(dbConnection)
             loadMigrations(handler)
             handler.migrate()
         }
@@ -201,7 +196,6 @@ fun main(args: Array<String>) {
 
         envoyConfig?.start(config.server?.port)
 
-
         data class MonitoringContext(val pluginContext: PluginContext, val plugin: ComputePlugin)
         plugins.compute?.plugins?.values?.forEach { plugin ->
             Worker
@@ -209,12 +203,13 @@ fun main(args: Array<String>) {
                 .execute(TransferMode.SAFE, { MonitoringContext(pluginContext, plugin).freeze() }) { ctx ->
                     with(ctx.pluginContext) {
                         with(ctx.plugin) {
-                            runMonitoringLoop()
+                            runBlocking {
+                                runMonitoringLoop()
+                            }
                         }
                     }
                 }
         }
-   
 
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {
@@ -232,13 +227,8 @@ fun main(args: Array<String>) {
             is ServerMode.Plugin -> {
                 cli!!.execute(serverMode.name)
             }
-
         }
-
-
     }
-
-    
 }
 
 private fun H2OServer.configureControllers(vararg controllers: Controller) {

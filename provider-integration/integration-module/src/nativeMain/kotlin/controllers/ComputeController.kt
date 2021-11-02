@@ -1,9 +1,9 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ServerMode
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.freeze
 import dk.sdu.cloud.http.H2OServer
@@ -15,121 +15,37 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
-
 import dk.sdu.cloud.plugins.* //delete later
-import dk.sdu.cloud.utils.*
-import dk.sdu.cloud.plugins.compute.*
-
+import kotlinx.coroutines.runBlocking
 
 class ComputeController(
-    private val controllerContext: ControllerContext,
-) : Controller {
-    override fun H2OServer.configure() {
-        val plugins = controllerContext.plugins.compute ?: return
+    controllerContext: ControllerContext,
+) : BaseResourceController<Product.Compute, ComputeSupport, Job, ComputePlugin, JobsProvider>(controllerContext) {
+    override fun retrievePlugins(): ProductBasedPlugins<ComputePlugin>? = controllerContext.plugins.compute
+    override fun retrieveApi(providerId: String): JobsProvider = JobsProvider(providerId)
+
+    override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
         val serverMode = controllerContext.configuration.serverMode
 
-        fun findPlugin(job: Job): ComputePlugin {
-            return plugins.lookup(job.specification.product)
-        }
-
-        val jobs = JobsProvider(controllerContext.configuration.core.providerId)
-
-        fun <T> groupJobs(
-            items: List<T>,
-            jobSelector: (T) -> Job,
-        ): Map<ComputePlugin, List<T>> {
-            val result = HashMap<ComputePlugin, ArrayList<T>>()
-            for (item in items) {
-                val job = jobSelector(item)
-                val plugin = findPlugin(job)
-                val existing = result[plugin] ?: ArrayList()
-                existing.add(item)
-                result[plugin] = existing
-            }
-            return result
-        }
-
-        /*
-        implement(jobs.create) {
+        implement(api.extend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            groupJobs(request.items, { it }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        createBulk(BulkRequest(group))
-                    }
-                }
-            }
-
-            OutgoingCallResponse.Ok(Unit)
-        }
-
-        implement(jobs.retrieveProducts) {
-            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             OutgoingCallResponse.Ok(
-                JobsProviderRetrieveProductsResponse(
-                    plugins.allProducts
-                        .map { it to plugins.lookup(it) }
-                        .groupBy { it.second }
-                        .flatMap { (plugin, products) ->
-                            val support = with(controllerContext.pluginContext) {
-                                with(plugin) {
-                                    retrieveSupport()
-                                }
-                            }
-
-                            products.map { (product) ->
-                                ComputeProductSupport(
-                                    ProductReference(
-                                        product.id,
-                                        product.category,
-                                        controllerContext.configuration.core.providerId
-                                    ),
-                                    support
-                                )
-                            }
-                        }
-                )
+                dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                    with(plugin) { extendBulk(request) }
+                }
             )
-        }
-
-        implement(jobs.delete) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            groupJobs(request.items, { it }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        deleteBulk(BulkRequest(group))
-                    }
-                }
-            }
-
-            OutgoingCallResponse.Ok(Unit)
-        }
-
-        implement(jobs.extend) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            groupJobs(request.items, { it.job }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        extendBulk(BulkRequest(group))
-                    }
-                }
-            }
-
-            OutgoingCallResponse.Ok(Unit)
         }
 
         val maxStreams = 1024 * 32
         val streams = atomicArrayOfNulls<String>(maxStreams)
 
-        implement(jobs.follow) {
+        implement(api.follow) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             when (request) {
                 is JobsProviderFollowRequest.Init -> {
-                    val plugin = findPlugin(request.job)
+                    val plugin = plugins.lookup(request.job.specification.product)
 
                     val token = secureToken(64).freeze()
                     var streamId: Int? = null
@@ -171,7 +87,7 @@ class ComputeController(
 
                     with(ctx) {
                         with(plugin) {
-                            followLogs(request.job)
+                            runBlocking { follow(request.job) }
                         }
                     }
 
@@ -194,144 +110,31 @@ class ComputeController(
             }
         }
 
-        implement(jobs.openInteractiveSession) {
+        implement(api.openInteractiveSession) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            val responses = ArrayList<OpenSession>()
-            groupJobs(request.items, { it.job }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        responses.addAll(openInteractiveSessionBulk(BulkRequest(group)).sessions)
-                    }
-                }
-            }
 
-            OutgoingCallResponse.Ok(JobsProviderOpenInteractiveSessionResponse(responses))
+            OutgoingCallResponse.Ok(
+                dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                    with(plugin) { openInteractiveSessionBulk(request) }
+                }
+            )
         }
 
-        implement(jobs.retrieveUtilization) {
+        implement(api.retrieveUtilization) {
             if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             TODO("Issue #2425")
-
-
-            //TODO: find a way to call the plugin from SampleComputePlugin
-
-            //val mPlugin = plugins as ProductBasedPlugins
-            //val samplePlugin = mPlugin.plugins["sample"]
-            // with(controllerContext.pluginContext) {
-            //     with(samplePlugin) {
-            //          OutgoingCallResponse.Ok(this!!.retrieveClusterUtilization())
-            //    }
-            // }
-
-
-
-            // squeue --format '%A|%m|%C|%T' --noheader --states running,pending --noconvert
-            // 26|50M|1|PENDING
-            // 27|50M|1|PENDING
-
-            //get pending cpu/mem jobs
-            // val (_, jobs, _) = CmdBuilder("/usr/bin/squeue")
-            //                         .addArg("--format","%A|%m|%C|%T")
-            //                         .addArg("--noheader")
-            //                         .addArg("--noconvert")
-            //                         .addArg("--states", "running,pending")
-            //                         .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
-            //                         .execute()
-
-            // val mList = jobs.lines().map{
-            //     it.trimIndent()
-            //     it.trim()
-            //     it.split("|")
-            // }.toList()
-
-            // var usedCpu = 0;
-            // var usedMem = 0;
-            // var pendingJobs = 0;
-            // var runningJobs = 0;
-
-            // mList.forEach{ line -> 
-
-            //         if(  line[3].equals("PENDING") ) {
-            //            pendingJobs++
-            //         }
-
-            //         if(  line[3].equals("RUNNING")  ) {
-            //             usedCpu = usedCpu + line[2].toInt()
-            //             usedMem = usedMem + line[1].replace("M", "").toInt()
-            //             runningJobs++
-            //         }
-
-            // }
-
-            //println("$usedCpu $usedMem $pendingJobs $runningJobs")
-
-
-            // sinfo --format='%n|%c|%m' --noconvert --noheader
-            // c1|1|1000
-            // c2|1|1000
-
-            //get cluster overall cpu/mem
-            // val (_, nodes, _) = CmdBuilder("/usr/bin/sinfo")
-            //                         .addArg("--format","%n|%c|%m")
-            //                         .addArg("--noheader")
-            //                         .addArg("--noconvert")
-            //                         .addEnv("SLURM_CONF",  "/etc/slurm/slurm.conf")
-            //                         .execute()
-
-            // val nList = nodes.lines().map{
-            //     it.trimIndent()
-            //     it.trim()
-            //     it.split("|")
-            // }.toList()
-
-            // var clusterCpu = 0;
-            // var clusterMem = 0;
-
-            // nList.forEach{ line -> 
-            //             clusterCpu = clusterCpu + line[1].toInt()
-            //             clusterMem = clusterMem + line[2].replace("M", "").toInt()
-            // }
-
-            // var clusterCpu:Int = 0;
-            // var clusterMem:Int = 0;
-
-            // compute?.forEach{ product -> 
-            //     clusterCpu = clusterCpu + product.get("cpu").toString().toInt()
-            //     clusterMem = clusterMem + product.get("mem").toString().toInt()
-            // }
-
-            //println("$clusterCpu $clusterMem")
-
-           //OutgoingCallResponse.Ok( JobsProviderUtilizationResponse(   CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()), CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()), QueueStatus(runningJobs, pendingJobs))   )
-
         }
 
-        implement(jobs.suspend) {
+        implement(api.suspend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            groupJobs(request.items, { it }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        suspendBulk(BulkRequest(group))
-                    }
-                }
+
+            dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
+                with(plugin) { suspendBulk(request) }
+                BulkResponse(emptyList<Unit>())
             }
 
             OutgoingCallResponse.Ok(Unit)
         }
-
-        implement(jobs.verify) {
-            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            groupJobs(request.items, { it }).forEach { (plugin, group) ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        verify(group)
-                    }
-                }
-            }
-
-            OutgoingCallResponse.Ok(Unit)
-        }
-         */
     }
 
     companion object : Loggable {

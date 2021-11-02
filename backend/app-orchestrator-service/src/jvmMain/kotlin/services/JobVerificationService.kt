@@ -178,7 +178,7 @@ class JobVerificationService(
                     if (providedValue !is AppParameterValue.File) badValue(param)
                 }
 
-                is ApplicationParameter.Text -> {
+                is ApplicationParameter.Text, is ApplicationParameter.TextArea -> {
                     if (providedValue !is AppParameterValue.Text) badValue(param)
                 }
 

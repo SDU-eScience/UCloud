@@ -23,7 +23,7 @@ RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin
 FROM BASE AS DEVELOPMENT
 
 RUN useradd --user-group testuser 
-RUN apt-get install -y vim
+RUN apt-get update && apt-get install -y vim
 WORKDIR /usr/bin
 RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe ucloud
 COPY default_config /opt/ucloud-default-config

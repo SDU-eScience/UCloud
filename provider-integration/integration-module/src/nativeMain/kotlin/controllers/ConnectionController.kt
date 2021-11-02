@@ -98,9 +98,8 @@ class ConnectionController(
 
         implement(calls.init) {
             val envoyConfig = envoyConfig ?: error("No envoy")
-            val db = dbConnection ?: error("No db")
             var localId: String? = null
-            db.withTransaction { conn ->
+            dbConnection.withTransaction { conn ->
                 conn.prepareStatement(
                     //language=SQLite
                     "select local_identity from user_mapping where ucloud_id = :ucloud_id"

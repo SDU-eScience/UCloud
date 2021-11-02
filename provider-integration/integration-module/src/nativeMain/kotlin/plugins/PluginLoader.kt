@@ -9,6 +9,7 @@ import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 
 class PluginLoaderException(message: String) : RuntimeException(message)
@@ -33,7 +34,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
                 val plugin = pluginFactory()
                 with(pluginContext) {
                     with(plugin) {
-                        initialize()
+                        runBlocking { initialize() }
                     }
                 }
                 return plugin
@@ -78,7 +79,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
 
             with(pluginContext) {
                 with(loaded) {
-                    initialize()
+                    runBlocking { initialize() }
                 }
             }
         }

@@ -1,10 +1,10 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input, TextArea} from "@/ui-components";
+import {TextArea, Input} from "@/ui-components";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
-import TextAreaApp from "@/ui-components/TextAreaApp";
+import styled from "styled-components";
 
 type GenericTextType =
     UCloud.compute.ApplicationParameterNS.Text |
@@ -32,6 +32,12 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     />;
 };
 
+const TextAreaApp = styled(TextArea)`
+    width: 100%;
+    height: 300px;
+    resize: vertical;
+`;
+
 export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextProps> = props => {
     let placeholder = "File content";
     const error = props.errors[props.parameter.name] != null;
@@ -44,7 +50,6 @@ export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextPro
     />;
 };
 
-//TODO: romh double check
 export const GenericTextValidator: WidgetValidator = (param) => {
     const elem = findElement(param);
     if (elem === null) return {valid: true};

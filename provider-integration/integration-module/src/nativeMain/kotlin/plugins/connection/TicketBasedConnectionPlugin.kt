@@ -7,10 +7,7 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.*
-import dk.sdu.cloud.plugins.ConnectionPlugin
-import dk.sdu.cloud.plugins.ConnectionResponse
-import dk.sdu.cloud.plugins.HTML
-import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log
@@ -29,12 +26,11 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override fun PluginContext.initialize() {
+    override suspend fun PluginContext.initialize() {
         val log = Log("TicketBasedConnectionPlugin")
-        ipcServer?.addHandler(
+        ipcServer.addHandler(
             IpcHandler("connect.approve") { user, jsonRequest ->
                 log.debug("Asked to approve connection!")
-                val rpcClient = rpcClient ?: error("No RPC client")
                 if (user.uid != 0u || user.gid != 0u) {
                     throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
                 }
@@ -44,7 +40,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                 }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
                 var ucloudId: String? = null
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
+                dbConnection.withTransaction { connection ->
                     connection.prepareStatement(
                         //language=SQLite
                         """
@@ -112,9 +108,8 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
-        val connection = dbConnection ?: error("Server mode required for TicketBasedConnectionPlugin")
         val ticket = secureToken(64)
-        connection.withTransaction {
+        dbConnection.withTransaction { connection ->
             connection.prepareStatement(
                 //language=SQLite
                 """
@@ -130,10 +125,9 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
-        val connection = dbConnection ?: error("Server mode required for TicketBasedConnectionPlugin")
         val ticket = query["ticket"]?.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         var ucloudUsername: String? = null
-        connection.withTransaction {
+        dbConnection.withTransaction { connection ->
             connection.prepareStatement(
                 //language=SQLite
                 """

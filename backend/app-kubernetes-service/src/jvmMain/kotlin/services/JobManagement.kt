@@ -312,15 +312,12 @@ class JobManagement(
 
             var lastIteration = Time.now()
             while (currentCoroutineContext().isActive) {
-                println("-----------------------------------------------------------------")
                 val now = Time.now()
                 val time = now - lastIteration
                 lastIteration = now
-                println("ITERATION START ${time}ms")
                 val resources = k8.client.listResources<VolcanoJob>(
                     KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
                 )
-                println("RESOURCE OBTAINED")
 
                 // NOTE(Dan): If we get to the point that Kubernetes cannot complete this call
                 // in 60 seconds we should consider splitting this up into multiple queues.
@@ -328,19 +325,14 @@ class JobManagement(
                 // means that it will take longer for a new master to be elected.
                 if (!renewLock(lock)) continue
 
-                println("LOCK RENEWED")
-
                 val events = processScan(resources)
-                println(events.map { "Job(${it.oldJob != null}, ${it.newJob != null}, ${it.updatedPhase}, ${it.updatedRunning}, ${it.jobName}, ${it.wasDeleted})" })
                 // TODO It looks like this code is aware of changes but they are not successfully received by UCloud/sent by this service
                 for (event in events) {
-                    println("HANDLING EVENT")
                     val jobId = k8.nameAllocator.jobNameToJobId(event.jobName)
 
                     when {
                         event.wasDeleted -> {
                             val oldJob = event.oldJob!!
-                            println("A JOB WAS DELETED ${oldJob}")
                             val expiry = oldJob.expiry
                             if (expiry != null && Time.now() >= expiry) {
                                 // NOTE(Dan): Expiry plugin will simply delete the object. This is why we must
@@ -400,10 +392,6 @@ class JobManagement(
                                 }
                             }
 
-                            println(newState)
-                            println(expectedDifferentState)
-                            println(statusUpdate)
-
                             if (newState != null) {
                                 if (newState == JobState.SUCCESS) {
                                     val didChange = k8.addStatus(jobId, statusUpdate)
@@ -439,24 +427,17 @@ class JobManagement(
                             // Do nothing, just run the normal job monitoring.
                         }
                     }
-                    println("EVENT HANDLED")
                 }
-                println("END OF EVENTS")
 
                 for (plugin in plugins) {
-                    println("HANDLING PLUGIN ${plugin.javaClass.simpleName}")
                     with(plugin) {
                         onJobMonitoring(resources)
                     }
 
-                    println("PLUGIN HANDLED")
                     if (!renewLock(lock)) continue
-                    println("LOCK RENEWED")
                 }
 
-                println("END OF PLUGINS")
                 if (!renewLock(lock)) break
-                println("WAITING FOR NEXT ITERATION")
                 delay(5000)
             }
         }

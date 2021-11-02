@@ -2,7 +2,6 @@ package dk.sdu.cloud.utils
 
 import dk.sdu.cloud.wexitstatus
 import dk.sdu.cloud.wifexited
-import io.ktor.util.*
 import kotlinx.cinterop.*
 import platform.posix.*
 import kotlin.system.exitProcess
@@ -186,8 +185,6 @@ fun startProcessAndCollectToMemory(
         nonBlockingStderr = true,
     )
 
-
-
     if (stdin != null && process.stdin != null) {
         stdin.copyTo(process.stdin)
     }
@@ -263,26 +260,43 @@ fun startProcessAndCollectToString(
     return ProcessResultText(res.statusCode, res.stdout.decodeToString().trim(), res.stderr.decodeToString().trim())
 }
 
-
-data class CmdBuilder(val bin: String, val args: MutableList<String> = mutableListOf(), val envs: MutableList<String> = mutableListOf() ) {
-    
+data class CommandBuilder(
+    val executable: String,
+    val args: MutableList<String> = mutableListOf(),
+    val envs: MutableList<String> = mutableListOf()
+) {
     init {
-        args.add(bin)
+        args.add(executable)
     }
-    
-    fun addArg( arg:String, argValue: String? = null): CmdBuilder {
+
+    fun addArg(arg: String, argValue: String? = null): CommandBuilder {
         args.add(arg)
-        if(argValue != null) args.add(argValue)
+        if (argValue != null) args.add(argValue)
         return this
     }
-    
-    fun addEnv( env:String, envValue: String): CmdBuilder {
+
+    fun addEnv(env: String, envValue: String): CommandBuilder {
         envs.add("${env}=${envValue}")
         return this
     }
 
-    fun execute() : ProcessResultText {
-       return startProcessAndCollectToString( args, envs )
+    fun executeToText(): ProcessResultText {
+        return startProcessAndCollectToString(args, envs)
     }
-    
+
+    fun executeToBinary(): ProcessResult {
+        return startProcessAndCollectToMemory(args, envs)
+    }
+}
+
+inline fun buildCommand(executable: String, block: CommandBuilder.() -> Unit): CommandBuilder {
+    return CommandBuilder(executable).also(block)
+}
+
+inline fun executeCommandToText(executable: String, block: CommandBuilder.() -> Unit): ProcessResultText {
+    return buildCommand(executable, block).executeToText()
+}
+
+inline fun executeCommandToBinary(executable: String, block: CommandBuilder.() -> Unit): ProcessResult {
+    return buildCommand(executable, block).executeToBinary()
 }

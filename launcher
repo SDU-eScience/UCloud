@@ -154,6 +154,18 @@ if integrationModule:
 	print()
 	print()
 
+if slurm:
+	print(header("# Slurm Cluster"))
+	print()
+	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
+	print()
+	print()
+
+	print()
+	print(header("Instructions:"))
+	print("Interact with " + code("docker-compose exec slurmctld bash") )
+	print()
+
 print(header("# UCloud is now starting..."))
 
 print("  - Access the web-interface at: " + location("http://localhost:8080/i"))
@@ -166,26 +178,6 @@ print("  - Default credentials: user, mypassword")
 
 print()
 
+
+
 subprocess.run(command)
-
-sleep(5)
-
-if slurm:
-	print(header("# Slurm Cluster"))
-	print()
-	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
-	print()
-	print()
-
-	#print("restarting cluster...")
-	#sleep(15)
-	#os.system("docker exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld ")
-	#sleep(10)
-	print()
-	print(header("Instructions:"))
-	print("Interact with " + code("docker-compose exec slurmctld bash") )
-	print()
-
-
-
-

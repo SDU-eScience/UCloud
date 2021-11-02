@@ -1,41 +1,32 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.*
 
-interface ComputePlugin : Plugin {
-    fun PluginContext.retrieveSupport(): ComputeSupport
-
-    /*
-    fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {
-        request.items.forEach { create(it) }
-    }
-     */
-
-    fun PluginContext.create(job: Job)
-
-    /*
-    fun PluginContext.deleteBulk(request: JobsProviderDeleteRequest) {
-        request.items.forEach { delete(it) }
-    }
-     */
-
-    fun PluginContext.delete(job: Job)
-
-    fun PluginContext.extendBulk(request: JobsProviderExtendRequest) {
-        request.items.forEach { extend(it) }
+interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job> {
+    suspend fun PluginContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse {
+        return BulkResponse(request.items.map { extend(it) })
     }
 
-    fun PluginContext.extend(request: JobsProviderExtendRequestItem)
+    suspend fun PluginContext.extend(request: JobsProviderExtendRequestItem)
 
-    fun PluginContext.suspendBulk(request: JobsProviderSuspendRequest) {
+    suspend fun PluginContext.suspendBulk(request: JobsProviderSuspendRequest): JobsProviderSuspendResponse {
         request.items.forEach { suspendJob(it) }
     }
 
-    fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem)
+    suspend fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem)
 
-    fun FollowLogsContext.followLogs(job: Job)
+    suspend fun PluginContext.terminateBulk(request: BulkRequest<Job>): BulkResponse<Unit?> {
+        return BulkResponse(request.items.map { terminate(it) })
+    }
+
+    suspend fun PluginContext.terminate(resource: Job)
+
+    suspend fun FollowLogsContext.follow(job: Job)
 
     class FollowLogsContext(
         delegate: PluginContext,
@@ -44,22 +35,21 @@ interface ComputePlugin : Plugin {
         val emitStderr: (rank: Int, message: String) -> Unit,
     ) : PluginContext by delegate
 
-    fun PluginContext.verify(jobs: List<Job>) {}
+    suspend fun PluginContext.verify(jobs: List<Job>) {}
 
-    fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse 
-    // {
-    //     throw RPCException("Utilization is not supported by this cluster", HttpStatusCode.BadRequest)
-    // }
+    suspend fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse
 
-    fun PluginContext.runMonitoringLoop()
-
-    fun PluginContext.openInteractiveSessionBulk(
+    suspend fun PluginContext.openInteractiveSessionBulk(
         request: JobsProviderOpenInteractiveSessionRequest
     ): JobsProviderOpenInteractiveSessionResponse {
         return JobsProviderOpenInteractiveSessionResponse(request.items.map { openInteractiveSession(it) })
     }
 
-    fun PluginContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
+    suspend fun PluginContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
         throw RPCException("Interactive sessions are not supported by this cluster", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun PluginContext.delete(resource: Job) {
+        // Not supported by compute plugins
     }
 }
