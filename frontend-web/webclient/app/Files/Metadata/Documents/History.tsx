@@ -1,37 +1,44 @@
 import * as React from "react";
-import {file} from "UCloud";
-import metadataApi = file.orchestrator.metadata;
-import FileMetadataHistory = file.orchestrator.FileMetadataHistory;
-import {useCallback, useEffect, useState} from "react";
-import {useCloudCommand} from "Authentication/DataHook";
-import FileMetadataOrDeleted = file.orchestrator.FileMetadataOrDeleted;
-import {bulkRequestOf} from "DefaultObjects";
-import {Box, Button, Flex, Icon, List} from "ui-components";
-import {AppLogo, hashF} from "Applications/Card";
-import * as Heading from "ui-components/Heading";
-import {dateToString} from "Utilities/DateUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import {ConfirmCancelButtons} from "UtilityComponents";
-import {JsonSchemaForm} from "Files/Metadata/JsonSchemaForm";
+import {
+    default as metadataApi,
+    FileMetadataHistory,
+    FileMetadataDocumentOrDeleted, FileMetadataDocumentApproval,
+} from "@/UCloud/MetadataDocumentApi";
+import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {TextArea, Box, Button, Flex, Grid, Icon, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import styled from "styled-components";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import ApprovalStatus = file.orchestrator.FileMetadataDocumentNS.ApprovalStatus;
-import {deviceBreakpoint} from "ui-components/Hide";
-import FileMetadataTemplate = file.orchestrator.FileMetadataTemplate;
+import {ListRowStat} from "@/ui-components/List";
+import {deviceBreakpoint} from "@/ui-components/Hide";
+import {UFile} from "@/UCloud/FilesApi";
+import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
+import {Operation} from "@/ui-components/Operation";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {SvgFt} from "@/ui-components/FtIcon";
 
 export const History: React.FunctionComponent<{
-    path: string;
+    file: UFile;
     template: FileMetadataTemplate;
     metadata: FileMetadataHistory;
     reload: () => void;
     close: () => void;
-}> = ({path, metadata, reload, close, template}) => {
-    const [editingDocument, setEditingDocument] = useState<Record<string, any> | null>(null);
-    const [documentInspection, setDocumentInspection] = useState<FileMetadataOrDeleted | null>(null);
+}> = ({file, metadata, reload, close, template}) => {
+    // Contains the new version currently being edited
+    const [editingDocument, setEditingDocument] = useState<Record<string, any>>({});
+    // Contains the document we are currently inspecting
+    // We will display on the left hand side `documentInspection` if it is not null otherwise `editingDocument`.
+    const [documentInspection, setDocumentInspection] = useState<FileMetadataDocumentOrDeleted | null>(null);
     const [commandLoading, invokeCommand] = useCloudCommand();
 
-    const hasActivity = metadata.metadata[template.id] != null;
-    const activity = metadata.metadata[template.id] ?? [];
+    const hasActivity = metadata.metadata[template.namespaceId] != null;
+    const activity = useMemo(() => metadata.metadata[template.namespaceId] ?? [], [metadata]);
+    const changeLogRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         if (!hasActivity) {
@@ -39,56 +46,75 @@ export const History: React.FunctionComponent<{
         }
     }, [hasActivity]);
 
-    const activeDocument = documentInspection ? documentInspection :
-        activity.find(it =>
-            it.type === "deleted" ||
-            (
-                it.type === "metadata" &&
-                (it.status.approval.type === "not_required" || it.status.approval.type === "approved")
-            )
-        );
+    // Most recent approved document
+    const activeDocument = activity.find(it =>
+        it.type === "deleted" ||
+        (
+            it.type === "metadata" &&
+            (it.status.approval.type === "not_required" || it.status.approval.type === "approved")
+        )
+    );
 
-    const deleteData = useCallback(async () => {
-        if (commandLoading) return;
-        await invokeCommand(
-            metadataApi.remove(bulkRequestOf({
-                path,
-                templateId: template.id
-            }))
-        );
-
-        reload();
-    }, [path, commandLoading, template])
+    useEffect(() => {
+        // NOTE(Dan): Automatically switch to the latest document which is valid.
+        if (activeDocument) setDocumentInspection(activeDocument);
+    }, []);
 
     const submitNewVersion = useCallback(async () => {
         if (commandLoading) return;
         if (!editingDocument) return;
-
         await invokeCommand(
             metadataApi.create(bulkRequestOf({
-                path,
+                fileId: file.id,
                 metadata: {
-                    templateId: template.id,
+                    templateId: template.namespaceId,
+                    version: template.version,
                     document: editingDocument,
-                    changeLog: "",
-                    product: undefined
+                    changeLog: changeLogRef?.current?.value ?? "",
                 }
             }))
         );
 
+        const change = changeLogRef?.current;
+        if (change) change.value = "";
+
         reload();
-        setEditingDocument(null);
-    }, [path, reload, commandLoading, editingDocument, template]);
+        setEditingDocument({});
+    }, [file, reload, commandLoading, editingDocument, template]);
+
+    const activityRows = useMemo((): DocumentRow[] => {
+        return activity.map(entry => ({
+            isActive: entry === activeDocument,
+            doc: entry
+        }));
+    }, [activeDocument, activity]);
+
+    const activityNavigate = useCallback((row: DocumentRow) => {
+        setDocumentInspection(row.doc);
+    }, []);
+
+    const activityCallbacks = useMemo((): ActivityCallbacks => ({
+        file, setEditingDocument, setDocumentInspection, documentInspection, reloadFile: reload
+    }), [file, setEditingDocument, setDocumentInspection, documentInspection, reload]);
+
+    const approveChange = useCallback(async () => {
+        if (!documentInspection) return;
+        await invokeCommand(metadataApi.approve(bulkRequestOf({id: documentInspection.id})));
+    }, [documentInspection]);
+
+    const rejectChange = useCallback(async () => {
+        if (!documentInspection) return;
+        await invokeCommand(metadataApi.reject(bulkRequestOf({id: documentInspection.id})));
+    }, [documentInspection]);
 
     return <Box>
         <Flex mb={16} height={40}>
             <Box flexGrow={1}>
                 <Flex alignItems={"center"}>
-                    <AppLogo hash={hashF(template.id)} size={"42px"}/>
-                    <Heading.h3 ml={8}>{template.specification.title}</Heading.h3>
+                    <Heading.h3>{template.title}</Heading.h3>
                 </Flex>
             </Box>
-            <Button onClick={close}>
+            <Button onClick={close} mr={"34px"}>
                 <Icon name={"backward"} mr={16}/>
                 Back to overview
             </Button>
@@ -96,110 +122,79 @@ export const History: React.FunctionComponent<{
 
         <Layout>
             <div className={"doc-viewer"}>
-                <Flex mb={16} height={40} alignItems={"center"}>
-                    {documentInspection ?
+                <Box mb={"16px"}>
+                    {documentInspection && documentInspection !== activeDocument ?
                         <>
-                            <Heading.h4 flexGrow={1}>
-                                <b>{dateToString(documentInspection.createdAt)}: </b>
-                                Document updated by
-                                {" "}
-                                <b>
-                                    {documentInspection.type === "metadata" ? documentInspection.owner.createdBy :
-                                        documentInspection.type === "deleted" ? documentInspection.createdBy : null}
-                                </b>
-                            </Heading.h4>
-                            <Button ml={8} onClick={() => setDocumentInspection(null)}>
-                                <Icon name={"close"} mr={8}/>Clear
-                            </Button>
+                            <Heading.h3 flexGrow={1}>
+                                Viewing old document
+                            </Heading.h3>
+
                         </> :
-                        !editingDocument && activeDocument ?
+                        documentInspection && documentInspection === activeDocument ?
                             <>
-                                <Heading.h4 flexGrow={1}>Current document</Heading.h4>
-                                {activeDocument.type !== "metadata" ? null :
-                                    <>
-                                        <Button mx={8} onClick={() => {
-                                            setEditingDocument(({...activeDocument.specification.document}));
-                                        }}>
-                                            <Icon name={"upload"} mr={8}/>
-                                            New version
-                                        </Button>
-                                        <ConfirmationButton color={"red"} actionText={"Delete"} icon={"trash"}
-                                                            onAction={deleteData}/>
-                                    </>
-                                }
+                                <Heading.h3 flexGrow={1}>Current document</Heading.h3>
                             </> :
                             <>
-                                <Heading.h4 flexGrow={1}>Editing document</Heading.h4>
-                                <ConfirmCancelButtons
-                                    onConfirm={submitNewVersion}
-                                    onCancel={() => setEditingDocument(null)}
-                                />
+                                <Heading.h3 flexGrow={1}>New document</Heading.h3>
+                                <Label>
+                                    Changes<br/>
+                                    <TextArea width={"100%"} rows={4} ref={changeLogRef}/>
+                                </Label>
+                                <ConfirmationButton mt={"8px"} color={"green"} icon={"check"} actionText={"Save"}
+                                                    onAction={submitNewVersion} fullWidth/>
                             </>
                     }
-                </Flex>
+                </Box>
                 <div className="scroll-area">
-                    {editingDocument || !activeDocument ? <FormWrapper>
+                    {documentInspection ? <>
+                        <div><b>Change by:</b> {documentInspection.createdBy}</div>
+                        <div><b>Created at:</b> {dateToString(documentInspection.createdAt)}</div>
+                        {documentInspection.status.approval.type !== "rejected" ? null :
+                            <div><b>Rejected by:</b> {documentInspection.status.approval.rejectedBy}</div>
+                        }
+                        {documentInspection.status.approval.type !== "approved" ? null :
+                            <div><b>Approved by:</b> {documentInspection.status.approval.approvedBy}</div>
+                        }
+
+                        {documentInspection.status.approval.type === "pending" &&
+                        file.permissions.myself.some(it => it === "ADMIN") ?
+                            <Grid gridTemplateColumns={"1fr 1fr"} gridGap={"8px"} mt={"8px"}>
+                                <ConfirmationButton actionText={"Approve change"} icon={"check"} color={"green"}
+                                                    onAction={approveChange}/>
+                                <ConfirmationButton actionText={"Reject change"} icon={"trash"} color={"red"}
+                                                    onAction={rejectChange}/>
+                            </Grid> : null
+                        }
+
+                        {documentInspection.type === "deleted" ? "The metadata has been deleted" : null}
+                        {documentInspection.type !== "metadata" ? null : <FormWrapper>
+                            <JsonSchemaForm
+                                disabled={true}
+                                schema={template.schema}
+                                uiSchema={template.uiSchema}
+                                formData={documentInspection.specification.document}
+                            />
+                        </FormWrapper>
+                        }
+                    </> : <FormWrapper>
                         <JsonSchemaForm
-                            schema={template.specification.schema}
-                            uiSchema={template.specification.uiSchema}
+                            schema={template.schema}
+                            uiSchema={template.uiSchema}
                             formData={editingDocument}
                             onChange={(e) => setEditingDocument(e.formData)}
                         />
-                    </FormWrapper> : activeDocument ? <>
-                        {activeDocument.type === "deleted" ? "The metadata has been deleted" : null}
-                        {activeDocument.type !== "metadata" ? null : <FormWrapper>
-                            <JsonSchemaForm
-                                disabled={true}
-                                schema={template.specification.schema}
-                                uiSchema={template.specification.uiSchema}
-                                formData={activeDocument.specification.document}
-                            />
-                        </FormWrapper>}
-                    </> : null}
+                    </FormWrapper>}
                 </div>
             </div>
 
             {hasActivity ?
                 <div className={"activity"}>
-                    <Heading.h4 mb={16}>Activity</Heading.h4>
                     <div className="scroll-area">
-                        <List>
-                            {activity.map((entry, idx) =>
-                                <ListRow
-                                    key={idx}
-                                    icon={
-                                        <Icon name={"upload"} size={"42px"}/>
-                                    }
-                                    navigate={() => {
-                                        if (!editingDocument) setDocumentInspection(entry);
-                                    }}
-                                    select={() => {
-                                        if (!editingDocument) setDocumentInspection(entry);
-                                    }}
-                                    isSelected={documentInspection === entry || activeDocument === entry}
-                                    left={<>
-                                        <b>{dateToString(entry.createdAt)}: </b>
-                                        Document updated by
-                                        {" "}
-                                        <b>
-                                            {entry.type === "metadata" ? entry.owner.createdBy :
-                                                entry.type === "deleted" ? entry.createdBy : null}
-                                        </b>
-                                    </>}
-                                    leftSub={<ListStatContainer>
-                                        {entry.type !== "metadata" ? null : <>
-                                            <ApprovalStatusStat approval={entry.status.approval}/>
-                                            <ListRowStat icon={"chat"}>
-                                                {!entry.specification.changeLog.length ?
-                                                    "No message" : entry.specification.changeLog.substring(0, 120)
-                                                }
-                                            </ListRowStat>
-                                        </>}
-                                    </ListStatContainer>}
-                                    right={<></>}
-                                />
-                            )}
-                        </List>
+                        <StandardList
+                            generateCall={noopCall} renderer={entryRenderer} embedded={"inline"}
+                            title={"Activity entry"} titlePlural={"Activity"} preloadedResources={activityRows}
+                            navigate={activityNavigate} operations={entryOperations}
+                            extraCallbacks={activityCallbacks}/>
                     </div>
                 </div> : null
             }
@@ -207,9 +202,150 @@ export const History: React.FunctionComponent<{
     </Box>;
 };
 
+interface DocumentRow {
+    isActive: boolean;
+    doc: FileMetadataDocumentOrDeleted;
+}
+
+interface ActivityCallbacks {
+    file: UFile;
+    documentInspection: FileMetadataDocumentOrDeleted | null;
+    setDocumentInspection: (doc: FileMetadataDocumentOrDeleted | null) => void;
+    setEditingDocument: (doc: Record<string, any>) => void;
+    reloadFile: () => void;
+}
+
+const entryRenderer: ItemRenderer<DocumentRow> = {
+    Icon: props => {
+        if (!props.resource) return null;
+        const isActive = props.resource.isActive;
+        const status = props.resource.doc.status.approval;
+        const hasBeenApproved = status.type === "approved" || status.type === "not_required";
+        if (isActive && hasBeenApproved) return <Icon name={"check"} color={"green"} size={props.size}/>;
+        else if (status.type === "pending") return <Icon name={"warning"} color={"orange"} size={props.size}/>;
+        else if (status.type === "rejected") return <Icon name={"trash"} color={"red"} size={props.size}/>;
+        return <SvgFt width={props.size} height={props.size} type={"text"} ext={"meta"}
+                      color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+                      hasExt={true}/>
+    },
+    MainTitle: props => {
+        if (!props.resource) return null;
+        const entry = props.resource.doc;
+        return <>
+            {entry.type !== "metadata" ? null : <>
+                {!entry.specification.changeLog.length ?
+                    "No message" : entry.specification.changeLog.substring(0, 120)
+                }
+            </>}
+            {entry.type !== "deleted" ? null : <>
+                {!entry.changeLog.length ?
+                    "No message" : entry.changeLog.substring(0, 120)
+                }
+            </>}
+        </>
+    },
+    Stats: props => {
+        if (!props.resource) return null;
+        const entry = props.resource.doc;
+        return <>
+            <ApprovalStatusStat approval={entry.status.approval}/>
+            <ListRowStat icon={"calendar"}>{dateToString(entry.createdAt)}</ListRowStat>
+            <ListRowStat icon={"user"}>{entry.createdBy}</ListRowStat>
+            <ListRowStat icon={entry.type === "metadata" ? "upload" : "trash"}
+                         color={"iconColor"} color2={"iconColor2"}>
+                Document was {entry.type === "metadata" ? "updated" : "deleted"}
+            </ListRowStat>
+        </>;
+    }
+};
+
+const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & ActivityCallbacks>[] = [
+    {
+        icon: "upload",
+        text: "New document",
+        primary: true,
+        enabled: (selected, cb) => selected.length === 0 && cb.documentInspection === null,
+        onClick: (selected, cb) => {
+            cb.setDocumentInspection(null);
+            cb.setEditingDocument({});
+        }
+    },
+    {
+        icon: "close",
+        text: "Close document",
+        primary: true,
+        enabled: (selected, cb) => selected.length === 0 && cb.documentInspection !== null,
+        onClick: (selected, cb) => {
+            cb.setDocumentInspection(null);
+        }
+    },
+    {
+        icon: "check",
+        text: "Approve",
+        color: "green",
+        confirm: true,
+        enabled: (selected, cb) => {
+            return selected.length >= 1 &&
+                selected.every(it => it.doc.status.approval.type === "pending") &&
+                cb.file.permissions.myself.some(it => it === "ADMIN");
+        },
+        onClick: async (selected, cb) => {
+            await cb.invokeCommand(metadataApi.approve(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
+            cb.reloadFile();
+        }
+    },
+    {
+        icon: "trash",
+        text: "Reject",
+        color: "red",
+        confirm: true,
+        enabled: (selected, cb) => {
+            return selected.length >= 1 &&
+                selected.every(it => it.doc.status.approval.type === "pending") &&
+                cb.file.permissions.myself.some(it => it === "ADMIN");
+        },
+        onClick: async (selected, cb) => {
+            await cb.invokeCommand(metadataApi.reject(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
+            cb.reloadFile();
+        }
+    },
+    {
+        icon: "copy",
+        text: "Clone",
+        enabled: (selected, cb) => selected.length === 1 && selected[0].doc.type === "metadata",
+        onClick: (selected, cb) => {
+            const row = selected[0];
+            if (row.doc.type === "metadata") {
+                cb.setDocumentInspection(null);
+                cb.setEditingDocument(row.doc.specification.document);
+            }
+        }
+    },
+    {
+        icon: "trash",
+        text: "Delete",
+        color: "red",
+        confirm: true,
+        enabled: (selected) => selected.length === 1 && selected[0].isActive,
+        onClick: async (selected, cb) => {
+            await cb.invokeCommand(metadataApi.delete(bulkRequestOf({id: selected[0].doc.id, changeLog: "Deleting document"})));
+            cb.reloadFile();
+        }
+    },
+    {
+        icon: "properties",
+        text: "Properties",
+        enabled: (selected, cb) => selected.length === 1,
+        onClick: (selected, cb) => {
+            cb.setDocumentInspection(selected[0].doc);
+        }
+    },
+];
+
 const Layout = styled.div`
   display: grid;
   grid-gap: 16px;
+  margin-bottom: 16px;
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
     grid-template-columns: 1fr;
@@ -243,7 +379,7 @@ const FormWrapper = styled.div`
   }
 `;
 
-const ApprovalStatusStat: React.FunctionComponent<{ approval: ApprovalStatus }> = ({approval}) => {
+const ApprovalStatusStat: React.FunctionComponent<{ approval: FileMetadataDocumentApproval }> = ({approval}) => {
     switch (approval.type) {
         case "approved":
             return <ListRowStat icon={"verified"} color={"green"} textColor={"green"}

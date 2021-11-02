@@ -1,39 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Dashboard Dashboard mount 1`] = `
-.c7 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-}
-
-.c13 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: -30px;
-  width: 100%;
-  height: calc(100% - 60px);
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  -webkit-flex-direction: column;
-  -ms-flex-direction: column;
-  flex-direction: column;
-  min-height: 250px;
-}
-
 .c12 {
   width: 32px;
   height: 32px;
@@ -204,11 +171,11 @@ exports[`Dashboard Dashboard mount 1`] = `
   flex-grow: 1;
 }
 
-.c19 {
+.c13 {
   color: #8393A7;
 }
 
-.c30 {
+.c28 {
   border-radius: 6px;
   width: 100%;
   min-width: 450px;
@@ -216,55 +183,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   overflow: hidden;
 }
 
-.c17 {
-  font-smoothing: antialiased;
-  display: -webkit-inline-box;
-  display: -webkit-inline-flex;
-  display: -ms-inline-flexbox;
-  display: inline-flex;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  text-align: center;
-  -webkit-text-decoration: none;
-  text-decoration: none;
-  font-family: inherit;
-  font-weight: 700;
-  line-height: 1.5;
-  cursor: pointer;
-  border-radius: 5px;
-  background-color: var(--blue,#f00);
-  color: var(--white,#f00);
-  border-width: 0;
-  border-style: solid;
-  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
-  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
-  width: 100%;
-  font-size: 14px;
-  padding: 9.5px 18px;
-  margin-top: 16px;
-}
-
-.c17:disabled {
-  opacity: 0.25;
-}
-
-.c17:focus {
-  outline: none;
-}
-
-.c17:hover {
-  -webkit-transform: translateY(-2px);
-  -ms-transform: translateY(-2px);
-  transform: translateY(-2px);
-}
-
-.c22 {
+.c19 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -298,21 +217,21 @@ exports[`Dashboard Dashboard mount 1`] = `
   margin-top: 8px;
 }
 
-.c22:disabled {
+.c19:disabled {
   opacity: 0.25;
 }
 
-.c22:focus {
+.c19:focus {
   outline: none;
 }
 
-.c22:hover {
+.c19:hover {
   -webkit-transform: translateY(-2px);
   -ms-transform: translateY(-2px);
   transform: translateY(-2px);
 }
 
-.c23 {
+.c21 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -346,15 +265,15 @@ exports[`Dashboard Dashboard mount 1`] = `
   margin-bottom: 4px;
 }
 
-.c23:disabled {
+.c21:disabled {
   opacity: 0.25;
 }
 
-.c23:focus {
+.c21:focus {
   outline: none;
 }
 
-.c23:hover {
+.c21:hover {
   -webkit-transform: translateY(-2px);
   -ms-transform: translateY(-2px);
   transform: translateY(-2px);
@@ -371,15 +290,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #53657d;
 }
 
-.c16 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-}
-
-.c20 {
+.c14 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -393,6 +304,39 @@ exports[`Dashboard Dashboard mount 1`] = `
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
   border: 0px solid #c9d3df;
   border-radius: 6px;
+}
+
+.c7 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c15 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: -30px;
+  width: 100%;
+  height: calc(100% - 60px);
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  min-height: 250px;
 }
 
 .c3 {
@@ -410,18 +354,18 @@ exports[`Dashboard Dashboard mount 1`] = `
   font-weight: 400;
 }
 
-.c14 {
+.c16 {
   cursor: inherit;
   font-size: 20px;
   margin: 0;
   font-weight: 400;
 }
 
-.c15 {
+.c17 {
   cursor: inherit;
 }
 
-.c24 {
+.c22 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
@@ -438,7 +382,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: var(--textHighlight);
 }
 
-.c21 {
+.c18 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -446,23 +390,23 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #1e252e;
 }
 
-.c21:hover {
+.c18:hover {
   color: var(--textHighlight);
 }
 
-.c18 {
+.c20 {
   font-size: large;
 }
 
-.c18 > * {
+.c20 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c18 > *:last-child {
+.c20 > *:last-child {
   border-bottom: 0px;
 }
 
-.c25 {
+.c23 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -472,22 +416,22 @@ exports[`Dashboard Dashboard mount 1`] = `
   background-color: #fff;
 }
 
-.c28 {
+.c26 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c29 {
+.c27 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c26 {
+.c24 {
   cursor: auto;
 }
 
-.c26 > .c27 {
+.c24 > .c25 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -558,6 +502,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 22 24"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M10.569.416c.304.054.49.351.403.649-1.501 3.784-3.35 7.42-5.026 11.129a.508.508 0 01-.799.145C3.523 10.552 2.065 8.622.525 6.762a.51.51 0 01.095-.717C3.745 4.044 7.045 2.333 10.258.478c.092-.048.102-.08.311-.062zM1.657 6.583l3.715 4.484 4.052-8.968-7.767 4.484z"
@@ -700,116 +645,6 @@ exports[`Dashboard Dashboard mount 1`] = `
           className=""
           style={
             Object {
-              "borderTop": "5px solid var(--blue, #f00)",
-            }
-          }
-        />
-        <div
-          className="c6"
-          height="calc(100% - 5px)"
-        >
-          <div
-            className="c7"
-          >
-            <svg
-              className="c8"
-              clipRule="evenodd"
-              color="#53657d"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="20"
-              m={8}
-              ml={0}
-              viewBox="0 0 24 23"
-              width="20"
-            >
-              <path
-                d="M12 0l3.708 7.514L24 8.719l-6 5.848 1.416 8.259-7.416-3.9-7.417 3.9L6 14.567 0 8.72l8.292-1.205L12 0z"
-              />
-            </svg>
-            <a
-              className="c9"
-              color="text"
-              href="/files?path=%2Fhome%2Ftest%40test%2Ffavorites"
-              onClick={[Function]}
-            >
-              <h3
-                className="c10"
-                cursor="inherit"
-                fontSize={4}
-              >
-                Favorite Files
-              </h3>
-            </a>
-            <div
-              className="c11"
-            />
-          </div>
-          <div
-            className="c13"
-            height="calc(100% - 60px)"
-            width="100%"
-          >
-            <h4
-              className="c14"
-              cursor="inherit"
-              fontSize={3}
-            >
-              No favorite files
-            </h4>
-            <div
-              className="c15"
-              cursor="inherit"
-            >
-              Click the 
-              <svg
-                className="c16"
-                clipRule="evenodd"
-                cursor="inherit"
-                fill="currentcolor"
-                fillRule="evenodd"
-                height={24}
-                viewBox="0 0 24 23"
-                width={24}
-              >
-                <path
-                  d="M15.708 7.514L24 8.719l-6 5.848 1.416 8.259-7.416-3.9-7.417 3.9L6 14.567 0 8.72l8.292-1.205L12 0l3.708 7.514zm-5.424 2.742l-3.837.557 2.776 2.707-.655 3.821L12 15.537l3.432 1.804-.656-3.82 2.777-2.708-3.837-.557L12 6.779l-1.716 3.477z"
-                  fillRule="nonzero"
-                />
-              </svg>
-               next to one of your files to mark it as a favorite.
-              <a
-                className="c9"
-                color="text"
-                href="/files?path=%2Fhome%2Ftest%40test"
-                onClick={[Function]}
-              >
-                <button
-                  className="c17"
-                  color="blue"
-                >
-                  Explore files
-                </button>
-              </a>
-            </div>
-          </div>
-          <div
-            className="c18"
-            fontSize="large"
-          />
-        </div>
-      </div>
-      <div
-        className="c4 c5"
-        height="auto"
-        overflow="hidden"
-        width="100%"
-      >
-        <div
-          className=""
-          style={
-            Object {
               "borderTop": "5px solid var(--purple, #f00)",
             }
           }
@@ -833,6 +668,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 24 25"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M13.206 5.723l10.023 5.108c.492.25.77.67.77 1.17 0 .49-.278.92-.77 1.17L5.228 22.337l7.978-16.615z"
@@ -966,6 +802,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 24 24"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M20.47 15.333V8c0-4.4-3.811-8-8.47-8C7.34 0 3.53 3.6 3.53 8v7.333L0 20h24l-3.53-4.667z"
@@ -988,11 +825,11 @@ exports[`Dashboard Dashboard mount 1`] = `
               className="c11"
             />
             <div
-              className="c19"
+              className="c13"
               color="#8393A7"
             >
               <svg
-                className="c20"
+                className="c14"
                 clipRule="evenodd"
                 color="iconColor"
                 color2="#8393A7"
@@ -1004,6 +841,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 title="Mark all as read"
                 viewBox="0 0 25 19"
                 width={24}
+                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   d="M7.999 15l-6-6.019-2 2.02 8 8 16-17-2.001-2-14 15z"
@@ -1018,31 +856,31 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c13"
+            className="c15"
             height="calc(100% - 60px)"
             width="100%"
           >
             <h4
-              className="c14"
+              className="c16"
               cursor="inherit"
               fontSize={3}
             >
               No notifications
             </h4>
             <div
-              className="c15"
+              className="c17"
               cursor="inherit"
             >
               As you as use UCloud notifications will appear here.
               <a
-                className="c21"
+                className="c18"
                 color="text"
                 href="/applications/overview"
                 mt={8}
                 onClick={[Function]}
               >
                 <button
-                  className="c22"
+                  className="c19"
                   color="blue"
                 >
                   Explore UCloud
@@ -1051,7 +889,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c18"
+            className="c20"
             fontSize="large"
           />
         </div>
@@ -1089,6 +927,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 24 18"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M0 0v13.714h24V0H0zm8.598 12H4.291a2.574 2.574 0 00-2.576-2.577v-4.28a3.432 3.432 0 003.428-3.429h3.455c-1.066 1.26-1.74 3.097-1.74 5.143s.674 3.884 1.74 5.143zm13.688-2.577A2.59 2.59 0 0019.715 12h-4.313c1.066-1.26 1.741-3.097 1.741-5.143s-.675-3.884-1.74-5.143h3.454a3.432 3.432 0 003.429 3.429v4.28z"
@@ -1119,19 +958,19 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c13"
+            className="c15"
             height="calc(100% - 60px)"
             width="100%"
           >
             <h4
-              className="c14"
+              className="c16"
               cursor="inherit"
               fontSize={3}
             >
               No available resources
             </h4>
             <div
-              className="c15"
+              className="c17"
               cursor="inherit"
             >
               Apply for resources to use storage and compute on UCloud.
@@ -1142,7 +981,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c23"
+                  className="c21"
                   color="blue"
                 >
                   Apply for resources
@@ -1185,6 +1024,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 16 24"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M1.501 0a1.5 1.5 0 00-1.5 1.5v4.718A2 2 0 00.647 7.69L5.332 12 .645 16.32a2 2 0 00-.644 1.47V22.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17.79a2 2 0 00-.644-1.47L10.67 12l4.685-4.31a2 2 0 00.646-1.472V1.5a1.5 1.5 0 00-1.5-1.5h-13zm11.831 17.532v4.125H2.67v-4.125L8 12.617l5.331 4.915zm-5.331-6.144L2.67 6.473V2.284h10.668v4.183l-5.337 4.921z"
@@ -1218,7 +1058,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c24"
+            className="c22"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -1226,36 +1066,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             Past 30 days
           </div>
           <table
-            className="c25"
+            className="c23"
             width="100%"
           >
             <tbody>
               <tr
-                className="c26"
+                className="c24"
                 cursor="auto"
               >
                 <td
-                  className="c27 c28"
+                  className="c25 c26"
                 >
                   Storage
                 </td>
                 <td
-                  className="c27 c29"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c26"
+                className="c24"
                 cursor="auto"
               >
                 <td
-                  className="c27 c28"
+                  className="c25 c26"
                 >
                   Compute
                 </td>
                 <td
-                  className="c27 c29"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
@@ -1265,7 +1105,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         </div>
       </div>
       <div
-        className="c30 c5"
+        className="c28 c5"
         height="auto"
         overflow="hidden"
         width="100%"
@@ -1297,6 +1137,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               ml={0}
               viewBox="0 0 24 21"
               width="20"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 d="M9.898 19.684l5.017-5.335-4.598-.044-.419 5.379z"
@@ -1349,7 +1190,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c18"
+            className="c20"
             fontSize="large"
           />
           <h3
@@ -1360,7 +1201,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             No recent outgoing grant applications
           </h3>
           <div
-            className="c15"
+            className="c17"
             cursor="inherit"
           >
             Apply for resources to use storage and compute on UCloud.
@@ -1371,7 +1212,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               onClick={[Function]}
             >
               <button
-                className="c22"
+                className="c19"
                 color="blue"
               >
                 Apply for resources
@@ -1379,7 +1220,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c18"
+            className="c20"
             fontSize="large"
           />
         </div>

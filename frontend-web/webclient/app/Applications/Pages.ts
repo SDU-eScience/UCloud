@@ -1,5 +1,5 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import {compute} from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {compute} from "@/UCloud";
 import NameAndVersion = compute.NameAndVersion;
 
 export const view = (name: string, version: string): string =>
@@ -9,7 +9,7 @@ export const viewApplication = (application: { name: string, version: string }):
     view(application.name, application.version);
 
 export const run = (name: string, version: string): string =>
-    `/applications/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
+    buildQueryString("/jobs/create", {app: name, version});
 
 export const runApplication = (application: NameAndVersion): string =>
     run(application.name, application.version);

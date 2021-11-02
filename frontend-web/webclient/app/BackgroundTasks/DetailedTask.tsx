@@ -1,25 +1,16 @@
-import {TaskUpdate} from "BackgroundTasks/api";
+import {TaskUpdate} from "@/BackgroundTasks/api";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {connect} from "react-redux";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis} from "recharts";
 import styled from "styled-components";
-import Box from "ui-components/Box";
-import Flex from "ui-components/Flex";
-import * as Heading from "ui-components/Heading";
-import IndeterminateProgressBar from "ui-components/IndeterminateProgress";
-import ProgressBar from "ui-components/Progress";
-import {groupBy, takeLast} from "Utilities/CollectionUtilities";
+import Box from "@/ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import * as Heading from "@/ui-components/Heading";
+import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
+import ProgressBar from "@/ui-components/Progress";
+import {groupBy, takeLast} from "@/Utilities/CollectionUtilities";
 
-interface DetailedTaskOwnProps {
-    taskId: string;
-}
-
-interface DetailedTaskStateProps {
-    task?: TaskUpdate;
-}
-
-const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskStateProps> = ({task}) => {
+const DetailedTask: React.FunctionComponent<{ task: TaskUpdate }> = ({task}) => {
     if (task === undefined) {
         return null;
     }
@@ -49,7 +40,7 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
                 <p><b>Status:</b> {task.newStatus ?? "No recent status update."}</p>
 
                 {!task.progress ?
-                    <IndeterminateProgressBar color="green" label={task.newTitle ?? ""} /> : (
+                    <IndeterminateProgressBar color="green" label={task.newTitle ?? ""}/> : (
                         <ProgressBar
                             active={true}
                             color="green"
@@ -82,8 +73,8 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
                                         domain={["dataMin", "dataMax"]}
                                         tickFormatter={() => ""}
                                     />
-                                    <YAxis dataKey="speed" type={"number"} />
-                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <YAxis dataKey="speed" type={"number"}/>
+                                    <CartesianGrid strokeDasharray="3 3"/>
                                     <Area
                                         isAnimationActive={false}
                                         type="monotone"
@@ -111,19 +102,15 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
 };
 
 const Container = styled(ResponsiveContainer)`
-    & > div > svg {
-        overflow: visible;
-    }
+  & > div > svg {
+    overflow: visible;
+  }
 `;
 
 const StatusBox = styled.div`
-    margin-top: 16px;
-    flex: 1 1 auto;
-    overflow-y auto;
+  margin-top: 16px;
+  flex: 1 1 auto;
+  overflow-y: auto;
 `;
 
-const mapStateToProps = (state: ReduxObject, props: DetailedTaskOwnProps): DetailedTaskStateProps => ({
-    task: state.tasks ? state.tasks[props.taskId] : undefined
-});
-
-export default connect(mapStateToProps, null)(DetailedTask);
+export default DetailedTask;

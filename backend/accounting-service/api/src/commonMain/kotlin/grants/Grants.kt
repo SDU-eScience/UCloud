@@ -2,7 +2,6 @@ package dk.sdu.cloud.grant.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import io.ktor.http.HttpMethod
@@ -15,28 +14,13 @@ fun Long.creditsToDKK(): Long = this / 1_000_000
 
 @Serializable
 data class UploadTemplatesRequest(
-    /**
-     * The template provided for new grant applications when the grant requester is a personal project
-     *
-     * @see Application.grantRecipient
-     * @see GrantRecipient.PersonalProject
-     */
+    @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
     val personalProject: String,
 
-    /**
-     * The template provided for new grant applications when the grant requester is a new project
-     *
-     * @see Application.grantRecipient
-     * @see GrantRecipient.NewProject
-     */
+    @UCloudApiDoc("The template provided for new grant applications when the grant requester is a new project")
     val newProject: String,
 
-    /**
-     * The template provided for new grant applications when the grant requester is an existing project
-     *
-     * @see Application.grantRecipient
-     * @see GrantRecipient.ExistingProject
-     */
+    @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
     val existingProject: String
 )
 
@@ -82,35 +66,37 @@ data class FetchDescriptionResponse(
 data class ReadTemplatesRequest(val projectId: String)
 typealias ReadTemplatesResponse = UploadTemplatesRequest
 
-/**
- * A [UserCriteria] describes some criteria that matches a user. This is used in conjunction with actions that need
- * authorization.
- *
- * @see UserCriteria.Anyone
- * @see UserCriteria.EmailDomain
- * @see UserCriteria.WayfOrganization
- */
 @Serializable
+@UCloudApiDoc("""
+    Describes some criteria which match a user
+    
+    This is used in conjunction with actions that require authorization.
+""")
+@UCloudApiOwnedBy(Grants::class)
 sealed class UserCriteria {
-    /**
-     * Matches any user
-     */
     @Serializable
     @SerialName(UserCriteria.ANYONE_TYPE)
-    class Anyone : UserCriteria()
+    @UCloudApiDoc("Matches any user")
+    class Anyone : UserCriteria() {
+        override fun equals(other: Any?): Boolean {
+            return other is Anyone
+        }
 
-    /**
-     * Matches any user with an email domain equal to [domain]
-     */
+        override fun hashCode(): Int {
+            return this::class.hashCode()
+        }
+    }
+
+    @UCloudApiDoc("Matches any user with an email domain equal to `domain`")
     @Serializable
     @SerialName(UserCriteria.EMAIL_TYPE)
     data class EmailDomain(val domain: String) : UserCriteria()
 
-    /**
-     * Matches any user with an organization matching [org]
-     *
-     * The organization is currently derived from the information we receive from WAYF.
-     */
+    @UCloudApiDoc("""
+       Matches any user with an organization matching [org] 
+       
+       The organization is currently derived from the information we receive from WAYF.
+    """)
     @Serializable
     @SerialName(UserCriteria.WAYF_TYPE)
     data class WayfOrganization(val org: String) : UserCriteria()
@@ -122,28 +108,26 @@ sealed class UserCriteria {
     }
 }
 
-/**
- * Settings which control if an [Application] should be automatically approved
- *
- * The [Application] will be automatically approved if the all of the following is true:
- *  - The requesting user matches any of the criteria in [from]
- *  - The user has only requested resources ([Application.requestedResources]) which are present in [maxResources]
- *  - None of the resource requests exceed the numbers specified in [maxResources]
- */
+@UCloudApiDoc("""
+    Settings which control if an Application should be automatically approved
+     
+    The `Application` will be automatically approved if the all of the following is true:
+    - The requesting user matches any of the criteria in `from`
+    - The user has only requested resources (`Application.requestedResources`) which are present in `maxResources`
+    - None of the resource requests exceed the numbers specified in `maxResources`
+""")
 @Serializable
 data class AutomaticApprovalSettings(
     val from: List<UserCriteria>,
     val maxResources: List<ResourceRequest>
 )
 
-/**
- * Settings for grant [Application]s
- *
- * A user will be allowed to apply for grants to this project if they match any of the criteria listed in
- * [allowRequestsFrom].
- *
- * @see AutomaticApprovalSettings
- */
+@UCloudApiDoc("""
+    Settings for grant Applications
+     
+    A user will be allowed to apply for grants to this project if they match any of the criteria listed in
+    `allowRequestsFrom`.
+""")
 @Serializable
 data class ProjectApplicationSettings(
     val automaticApproval: AutomaticApprovalSettings,
@@ -191,11 +175,13 @@ enum class GrantApplicationFilter {
 
 @Serializable
 data class IngoingApplicationsRequest(
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
-) : WithPaginationRequest
-typealias IngoingApplicationsResponse = Page<Application>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias IngoingApplicationsResponse = PageV2<Application>
 
 @Serializable
 data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
@@ -204,14 +190,72 @@ data class ApplicationWithComments(val application: Application, val comments: L
 
 @Serializable
 data class OutgoingApplicationsRequest(
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
-) : WithPaginationRequest
-typealias OutgoingApplicationsResponse = Page<Application>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias OutgoingApplicationsResponse = PageV2<Application>
 
 typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
+
+@Serializable
+data class EditReferenceIdRequest(
+    val id: Long,
+    val newReferenceId: String?
+) {
+    init {
+        val errorMessage = "DeiC is a reserved keyword."
+        val deicUniList = listOf("KU", "DTU", "AU", "SDU", "AAU", "RUC", "ITU", "CBS")
+        if (newReferenceId != null) {
+            if (newReferenceId.lowercase().startsWith("deic")) {
+                val splitId = newReferenceId.split("-")
+                when  {
+                    splitId.size != 4 -> {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            "$errorMessage It seems like you are not following request format. DeiC-XX-YY-NUMBER"
+                        )
+                    }
+                    splitId.first() != "DeiC" -> {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            "$errorMessage First part should be DeiC."
+                        )
+                    }
+                    !deicUniList.contains(splitId[1]) -> {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            "$errorMessage Uni value is not listed in DeiC. If you think this is a mistake, please contact UCloud"
+                        )
+                    }
+                    splitId[2].length != 2 -> {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            errorMessage + " Allocation category wrong fornat"
+                        )
+                    }
+                    !splitId[2].contains(Regex("""[LNSI][1-5]$""")) -> {
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            errorMessage + " Allocation category has wrong format."
+                        )
+                    }
+                    !splitId[3].contains(Regex("""^\d+$""")) ->
+                        throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            errorMessage + " Only supports numeric local ids"
+                        )
+                }
+            }
+        }
+    }
+}
+
+
+typealias EditReferenceIdResponse = Unit
 
 @Serializable
 data class EditApplicationRequest(
@@ -233,15 +277,15 @@ enum class ApplicationStatus {
 sealed class GrantRecipient {
     @Serializable
     @SerialName(GrantRecipient.PERSONAL_TYPE)
-    class PersonalProject(val username: String) : GrantRecipient()
+    data class PersonalProject(val username: String) : GrantRecipient()
 
     @Serializable
     @SerialName(GrantRecipient.EXISTING_PROJECT_TYPE)
-    class ExistingProject(val projectId: String) : GrantRecipient()
+    data class ExistingProject(val projectId: String) : GrantRecipient()
 
     @Serializable
     @SerialName(GrantRecipient.NEW_PROJECT_TYPE)
-    class NewProject(val projectTitle: String) : GrantRecipient() {
+    data class NewProject(val projectTitle: String) : GrantRecipient() {
         init {
             CreateProjectRequest(projectTitle, null) // Trigger validation
         }
@@ -255,28 +299,25 @@ sealed class GrantRecipient {
 }
 
 @Serializable
+@UCloudApiOwnedBy(Grants::class)
 data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
-    val creditsRequested: Long? = null,
-    val quotaRequested: Long? = null,
+    val balanceRequested: Long? = null,
 ) {
     init {
-        if (creditsRequested != null && creditsRequested < 0) {
+        if (balanceRequested != null && balanceRequested < 0) {
             throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
-        }
-        if (quotaRequested != null && quotaRequested < 0) {
-            throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
         }
     }
 
     companion object {
         fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, null)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
 
         fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
-            return ResourceRequest(product.category.id, product.category.provider, credits, quota)
+            return ResourceRequest(product.category.name, product.category.provider, credits)
         }
     }
 }
@@ -310,6 +351,7 @@ data class Application(
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedBy: String? = null,
+    val referenceId: String? = null
 )
 
 @Serializable
@@ -328,9 +370,11 @@ data class IsEnabledResponse(val enabled: Boolean)
 @Serializable
 data class BrowseProjectsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias BrowseProjectsResponse = Page<ProjectWithTitle>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias BrowseProjectsResponse = PageV2<ProjectWithTitle>
 @Serializable
 data class ProjectWithTitle(val projectId: String, val title: String)
 
@@ -338,9 +382,11 @@ data class ProjectWithTitle(val projectId: String, val title: String)
 data class GrantsRetrieveAffiliationsRequest(
     val grantId: Long,
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
-typealias GrantsRetrieveAffiliationsResponse = Page<ProjectWithTitle>
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+typealias GrantsRetrieveAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
 data class GrantsRetrieveProductsRequest(
@@ -355,26 +401,31 @@ data class GrantsRetrieveProductsResponse(
     val availableProducts: List<Product>
 )
 
-/**
- * [Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any [GrantRecipient]
- *
- * In order for any user to use UCloud they must have resources. Resources, see [dk.sdu.cloud.accounting.api.Wallets],
- * are required for use of any compute or storage. There are only two ways of receiving any credits, either through
- * an admin directly granting you the credits or by receiving them from a project
- * (see [dk.sdu.cloud.accounting.api.Wallets.setBalance] and [dk.sdu.cloud.accounting.api.Wallets.transferToPersonal]).
- *
- * The [Grants] service acts as a more user-friendly gateway to receiving resources from a project. Every [Application]
- * goes through the following steps:
- *
- * 1. User submits application to relevant project using [Grants.submitApplication]
- * 2. Project administrator of [Application.resourcesOwnedBy] reviews the application
- *    - User and reviewer can comment on the application via [Grants.commentOnApplication]
- *    - User and reviewer can perform edits to the application via [Grants.editApplication]
- * 3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
- * 4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]
- */
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
+
+    init {
+        title = "Grant Applications"
+        description = """
+Grants provide a way for users of UCloud to apply for resources.
+
+In order for any user to use UCloud they must have credits. Credits are required for use of any compute or 
+storage. There are only two ways of receiving any credits, either through an admin directly granting you the 
+credits or by receiving them from a project.
+
+Grants acts as a more user-friendly gateway to receiving resources from a project. Every
+`Application` goes through the following steps:
+
+1. User submits application to relevant project using `Grants.submitApplication`
+2. Project administrator of `Application.resourcesOwnedBy` reviews the application
+   - User and reviewer can comment on the application via `Grants.commentOnApplication`
+   - User and reviewer can perform edits to the application via `Grants.editApplication`
+3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
+4. If the `Application` was approved then resources are granted to the `Application.grantRecipient`
+
+${ApiConventions.nonConformingApiWarning}
+        """.trimIndent()
+    }
 
     /**
      * Uploads a description of a project which is enabled
@@ -402,9 +453,6 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
-    /**
-     * Fetches a description of a project
-     */
     val fetchDescription = call<FetchDescriptionRequest, FetchDescriptionResponse, CommonErrorMessage>("fetchDescription") {
         auth {
             access = AccessRight.READ
@@ -423,16 +471,12 @@ object Grants : CallDescriptionContainer("grant") {
                 +boundTo(FetchDescriptionRequest::projectId)
             }
         }
+
+        documentation {
+            summary = "Fetches a description of a project"
+        }
     }
 
-    /**
-     * Uploads a logo for a project which is enabled
-     *
-     * Only project administrators of the project can upload a logo
-     *
-     * @see setEnabledStatus
-     * @see isEnabled
-     */
     val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
         auth {
             access = AccessRight.READ_WRITE
@@ -456,11 +500,13 @@ object Grants : CallDescriptionContainer("grant") {
             }
              */
         }
+
+        documentation {
+            summary = "Uploads a logo for a project, which is enabled"
+            description = "Only project administrators of the project can upload a logo"
+        }
     }
 
-    /**
-     * Fetches a logo for a project
-     */
     val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
         auth {
             access = AccessRight.READ
@@ -479,12 +525,16 @@ object Grants : CallDescriptionContainer("grant") {
                 +boundTo(FetchLogoRequest::projectId)
             }
         }
+
+        documentation {
+            summary = "Fetches a logo for a project"
+        }
     }
 
     /**
-     * Uploads templates used for new grant [Application]s
      *
-     * Only project administrators of the project can upload new templates. The project needs to be enabled.
+     *
+     *
      *
      * @see isEnabled
      * @see setEnabledStatus
@@ -504,13 +554,14 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Uploads templates used for new grant Applications"
+            description = "Only project administrators of the project can upload new templates. The project needs to be " +
+                "enabled."
+        }
     }
 
-    /**
-     * Uploads [ProjectApplicationSettings] to be associated with a project. The project must be enabled.
-     *
-     * @see isEnabled
-     */
     val uploadRequestSettings =
         call<UploadRequestSettingsRequest, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
             auth {
@@ -526,6 +577,11 @@ object Grants : CallDescriptionContainer("grant") {
                 }
 
                 body { bindEntireRequestFromBody() }
+            }
+
+            documentation {
+                summary = "Uploads [ProjectApplicationSettings] to be associated with a project. The project must be " +
+                    "enabled."
             }
         }
 
@@ -549,11 +605,6 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
-    /**
-     * Reads the templates for a new grant [Application]
-     *
-     * User interfaces should display the relevant template, based on who will be the [Application.grantRecipient].
-     */
     val readTemplates = call<ReadTemplatesRequest, ReadTemplatesResponse, CommonErrorMessage>("readTemplates") {
         auth {
             access = AccessRight.READ
@@ -571,15 +622,16 @@ object Grants : CallDescriptionContainer("grant") {
                 +boundTo(ReadTemplatesRequest::projectId)
             }
         }
+
+        documentation {
+            summary = "Reads the templates for a new grant [Application]"
+            description = """
+                User interfaces should display the relevant template, based on who will be the 
+                [Application.grantRecipient].
+            """.trimIndent()
+        }
     }
 
-
-    /**
-     * Submits an [Application] to a project
-     *
-     * In order for the user to submit an application they must match any criteria in
-     * [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
-     */
     val submitApplication =
         call<SubmitApplicationRequest, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
             auth {
@@ -596,13 +648,16 @@ object Grants : CallDescriptionContainer("grant") {
 
                 body { bindEntireRequestFromBody() }
             }
+
+            documentation {
+                summary = "Submits an [Application] to a project"
+                description = """
+                     In order for the user to submit an application they must match any criteria in
+                     [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
+                """.trimIndent()
+            }
         }
 
-    /**
-     * Adds a comment to an existing [Application]
-     *
-     * Only the [Application] creator and [Application] reviewers are allowed to comment on the [Application].
-     */
     val commentOnApplication =
         call<CommentOnApplicationRequest, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
             auth {
@@ -619,13 +674,16 @@ object Grants : CallDescriptionContainer("grant") {
 
                 body { bindEntireRequestFromBody() }
             }
+
+            documentation {
+                summary = "Adds a comment to an existing [Application]"
+                description = """
+                    Only the [Application] creator and [Application] reviewers are allowed to comment on the 
+                    [Application].
+                """.trimIndent()
+            }
         }
 
-    /**
-     * Deletes a comment from an existing [Application]
-     *
-     * The comment can only be deleted by the author of the comment.
-     */
     val deleteComment = call<DeleteCommentRequest, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
         auth {
             access = AccessRight.READ_WRITE
@@ -641,13 +699,15 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Deletes a comment from an existing [Application]"
+            description = """
+                The comment can only be deleted by the author of the comment.
+            """.trimIndent()
+        }
     }
 
-    /**
-     * Approves an existing [Application] this will trigger granting of resources to the [Application.grantRecipient]
-     *
-     * Only the grant reviewer can perform this action.
-     */
     val approveApplication = call<ApproveApplicationRequest, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -663,16 +723,14 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Approves an existing [Application] this will trigger granting of resources to the " +
+                "[Application.grantRecipient]"
+            description = "Only the grant reviewer can perform this action."
+        }
     }
 
-    /**
-     * Rejects an [Application]
-     *
-     * The [Application] cannot receive any new change to it and the [Application] creator must re-submit the
-     * [Application].
-     *
-     * Only the grant reviewer can perform this action.
-     */
     val rejectApplication = call<RejectApplicationRequest, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -688,13 +746,18 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Rejects an [Application]"
+            description = """
+                 The [Application] cannot receive any new change to it and the [Application] creator must re-submit the
+                 [Application].
+                 
+                 Only the grant reviewer can perform this action.
+            """.trimIndent()
+        }
     }
 
-    /**
-     * Performs an edit to an existing [Application]
-     *
-     * Both the creator and any of the grant reviewers are allowed to edit the application.
-     */
     val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
         "editApplication"
     ) {
@@ -712,13 +775,17 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Performs an edit to an existing [Application]"
+            description = "Both the creator and any of the grant reviewers are allowed to edit the application."
+        }
     }
 
-    /**
-     * Closes an existing [Application]
-     *
-     * This action is identical to [rejectApplication] except it can be performed by the [Application] creator.
-     */
+    val editReferenceId = call<EditReferenceIdRequest, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
+        httpUpdate(baseContext, "editReference")
+    }
+
     val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
         "closeApplication"
     ) {
@@ -736,11 +803,14 @@ object Grants : CallDescriptionContainer("grant") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Closes an existing [Application]"
+            description = "This action is identical to [rejectApplication] except it can be performed by the " +
+                "[Application] creator."
+        }
     }
 
-    /**
-     * Transfers application to other root project
-     */
     val transferApplication =
         call<TransferApplicationRequest, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
             auth {
@@ -758,11 +828,12 @@ object Grants : CallDescriptionContainer("grant") {
 
                 body { bindEntireRequestFromBody()}
             }
+
+            documentation {
+                summary = "Transfers application to other root project"
+            }
         }
 
-    /**
-     * Lists active [Application]s which are 'ingoing' (received by) to a project
-     */
     val ingoingApplications =
         call<IngoingApplicationsRequest, IngoingApplicationsResponse, CommonErrorMessage>("ingoingApplications") {
             auth {
@@ -778,16 +849,20 @@ object Grants : CallDescriptionContainer("grant") {
                 }
 
                 params {
-                    +boundTo(IngoingApplicationsRequest::itemsPerPage)
-                    +boundTo(IngoingApplicationsRequest::page)
-                    +boundTo(IngoingApplicationsRequest::filter)
+
+                    +boundTo(OutgoingApplicationsRequest::itemsPerPage)
+                    +boundTo(OutgoingApplicationsRequest::consistency)
+                    +boundTo(OutgoingApplicationsRequest::next)
+                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
+                    +boundTo(OutgoingApplicationsRequest::filter)
                 }
+            }
+
+            documentation {
+                summary = "Lists active [Application]s which are 'ingoing' (received by) to a project"
             }
         }
 
-    /**
-     * Lists all active [Application]s made by the calling user
-     */
     val outgoingApplications =
         call<OutgoingApplicationsRequest, OutgoingApplicationsResponse, CommonErrorMessage>("outgoingApplications") {
             auth {
@@ -804,18 +879,18 @@ object Grants : CallDescriptionContainer("grant") {
 
                 params {
                     +boundTo(OutgoingApplicationsRequest::itemsPerPage)
-                    +boundTo(OutgoingApplicationsRequest::page)
+                    +boundTo(OutgoingApplicationsRequest::consistency)
+                    +boundTo(OutgoingApplicationsRequest::next)
+                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
                     +boundTo(OutgoingApplicationsRequest::filter)
                 }
             }
+
+            documentation {
+                summary = "Lists all active [Application]s made by the calling user"
+            }
         }
 
-    /**
-     * Enables a project to receive [Application]
-     *
-     * Note that a project will not be able to receive any applications until its
-     * [ProjectApplicationSettings.allowRequestsFrom] allow for it.
-     */
     val setEnabledStatus =
         call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
             auth {
@@ -833,12 +908,16 @@ object Grants : CallDescriptionContainer("grant") {
 
                 body { bindEntireRequestFromBody() }
             }
+
+            documentation {
+                summary = "Enables a project to receive [Application]"
+                description = """
+                     Note that a project will not be able to receive any applications until its
+                     [ProjectApplicationSettings.allowRequestsFrom] allow for it.
+                """.trimIndent()
+            }
         }
 
-    /**
-     * If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive grant
-     * [Application]s.
-     */
     val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
         auth {
             access = AccessRight.READ
@@ -856,14 +935,13 @@ object Grants : CallDescriptionContainer("grant") {
                 +boundTo(IsEnabledRequest::projectId)
             }
         }
+
+        documentation {
+            summary = "If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive " +
+                "grant [Application]s."
+        }
     }
 
-    /**
-     * Endpoint for users to browse projects which they can send grant [Application]s to
-     *
-     * Concretely, this will return a list for which the user matches the criteria listed in
-     * [ProjectApplicationSettings.allowRequestsFrom].
-     */
     val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
         auth {
             access = AccessRight.READ
@@ -879,8 +957,18 @@ object Grants : CallDescriptionContainer("grant") {
 
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
-                +boundTo(BrowseProjectsRequest::page)
+                +boundTo(BrowseProjectsRequest::consistency)
+                +boundTo(BrowseProjectsRequest::next)
+                +boundTo(BrowseProjectsRequest::itemsToSkip)
             }
+        }
+
+        documentation {
+            summary = "Endpoint for users to browse projects which they can send grant [Application]s to"
+            description = """
+                 Concretely, this will return a list for which the user matches the criteria listed in
+                 [ProjectApplicationSettings.allowRequestsFrom].
+            """.trimIndent()
         }
     }
 
@@ -903,7 +991,9 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(GrantsRetrieveAffiliationsRequest::grantId)
                 +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
-                +boundTo(GrantsRetrieveAffiliationsRequest::page)
+                +boundTo(GrantsRetrieveAffiliationsRequest::next)
+                +boundTo(GrantsRetrieveAffiliationsRequest::itemsToSkip)
+                +boundTo(GrantsRetrieveAffiliationsRequest::consistency)
             }
         }
     }
@@ -933,11 +1023,6 @@ object Grants : CallDescriptionContainer("grant") {
     }
 
     // This needs to be last
-    /**
-     * Retrieves an active [Application]
-     *
-     * Only the creator and grant reviewers are allowed to view any given [Application].
-     */
     val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -953,6 +1038,13 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(ViewApplicationRequest::id)
             }
+        }
+
+        documentation {
+            summary = "Retrieves an active [Application]"
+            description = """
+                Only the creator and grant reviewers are allowed to view any given [Application].
+            """.trimIndent()
         }
     }
 }

@@ -1,96 +1,93 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
-interface TimeRangeQuery {
-    val bucketSize: Long
-    val periodStart: Long
-    val periodEnd: Long
-}
-
-fun TimeRangeQuery.validateTimeRange() {
-    if (periodStart >= periodEnd) throw RPCException("periodStart is larger than periodEnd", HttpStatusCode.BadRequest)
-    if (periodStart < 0L || periodEnd < 0L) throw RPCException("period must be > 0", HttpStatusCode.BadRequest)
-
-    val delta = periodEnd - periodStart
-    if (bucketSize >= delta) {
-        throw RPCException("bucketSize is larger than period", HttpStatusCode.BadRequest)
-    }
-
-    if (bucketSize / delta > 250)  {
-        throw RPCException("bucketSize would result in too many buckets", HttpStatusCode.BadRequest)
-    }
+@Serializable
+data class PieChart(val points: List<Point>) {
+    @Serializable
+    data class Point(val name: String, val value: Double)
 }
 
 @Serializable
-data class UsageRequest(
-    override val bucketSize: Long,
-    override val periodStart: Long,
-    override val periodEnd: Long
-) : TimeRangeQuery {
-    init {
-        validateTimeRange()
-    }
+data class LineChart(val lines: List<Line>) {
+    @Serializable
+    data class Line(val name: String, val points: List<Point>)
+
+    @Serializable
+    data class Point(val timestamp: Long, val value: Double)
+}
+
+interface VisualizationFlags {
+    val filterStartDate: Long?
+    val filterEndDate: Long?
+    val filterType: ProductType?
+    val filterProvider: String?
+    val filterProductCategory: String?
+    val filterAllocation: String?
+    val filterWorkspace: String?
+    val filterWorkspaceProject: Boolean?
 }
 
 @Serializable
-data class UsagePoint(
-    val timestamp: Long,
-    val creditsUsed: Long
-)
+data class VisualizationRetrieveUsageRequest(
+    override val filterStartDate: Long? = null,
+    override val filterEndDate: Long? = null,
+    override val filterType: ProductType? = null,
+    override val filterProvider: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterAllocation: String? = null,
+    override val filterWorkspace: String? = null,
+    override val filterWorkspaceProject: Boolean? = null,
+) : VisualizationFlags
 
 @Serializable
-data class UsageLine(
-    val area: ProductArea,
-    val category: String,
-    val projectPath: String? = null,
-    val projectId: String? = null,
-    val points: List<UsagePoint>
-)
+data class VisualizationRetrieveUsageResponse(val charts: List<UsageChart>)
 
 @Serializable
 data class UsageChart(
-    val provider: String,
-    val lines: List<UsageLine>
+    val type: ProductType,
+    val periodUsage: Long,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
+    val chart: LineChart,
 )
 
 @Serializable
-data class UsageResponse(
-    val charts: List<UsageChart>
+data class VisualizationRetrieveBreakdownRequest(
+    override val filterStartDate: Long? = null,
+    override val filterEndDate: Long? = null,
+    override val filterType: ProductType? = null,
+    override val filterProvider: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterAllocation: String? = null,
+    override val filterWorkspace: String? = null,
+    override val filterWorkspaceProject: Boolean? = null,
+) : VisualizationFlags
+
+@Serializable
+data class VisualizationRetrieveBreakdownResponse(val charts: List<BreakdownChart>)
+
+@Serializable
+data class BreakdownChart(
+    val type: ProductType,
+//    val periodUsage: Long,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
+    val chart: PieChart,
 )
 
-/**
- * Provides statistics and visualization of resources usage
- */
 object Visualization : CallDescriptionContainer("accounting.visualization") {
     const val baseContext = "/api/accounting/visualization"
 
-    val usage = call<UsageRequest, UsageResponse, CommonErrorMessage>("usage") {
-        auth {
-            access = AccessRight.READ
-        }
+    val retrieveUsage = call<VisualizationRetrieveUsageRequest, VisualizationRetrieveUsageResponse,
+            CommonErrorMessage>("retrieveUsage") {
+        httpRetrieve(baseContext, "usage")
+    }
 
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"usage"
-            }
-
-            params {
-                +boundTo(UsageRequest::bucketSize)
-                +boundTo(UsageRequest::periodEnd)
-                +boundTo(UsageRequest::periodStart)
-            }
-        }
+    val retrieveBreakdown = call<VisualizationRetrieveBreakdownRequest, VisualizationRetrieveBreakdownResponse,
+            CommonErrorMessage>("retrieveBreakdown") {
+        httpRetrieve(baseContext, "breakdown")
     }
 }
-

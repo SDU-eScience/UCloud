@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.PaymentModel
-import dk.sdu.cloud.accounting.api.ProductAvailability
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
@@ -23,9 +21,7 @@ data class KubernetesLicense(
     val pricePerUnit: Long = 1_000_000,
     val description: String = "",
     val hiddenInGrantApplications: Boolean = false,
-    val availability: ProductAvailability = ProductAvailability.Available(),
     val priority: Int = 0,
-    val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
 )
 
 interface KubernetesLicenseFilter {

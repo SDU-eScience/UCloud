@@ -1,12 +1,12 @@
 import {Store} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "UtilityFunctions";
-import {setStoredProject} from "Project/Redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
+import {setStoredProject} from "@/Project/Redux";
 
 interface CallParameters {
     method: string;
     path: string;
-    body?: object;
+    body?: any;
     context?: string;
     withCredentials?: boolean;
     projectOverride?: string;
@@ -16,7 +16,7 @@ interface CallParameters {
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
  */
-export default class HttpClient {
+export class HttpClient {
     private readonly context: string;
     private readonly serviceName: string;
     private readonly authContext: string;
@@ -27,7 +27,7 @@ export default class HttpClient {
     private accessToken: string;
     private csrfToken: string;
     private decodedToken: any;
-    private forceRefresh: boolean = false;
+    private forceRefresh = false;
     private overridesPromise: Promise<void> | null = null;
 
     public projectId: string | undefined = undefined;
@@ -222,7 +222,7 @@ export default class HttpClient {
      */
     public async post<T = any>(
         path: string,
-        body?: object,
+        body?: any,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "POST", path, body, context});
@@ -233,7 +233,7 @@ export default class HttpClient {
      */
     public async put<T = any>(
         path: string,
-        body: object,
+        body: Record<string, unknown>,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PUT", path, body, context});
@@ -244,7 +244,7 @@ export default class HttpClient {
      */
     public async delete<T = void>(
         path: string,
-        body: object,
+        body: Record<string, unknown>,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "DELETE", path, body, context});
@@ -255,7 +255,7 @@ export default class HttpClient {
      */
     public async patch<T = any>(
         path: string,
-        body: object,
+        body: Record<string, unknown>,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PATCH", path, body, context});
@@ -266,7 +266,7 @@ export default class HttpClient {
      */
     public async options<T = any>(
         path: string,
-        body: object,
+        body: Record<string, unknown>,
         context = this.apiContext,
     ): Promise<{request: XMLHttpRequest; response: T}> {
         return this.call({method: "OPTIONS", path, body, context});
@@ -287,8 +287,8 @@ export default class HttpClient {
      * redirect back to the correct service (using serviceName).
      */
     public openBrowserLoginPage(): void {
-        if (window.location.href !== this.context + "/app/login/selection")
-            window.location.href = this.context + "/app/login/selection";
+        if (window.location.href !== this.context + "/app/login")
+            window.location.href = this.context + "/app/login";
     }
 
     public openLandingPage(): void {

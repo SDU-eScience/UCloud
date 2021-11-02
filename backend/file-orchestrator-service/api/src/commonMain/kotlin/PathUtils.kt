@@ -75,11 +75,14 @@ fun relativize(parentPath: String, childPath: String): String {
     return "./" + childComponents.takeLast(childComponents.size - rootComponents.size).joinToString("/")
 }
 
-data class PathMetadata(val productReference: ProductReference, val collection: String?)
+data class PathMetadata(val collection: String)
 fun extractPathMetadata(path: String): PathMetadata {
     val normalizedPath = path.normalize()
     val components = normalizedPath.components()
+    val collection = components.getOrNull(0) ?: throw RPCException("Invalid path: $path", HttpStatusCode.BadRequest)
+    return PathMetadata(collection)
 
+    /*
     val firstComponent = components.getOrNull(0)
     if (firstComponent == "home" || firstComponent == "projects") {
         // Backwards compatible case of UCloud/Storage
@@ -97,16 +100,6 @@ fun extractPathMetadata(path: String): PathMetadata {
         }
 
         return PathMetadata(productReference, collection)
-    } else {
-        val providerId = components.getOrNull(0)
-        val categoryId = components.getOrNull(1)
-        val productId = components.getOrNull(2)
-        val collection = components.getOrNull(3)
-
-        if (providerId == null || categoryId == null || productId == null) {
-            throw RPCException("Invalid path: $path", HttpStatusCode.BadRequest)
-        }
-
-        return PathMetadata(ProductReference(productId, categoryId, providerId), collection)
     }
+     */
 }

@@ -1,10 +1,10 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input, TextArea} from "ui-components";
-import {compute} from "UCloud";
+import {Input, TextArea} from "@/ui-components";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
-import TextAreaApp from "ui-components/TextAreaApp";
+import TextAreaApp from "@/ui-components/TextAreaApp";
 
 type GenericTextType =
     UCloud.compute.ApplicationParameterNS.Text |
@@ -52,14 +52,10 @@ export const GenericTextValidator: WidgetValidator = (param) => {
     if (param.type === "text") {
         if (elem.value === "") return {valid: true};
         return {valid: true, value: {type: "text", value: elem.value}};
-    } 
-
-    else if (param.type === "textarea") {
+    } else if (param.type === "textarea") {
         if (elem.value === "") return {valid: true};
         return {valid: true, value: {type: "text", value: elem.value}};
-    } 
-    
-    else if (param.type === "integer") {
+    } else if (param.type === "integer") {
         if (elem.value === "") return {valid: true};
         if (/^[+-]?\d+$/.test(elem.value)) {
             return {valid: true, value: {type: "integer", value: parseInt(elem.value, 10)}};
@@ -77,7 +73,6 @@ export const GenericTextValidator: WidgetValidator = (param) => {
 
     return {valid: true};
 };
-
 
 export const GenericTextSetter: WidgetSetter = (param, value) => {
     if (param.type !== "text" && param.type !== "textarea" && param.type != "integer" && param.type != "floating_point") return;

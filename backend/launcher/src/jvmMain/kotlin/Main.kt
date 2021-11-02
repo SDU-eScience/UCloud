@@ -2,7 +2,7 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.activity.ActivityService
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
@@ -20,7 +20,6 @@ import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
-import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -28,10 +27,9 @@ import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
-import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
-import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
@@ -39,8 +37,6 @@ import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,9 +48,8 @@ object Launcher : Loggable {
     override val log = logger()
 }
 
-val services = setOf(
+val services = setOf<Service>(
     AccountingService,
-    ActivityService,
     AppOrchestratorService,
     AppStoreService,
     AuditIngestionService,
@@ -69,14 +64,14 @@ val services = setOf(
     FileOrchestratorService,
     FileUcloudService,
     SupportService,
-    TaskService,
     AppAauService,
     AppKubernetesService,
+    TaskService,
 )
 
 suspend fun main(args: Array<String>) {
     if (args.contains("--run-script") && args.contains("api-gen")) {
-        runOpenApiGenerator(args)
+        generateCode()
         exitProcess(0)
     }
 
@@ -101,7 +96,8 @@ suspend fun main(args: Array<String>) {
     }.configuration
 
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true) {
+        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
+    ) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
@@ -164,7 +160,7 @@ suspend fun main(args: Array<String>) {
             ).orThrow().id
 
             val providerId = "ucloud"
-            Providers.create.call(
+            val createdId = Providers.create.call(
                 bulkRequestOf(
                     ProviderSpecification(
                         providerId,
@@ -174,20 +170,12 @@ suspend fun main(args: Array<String>) {
                     )
                 ),
                 userClient.withProject(project)
-            ).orThrow()
+            ).orThrow().responses.singleOrNull() ?: error("Bad response from Providers.create")
 
             val provider = Providers.retrieve.call(
-                ProvidersRetrieveRequest(providerId),
+                ResourceRetrieveRequest(ProviderIncludeFlags(), createdId.id),
                 userClient
             ).orThrow()
-
-            val cephfs = File("/mnt/cephfs")
-            if (cephfs.exists()) {
-                // TODO Temporary
-                File(cephfs, "projects/${project}").mkdir()
-                File(cephfs, "projects/${project}/Member's Files").mkdir()
-                File(cephfs, "projects/${project}/Member's Files/user").mkdir()
-            }
 
             File(configDir, "ucloud-compute-config.yaml").writeText(
                 """
@@ -207,59 +195,73 @@ suspend fun main(args: Array<String>) {
                 """.trimIndent()
             )
 
-            Products.createProduct.call(
-                Product.Compute(
-                    "u1-standard-1",
-                    1000L,
-                    ProductCategoryId("u1-standard", providerId),
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0
+            Products.create.call(
+                bulkRequestOf(
+                    Product.Compute(
+                        "u1-standard-1",
+                        1000L,
+                        ProductCategoryId("u1-standard", providerId),
+                        cpu = 1,
+                        memoryInGigs = 1,
+                        gpu = 0,
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
+                    Product.Storage(
+                        "u1-cephfs",
+                        1L,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
+                    Product.Storage(
+                        "home",
+                        1L,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
+                    Product.Storage(
+                        "project-home",
+                        1L,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = false,
+                        description = "An example product for development use",
+                    ),
                 ),
                 userClient
             ).orThrow()
 
-            Products.createProduct.call(
-                Product.Storage(
-                    "u1-cephfs",
-                    0L,
-                    ProductCategoryId("u1-cephfs", providerId)
-                ),
-                userClient
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet(project, WalletOwnerType.PROJECT, ProductCategoryId("u1-cephfs", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet(project, WalletOwnerType.PROJECT, ProductCategoryId("u1-standard", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet("user", WalletOwnerType.USER, ProductCategoryId("u1-cephfs", providerId)),
-                    0L,
-                    1000L * 100_000
-                ),
-                client
-            ).orThrow()
-
-            Wallets.setBalance.call(
-                SetBalanceRequest(
-                    Wallet("user", WalletOwnerType.USER, ProductCategoryId("u1-standard", providerId)),
-                    0L,
-                    1000L * 100_000
+            Accounting.rootDeposit.call(
+                bulkRequestOf(
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-cephfs", providerId),
+                        WalletOwner.Project(project),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-standard", providerId),
+                        WalletOwner.Project(project),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-cephfs", providerId),
+                        WalletOwner.User("user"),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
+                    RootDepositRequestItem(
+                        ProductCategoryId("u1-standard", providerId),
+                        WalletOwner.User("user"),
+                        1_000_000L * 1000_000L,
+                        "Root deposit"
+                    ),
                 ),
                 client
             ).orThrow()

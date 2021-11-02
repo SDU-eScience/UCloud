@@ -2,17 +2,23 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.ExperimentalLevel
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.TYPE_REF_LINK
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-@UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`")
+@UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`", importance = 102)
 enum class FileIconHint {
     @UCloudApiDoc("A directory containing 'starred' items")
     DIRECTORY_STAR,
@@ -28,7 +34,7 @@ enum class FileIconHint {
 }
 
 @Serializable
-@UCloudApiDoc("The type of a `UFile`")
+@UCloudApiDoc("The type of a `UFile`", importance = 101)
 enum class FileType {
     @UCloudApiDoc("A regular file")
     FILE,
@@ -43,10 +49,11 @@ enum class FileType {
     DANGLING_METADATA
 }
 
-@Serializable
-@UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
-enum class FilePermission {
-    @UCloudApiDoc("""The user is allowed to read the contents of the file
+//@Serializable
+// @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
+typealias FilePermission = Permission/* {
+    @UCloudApiDoc(
+        """The user is allowed to read the contents of the file
 
 - For regular files (`FILE`) this allows a user to read the data and metadata of the file.
 - For directories (`DIRECTORY`) this allows the user to read metadata about the folder along with _listing_ the files
@@ -56,10 +63,12 @@ enum class FilePermission {
 - For dangling metadata (`DANGLING_METADATA`) this allows the user to read the metadata which is dangling
 
 In addition, this will allow users to read the metadata of a file.
-""")
+"""
+    )
     READ,
 
-    @UCloudApiDoc("""The user is allowed to write to this file
+    @UCloudApiDoc(
+        """The user is allowed to write to this file
 
 - For regular files (`FILE`) this allows a user to change the contents of a file, including deleting the file entirely
 - For directories (`DIRECTORY`) this allows a user to change the contents of a folder. This includes creating and
@@ -69,54 +78,95 @@ In addition, this will allow users to read the metadata of a file.
 
 In addition, this will allow users to change the metadata of a file. However, it will not allow the user to add new
 metadata templates to the file.
-""")
+"""
+    )
     WRITE,
 
-    @UCloudApiDoc("""The user is allowed to perform administrative actions to this file
+    @UCloudApiDoc(
+        """The user is allowed to perform administrative actions to this file
 
 For all files, this will allow the entity to change the permissions and ACL of a file.
 
 This permission also allows the user to attach new metadata templates to a file. If a metadata template is inheritable,
 see `FileMetadataTemplate.specification.inheritable`, then users will be able to change the value on descendants of this
 file.
-""")
+"""
+    )
     ADMINISTRATOR,
 }
+*/
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("""A `UFile` is a resource for storing, retrieving and organizing data in UCloud
+@Serializable
+data class UFileIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    val includePermissions: Boolean? = null,
+    val includeTimestamps: Boolean? = null,
+    val includeSizes: Boolean? = null,
+    val includeUnixInfo: Boolean? = null,
+    val includeMetadata: Boolean? = null,
+
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    @UCloudApiDoc("Path filter")
+    @JsonNames("filterPath")
+    val path: String? = null,
+
+    @UCloudApiDoc("""Determines if the request should succeed if the underlying system does not support this data.
+This value is `true` by default """)
+    val allowUnsupportedInclude: Boolean? = null,
+    @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
+    val filterHiddenFiles: Boolean = false,
+    override val filterIds: String? = null,
+) : ResourceIncludeFlags
+
+@Serializable
+@UCloudApiDoc("""
+A $TYPE_REF UFile is a resource for storing, retrieving and organizing data in UCloud
     
-A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
-functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
-types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain more directories, which leads to a
-natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
-of bytes.
+A file in UCloud ($TYPE_REF UFile) closely follows the concept of a computer file you might already be familiar with.
+The functionality of a file is mostly determined by its [`type`]($TYPE_REF_LINK UFileStatus). The two most important
+types are the [`DIRECTORY`]($TYPE_REF_LINK FileType) and [`FILE`]($TYPE_REF_LINK FileType) types. A
+[`DIRECTORY`]($TYPE_REF_LINK FileType) is a container of $TYPE_REF UFile s. A directory can itself contain more
+directories, which leads to a natural tree-like structure. [`FILE`]($TYPE_REF_LINK FileType)s, also referred to as a
+regular files, are data records which each contain a series of bytes.
 
 All files in UCloud have a name associated with them. This name uniquely identifies them within their directory. All
 files in UCloud belong to exactly one directory.
 
 File operations must be able to reference the files on which they operate. In UCloud, these references are made through
-the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
-directories to go through, starting at the top, to reach the file we are referencing. This information is serialized
-as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with
-a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
-systems use.
+the `id` property, also known as a path. Paths use the tree-like structure of files to reference a file, it does so by
+declaring which directories to go through, starting at the top, to reach the file we are referencing. This information
+is serialized as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path
+must start with a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file
+paths, which some systems use.
 
 All files in UCloud additionally have metadata associated with them. For this we differentiate between system-level
 metadata and user-defined metadata.
 
-We have just covered two examples of system-level metadata, the `path` and `type`. UCloud additionally supports
-metadata such as general `stats` about the files, such as file sizes. All files have a set of `permissions` associated
-with them, providers may optionally expose this information to UCloud and the users.
+We have just covered two examples of system-level metadata, the [`id`]($TYPE_REF_LINK UFile) (path) and
+[`type`]($TYPE_REF_LINK UFileStatus). UCloud additionally supports metadata such as general
+[stats]($TYPE_REF_LINK UFileStatus) about the files, such as file sizes. All files have a set of
+[`permissions`]($TYPE_REF_LINK UFile) associated with them, providers may optionally expose this information to
+UCloud and the users.
 
-User-defined metadata describe the contents of a file. All metadata is described by a template (`FileMetadataTemplate`),
-this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
-purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
-metadata formats.
-""")
-@Serializable
+User-defined metadata describe the contents of a file. All metadata is described by a template
+($TYPE_REF FileMetadataTemplate), this template defines a document structure for the metadata. User-defined metadata
+can be used for a variety of purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels,
+and other field specific metadata formats.
+""", importance = 500)
+@UCloudApiOwnedBy(Files::class)
 data class UFile(
-    @UCloudApiDoc("""A unique reference to a file
+    @UCloudApiDoc(
+        """
+A unique reference to a file
 
 All files in UCloud have a `name` associated with them. This name uniquely identifies them within their directory. All
 files in UCloud belong to exactly one directory. A `name` can be any textual string, for example: `thesis-42.docx`.
@@ -206,123 +256,140 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     - Older versions of Unixes report `PATH_MAX` as 1024
     - Newer versions of Unixes report `PATH_MAX` as 4096
     - Older versions of Windows start failing above 256 characters
-""")
-    val path: String,
-    @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
-    val type: FileType,
-    @UCloudApiDoc("A hint to clients about which icon to display next to this file. See `FileIconHint` for details.")
-    val icon: FileIconHint?,
-    @UCloudApiDoc("General system-level stats about the file. See `UFile.Stats` for details.")
-    val stats: Stats?,
-    @UCloudApiDoc("System-level permissions for this file. See `UFile.Permissions` for details.")
-    val permissions: Permissions?,
-    @UCloudApiDoc("User-defined metadata for this file. See `FileMetadataTemplate` for details.")
-    val metadata: FileMetadataHistory?,
-) {
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    @UCloudApiDoc("General system-level stats about a file")
-    @Serializable
-    data class Stats(
-        @UCloudApiDoc("The size of this file in bytes (Requires `includeSizes`)")
-        val sizeInBytes: Long?,
-        @UCloudApiDoc("The size of this file and any child (Requires `includeSizes`)")
-        val sizeIncludingChildrenInBytes: Long?,
-
-        @UCloudApiDoc("The modified at timestamp (Requires `includeTimestamps`)")
-        val modifiedAt: Long?,
-        @UCloudApiDoc("The created at timestamp (Requires `includeTimestamps`)")
-        val createdAt: Long?,
-        @UCloudApiDoc("The accessed at timestamp (Requires `includeTimestamps`)")
-        val accessedAt: Long?,
-
-        @UCloudApiDoc("The unix mode of a file (Requires `includeUnixInfo`")
-        val unixMode: Int?,
-        @UCloudApiDoc("The unix owner of a file as a UID (Requires `includeUnixInfo`)")
-        val unixOwner: Int?,
-        @UCloudApiDoc("The unix group of a file as a GID (Requires `includeUnixInfo`)")
-        val unixGroup: Int?,
+"""
     )
-
-    @Serializable
-    data class Permissions(
-        @UCloudApiDoc("What can the user, who requested this data, do with this file?")
-        val myself: List<FilePermission>?,
-
-        @UCloudApiDoc("Information about what other users and entities can do with this file")
-        val others: List<ResourceAclEntry<FilePermission>>?,
-    )
+    override val id: String,
+    override val specification: UFileSpecification,
+    override val createdAt: Long,
+    override val status: UFileStatus,
+    override val owner: ResourceOwner,
+    override val permissions: ResourcePermissions? = null
+) : Resource<Product.Storage, FSSupport> {
+    override val billing = ResourceBilling.Free
+    override val acl: List<ResourceAclEntry>? = null
+    override val updates: List<ResourceUpdate> = emptyList()
 }
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("General system-level stats about a file", importance = 400)
+@Serializable
+data class UFileStatus(
+    @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
+    val type: FileType = FileType.FILE,
+    @UCloudApiDoc("A hint to clients about which icon to display next to this file. See `FileIconHint` for details.")
+    val icon: FileIconHint? = null,
+
+    @UCloudApiDoc("The size of this file in bytes (Requires `includeSizes`)")
+    val sizeInBytes: Long? = null,
+    @UCloudApiDoc("The size of this file and any child (Requires `includeSizes`)")
+    val sizeIncludingChildrenInBytes: Long? = null,
+
+    @UCloudApiDoc("The modified at timestamp (Requires `includeTimestamps`)")
+    val modifiedAt: Long? = null,
+    @UCloudApiDoc("The accessed at timestamp (Requires `includeTimestamps`)")
+    val accessedAt: Long? = null,
+
+    @UCloudApiDoc("The unix mode of a file (Requires `includeUnixInfo`")
+    val unixMode: Int? = null,
+    @UCloudApiDoc("The unix owner of a file as a UID (Requires `includeUnixInfo`)")
+    val unixOwner: Int? = null,
+    @UCloudApiDoc("The unix group of a file as a GID (Requires `includeUnixInfo`)")
+    val unixGroup: Int? = null,
+
+    @UCloudApiDoc("User-defined metadata for this file. See `FileMetadataTemplate` for details.")
+    val metadata: FileMetadataHistory? = null,
+
+    override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
+    override var resolvedProduct: Product.Storage? = null,
+) : ResourceStatus<Product.Storage, FSSupport>
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("", importance = 98)
+@Serializable
+data class UFileSpecification(
+    val collection: String,
+    override val product: ProductReference,
+) : ResourceSpecification
 
 @Serializable
 sealed class FileMetadataOrDeleted {
+    abstract val id: String
     abstract val status: FileMetadataDocument.Status
     abstract val createdAt: Long
+    abstract val createdBy: String
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use")
+    @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use", importance = 96)
     @Serializable
     @SerialName("deleted")
     data class Deleted(
+        override val id: String,
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
         @UCloudApiDoc("Timestamp indicating when this change was made")
         override val createdAt: Long,
         @UCloudApiDoc("A reference to the user who made this change")
-        val createdBy: String,
+        override val createdBy: String,
         override val status: FileMetadataDocument.Status
     ) : FileMetadataOrDeleted()
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`")
+@UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
+@UCloudApiOwnedBy(FileMetadata::class)
 data class FileMetadataDocument(
     override val id: String,
-    override val specification: Spec,
+    val specification: Spec,
     override val createdAt: Long,
     override val status: Status,
-    override val updates: List<ResourceUpdate>,
-    override val owner: SimpleResourceOwner,
-) : FileMetadataOrDeleted(), Resource<Nothing?> {
-    @Contextual
-    override val acl: Nothing? = null
-    override val permissions: ResourcePermissions? = null
-
-    override val billing: ResourceBilling.Free = ResourceBilling.Free
-
+    override val createdBy: String,
+) : FileMetadataOrDeleted(){
     @Serializable
+    @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
+        @UCloudApiDoc("The version of the `FileMetadataTemplate` that this document conforms to")
+        val version: String,
         @UCloudApiDoc("The document which fills out the template")
         val document: JsonObject,
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
-    ) : ResourceSpecification {
-        @Contextual
-        override val product: Nothing? = null
-    }
+    )
 
     @Serializable
+    @UCloudApiDoc("The current status of a metadata document", importance = 95)
+    @UCloudApiOwnedBy(FileMetadata::class)
     data class Status(
         val approval: ApprovalStatus,
-    ) : ResourceStatus
+    )
 
     @Serializable
+    @UCloudApiDoc("The approval status of a metadata document", importance = 94)
+    @UCloudApiOwnedBy(FileMetadata::class)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
+        @UCloudApiDoc("The metadata change has been approved by an admin in the workspace", importance = 93)
         class Approved(val approvedBy: String) : ApprovalStatus()
+
         @Serializable
         @SerialName("pending")
-        class Pending() : ApprovalStatus()
+        @UCloudApiDoc("The metadata document has not yet been approved", importance = 92)
+        object Pending : ApprovalStatus()
+
         @Serializable
         @SerialName("rejected")
+        @UCloudApiDoc("The metadata document has been rejected by an admin of the workspace", importance = 91)
         class Rejected(val rejectedBy: String) : ApprovalStatus()
+
         @Serializable
         @SerialName("not_required")
-        class NotRequired : ApprovalStatus()
+        @UCloudApiDoc("The metadata document does not require approval", importance = 90)
+        object NotRequired : ApprovalStatus()
     }
 }
 
@@ -339,44 +406,40 @@ enum class WriteConflictPolicy {
     @UCloudApiDoc("UCloud should replace the existing file")
     REPLACE,
 
-    @UCloudApiDoc(""""Attempt to merge the results
+    @UCloudApiDoc(
+        """"Attempt to merge the results
         
 This will result in the merging of folders. Concretely this means that _directory_ conflicts will be resolved by
 re-using the existing directory. If there any file conflicts in the operation then this will act identical to `RENAME`.
 
 Note: This mode is not supported for all operations.
-"""")
+""""
+    )
     MERGE_RENAME
 }
 
-interface FileCollectionIncludeFlags {
-    val includeSupport: Boolean?
-}
+@Serializable
+data class FileCollectionIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
+) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc("""A `FileCollection` is an entrypoint to a user's files
-
-This entrypoint allows the user to access all the files they have access to within a single project. It is important to
-note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
-below:
-
-| Name              | Typical path                | Comment                                                     |
-|-------------------|-----------------------------|-------------------------------------------------------------|
-| Home directory    | `/home/${"$"}username/`     | The home folder is typically the main collection for a user |
-| Work directory    | `/work/${"$"}projectId/`    | The project 'home' folder                                   |
-| Scratch directory | `/scratch/${"$"}projectId/` | Temporary storage for a project                             |
-
-The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
-play an important role in accounting and resource management. A file collection can have a quota attached to it and
-billing information is also stored in this object. Each file collection can be attached to a different product type, and
-as a result, can have different billing information attached to it. This is, for example, useful if a storage provider
-has both fast and slow tiers of storage, which is typically billed very differently.
-
-All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
-title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
-if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
-""")
+@UCloudApiDoc(
+    """
+"""
+)
 @Serializable
 data class FileCollection(
     override val id: String, // corresponds to the path prefix
@@ -384,19 +447,25 @@ data class FileCollection(
     override val createdAt: Long,
     override val status: Status,
     override val updates: List<Update>,
-    override val billing: Billing,
-    override val owner: SimpleResourceOwner,
-    override val acl: List<ResourceAclEntry<FilePermission>>?,
+    override val owner: ResourceOwner,
     override val permissions: ResourcePermissions? = null,
-) : Resource<FilePermission> {
+    override val providerGeneratedId: String? = null
+) : Resource<Product.Storage, FSSupport> {
+    override val acl: List<ResourceAclEntry>? = null
+    override val billing = ResourceBilling.Free
+
     @Serializable
     data class Spec(
         val title: String,
-        // TODO Define which type of product we are dealing with
         override val product: ProductReference,
-    ) : ResourceSpecification
+    ) : ResourceSpecification {
+        init {
+            require(title.isNotEmpty())
+        }
+    }
 
     @Serializable
+    @UCloudApiOwnedBy(FileCollections::class)
     data class Update(
         override val timestamp: Long,
         override val status: String?,
@@ -404,38 +473,19 @@ data class FileCollection(
 
     @Serializable
     data class Status(
-        val quota: Quota,
-        val support: FSSupport?,
-    ) : ResourceStatus
-
-    @Serializable
-    data class Quota(
-        val usedInBytes: Long? = null,
-        val capacityInBytes: Long? = null,
-
-        // NOTE: If this FS shares quota between several other FS then this is not simply "capacity - used"
-        val availableInBytes: Long? = null,
-    )
-
-    @Serializable
-    data class Billing(
-        override val pricePerUnit: Long,
-        override val creditsCharged: Long,
-    ) : ResourceBilling
+        override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
+        override var resolvedProduct: Product.Storage? = null,
+    ) : ResourceStatus<Product.Storage, FSSupport>
 }
 
-data class FSSupportResolved(
-    val product: Product.Storage,
-    val support: FSSupport,
-)
-
 @Serializable
+@UCloudApiOwnedBy(FileCollections::class)
 data class FSSupport(
-    val product: ProductReference,
+    override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),
     val collection: FSCollectionSupport = FSCollectionSupport(),
     val files: FSFileSupport = FSFileSupport(),
-)
+) : ProductSupport
 
 @UCloudApiDoc("Declares which stats a given product supports")
 @Serializable
@@ -455,20 +505,16 @@ data class FSProductStatsSupport(
 @UCloudApiDoc("Declares which `FileCollection` operations are supported for a product")
 @Serializable
 data class FSCollectionSupport(
-    val aclSupported: Boolean? = null,
     val aclModifiable: Boolean? = null,
 
     val usersCanCreate: Boolean? = null,
     val usersCanDelete: Boolean? = null,
     val usersCanRename: Boolean? = null,
-
-    val searchSupported: Boolean? = null,
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")
 @Serializable
 data class FSFileSupport(
-    val aclSupported: Boolean = false,
     val aclModifiable: Boolean = false,
 
     // Nothing about metadata here because it is built-into UCloud as opposed to the file system

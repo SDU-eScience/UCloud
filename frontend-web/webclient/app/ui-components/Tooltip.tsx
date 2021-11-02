@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Flex, Relative} from "ui-components";
+import {Flex, Relative} from "@/ui-components";
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
 
@@ -51,33 +51,31 @@ const tooltipAlign = (props: {right: boolean; center: boolean}) =>
 
 interface TooltipContentProps extends BoxProps, SpaceProps {
     bg?: any;
+    omitPositionBox?: boolean
 }
 
-const sm = "sm";
-
 const TooltipContent = styled(Box) <TooltipContentProps>`
-  opacity: 0;
-  pointer-events: none;
-  box-shadow: ${theme.shadows[sm]};
-  font-size: ${theme.fontSizes[0]}px;
-  position: absolute;
-  border-radius: ${theme.radii[1]}px;
-  box-sizing: border-box;
-  background: ${p => p.theme.colors[p.bg]};
-  text-align: center;
-
-  ${tooltipPosition as any} ${tooltipAlign as any} &::after {
-    content: '';
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: ${theme.shadows.sm};
+    font-size: ${theme.fontSizes[0]}px;
     position: absolute;
-    width: 0;
-    height: 0;
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent transparent ${p => p.theme.colors[p.bg]}
-      ${p => p.theme.colors[p.bg]};
+    border-radius: ${theme.radii[1]}px;
+    box-sizing: border-box;
+    background: ${p => p.theme.colors[p.bg]};
+    text-align: center;
 
-    ${arrow as any} ${arrowPosition as any} ${arrowAlign as any} ${arrowShadow as any};
-  }
+    ${tooltipPosition as any} ${tooltipAlign as any} &${p => p.omitPositionBox ? ".no-position-box" : ""}::after {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent ${p => p.theme.colors[p.bg]} ${p => p.theme.colors[p.bg]};
+
+        ${arrow as any} ${arrowPosition as any} ${arrowAlign as any} ${arrowShadow as any};
+    }
 `;
 
 interface Tooltip extends SpaceProps {
@@ -94,6 +92,9 @@ interface Tooltip extends SpaceProps {
     wrapperOffsetLeft?: string;
     wrapperOffsetTop?: string;
     tooltipContentWidth?: string;
+    tooltipContentHeight?: string;
+    omitPositionBox?: boolean;
+    noDelay?: boolean;
 }
 
 const defaultProps = {
@@ -109,22 +110,25 @@ const Tooltip = ({
     wrapperOffsetLeft,
     wrapperOffsetTop,
     tooltipContentWidth,
+    tooltipContentHeight,
+    omitPositionBox,
+    noDelay,
     ...props
 }: Tooltip): JSX.Element => (
-        <VisibleOnHover>
-            <Flex>{props.trigger}</Flex>
-            <Relative left={wrapperOffsetLeft} top={wrapperOffsetTop} zIndex={zIndex}>
-                <TooltipContent width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}>
-                    {children}
-                </TooltipContent>
-            </Relative>
-        </VisibleOnHover>
-    );
+    <VisibleOnHover noDelay={noDelay}>
+        <Flex>{props.trigger}</Flex>
+        <Relative left={wrapperOffsetLeft} top={wrapperOffsetTop} zIndex={zIndex}>
+            <TooltipContent omitPositionBox={omitPositionBox} height={tooltipContentHeight} width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}>
+                {children}
+            </TooltipContent>
+        </Relative>
+    </VisibleOnHover>
+);
 
-const VisibleOnHover = styled(Box)`
+const VisibleOnHover = styled(Box)<{noDelay?: boolean}>`
   & > ${Flex}:hover + ${Relative} > ${TooltipContent} {
     opacity: 1;
-    transition: opacity 0s linear 1s;
+    ${p => p.noDelay ? null : "transition: opacity 0s linear 1s;"}
   }
 `;
 

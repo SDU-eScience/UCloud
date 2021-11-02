@@ -9,15 +9,12 @@ import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SendRequest(
+data class SendRequestItem(
     val receiver: String,
     val mail: Mail,
-    val mandatory: Boolean = false
-)
-
-@Serializable
-data class SendBulkRequest(
-    val messages: List<SendRequest>
+    val mandatory: Boolean = false,
+    val receivingEmail: String? = null,
+    val testMail: Boolean? = null
 )
 
 @Serializable
@@ -71,39 +68,8 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         }
     }
 
-    val send = call<SendRequest, Unit, CommonErrorMessage>("send") {
-        auth {
-            roles = setOf(Role.SERVICE)
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val sendBulk = call<SendBulkRequest, Unit, CommonErrorMessage>("sendBulk") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+    val sendToUser = call<BulkRequest<SendRequestItem>, Unit, CommonErrorMessage>("sendToUser") {
+        httpUpdate(baseContext, "sendToUser", roles = Roles.PRIVILEGED)
     }
 
     val toggleEmailSettings = call<

@@ -4,8 +4,8 @@ FROM ubuntu:20.04 AS BASE
 RUN apt-get update
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN apt-get -qq -y install curl wget unzip zip sudo libjansson-dev libcurl4 libtinfo5 libssl-dev libuv1-dev libcurl4-openssl-dev
-RUN curl -s "https://get.sdkman.io" | bash
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
+RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
+RUN bash -c "export SDKMAN_DIR='/usr/local/sdkman' && source /usr/local/sdkman/bin/sdkman-init.sh && \
     yes | sdk i java 11.0.11.hs-adpt && \
     yes | sdk i gradle 6.9"
 RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin

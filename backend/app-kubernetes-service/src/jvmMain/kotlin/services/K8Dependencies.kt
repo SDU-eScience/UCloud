@@ -1,12 +1,14 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.k8.KubernetesClient
 
@@ -19,19 +21,23 @@ data class K8Dependencies(
     var serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,
     val dockerImageSizeQuery: DockerImageSizeQuery,
+    val debug: DebugSystem?,
 ) {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
     suspend fun addStatus(jobId: String, message: String): Boolean {
+        println("ADDING STATUS")
         val last = lastMessage.get(jobId)
         if (last != message) {
             JobsControl.update.call(
-                bulkRequestOf(JobsControlUpdateRequestItem(jobId, status = message)),
+                bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(status = message))),
                 serviceClient
             )
             lastMessage.insert(jobId, message)
+            println("...SUCCESSFUL")
             return true
         }
+        println("...NOT SUCCESSFUL")
         return false
     }
 
@@ -42,24 +48,29 @@ data class K8Dependencies(
         expectedState: JobState? = null,
         expectedDifferentState: Boolean = false
     ): Boolean {
+        println("CHANGING STATE")
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
             JobsControl.update.call(
                 bulkRequestOf(
-                    JobsControlUpdateRequestItem(
+                    ResourceUpdateAndId(
                         jobId,
-                        state = state,
-                        status = newStatus,
-                        expectedState = expectedState,
-                        expectedDifferentState = expectedDifferentState
+                        JobUpdate(
+                            state = state,
+                            status = newStatus,
+                            expectedState = expectedState,
+                            expectedDifferentState = expectedDifferentState,
+                        )
                     )
                 ),
                 serviceClient
             )
             lastMessage.insert(jobId, messageAsString)
+            println("... SUCCESSFUL")
             return true
         }
+        println("... NOT SUCCESSFUL")
         return false
     }
 }

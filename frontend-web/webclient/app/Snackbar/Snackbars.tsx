@@ -1,10 +1,10 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Flex, Icon} from "ui-components";
-import {IconName} from "ui-components/Icon";
-import {Snackbar} from "ui-components/Snackbar";
-import {ThemeColor} from "ui-components/theme";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Flex, Icon} from "@/ui-components";
+import {IconName} from "@/ui-components/Icon";
+import {Snackbar} from "@/ui-components/Snackbar";
+import {ThemeColor} from "@/ui-components/theme";
 
 interface IconColorAndName {
     name: IconName;

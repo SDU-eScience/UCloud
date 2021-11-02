@@ -15,6 +15,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CoroutineScope
@@ -93,8 +94,7 @@ sealed class KubernetesConfigurationSource {
 
                 val authenticationMethod = when {
                     cluster.cluster.certificateAuthorityData != null -> {
-                        log.warn("NOT YET IMPLEMENTED: CUSTOM CERTIFICATE AUTHORITY DATA")
-                        log.info("Falling back to proxy method")
+                        log.debug("Using kubectl proxy method")
                         KubernetesAuthenticationMethod.Proxy(context, kubeConfigFile.absolutePath)
                     }
 
@@ -212,6 +212,7 @@ sealed class KubernetesConfigurationSource {
     }
 }
 
+@OptIn(InternalAPI::class)
 fun URLBuilder.fixedClone(): Url {
     val e = HashMap<String, List<String>>()
     parameters.entries().forEach { (k, v) -> e[k] = v }
@@ -262,7 +263,7 @@ sealed class KubernetesAuthenticationMethod {
 
         override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
             if (!proxy.isAlive) {
-                log.warn("Warning kubectl proxy died! Is kubectl configured correctly?")
+                log.warn("Warning kubectl proxy died! Is kubectl configured correctly? ${proxy.pid()}")
                 if (!proxy.waitFor(30, TimeUnit.SECONDS)) {
                     proxy.destroyForcibly()
                 }
@@ -367,7 +368,7 @@ class KubernetesClient(
             conn.authenticationMethod.configureClient(this)
             install(HttpTimeout) {
                 this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-                this.connectTimeoutMillis = 1000 * 60
+                this.connectTimeoutMillis = 1000 * 10
                 this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
             }
 

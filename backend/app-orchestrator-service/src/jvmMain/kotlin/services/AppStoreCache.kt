@@ -25,4 +25,16 @@ class AppStoreCache(private val serviceClient: AuthenticatedClient) {
             .orNull()
             ?.let { Application(it.metadata, it.invocation) }
     }
+
+    suspend fun resolveApplication(nameAndVersion: NameAndVersion): Application? {
+        val result = apps.get(nameAndVersion) ?: return null
+
+        val toolName = result.invocation.tool.name
+        val toolVersion = result.invocation.tool.version
+        val loadedTool = tools.get(NameAndVersion(toolName, toolVersion))
+
+        return result.copy(
+            invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool))
+        )
+    }
 }

@@ -1,8 +1,7 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {Action} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "Utilities/NotificationUtilities";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "@/Utilities/NotificationUtilities";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {Notification} from "..";
 import {
     NOTIFICATION_READ,
@@ -15,7 +14,7 @@ import {
 export type NotificationActions = ReceiveNotificationAction | ReceiveSingleNotificationAction | ReadAction |
     SetNotificationError | ReadAllAction;
 
-type SetNotificationError = Action<typeof NOTIFICATIONS_ERROR>;
+type SetNotificationError = PayloadAction<typeof NOTIFICATIONS_ERROR, {error: string}>;
 type ReceiveSingleNotificationAction = PayloadAction<typeof RECEIVE_SINGLE_NOTIFICATION, {item: Notification}>;
 export const receiveSingleNotification = (notification: Notification): ReceiveSingleNotificationAction => ({
     type: RECEIVE_SINGLE_NOTIFICATION,
@@ -41,8 +40,7 @@ export async function fetchNotifications(): Promise<ReceiveNotificationAction | 
         const res = await Client.get<Page<Notification>>(notificationsQuery, undefined);
         return receiveNotifications(res.response);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"), false);
-        return notificationError();
+        return notificationError(errorMessageOrDefault(e, "An error occurred. Please reload the page."));
     }
 }
 
@@ -59,13 +57,15 @@ export const notificationRead = async (id: number): Promise<ReadAction | SetNoti
             payload: {id}
         };
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not mark notification as read"), false);
-        return notificationError();
+        return notificationError(errorMessageOrDefault(e, "Could not mark notification as read."));
     }
 };
 
-export const notificationError = (): SetNotificationError => ({
-    type: NOTIFICATIONS_ERROR
+export const notificationError = (error: string): SetNotificationError => ({
+    type: NOTIFICATIONS_ERROR,
+    payload: {
+        error
+    }
 });
 
 
@@ -78,10 +78,6 @@ export const readAllNotifications = async (): Promise<ReadAllAction | SetNotific
         await Client.post(readAllNotificationsQuery);
         return {type: READ_ALL};
     } catch (e) {
-        snackbarStore.addFailure(
-            errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later"),
-            false
-        );
-        return notificationError();
+        return notificationError(errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later."));
     }
 };

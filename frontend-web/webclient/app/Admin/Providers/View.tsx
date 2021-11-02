@@ -1,40 +1,37 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import * as UCloud from "UCloud";
-import LoadingSpinner from "LoadingIcon/LoadingIcon";
-import MainContainer from "MainContainer/MainContainer";
-import {ResourcePage} from "ui-components/ResourcePage";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud";
+import LoadingSpinner from "@/LoadingIcon/LoadingIcon";
+import MainContainer from "@/MainContainer/MainContainer";
+import {ResourcePage} from "@/ui-components/ResourcePage";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {Button, Flex, Grid, Input, Label, List, Select, TextArea} from "ui-components";
-import {doNothing, inDevEnvironment, onDevSite, PropType} from "UtilityFunctions";
-import {Operation, Operations} from "ui-components/Operation";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import * as Heading from "ui-components/Heading";
-import {addStandardDialog} from "UtilityComponents";
-import {accounting, auth, BulkResponse, PageV2, provider} from "UCloud";
-import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
-import {ListV2} from "Pagination";
-import {NoResultsCardBody} from "Dashboard/Dashboard";
-import Product = accounting.Product;
-import Warning from "ui-components/Warning";
+import {Box, Button, Label, List, Select, TextArea} from "@/ui-components";
+import {doNothing, inDevEnvironment, onDevSite, PropType} from "@/UtilityFunctions";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import * as Heading from "@/ui-components/Heading";
+import {addStandardDialog} from "@/UtilityComponents";
+import {auth, BulkResponse, PageV2, provider} from "@/UCloud";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {ListV2} from "@/Pagination";
+import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import Provider = provider.Provider;
 import AccessToken = auth.AccessToken;
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import ProductNS = accounting.ProductNS;
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {creditFormatter} from "Project/ProjectUsage";
-import {useProjectId} from "Project";
-import {Client} from "Authentication/HttpClientInstance";
+import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
+import ResourceDoc = provider.ResourceDoc;
+import {priceExplainer} from "@/Accounting";
+import ResourceForm from "@/Products/CreateProduct";
+import * as Types from "@/Accounting";
 
 const entityName = "Provider";
 
 function View(): JSX.Element | null {
-    const match = useRouteMatch<{ id: string }>();
+    const match = useRouteMatch<{id: string}>();
     const {id} = match.params;
-    const [provider, fetchProvider] = useCloudAPI<UCloud.provider.Provider | null>({noop: true}, null);
-    const [products, fetchProducts] = useCloudAPI<PageV2<UCloud.accounting.Product>>({noop: true}, emptyPageV2);
+    const [provider, fetchProvider] = useCloudAPI<Provider | null>({noop: true}, null);
+    const [products, fetchProducts] = useCloudAPI<PageV2<Types.Product>>({noop: true}, emptyPageV2);
     const [productGeneration, setProductGeneration] = useState(0);
     const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
@@ -73,7 +70,7 @@ function View(): JSX.Element | null {
     useLoading(provider.loading || commandLoading);
     useTitle(`${id} (Provider)`)
 
-    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner/>}/>;
+    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner />} />;
     if (provider.data == null) return null;
 
     return (
@@ -94,25 +91,26 @@ function View(): JSX.Element | null {
                 <ResourcePage
                     entityName={entityName}
                     aclOptions={[{icon: "edit", name: "EDIT", title: "Edit"}]}
-                    entity={provider.data}
+                    entity={provider.data as ResourceDoc}
                     reload={reload}
                     showMissingPermissionHelp={false}
                     stats={[
                         {
                             title: "Domain",
                             render: t => {
+                                const f = t as any;
                                 let stringBuilder = "";
-                                if (t.specification.https) {
+                                if (f.specification.https) {
                                     stringBuilder += "https://"
                                 } else {
                                     stringBuilder += "http://"
                                 }
 
-                                stringBuilder += t.specification.domain;
+                                stringBuilder += f.specification.domain;
 
-                                if (t.specification.port) {
+                                if (f.specification.port) {
                                     stringBuilder += ":";
-                                    stringBuilder += t.specification.port;
+                                    stringBuilder += f.specification.port;
                                 }
 
                                 return stringBuilder;
@@ -121,13 +119,13 @@ function View(): JSX.Element | null {
                         {
                             title: "Refresh Token",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={t.refreshToken} rows={3} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).refreshToken} rows={3} onChange={doNothing} />,
                             inline: false,
                         },
                         {
                             title: "Certificate",
                             // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={t.publicKey} rows={10} onChange={doNothing}/>,
+                            render: t => <TextArea width="100%" value={(t as any).publicKey} rows={10} onChange={doNothing} />,
                             inline: false,
                         },
                     ]}
@@ -136,37 +134,37 @@ function View(): JSX.Element | null {
                     beforeUpdates={
                         <>
                             <Heading.h4>Products</Heading.h4>
-                                <List>
-                                    <ListV2
-                                        infiniteScrollGeneration={productGeneration}
-                                        page={products.data}
-                                        pageRenderer={p => isCreatingProduct ? null : p.map(item =>
-                                            <ListRow
-                                                key={item.id}
-                                                left={item.id}
-                                                right={<></>}
-                                                leftSub={
-                                                    <ListStatContainer>
-                                                        <ListRowStat icon={"id"}>{item.category.id}</ListRowStat>
-                                                        <ListRowStat icon={"grant"}>
-                                                            Unit price: {creditFormatter(item.pricePerUnit)}
-                                                        </ListRowStat>
-                                                    </ListStatContainer>
-                                                }
-                                            />
-                                        )}
-                                        loading={products.loading}
-                                        customEmptyPage={
-                                            isCreatingProduct ? <></> :
-                                                <NoResultsCardBody title={"No products"}>
-                                                    <Button onClick={startProductCreation}>New product</Button>
-                                                </NoResultsCardBody>
-                                        }
-                                        onLoadMore={loadMore}
-                                    />
-                                </List>
+                            <List>
+                                <ListV2
+                                    infiniteScrollGeneration={productGeneration}
+                                    page={products.data}
+                                    pageRenderer={p => isCreatingProduct ? null : p.map(item =>
+                                        <ListRow
+                                            key={item.name}
+                                            left={item.name}
+                                            right={<></>}
+                                            leftSub={
+                                                <ListStatContainer>
+                                                    <ListRowStat icon={"id"}>{item.category.name}</ListRowStat>
+                                                    <ListRowStat icon={"grant"}>
+                                                        Unit price: {priceExplainer(item)}
+                                                    </ListRowStat>
+                                                </ListStatContainer>
+                                            }
+                                        />
+                                    )}
+                                    loading={products.loading}
+                                    customEmptyPage={
+                                        isCreatingProduct ? <></> :
+                                            <NoResultsCardBody title={"No products"}>
+                                                <Button onClick={startProductCreation}>New product</Button>
+                                            </NoResultsCardBody>
+                                    }
+                                    onLoadMore={loadMore}
+                                />
+                            </List>
                             {!isCreatingProduct ? null :
-                                <ProductCreationForm provider={provider.data} onComplete={onProductAdded}/>
+                                <ProductCreationForm provider={provider.data} onComplete={onProductAdded} />
                             }
                         </>
                     }
@@ -176,7 +174,7 @@ function View(): JSX.Element | null {
     );
 }
 
-const productTypes: { value: PropType<Product, "type">, title: string }[] = [
+const productTypes: {value: PropType<Types.Product, "type">, title: string}[] = [
     {value: "compute", title: "Compute"},
     {value: "network_ip", title: "Public IP"},
     {value: "ingress", title: "Public link"},
@@ -184,7 +182,7 @@ const productTypes: { value: PropType<Product, "type">, title: string }[] = [
     {value: "storage", title: "Storage"},
 ];
 
-function unitNameFromType(type: PropType<Product, "type">): string {
+function unitNameFromType(type: PropType<Types.Product, "type">): string {
     let unitName = "";
     switch (type) {
         case "compute":
@@ -202,141 +200,15 @@ function unitNameFromType(type: PropType<Product, "type">): string {
     return unitName;
 }
 
-const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onComplete: () => void }> = props => {
-    const [type, setType] = useState<PropType<Product, "type">>("compute");
-    const onTypeChange = useCallback(e => setType(e.target.value as PropType<Product, "type">), [setType]);
-
-    const [pricePerUnit, setPricePerUnit] = useState<string>("0");
-    const onPriceChange = useCallback(e => setPricePerUnit(e.target.value), [setPricePerUnit]);
-    const [pricePerUnitDecimal, setPricePerUnitDecimal] = useState<string>("0");
-    const onPriceDecimalChange = useCallback(e => setPricePerUnitDecimal(e.target.value), [setPricePerUnitDecimal]);
-
-    const [id, setId] = useState<string>("")
-    const onIdChange = useCallback(e => setId(e.target.value), [setId]);
-
-    const [category, setCategory] = useState<string>("")
-    const onCategoryChange = useCallback(e => setCategory(e.target.value), [setCategory]);
-
-    const [description, setDescription] = useState<string>("")
-    const onDescriptionChange = useCallback(e => setDescription(e.target.value), [setDescription]);
-
-    const [cpu, setCpu] = useState<string>("")
-    const onCpuChange = useCallback(e => setCpu(e.target.value), [setCpu]);
-
-    const [memoryInGigs, setMemoryInGigs] = useState<string>("")
-    const onMemoryInGigsChange = useCallback(e => setMemoryInGigs(e.target.value), [setMemoryInGigs]);
-
-    const [gpus, setGpus] = useState<string>("")
-    const onGpusChange = useCallback(e => setGpus(e.target.value), [setGpus]);
-
-    const projectId = useProjectId();
-
-    const [commandLoading, invokeCommand] = useCloudCommand();
-
-    const addProduct = useCallback(async () => {
-        const wholePricePart = parseInt(pricePerUnit, 10);
-        const decimalPricePart = parseInt(pricePerUnitDecimal.padEnd(6, '0'), 10);
-
-        if (isNaN(wholePricePart) || isNaN(decimalPricePart)) {
-            snackbarStore.addFailure("Invalid price per unit", false);
-            return;
-        }
-
-        if (decimalPricePart >= 1000000) {
-            snackbarStore.addFailure(
-                "The decimal part of the price is too specific. " +
-                "Try rounding your number to a less precise one.",
-                false
-            );
-            return;
-        }
-
-        const actualPricePerUnit = wholePricePart * 1_000_000 + decimalPricePart;
-
-        const actualCpu = parseInt(cpu, 10);
-        if (isNaN(actualCpu) || actualCpu < 1) {
-            snackbarStore.addFailure("Invalid number of vCPU", false);
-            return;
-        }
-
-        const actualMemoryInGigs = parseInt(memoryInGigs, 10);
-        if (isNaN(actualMemoryInGigs) || actualMemoryInGigs < 1) {
-            snackbarStore.addFailure("Invalid amount of memory", false);
-            return;
-        }
-
-        const actualGpu = parseInt(gpus, 10);
-        if (isNaN(actualGpu) || actualGpu < 0) {
-            snackbarStore.addFailure("Invalid number of GPUs", false);
-            return;
-        }
-
-        const tokens = await invokeCommand<BulkResponse<AccessToken>>(UCloud.auth.providers.refresh(
-            bulkRequestOf({refreshToken: props.provider.refreshToken}))
-        );
-        const accessToken = tokens?.responses[0]?.accessToken;
-
-        let product: Product | null = null;
-        switch (type) {
-            case "storage":
-                /*
-                product = {
-                    type: "storage",
-                    id: id,
-                    description: description,
-                    pricePerUnit: actualPricePerUnit,
-                    category: {id: category, provider: props.provider.id},
-                    hiddenInGrantApplications: false,
-                    priority: 1,
-                } as ProductNS.Storage;
-                 */
-                break;
-            case "compute":
-                product = {
-                    type: "compute",
-                    id,
-                    description,
-                    pricePerUnit: actualPricePerUnit,
-                    category: {id: category, provider: props.provider.id},
-                    hiddenInGrantApplications: false,
-                    priority: 1,
-                    cpu: actualCpu,
-                    memoryInGigs: actualMemoryInGigs,
-                    gpu: actualGpu
-                } as ProductNS.Compute;
-                break;
-        }
-
-        if (product === null) {
-            snackbarStore.addFailure("Provider support has not yet been implemented for this type of product", true);
-            return;
-        } else {
-            await invokeCommand(
-                {...UCloud.accounting.products.createProduct(product), accessTokenOverride: accessToken}
-            );
-
-            if (inDevEnvironment() || onDevSite()) {
-                await invokeCommand(
-                    UCloud.accounting.wallets.setBalance({
-                        wallet: {
-                            paysFor: {provider: product.category.provider, id: product.category.id},
-                            type: projectId === undefined ? "USER" : "PROJECT",
-                            id: projectId === undefined ? Client.username! : projectId
-                        },
-                        lastKnownBalance: 0,
-                        newBalance: 1000000 * 10000
-                    })
-                );
-            }
-            props.onComplete();
-        }
-    }, [type, pricePerUnit, pricePerUnitDecimal, id, category, description, invokeCommand, cpu, memoryInGigs, gpus]);
+const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
+    const [type, setType] = useState<PropType<Types.Product, "type">>("compute");
+    const onTypeChange = useCallback(e => setType(e.target.value as PropType<Types.Product, "type">), [setType]);
+    const [licenseTagCount, setTagCount] = useState(1);
+    const [, invokeCommand] = useCloudCommand();
 
     const unitName = unitNameFromType(type);
 
-    return <Grid gridTemplateColumns={"1 fr"} gridGap={"16px"}>
-        {type === "compute" ? null : <Warning>Provider support not yet implemented for this type of product</Warning>}
-
+    return <Box>
         <Label>
             Type
             <Select value={type} onChange={onTypeChange}>
@@ -344,52 +216,116 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
             </Select>
         </Label>
 
-        <Label>
-            Category (e.g. u1-standard)
-            <Input value={category} onChange={onCategoryChange}/>
-        </Label>
+        <ResourceForm
+            title="Product"
+            createRequest={async (data): Promise<APICallParameters<any>> => {
+                const tokens = await invokeCommand<BulkResponse<AccessToken>>(UCloud.auth.providers.refresh(
+                    bulkRequestOf({refreshToken: props.provider.refreshToken}))
+                );
 
-        <Label>
-            ID (e.g. u1-standard-1)
-            <Input value={id} onChange={onIdChange}/>
-        </Label>
+                const accessToken = tokens?.responses[0]?.accessToken;
+                let product: Types.Product;
 
-        <Label>
-            Price per {unitName}
-            <Flex alignItems={"end"}>
-                <Input type={"number"} value={pricePerUnit} onChange={onPriceChange} mr={"8px"}/>
-                ,
-                <Input type={"number"} value={pricePerUnitDecimal} onChange={onPriceDecimalChange} mx={"8px"}/>
-                DKK
-            </Flex>
-        </Label>
+                const shared: Omit<Types.ProductBase, "productType"> = {
+                    type,
+                    category: {name: data.fields.name, provider: props.provider.id},
+                    pricePerUnit: data.fields.pricePerUnit * 10_000,
+                    name: data.fields.name,
+                    description: data.fields.description,
+                    priority: data.fields.priority,
+                    version: data.fields.version,
+                    freeToUse: data.fields.freeToUse,
+                    unitOfPrice: data.fields.unitOfPrice,
+                    chargeType: data.fields.chargeType,
+                    hiddenInGrantApplications: data.fields.hiddenInGrantApplications,
+                };
 
-        <Label>
-            Description <br/>
-            <TextArea width={"100%"} rows={10} value={description} onChange={onDescriptionChange}/>
-        </Label>
+                const tags: string[] = [];
+                for (let i = 0; i < licenseTagCount; i++) {
+                    const entry = data.fields[`tag-${i}`];
+                    if (entry) tags.push(entry);
+                }
 
-        {type !== "compute" ? null :
-            <>
-                <Label>
-                    vCPU
-                    <Input type={"number"} value={cpu} onChange={onCpuChange}/>
-                </Label>
+                switch (type) {
+                    case "storage":
+                        product = {
+                            ...shared,
+                            productType: "STORAGE"
+                        } as Types.ProductStorage;
+                        break;
+                    case "compute":
+                        product = {
+                            ...shared,
+                            productType: "COMPUTE",
+                            cpu: data.fields.cpu,
+                            memoryInGigs: data.fields.memory,
+                            gpu: data.fields.gpu
+                        } as Types.ProductCompute;
+                        break;
+                    case "ingress":
+                        product = {
+                            ...shared,
+                            productType: "INGRESS",
+                        } as Types.ProductIngress;
+                        break;
+                    case "network_ip":
+                        product = {
+                            ...shared,
+                            productType: "NETWORK_IP"
+                        } as Types.ProductNetworkIP;
+                        break;
+                    case "license":
+                        product = {
+                            ...shared,
+                            productType: "LICENSE",
+                            tags
+                        } as Types.ProductLicense;
+                        break;
+                }
 
-                <Label>
-                    Memory in GB
-                    <Input type={"number"} value={memoryInGigs} onChange={onMemoryInGigsChange}/>
-                </Label>
+                return {...UCloud.accounting.products.createProduct(bulkRequestOf(product as any)), accessTokenOverride: accessToken};
+            }}
+        >
+            <ResourceForm.Text required id="name" placeholder="Name..." label="Name (e.g. u1-standard-1)" styling={{}} />
+            <ResourceForm.Number required id="pricePerUnit" placeholder="Price..." rightLabel="DKK" label={`Price per ${unitName}`} step="0.01" min={0} styling={{}} />
+            <ResourceForm.TextArea required id="description" placeholder="Description..." label="Description" rows={10} styling={{}} />
+            <ResourceForm.Number required id="priority" placeholder="Priority..." label="Priority" styling={{}} />
+            <ResourceForm.Number required id="version" placeholder="Version..." label="Version" min={0} styling={{}} />
+            <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}} />
+            <ResourceForm.Select id="unitOfPrice" label="Unit of Price" required options={[
+                {value: "PER_UNIT", text: "Per Unit"},
+                {value: "CREDITS_PER_MINUTE", text: "Credits Per Minute"},
+                {value: "CREDITS_PER_HOUR", text: "Credits Per Hour"},
+                {value: "CREDITS_PER_DAY", text: "Credits Per Day"},
+                {value: "UNITS_PER_MINUTE", text: "Units Per Minute"},
+                {value: "UNITS_PER_HOUR", text: "Units Per Hour"},
+                {value: "UNITS_PER_DAY", text: "Units Per Day"}
+            ]} styling={{}} />
+            <ResourceForm.Select id="chargeType" label="Chargetype" required options={[
+                {value: "ABSOLUTE", text: "Absolute"},
+                {value: "DIFFERENTIAL_QUOTA", text: "Differential Quota"}
+            ]} styling={{}} />
+            <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications" defaultChecked={false} styling={{}} />
 
-                <Label>
-                    Number of GPUs
-                    <Input type={"number"} value={gpus} onChange={onGpusChange}/>
-                </Label>
-            </>
-        }
-
-        <Button fullWidth onClick={addProduct}>Add new product</Button>
-    </Grid>;
+            {type !== "compute" ? null : (
+                <>
+                    <ResourceForm.Number id="cpu" placeholder="vCPU..." label="vCPU" required styling={{}} />
+                    <ResourceForm.Number id="memory" placeholder="Memory..." label="Memory in GB" required styling={{}} />
+                    <ResourceForm.Number id="gpus" placeholder="GPUs..." label="Number of GPUs" required styling={{}} />
+                </>
+            )}
+            {type !== "license" ? null : (
+                <>
+                    {[...Array(licenseTagCount).keys()].map(id =>
+                        <ResourceForm.Text key={id} id={`tag-${id}`} label={`Tag ${id + 1}`} styling={{}} />
+                    )}
+                    <div>
+                        <Button fullWidth type="button" onClick={() => setTagCount(t => t + 1)} mt="6px">Add tag</Button>
+                    </div>
+                </>
+            )}
+        </ResourceForm>
+    </Box>;
 };
 
 interface OpCallbacks {

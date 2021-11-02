@@ -1,6 +1,6 @@
-import {FileUploadEvent} from "Files/HTML5FileSelector";
-import * as UCloud from "UCloud";
-import {GetElementType, PropType} from "UtilityFunctions";
+import {FileUploadEvent} from "@/Files/HTML5FileSelector";
+import * as UCloud from "@/UCloud";
+import {GetElementType, PropType} from "@/UtilityFunctions";
 import FileApi = UCloud.file.orchestrator;
 
 export type WriteConflictPolicy = NonNullable<PropType<FileApi.FilesCreateUploadRequestItem, "conflictPolicy">>;
@@ -23,6 +23,8 @@ export interface Upload {
     conflictPolicy: WriteConflictPolicy;
     uploadResponse?: FileApi.FilesCreateUploadResponseItem;
     terminationRequested?: true;
+    paused?: true;
+    resume?: () => Promise<void>;
 }
 
 export const supportedProtocols: UploadProtocol[] = ["CHUNKED"];

@@ -24,11 +24,12 @@ suspend fun createUser(
     password: String = UUID.randomUUID().toString(),
     role: Role = Role.USER,
     email: String = "$username@mail",
-    waitForStorage: Boolean = true
+    waitForStorage: Boolean = true,
+    organization: String? = null,
 ): CreatedUser {
     val refreshToken = UserDescriptions.createNewUser.call(
         listOf(
-            CreateSingleUserRequest(username, password, email, role)
+            CreateSingleUserRequest(username, password, email, role, organization)
         ),
         serviceClient
     ).orThrow().single().refreshToken

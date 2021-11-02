@@ -1,271 +1,620 @@
 package dk.sdu.cloud.file.orchestrator.service
 
-import com.github.jasync.sql.db.RowData
-import com.github.jasync.sql.db.exceptions.DatabaseException
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
-import dk.sdu.cloud.NormalizedPaginationRequestV2
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.util.PartialQuery
+import dk.sdu.cloud.accounting.util.ProviderComms
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.ResourceService
+import dk.sdu.cloud.accounting.util.SqlObject
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.notification.api.NotificationType
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.serializer
+
+typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
+        ShareSupport, StorageCommunication>
 
 class ShareService(
-    private val db: DBContext,
-    private val serviceClient: AuthenticatedClient,
-    private val backgroundScope: BackgroundScope,
-) {
-    suspend fun retrieve(
-        actor: Actor,
-        path: String,
-    ): Share {
-        return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("shared_with", actor.safeUsername())
-                        setParameter("path", path.normalize())
-                    },
-                    """
-                        select * from shares where shared_with = :user and path = :path
-                    """
-                )
-                .rows
-                .map { rowToShare(it) }
-                .singleOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    db: AsyncDBSessionFactory,
+    providers: Providers<StorageCommunication>,
+    support: ProviderSupport<StorageCommunication, Product.Storage, ShareSupport>,
+    serviceClient: AuthenticatedClient,
+    private val files: FilesService,
+    private val collections: FileCollectionService
+) : ShareSvc(db, providers, support, serviceClient) {
+    override val table = SqlObject.Table("file_orchestrator.shares")
+    override val defaultSortColumn = SqlObject.Column(table, "original_file_path")
+    override val sortColumns: Map<String, SqlObject.Column> = mapOf(
+        "sourceFilePath" to defaultSortColumn
+    )
+
+    override val serializer = serializer<Share>()
+    override val updateSerializer = serializer<Share.Update>()
+    override val productArea = ProductType.STORAGE
+
+    override fun userApi() = Shares
+    override fun controlApi() = SharesControl
+    override fun providerApi(comms: ProviderComms) = SharesProvider(comms.provider.id)
+
+    init {
+        files.addMoveHandler(::onFilesMoved)
+        files.addTrashHandler(::onFilesDeleted)
+    }
+
+    private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+        // TODO(Dan): This is not guaranteed to work if some conflict policy is applied
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    batch.split {
+                        into("old_paths") { it.oldId.normalize() }
+                        into("new_paths") { it.newId.normalize() }
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.shares
+                    set
+                        original_file_path = e.new_path || substring(original_file_path, length(e.old_path) + 1)
+                    from entries e
+                    where
+                        (original_file_path = e.old_path or original_file_path like e.old_path || '/%');
+                """
+            )
         }
     }
 
-    suspend fun browse(
-        actor: Actor,
-        sharedByMe: Boolean,
-        filterPath: String?,
-        request: NormalizedPaginationRequestV2,
-    ): PageV2<Share> {
+    private suspend fun onFilesDeleted(request: List<FindByPath>) {
+        println("onFilesDeleted")
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    request.split { into("paths") { it.id.normalize() } }
+                    request.split { into("available_at") { "/${it.id.normalize().split('/')[1]}" }}
+                },
+                """
+                    with
+                        entries as (
+                            select
+                                unnest(:paths::text[]) path,
+                                unnest(:available_at::text[]) available_at
+                        ),
+                        --Locating sub folders that are shares.
+                        original_paths as (
+                            select resource as share_id, original_file_path, s.available_at, path share_path
+                            from file_orchestrator.shares s join entries on s.available_at=entries.available_at
+                        ),
+                        sub_shares as (
+                            select s.original_file_path
+                            from original_paths op
+                            join file_orchestrator.shares s on (
+                                s.original_file_path like (
+                                    select (
+                                        --Removes mount point, leaving only subpath
+                                        op.original_file_path || (select regexp_replace(op.share_path, '([\/]\d*)', '') || '/%')
+                                    )
+                                )
+                            )
+                        ),
+                        --Deleting shares and sub shares along with their resources.
+                        affected_shares as (
+                            delete from file_orchestrator.shares s
+                            using entries e, sub_shares sub
+                            where
+                                e.path = s.original_file_path or
+                                sub.original_file_path = s.original_file_path or
+                                s.original_file_path like e.path || '/%'
+                            returning s.resource, s.shared_with, s.permissions, s.state, split_part(s.available_at, '/', 2) available_at
+                        ),
+                        affected_file_collections as (
+                            delete from file_orchestrator.file_collections fc
+                            using affected_shares
+                            where
+                            fc.resource::text = affected_shares.available_at
+                            returning fc.resource
+                        ),
+                        delete_resources_updates as (
+                            delete from provider.resource_update ru
+                            using affected_shares share , affected_file_collections fc
+                            where
+                            ru.resource = share.resource or ru.resource = fc.resource
+                        ),
+                        delete_resource_acl as (
+                            delete from provider.resource_acl_entry entry
+                            using affected_shares share, affected_file_collections fc
+                            where
+                                share.resource = entry.resource_id or fc.resource = entry.resource_id
+                        )
+                    delete from provider.resource r
+                            using affected_shares share, affected_file_collections fc
+                            where
+                            r.id = share.resource or r.id = fc.resource
+
+                """, debug = true
+            )
+        }
+    }
+
+    override suspend fun updateAcl(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>
+    ): BulkResponse<Unit?> {
+        throw RPCException(
+            "The permissions of a share cannot be changed through this endpoint",
+            HttpStatusCode.BadRequest
+        )
+    }
+
+    override suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
+        idWithSpec: List<Pair<Long, Share.Spec>>,
+        session: AsyncDBConnection,
+        allowDuplicates: Boolean
+    ) {
+        val shareWithSelf = idWithSpec.find { it.second.sharedWith == actorAndProject.actor.safeUsername() }
+        if (shareWithSelf != null) {
+            throw RPCException(
+                "You cannot share '${shareWithSelf.second.sourceFilePath.fileName()}' with yourself",
+                HttpStatusCode.BadRequest
+            )
+        }
+        //Check users exists
+        val returnedUsers = session.sendPreparedStatement(
+            {
+                idWithSpec.split {
+                    into("username") {it.second.sharedWith}
+                }
+            },
+            """
+                select *
+                from "auth".principals
+                where id in (select unnest(:username::text[]))
+            """
+        ).rows
+        if (idWithSpec.size != returnedUsers.size) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+
+        val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()
+        collections.retrieveBulk(
+            actorAndProject,
+            collIds,
+            listOf(Permission.ADMIN),
+            ctx = session
+        )
+
+        try {
+            session.sendPreparedStatement(
+                {
+                    idWithSpec.split {
+                        into("ids") { it.first }
+                        into("file_paths") { it.second.sourceFilePath.normalize() }
+                        into("shared_with") { it.second.sharedWith }
+                        into("permissions") {
+                            it.second.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+                        }
+                    }
+                },
+                """
+                    with 
+                        requests as (
+                            select unnest(:ids::bigint[]) id, unnest(:file_paths::text[]) file_path,
+                                   unnest(:shared_with::text[]) shared_with,
+                                   regexp_split_to_array(unnest(:permissions::text[]), ',') permissions
+                        ),
+                        inserted_specs as (
+                            insert into file_orchestrator.shares (resource, original_file_path, shared_with, permissions) 
+                            select id, file_path, shared_with, permissions
+                            from requests
+                        )
+                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                    select null, shared_with, unnest(permissions), id
+                    from requests
+                """
+            )
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == "23505") {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared. Check shares page.")
+            }
+            else throw ex
+        }
+
+        idWithSpec.forEach {
+            NotificationDescriptions.create.call(
+                CreateNotification(
+                    it.second.sharedWith,
+                    Notification(
+                        NotificationType.SHARE_REQUEST.name,
+                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        meta = JsonObject(emptyMap())
+                    )
+                ),
+                serviceClient
+            )
+        }
+    }
+
+    override suspend fun onUpdate(
+        resources: List<Share>,
+        updates: List<ResourceUpdateAndId<Share.Update>>,
+        session: AsyncDBConnection
+    ) {
+        if (resources.isEmpty()) return
+        val expectedCollectionIds = updates
+            .mapNotNull { it.update.shareAvailableAt }
+            .map { extractPathMetadata(it).collection }
+            .toSet()
+
+        val providerCollection = extractPathMetadata(resources.first().specification.sourceFilePath).collection
+        val allCollections = collections.retrieveBulk(
+            ActorAndProject(Actor.System, null),
+            expectedCollectionIds + setOf(providerCollection),
+            listOf(Permission.READ),
+            ctx = session
+        )
+
+        val provider = allCollections.find { it.id == providerCollection }?.specification?.product?.provider
+            ?: error("Could not find provider")
+
+        val availableAtSameProvider = allCollections.all { it.specification.product.provider == provider }
+        if (!availableAtSameProvider) {
+            throw RPCException("Cannot expose a share on a different provider", HttpStatusCode.Forbidden)
+        }
+
+        session.sendPreparedStatement(
+            {
+                updates.split {
+                    into("ids") { it.id }
+                    into("new_states") { it.update.newState.name }
+                    into("share_available_at") { it.update.shareAvailableAt?.normalize() }
+                }
+            },
+            """
+                with requests as (
+                    select
+                        unnest(:ids::bigint[]) id,
+                        unnest(:new_states::file_orchestrator.share_state[]) new_state,
+                        unnest(:share_available_at::text[]) new_location
+                )
+                update file_orchestrator.shares s
+                set
+                    state = coalesce(new_state, state),
+                    -- NOTE(Dan): Don't change available_at if it is already present
+                    available_at = coalesce(available_at, new_location)
+                from
+                    requests req
+                where
+                    s.resource = req.id
+            """
+        )
+    }
+
+    suspend fun approve(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ) {
+        db.withSession { session ->
+            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
+                ctx = session)
+
+            if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
+                throw RPCException("You are not allowed to approve your own share", HttpStatusCode.Forbidden)
+            }
+
+            if (shares.any { it.status.state != Share.State.PENDING }) {
+                throw RPCException("Cannot accept a share which has already been handled", HttpStatusCode.Forbidden)
+            }
+
+            if (shares.any { it.status.shareAvailableAt == null }) {
+                throw RPCException(
+                    "Share is not ready yet. UCloud is waiting for the provider to reply. Try again later.",
+                    HttpStatusCode.BadGateway
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("ids") { it.id.toLongOrNull() }
+                    }
+                },
+                """
+                    with
+                        requests as (
+                            select unnest(:ids::bigint[]) id
+                        ),
+                        affected_shares as (
+                            update file_orchestrator.shares s
+                            set state = 'APPROVED'
+                            from requests req
+                            where s.resource = req.id    
+                            returning
+                                s.shared_with, 
+                                s.permissions, 
+                                (regexp_split_to_array(s.available_at, '/'))[2]::bigint collection
+                        )
+                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                    select null, shared_with, unnest(permissions), collection
+                    from affected_shares
+                    on conflict do nothing
+                """
+            )
+        }
+    }
+
+    suspend fun reject(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ) {
+        db.withSession { session ->
+            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
+                ctx = session)
+
+            if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
+                throw RPCException("You are not allowed to reject your own share", HttpStatusCode.Forbidden)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("ids") { it.id.toLongOrNull() }
+                    }
+                },
+                """
+                    with
+                        requests as (
+                            select unnest(:ids::bigint[]) id
+                        ),
+                        affected_shares as (
+                            update file_orchestrator.shares s
+                            set state = 'REJECTED'
+                            from requests req
+                            where s.resource = req.id    
+                            returning
+                                s.shared_with, 
+                                s.permissions, 
+                                case
+                                    when s.available_at is null then null
+                                    else (regexp_split_to_array(s.available_at, '/'))[2]::bigint
+                                end as collection
+                        )
+                    delete from provider.resource_acl_entry entry
+                    using affected_shares share
+                    where
+                        share.collection = entry.resource_id and
+                        share.shared_with = entry.username and
+                        entry.permission = some(share.permissions)
+                """
+            )
+
+            cleanupAfterShare(shares, session)
+        }
+    }
+
+    private suspend fun cleanupAfterShare(shares: Collection<Share>, session: AsyncDBConnection) {
+        val collectionsToDelete = shares
+            .filter { it.status.state == Share.State.APPROVED && it.status.shareAvailableAt != null }
+            .map { extractPathMetadata(it.status.shareAvailableAt!!).collection }
+            .toSet()
+
+        val allCollections = collections.retrieveBulk(
+            ActorAndProject(Actor.System, null),
+            collectionsToDelete,
+            listOf(Permission.ADMIN),
+            ctx = session
+        )
+
+        collections.deleteFromDatabaseSkipProvider(collectionsToDelete.map { it.toLong() }, allCollections, session)
+    }
+
+    override suspend fun deleteSpecification(
+        resourceIds: List<Long>,
+        resources: List<Share>,
+        session: AsyncDBConnection
+    ) {
+        super.deleteSpecification(resourceIds, resources, session)
+        cleanupAfterShare(resources, session)
+    }
+
+    suspend fun updatePermissions(
+        actorAndProject: ActorAndProject,
+        request: SharesUpdatePermissionsRequest
+    ) {
+        db.withSession { session ->
+            val ids = request.items.map { it.id }.toSet()
+            val sharesById = retrieveBulk(actorAndProject, ids, listOf(Permission.ADMIN), ctx = session)
+                .associateBy { it.id }
+
+            val rejectedShare = sharesById.values.find { it.status.state == Share.State.REJECTED }
+            if (rejectedShare != null) {
+                throw RPCException(
+                    "'${rejectedShare.specification.sourceFilePath.fileName()}' " +
+                            "(${rejectedShare.specification.sharedWith}) has been rejected and cannot be " +
+                            "updated further",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("ids") { it.id }
+                        into("permissions") { reqItem ->
+                            reqItem.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+                        }
+                        into("should_update_permissions") { reqItem ->
+                            sharesById.getValue(reqItem.id).status.state == Share.State.APPROVED
+                        }
+                    }
+                },
+                """
+                    with 
+                        requests as (
+                            select unnest(:ids::bigint[]) id,
+                                   unnest(:should_update_permissions::boolean[]) should_update_permissions,
+                                   regexp_split_to_array(unnest(:permissions::text[]), ',') new_permissions
+                        ),
+                        updated_shares as (
+                            update file_orchestrator.shares s
+                            set permissions = new_permissions
+                            from requests req
+                            where s.resource = req.id
+                            returning resource, shared_with, available_at
+                        ),
+                        deleted_entries as (
+                            delete from provider.resource_acl_entry entry
+                            using
+                                requests req join
+                                updated_shares share on req.id = share.resource
+                            where
+                                share.available_at is not null and
+                                entry.username = share.shared_with and
+                                entry.resource_id = (regexp_split_to_array(share.available_at, '/'))[2]::bigint and
+                                not (entry.permission = some(req.new_permissions))
+                        )
+                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                    select 
+                        null, 
+                        share.shared_with, 
+                        unnest(req.new_permissions),
+                        (regexp_split_to_array(share.available_at, '/'))[2]::bigint
+                    from
+                        requests req join
+                        updated_shares share on req.id = share.resource
+                    where
+                        share.available_at is not null
+                    on conflict do nothing
+                """
+            )
+        }
+    }
+
+    suspend fun browseOutgoing(
+        actorAndProject: ActorAndProject,
+        pagination: WithPaginationRequestV2
+    ): PageV2<OutgoingShareGroup> {
+        @Suppress("SqlResolve")
         return db.paginateV2(
-            actor,
-            request,
+            actorAndProject.actor,
+            pagination.normalize(),
             create = { session ->
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("shared_with", if (!sharedByMe) actor.safeUsername() else null)
-                            setParameter("shared_by", if (sharedByMe) actor.safeUsername() else null)
-                            setParameter("filter_path", filterPath)
+                            setParameter("username", actorAndProject.actor.safeUsername())
                         },
                         """
                             declare c cursor for
-                            select * from shares
-                            where
-                                (:shared_with::text is null or shared_with = :shared_with) and
-                                (:shared_by::text is null or shared_by = :shared_by) and
-                                (
-                                    :filter_path::text is null or 
-                                    path = :filter_path::text
+                            with
+                                spec as (
+                                    select original_file_path, shared_with, permissions, state, id, name, category,
+                                           provider
+                                    from (
+                                        select
+                                            rank() over (partition by share.original_file_path order by shared_with) rn,
+                                            share.original_file_path,
+                                            share.shared_with,
+                                            share.permissions,
+                                            share.state,
+                                            resc.id,
+                                            p.name,
+                                            pc.category,
+                                            pc.provider
+                                        from
+                                            provider.resource resc join
+                                            accounting.products p on resc.product = p.id join
+                                            accounting.product_categories pc on p.category = pc.id join
+                                            file_orchestrator.shares share on resc.id = share.resource
+                                        where
+                                            resc.created_by = :username
+                                    ) t
+                                    where t.rn <= 11
                                 )
-                            order by path
-                        """
+                            select jsonb_build_object(
+                                'sourceFilePath', spec.original_file_path,
+                                'storageProduct', jsonb_build_object(
+                                    'id', name,
+                                    'category', category,
+                                    'provider', provider
+                                ),
+                                'sharePreview', jsonb_agg(
+                                    jsonb_build_object(
+                                        'sharedWith', spec.shared_with,
+                                        'permissions', spec.permissions,
+                                        'state', spec.state,
+                                        'shareId', spec.id::text
+                                    )
+                                )
+                            )
+                            from spec
+                            group by spec.original_file_path, spec.name, spec.category, spec.provider
+                            order by spec.original_file_path
+                        """,
                     )
             },
             mapper = { _, rows ->
-                rows.map { rowToShare(it) }
+                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
             }
         )
     }
 
-    private fun rowToShare(row: RowData): Share {
-        return Share(
-            row.getString("path")!!,
-            row.getString("shared_by")!!,
-            row.getString("shared_with")!!,
-            row.getBoolean("approved")!!,
+    override suspend fun browseQuery(flags: ShareFlags?, query: String?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("filter_path", flags?.filterOriginalPath?.normalize())
+                setParameter("filter_ingoing", flags?.filterIngoing)
+                setParameter("filter_rejected", flags?.filterRejected)
+                setParameter("query", query)
+            },
+            """
+                select s.*
+                from
+                    accessible_resources resc join
+                    file_orchestrator.shares s on (resc.r).id = resource
+                where
+                    (:filter_path::text is null or :filter_path = s.original_file_path) and
+                    (
+                        :filter_ingoing::boolean is null or
+                        (:filter_ingoing = true and :username = s.shared_with) or
+                        (:filter_ingoing = false and :username is distinct from s.shared_with)
+                    ) and
+                    (
+                        :filter_rejected::boolean is null or
+                        (:filter_rejected = true and 'REJECTED' is distinct from s.state) or
+                        (:filter_rejected = false and true)
+                    ) and
+                    (
+                        :query::text is null or
+                        s.original_file_path ilike '%' || :query || '%' or
+                        s.shared_with ilike '%' || :query || '%'
+                    )
+            """
         )
-    }
-
-    suspend fun create(
-        actor: Actor,
-        request: SharesCreateRequest,
-    ) {
-        // NOTE(Dan): The shares feature is basically just a catalogue of items that some user believes they have
-        //   shared with another user. All of the updates to the ACL must be done by the client. This also means we
-        //   perform no checking here if the share is valid. We don't do this, simply because this communication must
-        //   go directly to the updateAcl endpoint. This is required to enforce end-to-end signatures from the user,
-        //   which some providers require.
-        val userLookup = UserDescriptions.lookupUsers.call(
-            LookupUsersRequest(request.items.map { it.sharedWith }.toSet().toList()),
-            serviceClient
-        ).orThrow()
-
-        for ((user, lookup) in userLookup.results) {
-            if (lookup == null) {
-                throw RPCException("Unknown user: $user", HttpStatusCode.BadRequest)
-            }
-        }
-
-        try {
-            db.withSession { session ->
-                for (reqItem in request.items) {
-                    if (reqItem.sharedWith == actor.safeUsername()) {
-                        throw RPCException("You cannot share a file with yourself", HttpStatusCode.BadRequest)
-                    }
-
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("shared_by", actor.safeUsername())
-                            setParameter("shared_with", reqItem.sharedWith)
-                            setParameter("path", reqItem.path)
-                        },
-                        """
-                        insert into shares (path, shared_by, shared_with, approved)  
-                        values (:path, :shared_by, :shared_with, false)  
-                    """
-                    )
-                }
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException("Share already exists", HttpStatusCode.Conflict)
-            } else {
-                throw ex
-            }
-        }
-
-        backgroundScope.launch {
-            runCatching {
-                for (reqItem in request.items) {
-                    NotificationDescriptions.create.call(
-                        CreateNotification(
-                            reqItem.sharedWith,
-                            Notification(
-                                "SHARE_REQUEST",
-                                "${actor.safeUsername()} has shared '${reqItem.path.fileName()}' with you"
-                            )
-                        ),
-                        serviceClient
-                    )
-                }
-            }
-        }
-    }
-
-    suspend fun approve(
-        actor: Actor,
-        request: SharesApproveRequest,
-    ) {
-        val sharesAffected = db.withSession { session ->
-            request.items.map { reqItem ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("path", reqItem.path.normalize())
-                            setParameter("shared_with", actor.safeUsername())
-                        },
-                        """
-                            update shares
-                            set approved = true
-                            where shared_with = :shared_with and path = :path
-                            returning *
-                        """
-                    )
-                    .rows
-                    .map { rowToShare(it) }
-                    .singleOrNull()
-            }
-        }.associateBy { it?.path }
-
-        backgroundScope.launch {
-            runCatching {
-                sharesAffected.forEach { (_, share) ->
-                    if (share == null) return@forEach
-                    NotificationDescriptions.create.call(
-                        CreateNotification(
-                            share.sharedBy,
-                            Notification(
-                                "SHARE_ACCEPTED",
-                                "${share.sharedWith} has accepted you share of '${share.path.fileName()}'"
-                            )
-                        ),
-                        serviceClient
-                    )
-                }
-            }
-        }
-    }
-
-    suspend fun delete(
-        actor: Actor,
-        request: SharesDeleteRequest,
-    ) {
-        val sharesAffected = db.withSession { session ->
-            request.items.map { reqItem ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("path", reqItem.path.normalize())
-                            setParameter(
-                                "shared_with",
-                                if (reqItem.sharedWith != null) reqItem.sharedWith else actor.safeUsername()
-                            )
-                            setParameter(
-                                "shared_by",
-                                if (reqItem.sharedWith != null) actor.safeUsername() else null
-                            )
-                        },
-                        """
-                            delete from shares
-                            where 
-                                shared_with = :shared_with and 
-                                (:shared_by::text is null or shared_by = :shared_by) and
-                                path = :path
-                            returning *
-                        """
-                    )
-                    .rows
-                    .map { rowToShare(it) }
-                    .singleOrNull()
-            }
-        }.associateBy { it?.path }
-
-        backgroundScope.launch {
-            runCatching {
-                sharesAffected.forEach { (_, share) ->
-                    if (share == null) return@forEach
-                    val wasRevoked = actor.safeUsername() == share.sharedBy
-                    NotificationDescriptions.create.call(
-                        CreateNotification(
-                            if (wasRevoked) share.sharedWith else share.sharedBy,
-                            Notification(
-                                "SHARE_DELETED",
-                                if (wasRevoked) {
-                                    "${share.sharedBy} has delete your share of '${share.path.fileName()}'"
-                                } else {
-                                    "${share.sharedWith} has delete your share of '${share.path.fileName()}'"
-                                },
-                                meta = JsonObject(mapOf(
-                                    "path" to JsonPrimitive(share.path)
-                                ))
-                            )
-                        ),
-                        serviceClient
-                    )
-                }
-            }
-        }
     }
 }

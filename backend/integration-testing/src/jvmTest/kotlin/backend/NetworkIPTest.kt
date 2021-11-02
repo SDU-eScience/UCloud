@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.app.kubernetes.api.K8Subnet
@@ -158,3 +159,4 @@ class NetworkIPTest : IntegrationTest() {
         )
     }
 }
+ */

@@ -19,19 +19,15 @@ class MailController(
     private val db: DBContext
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(MailDescriptions.send) {
-            ok(mailService.send(ctx.securityPrincipal, request.receiver, request.mail, request.mandatory))
-        }
-
         implement(MailDescriptions.sendSupport) {
             ok(mailService.sendSupportTicket(request.fromEmail, request.subject, request.message))
         }
 
-        implement(MailDescriptions.sendBulk) {
-            request.messages.forEach {
+        implement(MailDescriptions.sendToUser) {
+            request.items.forEach {
                 val allowedToSend = mailService.allowedToSend(it.receiver)
                 if (allowedToSend) {
-                    mailService.send(ctx.securityPrincipal, it.receiver, it.mail, it.mandatory)
+                    mailService.send(ctx.securityPrincipal, it.receiver, it.mail, it.mandatory, testMail = it.testMail)
                 }
             }
             ok(Unit)

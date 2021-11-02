@@ -43,6 +43,7 @@ class FlywayFeature : MicroFeature {
                 val flyway = Flyway.configure().apply {
                     dataSource(jdbcUrl, username, password)
                     schemas(safeSchemaName(serviceDescription))
+                    validateOnMigrate(configuration.validateMigrations)
                 }.load()
 
                 flyway.migrate()
@@ -79,6 +80,9 @@ fun DatabaseConfig.migrateAll() {
     val schemaPriority = mapOf(
         "newaccounting" to 100,
         "file_orchestrator" to 101,
+        "app_orchestrator" to 102,
+        "file_ucloud" to 103,
+        "app_kubernetes" to 104,
     )
     var priorityDontCareCounter = 0
 
@@ -139,6 +143,7 @@ fun DatabaseConfig.migrateAll() {
         .toSortedMap(Comparator.comparingInt { schemaPriority[it] ?: priorityDontCareCounter++ })
         .forEach { (schema, migrations) ->
             val flyway = Flyway.configure().apply {
+                validateOnMigrate(validateMigrations)
                 resolvers(object : MigrationResolver {
                     override fun resolveMigrations(context: Context?): MutableCollection<ResolvedMigration> {
                         return migrations.flatMap { it.loadedClasses }

@@ -20,7 +20,7 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val subscriptionService = SubscriptionService(broadcastingStream, GlobalScope)
         val taskService = TaskService(db, TaskAsyncDao(), subscriptionService)

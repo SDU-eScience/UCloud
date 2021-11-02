@@ -1,194 +1,124 @@
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
-import {useLocation} from "react-router";
-import {getQueryParam} from "Utilities/URIUtilities";
-import * as UCloud from "UCloud";
-import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "UtilityFunctions";
-import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
-import MainContainer from "MainContainer/MainContainer";
-import {Markdown} from "ui-components";
-import {fileName} from "./Files";
-import * as Heading from "ui-components/Heading";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
+import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
+import {Markdown} from "@/ui-components";
+import {api as FilesApi, FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
+import {useEffect, useState} from "react";
+import {fileName} from "@/Utilities/FileUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {BulkResponse} from "@/UCloud";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import styled from "styled-components";
 
-export const MAX_PREVIEW_SIZE_IN_BYTES = 5_000_000;
+export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
 
-function Preview(): JSX.Element {
-    const params = useLocation();
-    const pathFromQuery = getQueryParam(params.search, "path") ?? "";
-    useTitle("Preview");
-
-    const extension = extensionFromPath(pathFromQuery);
+export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) => {
+    const extension = extensionFromPath(file.id);
     const isValidExtension = isExtPreviewSupported(extension);
-    const type = extensionTypeFromPath(pathFromQuery);
+    const type = extensionTypeFromPath(file.id);
     const [loading, invokeCommand] = useCloudCommand();
 
-    const [statResult] = useCloudAPI<undefined | UCloud.file.orchestrator.UFile>(
-        !isValidExtension ? {noop: true} : UCloud.file.orchestrator.files.retrieve({
-            path: pathFromQuery,
-            includeSizes: true
-        }), undefined)
-
-    const [data, setData] = React.useState("");
+    const [data, setData] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
     const fetchData = React.useCallback(async () => {
-        if (!loading && isValidExtension) {
-            // setData(await invokeCommand(Cloud.file.orchestrator.files.download()));
-
-/*             // @TEMP
-            switch (type) {
-                case "audio":
-                    setData("SoundEffect");
-                    break;
-                case "code":
-                    console.log("TODO" + type);
-                    break;
-                case "image":
-                    setData("TerrorBilly==");
-                    break;
-                case "markdown":
-                    setData("DoomExample");
-                    break;
-                case "pdf":
-                    console.log("TODO" + type);
-                    break;
-                case "text":
-                    setData(LoremText);
-                    break;
-                case "video":
-                    console.log("TODO" + type);
-                    break;
-                default:
-                    console.log("UNHANDLED PREVIEW")
+        const size = file.status.sizeInBytes;
+        if (file.status.type !== "FILE") return;
+        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES) {
+            try {
+                const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
+                    FilesApi.createDownload(bulkRequestOf({id: file.id})),
+                    {defaultErrorHandler: false}
+                );
+                const downloadEndpoint = download?.responses[0]?.endpoint;
+                if (!downloadEndpoint) {
+                    setError("Unable to display preview. Try again later or with a different file.");
+                    return;
+                }
+                const content = await fetch(downloadEndpoint);
+                switch (type) {
+                    case "image":
+                    case "audio":
+                    case "video":
+                    case "pdf":
+                        setData(URL.createObjectURL(await content.blob()));
+                        break;
+                    case "code":
+                    case "text":
+                    case "application":
+                    case "markdown":
+                        setData(await content.text());
+                        break;
+                    default:
+                        setError(`Preview not support for '${extensionFromPath(file.id)}'.`);
+                        break;
+                }
+            } catch (e) {
+                setError("Unable to display preview. Try again later or with a different file.");
             }
-            // @TEMP-END */
+        } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
+            setError("File is too large to preview");
+        } else {
+            setError("Preview is not supported for this file.");
         }
-    }, [pathFromQuery]);
+    }, [file]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchData();
-    }, [statResult]);
+    }, [file]);
 
-    if (loading) return <PredicatedLoadingSpinner loading />
-    if (!data) return <div />;
+    if (file.status.type !== "FILE") return null;
+    if (loading) return <PredicatedLoadingSpinner loading/>
 
-    let node: JSX.Element | null = null
+    let node: JSX.Element | null;
 
+    console.log("data", data != null);
     switch (type) {
-        case "image":
-            node = <img src={`data:;base64,${data}`} />
-            break;
         case "text":
-            node = <pre style={{maxWidth: "100%"}}>{data}</pre>
+        case "code":
+            /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
+            if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
+                node = <div><pre className="fullscreen">{data}</pre></div>
+            } else {
+                node = <div><SyntaxHighlighter className="fullscreen">{data}</SyntaxHighlighter></div>;
+            }
+            break;
+        case "image":
+            node = <img alt={fileName(file.id)} src={data}/>
             break;
         case "audio":
-            node = <audio controls src={`data:;base64,${data}`} />;
+            node = <audio controls src={data} />;
+            break;
+        case "video":
+            node = <video src={data} controls />;
+            break;
+        case "pdf":
+            node = <embed style={{width: "100vw", height: "100vh"}} className="fullscreen" src={data} />;
             break;
         case "markdown":
-            node = <Markdown>{data}</Markdown>
+            node = <div><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div />
+            node = <div/>
             break;
     }
 
-    return <MainContainer
-        header={<Heading.h3>{fileName(pathFromQuery)}</Heading.h3>}
-        main={<div style={{maxWidth: "100%"}}>{node}</div>}
-    />
+    if (error !== null) {
+        node = <div>{error}</div>;
+    }
+
+    return <ItemWrapper>{node}</ItemWrapper>;
 }
 
-export default Preview;
+const ItemWrapper = styled.div`
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
 
-const LoremText = `
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.
-    Quisque sed efficitur lectus. Vestibulum magna erat, auctor at malesuada ut, scelerisque nec quam. Nam mattis at
-    turpis nec vestibulum. Donec vel sapien tempus, porta odio sed, tincidunt metus. Integer ex turpis, pharetra at
-    pellentesque ut, suscipit ut tortor. In hac habitasse platea dictumst. Morbi blandit fermentum gravida. Proin in
-    ultricies mi, sed bibendum dui. Ut eros risus, ultrices vel nisi ac, sodales dictum arcu. Donec mattis urna nec
-    arcu posuere efficitur. Integer luctus ac tellus non tempus. Proin sodales volutpat auctor. Nam laoreet, tellus
-    in sodales egestas, odio ante bibendum odio, vel elementum ipsum quam at neque. Aliquam nec nisl sodales, placerat
-    odio sit amet, aliquam metus.
-
-    Aenean at nunc venenatis, ultricies ex id, varius enim. Fusce lacinia vulputate est vel bibendum. Ut at consequat
-    nulla. Sed placerat erat dolor, in molestie neque egestas nec. Nulla rhoncus, mauris vitae hendrerit volutpat,
-    dui mauris scelerisque quam, id rutrum tortor elit nec nunc. Etiam id elementum metus, a tristique mi. Aenean
-    imperdiet, quam ac tempus feugiat, magna tellus tristique mauris, at vehicula quam mi vel nunc. Maecenas volutpat
-    aliquam elit, eget elementum lorem interdum at.
-
-    Vestibulum id lacus vitae nisi tristique tincidunt. Maecenas facilisis turpis vel metus auctor, in imperdiet dolor
-    ultrices. Integer venenatis hendrerit vehicula. Integer id mauris erat. Vivamus posuere sollicitudin purus, vitae
-    interdum massa posuere ut. Etiam et eleifend diam, in luctus diam. Aenean volutpat sem id lacus imperdiet malesuada.
-    Morbi vulputate est eget leo luctus gravida. Aenean commodo a libero a feugiat. Ut ullamcorper elementum ex, quis
-    ultrices nulla congue scelerisque. Phasellus bibendum eu metus ut efficitur.
-
-    Praesent tempor ipsum ac euismod consequat. Quisque semper tortor ac magna aliquam, consectetur pretium sapien
-    suscipit. Phasellus eu augue eget massa gravida feugiat sed sit amet ipsum. Aenean condimentum aliquam sapien vel
-    suscipit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Orci varius
-    natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer scelerisque sem leo, nec bibendum
-    elit vestibulum ut. Phasellus lacinia venenatis sollicitudin.
-
-    Pellentesque molestie varius fermentum. In eu purus non lacus tincidunt lacinia. In hac habitasse platea dictumst.
-    Quisque blandit sed nulla at accumsan. Donec finibus est eros, euismod iaculis diam porttitor ac. Duis nec arcu
-    eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.
-    Quisque sed efficitur lectus. Vestibulum magna erat, auctor at malesuada ut, scelerisque nec quam. Nam mattis at
-    turpis nec vestibulum. Donec vel sapien tempus, porta odio sed, tincidunt metus. Integer ex turpis, pharetra at
-    pellentesque ut, suscipit ut tortor. In hac habitasse platea dictumst. Morbi blandit fermentum gravida. Proin in
-    ultricies mi, sed bibendum dui. Ut eros risus, ultrices vel nisi ac, sodales dictum arcu. Donec mattis urna nec
-    arcu posuere efficitur. Integer luctus ac tellus non tempus. Proin sodales volutpat auctor. Nam laoreet, tellus
-    in sodales egestas, odio ante bibendum odio, vel elementum ipsum quam at neque. Aliquam nec nisl sodales, placerat
-    odio sit amet, aliquam metus.
-
-    Aenean at nunc venenatis, ultricies ex id, varius enim. Fusce lacinia vulputate est vel bibendum. Ut at consequat
-    nulla. Sed placerat erat dolor, in molestie neque egestas nec. Nulla rhoncus, mauris vitae hendrerit volutpat,
-    dui mauris scelerisque quam, id rutrum tortor elit nec nunc. Etiam id elementum metus, a tristique mi. Aenean
-    imperdiet, quam ac tempus feugiat, magna tellus tristique mauris, at vehicula quam mi vel nunc. Maecenas volutpat
-    aliquam elit, eget elementum lorem interdum at.
-
-    Vestibulum id lacus vitae nisi tristique tincidunt. Maecenas facilisis turpis vel metus auctor, in imperdiet dolor
-    ultrices. Integer venenatis hendrerit vehicula. Integer id mauris erat. Vivamus posuere sollicitudin purus, vitae
-    interdum massa posuere ut. Etiam et eleifend diam, in luctus diam. Aenean volutpat sem id lacus imperdiet malesuada.
-    Morbi vulputate est eget leo luctus gravida. Aenean commodo a libero a feugiat. Ut ullamcorper elementum ex, quis
-    ultrices nulla congue scelerisque. Phasellus bibendum eu metus ut efficitur.
-
-    Praesent tempor ipsum ac euismod consequat. Quisque semper tortor ac magna aliquam, consectetur pretium sapien
-    suscipit. Phasellus eu augue eget massa gravida feugiat sed sit amet ipsum. Aenean condimentum aliquam sapien vel
-    suscipit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Orci varius
-    natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer scelerisque sem leo, nec bibendum
-    elit vestibulum ut. Phasellus lacinia venenatis sollicitudin.
-
-    Pellentesque molestie varius fermentum. In eu purus non lacus tincidunt lacinia. In hac habitasse platea dictumst.
-    Quisque blandit sed nulla at accumsan. Donec finibus est eros, euismod iaculis diam porttitor ac. Duis nec arcu
-    eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.
-    Quisque sed efficitur lectus. Vestibulum magna erat, auctor at malesuada ut, scelerisque nec quam. Nam mattis at
-    turpis nec vestibulum. Donec vel sapien tempus, porta odio sed, tincidunt metus. Integer ex turpis, pharetra at
-    pellentesque ut, suscipit ut tortor. In hac habitasse platea dictumst. Morbi blandit fermentum gravida. Proin in
-    ultricies mi, sed bibendum dui. Ut eros risus, ultrices vel nisi ac, sodales dictum arcu. Donec mattis urna nec
-    arcu posuere efficitur. Integer luctus ac tellus non tempus. Proin sodales volutpat auctor. Nam laoreet, tellus
-    in sodales egestas, odio ante bibendum odio, vel elementum ipsum quam at neque. Aliquam nec nisl sodales, placerat
-    odio sit amet, aliquam metus.
-
-    Aenean at nunc venenatis, ultricies ex id, varius enim. Fusce lacinia vulputate est vel bibendum. Ut at consequat
-    nulla. Sed placerat erat dolor, in molestie neque egestas nec. Nulla rhoncus, mauris vitae hendrerit volutpat,
-    dui mauris scelerisque quam, id rutrum tortor elit nec nunc. Etiam id elementum metus, a tristique mi. Aenean
-    imperdiet, quam ac tempus feugiat, magna tellus tristique mauris, at vehicula quam mi vel nunc. Maecenas volutpat
-    aliquam elit, eget elementum lorem interdum at.
-
-    Vestibulum id lacus vitae nisi tristique tincidunt. Maecenas facilisis turpis vel metus auctor, in imperdiet dolor
-    ultrices. Integer venenatis hendrerit vehicula. Integer id mauris erat. Vivamus posuere sollicitudin purus, vitae
-    interdum massa posuere ut. Etiam et eleifend diam, in luctus diam. Aenean volutpat sem id lacus imperdiet malesuada.
-    Morbi vulputate est eget leo luctus gravida. Aenean commodo a libero a feugiat. Ut ullamcorper elementum ex, quis
-    ultrices nulla congue scelerisque. Phasellus bibendum eu metus ut efficitur.
-
-    Praesent tempor ipsum ac euismod consequat. Quisque semper tortor ac magna aliquam, consectetur pretium sapien
-    suscipit. Phasellus eu augue eget massa gravida feugiat sed sit amet ipsum. Aenean condimentum aliquam sapien vel
-    suscipit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Orci varius
-    natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer scelerisque sem leo, nec bibendum
-    elit vestibulum ut. Phasellus lacinia venenatis sollicitudin.
-
-    Pellentesque molestie varius fermentum. In eu purus non lacus tincidunt lacinia. In hac habitasse platea dictumst.
-    Quisque blandit sed nulla at accumsan. Donec finibus est eros, euismod iaculis diam porttitor ac. Duis nec arcu
-    eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
+    & > * {
+      max-width: 100%;
+      max-height: calc(100vh - 200px);
+      overflow-y: scroll;
+    }
 `;

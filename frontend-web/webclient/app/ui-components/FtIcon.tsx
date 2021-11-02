@@ -1,12 +1,12 @@
 import * as React from "react";
 import styled from "styled-components";
 import {color, ColorProps, space, SpaceProps} from "styled-system";
-import {extensionType} from "UtilityFunctions";
+import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {FileIconHint} from "Files";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FileIconHint} from "@/Files";
 
 const ftColor = (fType: string): string => {
     switch (fType) {
@@ -185,7 +185,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
 };
 
 // File type icon component
-const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
+export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
     <svg
         viewBox="0 0 43 56"
         fillRule="evenodd"

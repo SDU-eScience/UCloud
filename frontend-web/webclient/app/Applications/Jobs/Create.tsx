@@ -1,37 +1,38 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import * as UCloud from "UCloud";
-import {compute} from "UCloud";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {useHistory, useRouteMatch} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import {AppHeader} from "Applications/View";
-import {Box, Button, ContainerForText, Flex, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
-import Link from "ui-components/Link";
-import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
-import * as Heading from "ui-components/Heading";
-import {FolderResource} from "Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource} from "Applications/Jobs/Resources/Ingress";
-import {PeerResource} from "Applications/Jobs/Resources/Peers";
-import {createSpaceForLoadedResources, injectResources, useResource} from "Applications/Jobs/Resources";
+import * as UCloud from "@/UCloud";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useHistory} from "react-router";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {AppHeader} from "@/Applications/View";
+import {Box, Button, ContainerForText, Grid, Icon, OutlineButton, VerticalButtonGroup} from "@/ui-components";
+import Link from "@/ui-components/Link";
+import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import * as Heading from "@/ui-components/Heading";
+import {FolderResource} from "@/Applications/Jobs/Resources/Folders";
+import {getProviderField, IngressResource} from "@/Applications/Jobs/Resources/Ingress";
+import {PeerResource} from "@/Applications/Jobs/Resources/Peers";
+import {createSpaceForLoadedResources, injectResources, useResource} from "@/Applications/Jobs/Resources";
 import {
     ReservationErrors,
     ReservationParameter,
     setReservation,
     validateReservation
-} from "Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
-import {addStandardDialog, WalletWarning} from "UtilityComponents";
-import {creditFormatter} from "Project/ProjectUsage";
-import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {FavoriteToggle} from "Applications/FavoriteToggle";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import JobSpecification = compute.JobSpecification;
-import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "DefaultObjects";
+} from "@/Applications/Jobs/Widgets/Reservation";
+import {displayErrorMessageOrDefault, extractErrorCode} from "@/UtilityFunctions";
+import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
+import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
+import LoadingIcon from "@/LoadingIcon/LoadingIcon";
+import {FavoriteToggle} from "@/Applications/FavoriteToggle";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {NetworkIPResource} from "@/Applications/Jobs/Resources/NetworkIPs";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
+import {BulkResponse, FindByStringId} from "@/UCloud";
+import {Product, usageExplainer} from "@/Accounting";
 
 interface InsufficientFunds {
     why?: string;
@@ -39,7 +40,14 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+    const history = useHistory();
+    const appName = getQueryParam(history.location.search, "app");
+    const appVersion = getQueryParam(history.location.search, "version");
+
+    if (!appName || !appVersion) {
+        history.push("/");
+        return null;
+    }
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
@@ -47,7 +55,9 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number}>({cost: 0, balance: 0});
+    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
+        cost: 0, balance: 0, product: null
+    });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -73,7 +83,6 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
-    const history = useHistory();
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
@@ -159,7 +168,7 @@ export const Create: React.FunctionComponent = () => {
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0
         ) {
-            const request: UCloud.compute.JobSpecification = {
+            const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
                 parameters: values,
@@ -171,18 +180,18 @@ export const Create: React.FunctionComponent = () => {
             };
 
             try {
-                const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
-                    UCloud.compute.jobs.create(bulkRequestOf(request)),
+                const response = await invokeCommand<BulkResponse<FindByStringId | null>>(
+                    JobsApi.create(bulkRequestOf(request)),
                     {defaultErrorHandler: false}
                 );
 
-                const ids = response?.ids;
+                const ids = response?.responses;
                 if (!ids || ids.length === 0) {
                     snackbarStore.addFailure("UCloud failed to submit the job", false);
                     return;
                 }
 
-                history.push(`/applications/jobs/${ids[0]}?app=${application.metadata.name}`);
+                history.push(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
             } catch (e) {
                 const code = extractErrorCode(e);
                 if (code === 409) {
@@ -265,22 +274,24 @@ export const Create: React.FunctionComponent = () => {
                 </Button>
 
                 <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
-                    {estimatedCost.balance === 0 ? null : (
+                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
                         <>
                             <Icon name={"grant"} />{" "}
                             Estimated cost: <br />
 
-                            {creditFormatter(estimatedCost.cost, 0)}
+                            {usageExplainer(estimatedCost.cost, estimatedCost.product.productType,
+                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
                         </>
                     )}
                 </Box>
                 <Box mt={32} color="black" textAlign="center">
-                    {estimatedCost.balance === 0 ? null : (
+                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
                         <>
                             <Icon name="grant" />{" "}
                             Current balance: <br />
 
-                            {creditFormatter(estimatedCost.balance, 0)}
+                            {usageExplainer(estimatedCost.balance, estimatedCost.product.productType,
+                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
                         </>
                     )}
                 </Box>
@@ -296,7 +307,7 @@ export const Create: React.FunctionComponent = () => {
                     <ReservationParameter
                         application={application}
                         errors={reservationErrors}
-                        onEstimatedCostChange={(cost, balance) => setEstimatedCost({cost, balance})}
+                        onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
                     />
 
                     {/* Parameters */}

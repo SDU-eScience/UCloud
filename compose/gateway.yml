@@ -5,9 +5,9 @@ services:
     volumes:
     - ${PWD}/backend/launcher/envoy-compose.yml:/envoy.yaml
     command:
-      - -c
-      - /envoy.yaml
+    - -c
+    - /envoy.yaml
     ports:
-    - 9000:9000
-    - 9901:9901
+    - ${FRONTEND_PORT:-9000}:9000
+    - ${GATEWAY_ADMIN:-9901}:9901
     hostname: gateway

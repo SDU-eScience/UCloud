@@ -1,10 +1,4 @@
-import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
-import {Acl, SortBy} from "../app/Files";
-import {dateToString} from "../app/Utilities/DateUtilities";
-import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
 import * as UF from "../app/UtilityFunctions";
-import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
-import {AccessRight} from "../app/Types";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -118,23 +112,6 @@ test("Upper 5xx range", () =>
     expect(UF.is5xxStatusCode(599)).toBe(true)
 );
 
-// Get owner from ACL
-
-const mockAcls: Acl[] = [{
-    entity: "user3@test.dk",
-    rights: [
-        AccessRight.READ
-    ]
-}];
-
-test("Get multiple owners from Acls", () =>
-    expect(UF.getMembersString(mockAcls)).toBe("Only You")
-);
-
-test("Get single owner from Acls", () =>
-    expect(UF.getMembersString([])).toBe("Only You")
-);
-
 // Get extension from path
 
 test("Get .exe extension from path", () =>
@@ -197,44 +174,8 @@ test("Extract no type from path", () =>
     expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBeNull()
 );
 
-describe("Icon from file path", () => {
-    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY").type).toBe("DIRECTORY"));
-    test("File", () => expect(UF.iconFromFilePath("home", "FILE")).toStrictEqual({name: "home", type: "FILE"}));
-    test("File with ext", () =>
-        expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", name: "home.txt", ext: "txt"}));
-    test("Jobs", () =>
-        expect(UF.iconFromFilePath("/home/user@user.dk/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
-    test("Favorites", () =>
-        expect(UF.iconFromFilePath("/home/user/Favorites", "DIRECTORY").type).toStrictEqual("FAVFOLDER"));
-    test("Shares", () =>
-        expect(UF.iconFromFilePath("/home/user/Shares", "DIRECTORY").type).toStrictEqual("SHARESFOLDER"));
-    test("Trash", () =>
-        expect(UF.iconFromFilePath("/home/user/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
-});
-
 test("To same UUID", () =>
     expect(UF.shortUUID("ABC")).toBe("ABC")
-);
-
-// Download allowed
-
-test("Download allowed", () =>
-    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(true)
-);
-
-const highSensitivityFile = newMockFile({
-    type: "FILE",
-    path: "SensitiveFile",
-    modifiedAt: new Date().getMilliseconds(),
-    acl: [],
-    ownerName: "user@user3.dk",
-    sensitivityLevel: SensitivityLevelMap.SENSITIVE,
-    favorited: false,
-    size: 128
-});
-
-test("Download disallowed", () =>
-    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
 describe("If Present", () => {
@@ -266,15 +207,4 @@ describe("Themes", () => {
         UF.setSiteTheme(true);
         expect(UF.isLightThemeStored()).toBeTruthy();
     });
-});
-
-describe("Sort by prettier string", () => {
-    test("File Type", () => expect(UF.sortByToPrettierString(SortBy.FILE_TYPE)).toBe("File Type"));
-    test("Modified at", () => expect(UF.sortByToPrettierString(SortBy.MODIFIED_AT)).toBe("Modified at"));
-    test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Filename"));
-    test("Size", () => expect(UF.sortByToPrettierString(SortBy.SIZE)).toBe("Size"));
-    test("Sensitivity", () => expect(UF.sortByToPrettierString(SortBy.SENSITIVITY_LEVEL)).toBe("File sensitivity"));
-    test("default_example", () =>
-        expect(UF.sortByToPrettierString("default_example" as SortBy)).toBe("Default example")
-    );
 });

@@ -1,20 +1,21 @@
-import {KeyCode} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
+import {KeyCode} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import Input from "ui-components/Input";
+} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import Input from "@/ui-components/Input";
 import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
-import {Client} from "Authentication/HttpClientInstance";
-import {Spacer} from "ui-components/Spacer";
-import {ErrorWrapper} from "ui-components/Error";
-import {ThemeColor} from "ui-components/theme";
-import {stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Spacer} from "@/ui-components/Spacer";
+import {ErrorWrapper} from "@/ui-components/Error";
+import {ThemeColor} from "@/ui-components/theme";
+import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 
 interface StandardDialog {
     title?: string;
@@ -29,20 +30,18 @@ interface StandardDialog {
     cancelButtonColor?: ThemeColor;
 }
 
-export function addStandardDialog(
-    {
-        title,
-        message,
-        onConfirm,
-        onCancel = () => undefined,
-        validator = () => true,
-        cancelText = "Cancel",
-        confirmText = "Confirm",
-        addToFront = false,
-        cancelButtonColor = "red",
-        confirmButtonColor = "green"
-    }: StandardDialog
-): void {
+export function addStandardDialog({
+    title,
+    message,
+    onConfirm,
+    onCancel = () => undefined,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Confirm",
+    addToFront = false,
+    cancelButtonColor = "red",
+    confirmButtonColor = "green"
+}: StandardDialog): void {
     const validate = (): void => {
         if (validator()) onConfirm();
         dialogStore.success();
@@ -81,20 +80,18 @@ interface InputDialog {
     width?: string;
 }
 
-export async function addStandardInputDialog(
-    {
-        title,
-        help,
-        validator = () => true,
-        cancelText = "Cancel",
-        confirmText = "Submit",
-        addToFront = false,
-        placeholder = "",
-        validationFailureMessage = "error",
-        type = "input",
-        width = "300px",
-    }: InputDialog
-): Promise<{result: string}> {
+export async function addStandardInputDialog({
+    title,
+    help,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Submit",
+    addToFront = false,
+    placeholder = "",
+    validationFailureMessage = "error",
+    type = "input",
+    width = "300px",
+}: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
         <div>
             <div>
@@ -130,6 +127,7 @@ interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
     height?: number | string;
+    showCancelButton?: boolean;
 
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
 
@@ -141,17 +139,21 @@ export const ConfirmCancelButtons = ({
     cancelText = "Cancel",
     onConfirm,
     onCancel,
-    height
+    height,
+    showCancelButton
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
         <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+        {showCancelButton === false ? null :
+            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>}
     </ButtonGroup>
 );
 
 export const NamingField: React.FunctionComponent<{
     onCancel: () => void;
     confirmText: string;
+    prefix?: string | null;
+    suffix?: string | null;
     inputRef: React.MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
     defaultValue?: string;
@@ -169,14 +171,24 @@ export const NamingField: React.FunctionComponent<{
 
     return (
         <form onSubmit={submit}>
-            <Flex>
+            <Flex onClick={stopPropagationAndPreventDefault}>
+                <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
+                    <ConfirmCancelButtons
+                        confirmText={props.confirmText}
+                        cancelText="Cancel"
+                        onConfirm={submit}
+                        onCancel={props.onCancel}
+                    />
+                </div>
+                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
                     pr="0px"
                     pl="0px"
+                    ml="8px"
                     noBorder
-                    defaultValue={props.defaultValue ? props.defaultValue : ""}
+                    defaultValue={props.defaultValue ?? ""}
                     fontSize={20}
                     maxLength={1024}
                     onKeyDown={keyDown}
@@ -186,14 +198,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                <div onClick={stopPropagationAndPreventDefault} style={{transform: "translateY(2px)", marginBottom: "2px"}}>
-                    <ConfirmCancelButtons
-                        confirmText={props.confirmText}
-                        cancelText="Cancel"
-                        onConfirm={submit}
-                        onCancel={props.onCancel}
-                    />
-                </div>
+                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );
@@ -400,3 +405,33 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
             return <></>;
     }
 }
+
+export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"}): JSX.Element {
+    switch (sensitivity) {
+        case "CONFIDENTIAL":
+            return <SensitivityBadge bg={getCssVar("purple")}>
+                C
+            </SensitivityBadge>
+        case "SENSITIVE":
+            return <SensitivityBadge bg={"#ff0004"}>
+                S
+            </SensitivityBadge>
+        case "PRIVATE":
+        default:
+            return <SensitivityBadge bg={getCssVar("midGray")}>
+                P
+            </SensitivityBadge>;
+    }
+}
+
+const SensitivityBadge = styled.div<{bg: string}>`
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    margin-right: 5px;
+    align-items: center;
+    justify-content: center;
+    border: 0.2em solid ${props => props.bg};
+    border-radius: 100%;
+`;

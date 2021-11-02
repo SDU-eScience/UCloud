@@ -1,5 +1,5 @@
 import * as React from "react";
-import {HairColor as Color} from "UserSettings/AvatarOptions";
+import {HairColor as Color} from "@/UserSettings/AvatarOptions";
 
 export interface Props {
     maskID: string;
@@ -40,6 +40,7 @@ const Red = makeColor("Red", "#C93305");
 const SilverGray = makeColor("SilverGray", "#E8E1E1");
 
 export default function HairColor(props: Props): JSX.Element {
+    console.log(props);
     switch (props.optionValue) {
         case Color.Auburn:
             return <Auburn maskID={props.maskID} />;

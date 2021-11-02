@@ -99,10 +99,9 @@ fun runInstaller(configDir: File) {
 
         val cephFs = File("/mnt/cephfs")
         if (cephFs.exists()) {
-            File(cephFs, "home").mkdir()
-            File(cephFs, "projects").mkdir()
-            File(cephFs, "home/user").mkdir() // TODO Temporary
-            File(cephFs, "home/user/Jobs").mkdir() // TODO Temporary
+            File(cephFs, "projects").mkdirs()
+            File(cephFs, "home").mkdirs()
+            File(cephFs, "collections").mkdirs()
         }
 
         routing {
@@ -272,7 +271,7 @@ fun runInstaller(configDir: File) {
 
                             micro.databaseConfig.migrateAll()
 
-                            val db = AsyncDBSessionFactory(micro.databaseConfig)
+                            val db = AsyncDBSessionFactory(micro)
                             runBlocking {
                                 try {
                                     db.withTransaction { session ->
@@ -282,12 +281,13 @@ fun runInstaller(configDir: File) {
                                                     (dtype, id, created_at, modified_at, role, first_names, last_name, 
                                                     orc_id,phone_number, title, hashed_password, salt, org_id, email)
                                                 values
-                                                    ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev',
+                                                    ('PASSWORD', 'admin@dev', now(), now(), 'SERVICE', 'Admin', 'Dev',
                                                     null, null, null, E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev')
                                             """
                                         )
 
                                         session.sendPreparedStatement(
+                                            //language=sql
                                             """
                                                 insert into auth.refresh_tokens
                                                     (token, associated_user_id, csrf, public_session_reference, 

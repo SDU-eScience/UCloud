@@ -1,24 +1,22 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Card} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown} from "ui-components/Dropdown";
-import {TextSpan} from "ui-components/Text";
-import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {Instructions} from "WebDav/Instructions";
-import CONF from "../../site.config.json";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
+import {TextSpan} from "@/ui-components/Text";
+import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "@/Utilities/URIUtilities";
+import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
-import * as Heading from "ui-components/Heading";
 
-const bg2 = require("Assets/Images/bg2.svg");
-const wayfLogo = require("Assets/Images/WAYFLogo.svg");
-const aarhusu_logo = require("Assets/Images/aarhusu_logo.png")
-const aalborgu_logo = require("Assets/Images/aalborgu_logo.png")
+import bg2 from "@/Assets/Images/bg2.svg";
+import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
+import aarhusu_logo from "@/Assets/Images/aarhusu_logo.png";
+import aalborgu_logo from "@/Assets/Images/aalborgu_logo.png";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
@@ -32,7 +30,6 @@ const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
-    const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -49,16 +46,11 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
         }
     }, []);
 
-    const isWebDav = getQueryParamOrElse(props, "dav", "false") === "true";
     const isPasswordReset = getQueryParamOrElse(props, "password-reset", "false") === "true";
-    const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
+    const service = inDevEnvironment ? "dev-web" : "web";
     const resetToken = getQueryParam(props, "token");
 
-    if (webDavInstructionToken !== null) {
-        return <Instructions token={webDavInstructionToken} />;
-    }
-
-    if (Client.isLoggedIn && !isWebDav) {
+    if (Client.isLoggedIn) {
         props.history.push("/");
         return <div />;
     }
@@ -168,12 +160,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
 
     function handleCompleteLogin(result: any): void {
-        if (isWebDav) {
-            setWebDavToken(result.refreshToken);
-        } else {
-            Client.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginSuccess");
-        }
+        Client.setTokens(result.accessToken, result.csrfToken);
+        props.history.push("/loginSuccess");
     }
 
     function handleAuthState(result: any): void {
@@ -244,18 +232,10 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
         );
     }
 
-
-
     return (
         <LoginWrapper>
-            <Flex mr="45px">
+            <Flex>
                 <LoginBox width="315px">
-
-                    {!isWebDav ? null : (
-                        <LoginBox mb={32}>
-                            You must re-authenticate with {CONF.PRODUCT_NAME} to use your files locally.
-                        </LoginBox>
-                    )}
                     {enabledWayf && !challengeId && !isPasswordReset ? (
                         <a href={`/auth/saml/login?service=${service}`}>
                             <Button mb="8px" disabled={loading} fullWidth color="wayfGreen">
@@ -527,7 +507,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
     return (<>
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
-                {!CONF.SUPPORT_EMAIL ? null : (
+                {!SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="224px"
                         top="36px"
@@ -535,14 +515,14 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                         colorOnHover={false}
                         trigger={<LoginIcon mr={"1em"} name="suggestion" />}
                     >
-                        <ExternalLink href={`mailto:${CONF.SUPPORT_EMAIL}`}>
+                        <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
-                                    {" "}<b>{CONF.SUPPORT_EMAIL}</b>
+                                    {" "}<b>{SUPPORT_EMAIL}</b>
                         </ExternalLink>
                     </ClickableDropdown>
                 )}
-                {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                    <LoginExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                {!SITE_DOCUMENTATION_URL ? null : (
+                    <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
                         <LoginIcon name="docs" /> Docs
                     </LoginExternalLink>
                 )}
@@ -551,10 +531,9 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         <Absolute top="4vw" left="8vw">
             <LoginBox width={"calc(96px + 10vw)"}>
                 <LoginIcon name={"deiCLogo"} size="100%" />
-                <Text textAlign="center" fontSize={"3vw"}>Type 1</Text>
+                <Text textAlign="center" fontSize={"1.6vw"}>Interactive HPC</Text>
             </LoginBox>
         </Absolute>
-
 
         <Absolute style={{overflow: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />
@@ -572,44 +551,5 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </BackgroundImage>
     </>);
 }
-
-export function LoginSelection(): JSX.Element {
-    return (
-        <LoginWrapper selection>
-            <Flex justifyContent="center">
-                <CenteredGrid>
-                    {CONF.LOGIN_PAGE_PRODUCTS.map(product => (
-                        <Card
-                            key={product.name}
-                            width={1}
-                            height={"110px"}
-                            maxWidth="345px"
-                            backgroundColor="#1a62ca"
-                            boxShadow="sm"
-                            borderWidth={0}
-                            borderRadius={6}
-                        >
-                            <Flex alignItems="center" justifyContent="center" color="#fff" my="8px"><Heading.h4>{product.name}</Heading.h4></Flex>
-                            <Flex justifyContent="center">
-                                <a href={product.site}>
-                                    <Button mb="8px" width="300px" color="green">
-                                        <LoginTextSpan>Login</LoginTextSpan>
-                                    </Button>
-                                </a>
-                            </Flex>
-                        </Card>
-                    ))}
-                </CenteredGrid>
-            </Flex>
-        </LoginWrapper >
-    );
-}
-
-const CenteredGrid = styled.div`
-    display: inline-grid;
-    grid-template-columns: 345px 345px;
-    grid-template-rows: 110px;
-    grid-gap: 16px;
-`;
 
 export default LoginPage;

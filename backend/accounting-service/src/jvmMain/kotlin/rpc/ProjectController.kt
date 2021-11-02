@@ -205,7 +205,7 @@ class ProjectController(
             ok(
                 queries.listSubProjects(
                     db,
-                    request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor()),
+                    request,
                     ctx.securityPrincipal.toActor(),
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )

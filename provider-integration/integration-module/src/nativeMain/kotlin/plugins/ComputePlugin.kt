@@ -7,15 +7,19 @@ import io.ktor.http.*
 interface ComputePlugin : Plugin {
     fun PluginContext.retrieveSupport(): ComputeSupport
 
+    /*
     fun PluginContext.createBulk(request: JobsProviderCreateRequest): Unit {
         request.items.forEach { create(it) }
     }
+     */
 
     fun PluginContext.create(job: Job)
 
+    /*
     fun PluginContext.deleteBulk(request: JobsProviderDeleteRequest) {
         request.items.forEach { delete(it) }
     }
+     */
 
     fun PluginContext.delete(job: Job)
 

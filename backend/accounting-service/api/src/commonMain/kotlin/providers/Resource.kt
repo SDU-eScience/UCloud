@@ -1,18 +1,64 @@
 package dk.sdu.cloud.provider.api
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.accounting.api.providers.ProductSupport
+import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.api.providers.SupportByProvider
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
+interface ResourceIncludeFlags {
+    val includeOthers: Boolean
+    val includeUpdates: Boolean
+    val includeSupport: Boolean
+
+    @UCloudApiDoc("Includes `specification.resolvedProduct`")
+    val includeProduct: Boolean
+
+    val filterCreatedBy: String?
+    val filterCreatedAfter: Long?
+    val filterCreatedBefore: Long?
+    val filterProvider: String?
+    val filterProductId: String?
+    val filterProductCategory: String?
+
+    @UCloudApiDoc("Filters by the provider ID. The value is comma-separated.")
+    val filterProviderIds: String?
+
+    @UCloudApiDoc("Filters by the resource ID. The value is comma-separated.")
+    val filterIds: String?
+}
+
+@Serializable
+@UCloudApiOwnedBy(Resources::class)
+data class SimpleResourceIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
+) : ResourceIncludeFlags
+
+@UCloudApiDoc(
+    """Contains information related to the accounting/billing of a `Resource`
 
 Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
 the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-to be charged a different price than newly launched products.""")
+to be charged a different price than newly launched products."""
+)
 interface ResourceBilling {
     @UCloudApiDoc("The price per unit. This can differ from current price of `Product`")
     val pricePerUnit: Long
+
     @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
     val creditsCharged: Long
 
@@ -24,27 +70,27 @@ interface ResourceBilling {
 }
 
 @UCloudApiDoc("The owner of a `Resource`")
-interface ResourceOwner {
-    val createdBy: String
-    val project: String?
-}
-
 @Serializable
-data class SimpleResourceOwner(
-    override val createdBy: String,
-    override val project: String?,
-) : ResourceOwner
+data class ResourceOwner(
+    val createdBy: String,
+    val project: String?,
+) : DocVisualizable {
+    override fun visualize(): DocVisualization {
+        return if (project != null) {
+            DocVisualization.Inline("$createdBy in $project")
+        } else {
+            DocVisualization.Inline(createdBy)
+        }
+    }
+}
 
 interface ResourceSpecification {
-    @UCloudApiDoc("""A reference to the product which backs this `Resource`
-
-All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
-consume the backing `Product` should simply have a `pricePerUnit` of 0.""")
-    val product: ProductReference?
-
+    @UCloudApiDoc("""A reference to the product which backs this `Resource`""")
+    val product: ProductReference
 }
 
-@UCloudApiDoc("""Describes an update to the `Resource`
+@UCloudApiDoc(
+    """Describes an update to the `Resource`
 
 Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
 The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
@@ -55,18 +101,30 @@ An update will typically contain information similar to the `status` field, for 
 - A state value. For example, a compute `Job` might be `RUNNING`.
 - Change in key metrics.
 - Bindings to related `Resource`s.
-""")
+"""
+)
+@UCloudApiOwnedBy(Resources::class)
 interface ResourceUpdate {
     @UCloudApiDoc("A timestamp referencing when UCloud received this update")
     val timestamp: Long
+
     @UCloudApiDoc("A generic text message describing the current status of the `Resource`")
     val status: String?
 }
 
 @Serializable
-open class ResourceAclEntry<Permission>(val entity: AclEntity, val permissions: List<Permission>)
+@UCloudApiOwnedBy(Resources::class)
+data class ResourceUpdateAndId<U : ResourceUpdate>(
+    val id: String,
+    val update: U
+)
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
+open class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
+
+@Serializable
+@UCloudApiOwnedBy(Resources::class)
 sealed class AclEntity {
     @Serializable
     @SerialName("project_group")
@@ -80,7 +138,8 @@ sealed class AclEntity {
     data class User(val username: String) : AclEntity()
 }
 
-@UCloudApiDoc("""Describes the current state of the `Resource`
+@UCloudApiDoc(
+    """Describes the current state of the `Resource`
 
 The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
 this will contain information such as:
@@ -89,30 +148,30 @@ this will contain information such as:
 - Key metrics about the resource.
 - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
   should be listed in the `status` section.
-""")
-interface ResourceStatus
+"""
+)
+interface ResourceStatus<P : Product, Support : ProductSupport> {
+    var resolvedSupport: ResolvedSupport<P, Support>?
 
-@UCloudApiDoc("""A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+    @UCloudApiDoc(
+        "The resolved product referenced by `product`.\n\n" +
+            "This attribute is not included by default unless `includeProduct` is specified."
+    )
+    var resolvedProduct: P?
+}
 
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
+@UCloudApiDoc(
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.
 
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
+"""
+)
+interface Resource<P : Product, Support : ProductSupport> : DocVisualizable {
+    @UCloudApiDoc(
+        """A unique identifier referencing the `Resource`
 
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
-""")
-interface Resource<Permission> {
-    @UCloudApiDoc("""A unique identifier referencing the `Resource`
-
-The ID is unique across a provider for a single resource type.""")
+The ID is unique across a provider for a single resource type."""
+    )
     val id: String
 
     val specification: ResourceSpecification
@@ -123,16 +182,19 @@ The ID is unique across a provider for a single resource type.""")
     val createdAt: Long
 
     @UCloudApiDoc("Holds the current status of the `Resource`")
-    val status: ResourceStatus
+    val status: ResourceStatus<P, Support>
 
-    @UCloudApiDoc("""Contains a list of updates from the provider as well as UCloud
+    @UCloudApiDoc(
+        """Contains a list of updates from the provider as well as UCloud
 
 Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-resource.""")
+resource."""
+    )
     val updates: List<ResourceUpdate>
 
     // ---
     @UCloudApiDoc("Contains information related to billing information for this `Resource`")
+    @Deprecated("Going away")
     val billing: ResourceBilling
 
     // ---
@@ -142,9 +204,38 @@ resource.""")
 
     @UCloudApiDoc("An ACL for this `Resource`")
     @Deprecated("Replace with permissions")
-    val acl: List<ResourceAclEntry<Permission>>?
+    val acl: List<ResourceAclEntry>?
 
-    @UCloudApiDoc("Permissions assigned to this resource\n\n" +
-        "A null value indicates that permissions are not supported by this resource type.")
+    @UCloudApiDoc(
+        "Permissions assigned to this resource\n\n" +
+            "A null value indicates that permissions are not supported by this resource type."
+    )
     val permissions: ResourcePermissions?
+
+    val providerGeneratedId: String? get() = id
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun visualize(): DocVisualization {
+        return DocVisualization.Card(
+            "$id (${this::class.simpleName})",
+            buildList {
+                if (providerGeneratedId != null && providerGeneratedId != id) {
+                    add(DocStatLine.of("providerGeneratedId" to visualizeValue(providerGeneratedId)))
+                }
+
+                add(DocStatLine.of("owner" to visualizeValue(owner)))
+                add(DocStatLine.of("createdAt" to visualizeValue(createdAt)))
+                add(DocStatLine.of("specification" to visualizeValue(specification)))
+                if (updates.isNotEmpty()) {
+                    add(DocStatLine.of("updates" to visualizeValue(updates)))
+                }
+                if (permissions != null) {
+                    add(DocStatLine.of("permissions" to visualizeValue(permissions)))
+                }
+
+                add(DocStatLine.of("status" to visualizeValue(status)))
+            },
+            emptyList()
+        )
+    }
 }

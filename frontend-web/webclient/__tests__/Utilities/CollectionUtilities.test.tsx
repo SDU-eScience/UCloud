@@ -1,19 +1,5 @@
 import * as CollUtils from "../../app/Utilities/CollectionUtilities";
 
-describe("setsDiffer", () => {
-    test("Equal", () => {
-        expect(CollUtils.setsDiffer(new Set([1, 2, 3, 4]), new Set([1, 3, 2, 4]))).toBe(false);
-    });
-
-    test("Different sizes", () => {
-        expect(CollUtils.setsDiffer(new Set([1, 2, 3, 4]), new Set([1, 2, 3]))).toBe(true);
-    });
-
-    test("Different content", () => {
-        expect(CollUtils.setsDiffer(new Set([1, 2, 3, 4]), new Set([1, 2, 4, 5]))).toBe(true);
-    });
-});
-
 test("groupBy", () => {
     const values = ["a", "aa", "aaa", "b", "bb", "c"];
     const groupedBy = CollUtils.groupBy(values, it => `${it.length}`);

@@ -3,17 +3,15 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.NormalizedPaginationRequestV2
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -238,33 +236,64 @@ class AppStoreAsyncDao(
     }
 
     suspend fun findBySupportedFileExtension(
-        ctx: DBContext,
+        db: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
+        request: NormalizedPaginationRequestV2,
         fileExtensions: Set<String>
-    ): List<ApplicationWithExtension> {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("user", user.username)
-                        setParameter("ext", fileExtensions.toList())
-                    },
-                    """
-                        SELECT *
-                            FROM favorited_by as F,
-                            applications as A
-                        WHERE F.the_user = :user
-                            AND F.application_name = A.name
-                            AND F.application_version = A.version
-                            AND (A.application -> 'applicationType' = '"WEB"' OR A.application -> 'applicationType' = '"VNC"') 
-                            AND (A.application -> 'fileExtensions' ??| :ext::text[])
-                    """
-                )
-                .rows
-                .toList()
-                .filter { rowData ->
+    ): PageV2<ApplicationWithExtension> {
+        return db.paginateV2(
+            Actor.User(user),
+            request,
+            create = { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("user", user.username)
+                            setParameter("ext", fileExtensions.toList())
+                            setParameter("current_project", currentProject)
+                            setParameter("project_groups", projectGroups)
+                        },
+                        """
+                            declare c cursor for
+                            with
+                                project_info as (
+                                    select :current_project current_project,
+                                           unnest(:project_groups::text[]) as project_group
+                                ),
+                                most_recent_applications as (
+                                    select apps_with_rno.*
+                                    from (
+                                        select
+                                            a.*,
+                                            row_number() over (
+                                                partition by created_at
+                                                order by created_at desc
+                                            ) as rno
+                                        from
+                                            app_store.applications a left join
+                                            app_store.permissions p on a.name = p.application_name left join
+                                            project_info pinfo
+                                                on p.project = pinfo.current_project and p.project_group = pinfo.project_group
+                                        where
+                                            a.is_public = true or
+                                            p.permission is distinct from null
+                                    ) apps_with_rno
+                                    where rno <= 1
+                                )
+                            select a.*
+                            from
+                                most_recent_applications a
+                            where
+                                (a.application -> 'fileExtensions' ??| :ext::text[])
+
+                            order by a.title
+                        """,
+                    )
+            },
+            mapper = { _, rows ->
+                rows.filter { rowData ->
                     defaultMapper.decodeFromString<ApplicationInvocationDescription>(
                         rowData.getField(ApplicationTable.application)
                     ).parameters.all { it.optional }
@@ -277,7 +306,8 @@ class AppStoreAsyncDao(
                         ).fileExtensions
                     )
                 }
-        }
+            }
+        )
     }
 
     suspend fun findByNameAndVersionForUser(

@@ -1,4 +1,5 @@
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -39,8 +40,7 @@ export interface GrantRecipientNew {
 export interface ResourceRequest {
     productCategory: string;
     productProvider: string;
-    creditsRequested?: number;
-    quotaRequested?: number;
+    balanceRequested?: number;
 }
 
 export enum GrantApplicationStatus {
@@ -80,6 +80,7 @@ export interface GrantApplication {
     updatedAt: number;
     createdAt: number;
     statusChangedBy?: string;
+    referenceId?: string;
 }
 
 export type SubmitGrantApplicationRequest = CreateGrantApplication;
@@ -173,6 +174,23 @@ export function editGrantApplication(
         payload: request,
         reloadId: Math.random()
     };
+}
+
+export interface EditReferenceIDRequest {
+    id: number;
+    newReferenceId?: string
+}
+
+export function editReferenceId(
+    request:EditReferenceIDRequest
+): APICallParameters<EditReferenceIDRequest> {
+    return {
+        method: "POST",
+        path: "/grant/editReference",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    }
 }
 
 export interface ApproveGrantApplicationRequest {
@@ -273,10 +291,10 @@ export function grantApplicationFilterPrettify(filter: GrantApplicationFilter): 
     }
 }
 
-export interface IngoingGrantApplicationsRequest extends PaginationRequest {
+export interface IngoingGrantApplicationsRequest extends PaginationRequestV2 {
     filter?: GrantApplicationFilter;
 }
-export type IngoingGrantApplicationsResponse = Page<GrantApplication>;
+export type IngoingGrantApplicationsResponse = PageV2<GrantApplication>;
 
 export function ingoingGrantApplications(
     request: IngoingGrantApplicationsRequest
@@ -436,7 +454,7 @@ export function transferApplication(request: TransferApplicationRequest): APICal
     };
 }
 
-export interface ListOutgoingApplications extends PaginationRequest {
+export interface ListOutgoingApplications extends PaginationRequestV2 {
     filter?: GrantApplicationFilter;
 }
 

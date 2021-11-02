@@ -1,38 +1,20 @@
 import theme from "./theme";
-import {device} from "ui-components/Hide";
+import {device} from "@/ui-components/Hide";
 
-const useInter = localStorage.getItem("inter") !== null;
-
-const fontLight = require("Assets/IBMPlexSans-Light.ttf");
-const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
-const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
-const inter = require("Assets/Inter.ttf");
+import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
+import inter from "@/Assets/Inter.woff";
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
+        
         @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontLight}');
+            font-family: 'Inter';
+            src: url('${inter}');
             font-display: swap;
-        }
-
-        ${useInter ?
-            `@font-face {
-                font-family: 'Inter';
-                src: url('${inter}');
-                font-display: swap;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }`
-            :
-            `@font-face {
-                font-family: 'IBM Plex Sans';
-                src: url('${fontRegular}');
-                font-weight: 400;
-                font-display: swap;
-            }`
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         @font-face {
@@ -821,6 +803,45 @@ textarea,
 .ReactModal__Overlay {
     z-index: 100;
     height: auto;
-}`;
+}
+
+div.tooltip-content {
+    box-shadow: ${theme.shadows.sm};
+    position: absolute;
+    margin-left: 50px;
+    padding: 5px 5px 5px 5px;
+    width: 350px;
+    height: auto;
+    display: none;
+    color: var(--black);
+    background-color: var(--white);
+}
+
+div.tooltip-content.centered {
+    justify-content: center;
+
+    .user-box {
+        .centered {
+            display: flex;
+            justify-content: center;
+        }
+    }
+    
+    .product-box {
+        margin-left: 2px;
+        text-align: left;
+        span {
+            word-break: keep-all;
+        }
+    }   
+}
+
+div.tooltip:hover {
+    div.tooltip-content {
+        display: flex;
+    }
+}
+
+`;
 
 export default UIGlobalStyle;

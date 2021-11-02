@@ -1,8 +1,8 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, useFrameHidden} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -14,8 +14,10 @@ import RBox from "./RBox";
 import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
-import {useEffect} from "react";
-import {setActivePage} from "Navigation/Redux/StatusActions";
+import {useCallback, useEffect} from "react";
+import {setActivePage} from "@/Navigation/Redux/StatusActions";
+import {ProjectRole, useProjectId, UserInProject, viewProject} from "@/Project";
+import {useGlobalCloudAPI} from "@/Authentication/DataHook";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -98,11 +100,11 @@ export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "24", space = "22px", textSize = 3, hover = true
 }: TextLabelProps): JSX.Element => (
-        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
-            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-            <Text fontSize={textSize}> {children} </Text>
-        </SidebarElementContainer>
-    );
+    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
+        <Text fontSize={textSize}> {children} </Text>
+    </SidebarElementContainer>
+);
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
@@ -130,7 +132,7 @@ interface SidebarElement {
 }
 
 const SidebarElement = ({icon, label, to, activePage}: SidebarElement): JSX.Element => (
-    <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
+    <SidebarLink to={to} active={enumToLabel(activePage) === label}>
         <SidebarTextLabel icon={icon}>{label}</SidebarTextLabel>
     </SidebarLink>
 );
@@ -153,6 +155,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Activity";
         case SidebarPages.Admin:
             return "Admin";
+        case SidebarPages.Resources:
+            return "Resources";
         default:
             return "";
     }
@@ -181,18 +185,19 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/login"},
             {icon: "projects", label: "Projects", to: "/login"},
             {icon: "apps", label: "Apps", to: "/login"}
-        ], predicate: (): boolean => !Client.isLoggedIn
+        ], predicate: () => !Client.isLoggedIn
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/files/"},
-            {icon: "projects", label: "Projects", to: "/projects", show: (): boolean => Client.hasActiveProject},
-            {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
+            {icon: "files", label: "Files", to: "/drives"},
+            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
+            {icon: "dashboard", label: "Resources", to: "/public-ips"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
-            {icon: "results", label: "Runs", to: "/applications/results/"}
-        ], predicate: (): boolean => Client.isLoggedIn
+            {icon: "results", label: "Runs", to: "/jobs"}
+        ], predicate: () => Client.isLoggedIn
     },
-    auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
+    auditing: {items: [], predicate: () => Client.isLoggedIn},
     admin: {items: [{icon: "admin", label: "Admin", to: "/admin"}], predicate: () => Client.userIsAdmin}
 };
 
@@ -203,13 +208,39 @@ interface SidebarStateProps {
 }
 
 interface SidebarProps extends SidebarStateProps {
-    sideBarEntries?: any;
+    sideBarEntries?: typeof sideBarMenuElements;
 }
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
     if (!loggedIn) return null;
 
     if (useFrameHidden()) return null;
+
+    const projectId = useProjectId();
+    const [projectDetails, fetchProjectDetails] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
+    );
+
+    useEffect(() => {
+        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId]);
+
+    const projectPath = joinToString(
+        [...(projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectDetails.data.title],
+        "/"
+    );
+    const copyProjectPath = useCallback(() => {
+        copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
+    }, [projectPath]);
 
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
@@ -234,6 +265,43 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {inDevEnvironment() || onDevSite() ? <>
+                <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
+                    <Box
+                        cursor={"pointer"}
+                        onClick={() => {
+                            window.open(
+                                "/debugger?hide-frame",
+                                undefined,
+                                "width=1000,height=1000,status=no"
+                            );
+                        }}
+                    >
+                        Open debugger
+                    </Box>
+                </SidebarTextLabel>
+            </> : null}
+            {!projectId ? null : <>
+                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
+                    title={projectPath}>
+                    <Tooltip
+                        left="-50%"
+                        top="1"
+                        mb="35px"
+                        trigger={(
+                            <EllipsedText
+                                cursor="pointer"
+                                onClick={copyProjectPath}
+                                width="140px"
+                            >
+                                {projectPath}
+                            </EllipsedText>
+                        )}
+                    >
+                        Click to copy to clipboard
+                    </Tooltip>
+                </SidebarTextLabel>
+            </>}
             {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"
@@ -303,6 +371,7 @@ export const enum SidebarPages {
     Shares,
     Projects,
     AppStore,
+    Resources,
     Runs,
     Publish,
     Activity,
@@ -317,7 +386,7 @@ export function useSidebarPage(page: SidebarPages): void {
         return () => {
             dispatch(setActivePage(SidebarPages.None));
         };
-    });
+    }, [page]);
 }
 
-export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);
+export default connect(mapStateToProps)(Sidebar);

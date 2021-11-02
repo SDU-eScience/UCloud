@@ -87,8 +87,8 @@ class HttpCallQueryParamsBuilder<R : Any> internal constructor() {
         return HttpQueryParameter.Property(property.name)
     }
 
-    fun boundTo(property: String): HttpQueryParameter.Property<R> {
-        return HttpQueryParameter.Property(property)
+    fun boundTo(property: String, nestedInside: String? = null): HttpQueryParameter.Property<R> {
+        return HttpQueryParameter.Property(property, nestedInside)
     }
 
     fun build(): HttpParams<R> = HttpParams(params)

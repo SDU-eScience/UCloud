@@ -1,45 +1,130 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.ResourcePermissions
+import dk.sdu.cloud.provider.api.ResourceUpdate
+import kotlinx.serialization.Serializable
 
 // ---
 
-typealias FilesProviderBrowseRequest = ProxiedRequest<FilesBrowseRequest>
-typealias FilesProviderBrowseResponse = FilesBrowseResponse
+@Serializable
+@UCloudApiDoc("A partial UFile returned by providers and made complete by UCloud/Core")
+data class PartialUFile(
+    @UCloudApiDoc("The id of the file. Corresponds to UFile.id")
+    val id: String,
+    @UCloudApiDoc("The status of the file. Corresponds to UFile.status")
+    val status: UFileStatus,
+    @UCloudApiDoc("The creation timestamp. Corresponds to UFile.createdAt")
+    val createdAt: Long,
+    @UCloudApiDoc("The owner of the file. Corresponds to UFile.owner. This will default to the collection's owner.")
+    val owner: ResourceOwner? = null,
+    @UCloudApiDoc("The permissions of the file. Corresponds to UFile.permissions." +
+        "This will default to the collection's permissions.")
+    val permissions: ResourcePermissions? = null,
+)
 
-typealias FilesProviderRetrieveRequest = ProxiedRequest<FilesRetrieveRequest>
-typealias FilesProviderRetrieveResponse = FilesRetrieveResponse
+@Serializable
+data class FilesProviderBrowseRequest(
+    val resolvedCollection: FileCollection,
+    val browse: ResourceBrowseRequest<UFileIncludeFlags>
+)
+typealias FilesProviderBrowseResponse = PageV2<PartialUFile>
 
-typealias FilesProviderMoveRequest = ProxiedRequest<FilesMoveRequest>
+@Serializable
+data class FilesProviderRetrieveRequest(
+    val resolvedCollection: FileCollection,
+    val retrieve: ResourceRetrieveRequest<UFileIncludeFlags>
+)
+typealias FilesProviderRetrieveResponse = PartialUFile
+
+@Serializable
+data class FilesProviderMoveRequestItem(
+    val resolvedOldCollection: FileCollection,
+    val resolvedNewCollection: FileCollection,
+    override val oldId: String,
+    override val newId: String,
+    override val conflictPolicy: WriteConflictPolicy,
+) : WithPathMoving, WithConflictPolicy
 typealias FilesProviderMoveResponse = FilesMoveResponse
 
-typealias FilesProviderCopyRequest = ProxiedRequest<FilesCopyRequest>
+@Serializable
+data class FilesProviderCopyRequestItem(
+    val resolvedOldCollection: FileCollection,
+    val resolvedNewCollection: FileCollection,
+    override val oldId: String,
+    override val newId: String,
+    override val conflictPolicy: WriteConflictPolicy
+) : WithPathMoving, WithConflictPolicy
 typealias FilesProviderCopyResponse = FilesCopyResponse
 
-typealias FilesProviderDeleteRequest = ProxiedRequest<FilesDeleteRequest>
+@Serializable
+data class FilesProviderDeleteRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String
+) : WithPath
 typealias FilesProviderDeleteResponse = FilesDeleteResponse
 
-typealias FilesProviderCreateFolderRequest = ProxiedRequest<FilesCreateFolderRequest>
+@Serializable
+data class FilesProviderCreateFolderRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String,
+    override val conflictPolicy: WriteConflictPolicy,
+) : WithPath, WithConflictPolicy
 typealias FilesProviderCreateFolderResponse = FilesCreateFolderResponse
 
-typealias FilesProviderUpdateAclRequest = ProxiedRequest<FilesUpdateAclRequest>
+@Serializable
+data class FilesProviderUpdateAclRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String,
+    val newAcl: List<ResourceAclEntry>
+) : WithPath
 typealias FilesProviderUpdateAclResponse = FilesUpdateAclResponse
 
-typealias FilesProviderTrashRequest = ProxiedRequest<FilesTrashRequest>
+@Serializable
+data class FilesProviderTrashRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String
+) : WithPath
 typealias FilesProviderTrashResponse = FilesTrashResponse
 
-typealias FilesProviderCreateDownloadRequest = ProxiedRequest<FilesCreateDownloadRequest>
+@Serializable
+data class FilesProviderEmptyTrashRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String
+) : WithPath
+typealias FilesProviderEmptyTrashResponse = FilesTrashResponse
+
+
+@Serializable
+data class FilesProviderCreateDownloadRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String
+) : WithPath
 typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 
-typealias FilesProviderCreateUploadRequest = ProxiedRequest<FilesCreateUploadRequest>
+@Serializable
+data class FilesProviderCreateUploadRequestItem(
+    val resolvedCollection: FileCollection,
+    override val id: String,
+    val supportedProtocols: List<UploadProtocol>,
+    val conflictPolicy: WriteConflictPolicy,
+) : WithPath
 typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 // ---
 
-open class FilesProvider(namespace: String) : CallDescriptionContainer("files.provider.$namespace") {
-    val baseContext = "/ucloud/$namespace/files"
+open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, ResourceUpdate,
+    UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
+    override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
+        UFileStatus, Product.Storage, FSSupport>()
 
     val browse = call<FilesProviderBrowseRequest, FilesProviderBrowseResponse, CommonErrorMessage>("browse") {
         httpUpdate(baseContext, "browse", roles = Roles.SERVICE) // TODO FIXME
@@ -49,39 +134,36 @@ open class FilesProvider(namespace: String) : CallDescriptionContainer("files.pr
         httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE) // TODO FIXME
     }
 
-    val move = call<FilesProviderMoveRequest, FilesProviderMoveResponse, CommonErrorMessage>("move") {
+    val move = call<BulkRequest<FilesProviderMoveRequestItem>, FilesProviderMoveResponse, CommonErrorMessage>("move") {
         httpUpdate(baseContext, "move", roles = Roles.SERVICE)
     }
 
-    val copy = call<FilesProviderCopyRequest, FilesProviderCopyResponse, CommonErrorMessage>("copy") {
+    val copy = call<BulkRequest<FilesProviderCopyRequestItem>, FilesProviderCopyResponse, CommonErrorMessage>("copy") {
         httpUpdate(baseContext, "copy", roles = Roles.SERVICE)
     }
 
-    val delete = call<FilesProviderDeleteRequest, FilesProviderDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext, roles = Roles.SERVICE)
-    }
-
-    val createFolder = call<FilesProviderCreateFolderRequest, FilesProviderCreateFolderResponse,
+    val createFolder = call<BulkRequest<FilesProviderCreateFolderRequestItem>, FilesProviderCreateFolderResponse,
         CommonErrorMessage>("createFolder") {
         httpCreate(baseContext, "folder", roles = Roles.SERVICE)
     }
 
-    val updateAcl = call<FilesProviderUpdateAclRequest, FilesProviderUpdateAclResponse,
-        CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl", roles = Roles.SERVICE)
-    }
-
-    val trash = call<FilesProviderTrashRequest, FilesProviderTrashResponse, CommonErrorMessage>("trash") {
+    val trash = call<BulkRequest<FilesProviderTrashRequestItem>, FilesProviderTrashResponse, CommonErrorMessage>("trash") {
         httpUpdate(baseContext, "trash", roles = Roles.SERVICE)
     }
 
-    val createUpload = call<FilesProviderCreateUploadRequest, FilesProviderCreateUploadResponse,
+    val emptyTrash = call<BulkRequest<FilesProviderEmptyTrashRequestItem>, FilesProviderEmptyTrashResponse, CommonErrorMessage>("emptyTrash") {
+        httpUpdate(baseContext, "emptyTrash", roles = Roles.SERVICE)
+    }
+
+    val createUpload = call<BulkRequest<FilesProviderCreateUploadRequestItem>, FilesProviderCreateUploadResponse,
         CommonErrorMessage>("createUpload") {
         httpCreate(baseContext, "upload", roles = Roles.SERVICE)
     }
 
-    val createDownload = call<FilesProviderCreateDownloadRequest, FilesProviderCreateDownloadResponse,
+    val createDownload = call<BulkRequest<FilesProviderCreateDownloadRequestItem>, FilesProviderCreateDownloadResponse,
         CommonErrorMessage>("createDownload") {
         httpCreate(baseContext, "download", roles = Roles.SERVICE)
     }
+
+    override val delete get() = super.delete!!
 }

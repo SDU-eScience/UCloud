@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.Role
@@ -77,3 +78,6 @@ class AppTest : EndToEndTest() {
         await { println(driver.currentUrl) ; driver.currentUrl.contains("/applications/results/") }
     }
 }
+
+
+ */

@@ -1,13 +1,13 @@
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Notification} from "Notifications";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Notification} from "@/Notifications";
 import {History} from "history";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {ProjectName} from "Project";
-import {getStoredProject} from "Project/Redux";
-import {JWT} from "Authentication/lib";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {ProjectName} from "@/Project";
+import {getStoredProject} from "@/Project/Redux";
+import {JWT} from "@/Authentication/lib";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
+import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -78,6 +78,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "md":
         case "markdown":
             return "markdown";
+        case "zig":
         case "swift":
         case "kt":
         case "kts":
@@ -226,6 +227,7 @@ export function isExtPreviewSupported(ext: string): boolean {
         case "f90":
         case "f95":
         case "ini":
+        case "zig":
             return true;
         default:
             return false;
@@ -287,14 +289,13 @@ export function defaultErrorHandler(
     if (request) {
         if (!why) {
             switch (request.status) {
-                case 400:
-                    why = "Bad request";
-                    break;
                 case 403:
                     why = "Permission denied";
                     break;
+                // 400 is 'Bad Request', but this is meaningless for the end user.
+                case 400:
                 default:
-                    why = "Internal Server Error. Try again later.";
+                    why = "An error occurred. Please reload the page.";
                     break;
             }
         }
@@ -357,12 +358,7 @@ interface CopyToClipboard {
  * @param param contains the value to be copied and the message to show the user on success.
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
-    const input = document.createElement("input");
-    input.value = value ?? "";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
+    navigator.clipboard.writeText(value ?? "");
     snackbarStore.addSuccess(message, true);
 }
 
@@ -377,7 +373,7 @@ export function errorMessageOrDefault(
             return err.response;
         } else {
             if (err.response.why) return err.response.why;
-            return HTTP_STATUS_CODES[err.request.status] ?? defaultMessage;
+            return defaultMessage;
         }
     } catch {
         return defaultMessage;
@@ -449,9 +445,9 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 export function useFrameHidden(): boolean {
     const [frameHidden] = useGlobal("frameHidden", false);
     const legacyHide =
-        ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
+        ["/app/login", "/app/login/wayf"].includes(window.location.pathname) ||
         window.location.search === "?dav=true" ||
-        window.location.search === "?hide-frame";
+        window.location.search.indexOf("?hide-frame") === 0;
     return legacyHide || frameHidden;
 }
 
@@ -531,7 +527,7 @@ export function onNotificationAction(
 
 function b64DecodeUnicode(str) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
-    return decodeURIComponent(atob(str).split('').map(function(c) {
+    return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }
@@ -562,6 +558,9 @@ export function parseJWT(encodedJWT: string): JWT | null {
     return parsed;
 }
 
+export type EmptyObject = {
+    [K in any]: never
+}
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
 export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
 export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
@@ -597,4 +596,23 @@ export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), 
 export function isAbsoluteUrl(url: string): boolean {
     return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
+}
+
+export function capitalize(text: string): string {
+    if (text.length === 0) return text;
+    return text[0].toUpperCase() + text.substr(1);
+}
+
+
+// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
+export function removeExpiredFileUploads(): void {
+    const now = new Date().getTime();
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`${UPLOAD_LOCALSTORAGE_PREFIX}:`)) {
+            const expiration = JSON.parse(localStorage.getItem(key) ?? "{}")?.expiration ?? now
+            if (expiration < now) {
+                localStorage.removeItem(key);
+            }
+        }
+    });
 }

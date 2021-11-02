@@ -1,25 +1,19 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import * as ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label} from "ui-components";
-import {HiddenInputField} from "ui-components/Input";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import * as UCloud from "@/UCloud";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {Box, Button, Flex, Icon, Label} from "@/ui-components";
+import {HiddenInputField} from "@/ui-components/Input";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
-import BaseLink from "ui-components/BaseLink";
-import {
-    getFilenameFromPath
-} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {callAPI, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {compute} from "UCloud";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import styled from "styled-components";
-import {TextP} from "ui-components/Text";
+import {TextP} from "@/ui-components/Text";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -34,10 +28,13 @@ export const ImportParameters: React.FunctionComponent<{
         `${Client.currentProjectFolder}/Members' Files/${Client.username}/Jobs/${title}`
         : `${Client.homeFolder}Jobs/${title}`;
 
+    /*
     const [previousRuns, fetchPreviousRuns] = useCloudAPI<UCloud.Page<UCloud.file.StorageFile>>(
         {noop: true},
         emptyPage
     );
+
+     */
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
@@ -100,6 +97,7 @@ export const ImportParameters: React.FunctionComponent<{
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
             {
+                /*
                 previousRuns.data.items.slice(0, 5).map((file, idx) => (
                     <Box mr="0.8em" key={idx}>
                         <BaseLink
@@ -124,6 +122,7 @@ export const ImportParameters: React.FunctionComponent<{
                         </BaseLink>
                     </Box>
                 ))
+                 */
             }
         </Flex>
 

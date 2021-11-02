@@ -1,19 +1,19 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {useCloudAPI} from "Authentication/DataHook";
-import {errorMessageOrDefault, isAbsoluteUrl, shortUUID, useNoFrame} from "UtilityFunctions";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {errorMessageOrDefault, isAbsoluteUrl, shortUUID, useNoFrame} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useParams} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
 import RFB from "@novnc/novnc/core/rfb";
 import * as VncLog from '@novnc/novnc/core/util/logging.js';
-import {Box, Button} from "ui-components";
-import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf} from "DefaultObjects";
+import {Box, Button} from "@/ui-components";
+import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 interface ConnectionDetails {
     url: string;

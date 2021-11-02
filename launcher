@@ -4,7 +4,6 @@
 from time import sleep
 import sys, tty, subprocess, shutil, termios, signal, os
 
-
 print("UCloud Launcher v2021.2.0")
 print()
 
@@ -35,6 +34,8 @@ backend = False
 integrationModule = False
 slurm = False
 
+os.makedirs('.compose', exist_ok=True)
+
 def printCheckbox(value):
 	if value:
 		print("\033[35m[ DEVEL] \033[0m", end = "")
@@ -60,7 +61,7 @@ try:
 
 		printCheckbox(integrationModule)
 		print("3) Integration Module")
-		
+
 		printCheckbox(slurm)
 		print("4) Slurm cluster - choose dev to deploy")
 
@@ -168,9 +169,6 @@ print()
 subprocess.run(command)
 
 sleep(5)
-
-
-
 
 if slurm:
 	print(header("# Slurm Cluster"))

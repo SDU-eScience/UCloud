@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
+
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -36,9 +39,13 @@ kotlin {
                 implementation(project(":service-lib-test"))
 
                 implementation("org.testcontainers:testcontainers-bom:1.15.1")
-                implementation("org.testcontainers:elasticsearch:1.15.1")
+                implementation("org.testcontainers:elasticsearch:1.15.1") {
+//                    exclude(group = "junit", module = "junit")
+                }
                 implementation("it.ozimov:embedded-redis:0.7.3")
-                implementation("org.testcontainers:selenium:1.15.1")
+                implementation("org.testcontainers:selenium:1.15.1") {
+//                    exclude(group = "junit", module = "junit")
+                }
                 implementation("org.seleniumhq.selenium:selenium-remote-driver:3.141.59")
                 implementation("org.seleniumhq.selenium:selenium-chrome-driver:3.141.59")
                 implementation("org.seleniumhq.selenium:selenium-firefox-driver:3.141.59")
@@ -68,6 +75,7 @@ kotlin {
 }
 
 task<Test>("integrationTest") {
+    useJUnitPlatform()
     description = "Runs integration test"
     group = "verification"
 
@@ -77,6 +85,58 @@ task<Test>("integrationTest") {
     filter {
         isFailOnNoMatchingTests = false
         includeTestsMatching("dk.sdu.cloud.integration.backend.*")
+    }
+
+    testLogging {
+        events(*TestLogEvent.values())
+        exceptionFormat = TestExceptionFormat.FULL
+        outputs.upToDateWhen { false }
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+
+        debug {
+            events(*TestLogEvent.values())
+            exceptionFormat = TestExceptionFormat.FULL
+        }
+        info.events = debug.events
+        info.exceptionFormat = debug.exceptionFormat
+
+        addTestListener(object : TestListener {
+            override fun beforeSuite(suite: TestDescriptor?) {
+                // Empty
+            }
+
+            override fun afterSuite(suite: TestDescriptor, result: TestResult) {
+                val size = 80
+                if (suite.parent != null) return
+                print(
+                    buildString {
+                        appendln()
+                        repeat(size) { append('-') }
+                        appendln()
+                        appendln(result.resultType.toString())
+                        repeat(size) { append('-') }
+                        appendln()
+
+                        append(" TESTS:".padEnd(size - result.testCount.toString().length))
+                        appendln(result.testCount)
+                        append("PASSED:".padEnd(size - result.successfulTestCount.toString().length))
+                        appendln(result.successfulTestCount)
+                        append("FAILED:".padEnd(size - result.failedTestCount.toString().length))
+                        appendln(result.failedTestCount)
+                    }
+                )
+            }
+
+            override fun beforeTest(testDescriptor: TestDescriptor?) {
+                // Empty
+            }
+
+            override fun afterTest(testDescriptor: TestDescriptor?, result: TestResult?) {
+                // Empty
+            }
+        })
     }
 }
 

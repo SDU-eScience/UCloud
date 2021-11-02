@@ -126,6 +126,7 @@ class AuditToEventStream(
 
                 val expiresPeriod = auditDescription?.retentionPeriod ?: AuditDescription.DEFAULT_RETENTION_PERIOD
                 val expiry = Time.now() + expiresPeriod
+                val auditSerializer = (auditDescription?.auditType ?: call.requestType) as KSerializer<Any?>
 
                 coroutineScope {
                     launch {
@@ -141,7 +142,8 @@ class AuditToEventStream(
                             responseCode = responseCode,
                             responseTime = responseTime,
                             expiry = expiry,
-                            project = context.project
+                            project = context.project,
+                            requestJson = defaultMapper.encodeToJsonElement(auditSerializer, auditPayload)
                         )
 
                         eventProducer.produce(entry)

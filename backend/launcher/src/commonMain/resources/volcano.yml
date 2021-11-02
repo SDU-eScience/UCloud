@@ -4,7 +4,35 @@ kind: Namespace
 metadata:
   name: app-kubernetes
 spec: {}
-
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: storage
+spec:
+  capacity:
+    storage: 1000Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: "/mnt/cephfs"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs
+  namespace: app-kubernetes
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: storage
+  resources:
+    requests:
+      storage: 1000Gi
 ---
 apiVersion: v1
 kind: Namespace

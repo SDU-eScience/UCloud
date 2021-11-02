@@ -29,7 +29,7 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
     color?: string;
     noBorder?: boolean;
     error?: boolean;
-    autocomplete?: "on" | "off";
+    autoComplete?: "on" | "off";
 }
 
 const left = ({leftLabel}: {leftLabel?: boolean}): string =>
@@ -37,7 +37,7 @@ const left = ({leftLabel}: {leftLabel?: boolean}): string =>
 const right = ({rightLabel}: {rightLabel?: boolean}): string =>
     rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
-const Input = styled.input<InputProps>`
+const Input = styled.input<InputProps & {overrideDisabledColor?: string}>`
     display: block;
     font-family: inherit;
     ${fontSize}
@@ -47,9 +47,10 @@ const Input = styled.input<InputProps>`
     margin: 0;
 
     ${borders} 
-    &:invalid {
+    &:invalid:not(:placeholder-shown) {
         border-color: var(--red, #f00);
     }
+
     ${p => p.error ? "border-color: var(--red, #f00);" : null}
 
     ::placeholder {
@@ -62,7 +63,7 @@ const Input = styled.input<InputProps>`
     }
 
     &:disabled {
-        background-color: var(--lightGray, #f00);
+        background-color: ${p => p.overrideDisabledColor ?? "var(--lightGray, #f00)"};
     }
 
     ${space} ${borderRadius}
@@ -97,9 +98,9 @@ const independent = ({independent}: {independent?: boolean}) => independent ?
 
 
 export interface InputLabelProps extends WidthProps {
-  leftLabel?: boolean;
-  rightLabel?: boolean;
-  independent?: boolean;
+    leftLabel?: boolean;
+    rightLabel?: boolean;
+    independent?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`

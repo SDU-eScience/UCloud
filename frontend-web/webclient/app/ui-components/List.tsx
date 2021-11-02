@@ -1,11 +1,11 @@
 import styled from "styled-components";
 import Box from "./Box";
 import * as React from "react";
-import {IconName} from "ui-components/Icon";
-import {Icon} from "ui-components/index";
+import {IconName} from "@/ui-components/Icon";
+import {Icon} from "@/ui-components/index";
 import {ThemeColor} from "./theme";
-import {Cursor} from "ui-components/Types";
-import {useCallback} from "react";
+import {Cursor} from "@/ui-components/Types";
+import {EventHandler, MouseEvent, useCallback} from "react";
 
 type StringOrNumber = string | number;
 
@@ -20,16 +20,16 @@ function useChildPadding(
 }
 
 const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
-  font-size: ${props => props.fontSize};
+    font-size: ${props => props.fontSize};
 
-  & > * {
-    ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
-    ${useChildPadding};
-  }
+    & > * {
+        ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
+        ${useChildPadding};
+    }
 
-  & > *:last-child {
-    ${props => props.bordered ? "border-bottom: 0px;" : null}
-  }
+    & > *:last-child {
+        ${props => props.bordered ? "border-bottom: 0px;" : null}
+    }
 `;
 
 List.defaultProps = {
@@ -48,26 +48,31 @@ interface ListRowProps {
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
     right: React.ReactNode;
-    fontSize?: string | number;
+    fontSize?: string;
     highlight?: boolean;
+    stopPropagation?: boolean;
+    onContextMenu?: EventHandler<MouseEvent<never>>;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
+    const stopPropagation = props.stopPropagation ?? true;
     const doNavigate = useCallback((e: React.SyntheticEvent) => {
         (props.navigate ?? props.select)?.();
-        e.stopPropagation();
-    }, [props.navigate, props.select]);
+        if (stopPropagation) e.stopPropagation();
+    }, [props.navigate, props.select, stopPropagation]);
 
     const doSelect = useCallback((e: React.SyntheticEvent) => {
         (props.select)?.();
-        e.stopPropagation();
-    }, [props.select]);
+        if (stopPropagation) e.stopPropagation();
+    }, [props.select, stopPropagation]);
 
     return <ListStyle
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
+        fontSize={props.fontSize}
+        onContextMenu={props.onContextMenu}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
@@ -105,81 +110,81 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListStyle = styled.div`
-  transition: background-color 0.3s;
-  padding: 5px 0;
-  width: 100%;
-  height: 62px;
-  align-items: center;
-  display: flex;
-
-  &[data-highlighted="true"] {
-    background-color: var(--projectHighlight);
-  }
-
-  &[data-selected="true"] {
-    background-color: var(--lightBlue);
-  }
-
-  &:hover {
-    background-color: var(--lightBlue);
-  }
-
-  .row-icon {
-    margin-right: 12px;
-    margin-left: 8px;
-    flex-shrink: 0;
-  }
-
-  .row-left {
-    flex-grow: 1;
-    overflow: auto;
-  }
-
-  &[data-navigate="true"] .row-left-content {
-    cursor: pointer;
-  }
-
-  .row-left-content {
-    margin-bottom: -4px;
-    font-size: 20px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .row-left-wrapper {
-      display: flex;
-  }
-
-  .row-left-padding {
-      width: auto;
-      cursor: auto;
-  }
-
-  .row-left-sub {
+const ListStyle = styled.div<{fontSize?: string;}>`
+    transition: background-color 0.3s;
+    padding: 5px 0;
+    width: 100%;
+    height: 56px;
+    align-items: center;
     display: flex;
-    margin-top: 4px;
-  }
-  
-  .row-left-sub > * {
-    margin-right: 16px;
-    color: var(--gray);
-    text-decoration: none;
-    font-size: 10px;
-  }
-  
-  .row-left-sub > * > svg {
-    margin-top: -2px;
-    margin-right: 4px;
-  }
 
-  .row-right {
-    text-align: right;
-    display: flex;
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
+    &[data-highlighted="true"] {
+        background-color: var(--projectHighlight);
+    }
+
+    &[data-selected="true"] {
+        background-color: var(--lightBlue);
+    }
+
+    &:hover {
+        background-color: var(--lightBlue);
+    }
+
+    .row-icon {
+        margin-right: 12px;
+        margin-left: 8px;
+        flex-shrink: 0;
+    }
+
+    .row-left {
+        flex-grow: 1;
+        overflow: visible;
+    }
+
+    &[data-navigate="true"] .row-left-content {
+        cursor: pointer;
+    }
+
+    .row-left-content {
+        margin-bottom: -4px;
+        font-size: ${p => p.fontSize ?? "20px"};
+        /* overflow: hidden; */
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .row-left-wrapper {
+        display: flex;
+    }
+
+    .row-left-padding {
+        width: auto;
+        cursor: auto;
+    }
+
+    .row-left-sub {
+        display: flex;
+        margin-top: 4px;
+    }
+    
+    .row-left-sub > * {
+        margin-right: 16px;
+        color: var(--gray);
+        text-decoration: none;
+        font-size: 10px;
+    }
+    
+    .row-left-sub > * > svg {
+        margin-top: -2px;
+        margin-right: 4px;
+    }
+
+    .row-right {
+        text-align: right;
+        display: flex;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
 `;
 
 export default List;

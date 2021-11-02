@@ -1,17 +1,17 @@
 import * as React from "react";
-import {Box, Button, Checkbox, Flex, Input, Label, Stamp} from "ui-components";
-import {emptyPage, KeyCode} from "DefaultObjects";
-import {joinToString, stopPropagation} from "UtilityFunctions";
-import * as Heading from "ui-components/Heading";
+import {Box, Button, Checkbox, Flex, Input, Label, Stamp} from "@/ui-components";
+import {emptyPage, KeyCode} from "@/DefaultObjects";
+import {joinToString, stopPropagation} from "@/UtilityFunctions";
+import * as Heading from "@/ui-components/Heading";
 import {useHistory} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {useCloudAPI} from "Authentication/DataHook";
-import * as UCloud from "UCloud";
-import {GridCardGroup} from "ui-components/Grid";
-import {ApplicationCard} from "Applications/Card";
-import * as Pagination from "Pagination";
+import {searchPage} from "@/Utilities/SearchUtilities";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud";
+import {GridCardGroup} from "@/ui-components/Grid";
+import {ApplicationCard} from "@/Applications/Card";
+import * as Pagination from "@/Pagination";
 
 interface SearchQuery {
     tags: string[];

@@ -1,11 +1,9 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -13,31 +11,30 @@ import dk.sdu.cloud.service.create
 import io.ktor.http.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.collections.ArrayList
+
+const val PERSONAL_REPOSITORY = "Members' Files"
+const val MAX_FILE_COUNT_FOR_SORTING = 25_000
 
 class FileQueries(
-    private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
+    private val cephStats: CephFsFastDirectoryStats,
 ) {
-    suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
-
+    suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
         val internalFile = pathConverter.ucloudToInternal(file)
         val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(internalFile, nativeStat, myself)
+        return convertNativeStatToUFile(internalFile, nativeStat)
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
         val components = pathConverter.internalToRelative(file).components()
-        return if (fileTrashService.isTrashFolder(null, file)) {
+        return if (fileTrashService.isTrashFolder(file)) {
             FileIconHint.DIRECTORY_TRASH
         } else if (
-            (components.size == 3 && components[0] == "home" && components[2] == "Jobs") ||
-            (components.size == 5 && components[0] == "projects" &&
+            (components.size == 3 && components[0] == PathConverter.HOME_DIRECTORY && components[2] == "Jobs") ||
+            (components.size == 5 && components[0] == PathConverter.PROJECT_DIRECTORY &&
                 components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
         ) {
             FileIconHint.DIRECTORY_JOBS
@@ -49,36 +46,38 @@ class FileQueries(
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
-        myself: Set<FilePermission>,
-    ): UFile {
-        return UFile(
-            pathConverter.internalToUCloud(file).path,
-            nativeStat.fileType,
-            findIcon(file),
-            UFile.Stats(
-                nativeStat.size,
-                null, // TODO
-                nativeStat.modifiedAt,
-                null, // TODO Not supported
-                nativeStat.modifiedAt,
-                nativeStat.mode,
-                nativeStat.ownerUid,
-                nativeStat.ownerGid
+        forcedPrefix: String? = null,
+    ): PartialUFile {
+        val realPath = pathConverter.internalToUCloud(file).path
+        val pathToReturn = if (forcedPrefix != null) {
+            forcedPrefix.removeSuffix("/") + "/" + realPath.fileName()
+        } else {
+            realPath
+        }
+
+        return PartialUFile(
+            pathToReturn,
+            UFileStatus(
+                nativeStat.fileType,
+                findIcon(file),
+                sizeInBytes = nativeStat.size,
+                sizeIncludingChildrenInBytes = runCatching { cephStats.getRecursiveSize(file) }.getOrNull(),
+                modifiedAt = nativeStat.modifiedAt,
+                unixMode = nativeStat.mode,
+                unixOwner = nativeStat.ownerUid,
+                unixGroup = nativeStat.ownerGid,
             ),
-            UFile.Permissions(
-                myself.toList(),
-                aclService.fetchOtherPermissions(pathConverter.internalToUCloud(file))
-            ),
-            null
+            nativeStat.modifiedAt,
         )
     }
 
     suspend fun browseFiles(
-        actor: Actor,
         file: UCloudFile,
-        flags: FilesIncludeFlags,
+        flags: UFileIncludeFlags,
         pagination: NormalizedPaginationRequestV2,
-    ): PageV2<UFile> {
+        sortBy: FilesSortBy,
+        sortOrder: SortDirection?,
+    ): PageV2<PartialUFile> {
         // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
         //
         // 1. The first part contains the current offset in the list. This allows a user to restart the search.
@@ -87,9 +86,6 @@ class FileQueries(
         // This token is used for storing state in Redis which contains a complete list of files found in this
         // directory. This allows the user to search a consistent snapshot of the files. If any files are removed
         // between calls then this endpoint will simply skip it.
-
-        val myself = aclService.fetchMyPermissions(actor, file)
-        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
 
         val next = pagination.next
         var foundFiles: List<InternalFile>? = null
@@ -101,29 +97,67 @@ class FileQueries(
 
         if (foundFiles == null) {
             val internalFile = pathConverter.ucloudToInternal(file)
-            foundFiles = nativeFs.listFiles(internalFile).map {
-                InternalFile(internalFile.path + "/" + it)
-            }
+            foundFiles = nativeFs.listFiles(internalFile)
+                .mapNotNull {
+                    val result = InternalFile(internalFile.path + "/" + it)
+                    if (flags.filterHiddenFiles && it.startsWith(".")) {
+                        return@mapNotNull null
+                    } else {
+                        result
+                    }
+                }
         }
+
+        // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
+        val allowedSortBy = if (foundFiles.size <= MAX_FILE_COUNT_FOR_SORTING) {
+            sortBy
+        } else {
+            FilesSortBy.PATH
+        }
+
+        val foundFilesToStat = HashMap<String, NativeStat>()
+        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat)
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
-        val items = ArrayList<UFile>()
+        val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
-        while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-            try {
-                val nextInternalFile = foundFiles[i++]
-                items.add(
-                    convertNativeStatToUFile(
-                        nextInternalFile,
-                        nativeFs.stat(nextInternalFile),
-                        myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
+        when (allowedSortBy) {
+            FilesSortBy.PATH -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    try {
+                        val nextInternalFile = foundFiles[i++]
+
+                        items.add(
+                            convertNativeStatToUFile(
+                                nextInternalFile,
+                                nativeFs.stat(nextInternalFile),
+                                file.path
+                            )
+                        )
+                    } catch (ex: FSException.NotFound) {
+                        // NOTE(Dan): File might have gone away between these two calls
+                        didSkipFiles = true
+                    } catch (ex: Throwable) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            else -> {
+                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+                    val nextInternalFile = foundFiles[i++]
+
+                    items.add(
+                        convertNativeStatToUFile(
+                            nextInternalFile,
+                            foundFilesToStat[nextInternalFile.path]!!,
+                            file.path
+                        )
                     )
-                )
-            } catch (ex: FSException.NotFound) {
-                // NOTE(Dan): File might have gone away between these two calls
-                didSkipFiles = true
+
+                    // TODO(jonas): Can we expect exceptions here? We have already stat'ed the file.
+                }
             }
         }
 
@@ -150,6 +184,7 @@ class FileQueries(
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
+
     companion object : Loggable {
         override val log = logger()
 
@@ -161,4 +196,26 @@ class FileQueries(
         private val sessionIdCounter = AtomicInteger(0)
         private const val DIR_CACHE_EXPIRATION = 1000L * 60 * 5
     }
+}
+
+fun sortFiles(
+    nativeFs: NativeFS,
+    sortBy: FilesSortBy,
+    sortOrder: SortDirection?,
+    foundFiles: List<InternalFile>,
+    foundFilesToStat: HashMap<String, NativeStat>
+): List<InternalFile> {
+    if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
+    val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
+    var comparator = when (sortBy) {
+        FilesSortBy.PATH -> pathComparator
+        FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+        FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
+            ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
+        }.thenComparing(pathComparator)
+    }
+    if (sortOrder != SortDirection.ascending) comparator = comparator.reversed()
+    return foundFiles.sortedWith(comparator)
 }

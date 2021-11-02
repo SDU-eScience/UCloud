@@ -27,8 +27,6 @@ services:
       - sh
       - -c
       - "echo 'Please use the ./launcher script instead'  ; exit 0"
-
-
 # SLURM setup
   mysql:
     image: alpine:latest
@@ -49,6 +47,9 @@ volumes:
   ucloudFiles: {}
   k3sConfig: {}
   k3sData: {}
+  k3sCni: {}
+  k3sKubelet: {}
+  k3sEtc: {}
   imData: {}
   imGradle: {}
   imKonan: {}

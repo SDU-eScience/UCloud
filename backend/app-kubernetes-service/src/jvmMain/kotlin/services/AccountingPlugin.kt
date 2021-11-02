@@ -1,11 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequest
-import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequestItem
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -44,13 +42,15 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
         val now = Time.now()
-        loop@ for (jobFromServer in jobBatch) {
+        for (jobFromServer in jobBatch) {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
-                log.info("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
-                continue@loop
+                log.debug("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
+                continue
             }
+
+            if (now - lastTs < 60_000) continue
 
             account(k8.nameAllocator.jobNameToJobId(name), lastTs, now)
         }
@@ -70,10 +70,10 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         if (timespent > 0L) {
             val insufficientFunds = JobsControl.chargeCredits.call(
                 bulkRequestOf(
-                    JobsControlChargeCreditsRequestItem(
+                    ResourceChargeCredits(
                         jobId,
                         lastTs.toString(),
-                        SimpleDuration.fromMillis(timespent)
+                        kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                     )
                 ),
                 k8.serviceClient

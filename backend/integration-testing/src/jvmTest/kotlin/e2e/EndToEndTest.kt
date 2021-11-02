@@ -4,9 +4,8 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.findPreferredOutgoingIp
-import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.micro.configuration
-import org.junit.Ignore
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.rules.ExternalResource
 import org.openqa.selenium.Dimension
@@ -33,6 +32,10 @@ enum class E2EDrivers {
 
 data class E2EConfig(val useLocalDriver: Boolean = false)
 abstract class EndToEndTest : IntegrationTest() {
+    override fun defineTests() {
+        TODO("Not yet implemented")
+    }
+
     val config = UCloudLauncher.micro.configuration.requestChunkAtOrNull("e2e") ?: E2EConfig()
 
     private val localDocker: String by lazy {
@@ -89,9 +92,8 @@ abstract class EndToEndTest : IntegrationTest() {
         drivers: Array<E2EDrivers> = E2EDrivers.values(),
         block: suspend EndToEndContext.() -> Unit
     ) {
-
         for (driver in drivers) {
-            t {
+            runBlocking {
                 val d = when (driver) {
                     E2EDrivers.FIREFOX -> if (config.useLocalDriver) localFirefox!! else firefox!!.webDriver
                     E2EDrivers.CHROME -> if (config.useLocalDriver) localChrome!! else chrome!!.webDriver

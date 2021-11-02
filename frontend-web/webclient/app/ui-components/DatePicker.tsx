@@ -2,7 +2,7 @@ import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styled from "styled-components";
 import {borders, fontSize, space} from "styled-system";
-import theme from "ui-components/theme";
+import theme from "@/ui-components/theme";
 import {InputProps} from "./Input";
 
 export const DatePicker = styled(ReactDatePicker) <InputProps>`
@@ -38,3 +38,10 @@ export const DatePicker = styled(ReactDatePicker) <InputProps>`
 `;
 
 DatePicker.displayName = "DatePicker";
+
+export const SlimDatePickerWrapper = styled.div`
+  & .react-datepicker__day-name, & .react-datepicker__day, & .react-datepicker__time-name {
+    width: 1.4rem;
+    line-height: 1.4rem;
+  }
+`;

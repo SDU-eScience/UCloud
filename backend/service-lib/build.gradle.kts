@@ -37,7 +37,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("stdlib-common"))
                 api("io.ktor:ktor-client-core:$ktorVersion")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1")
             }
         }
 
@@ -65,7 +65,7 @@ kotlin {
 
         val jvmTest by getting {
             dependencies {
-                implementation(kotlin("test-junit"))
+                implementation(kotlin("test-junit5"))
             }
         }
 
@@ -98,20 +98,20 @@ kotlin {
     }
 }
 
-version = "2021.2.0-storage0"
+version = rootProject.file("./version.txt").readText().trim()
 extensions.configure<PublishingExtension>("publishing") {
     repositories {
         maven {
             mavenLocal()
 
             maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+                name = "UCloudMaven"
+                url = uri("https://mvn.cloud.sdu.dk/releases")
                 credentials {
-                    username = (project.findProperty("gpr.user") as? String?)
-                        ?: System.getenv("GITHUB_USERNAME")
-                    password = (project.findProperty("gpr.key") as? String?)
-                        ?: System.getenv("GITHUB_TOKEN")
+                    username = (project.findProperty("ucloud.mvn.username") as? String?)
+                        ?: System.getenv("UCLOUD_MVN_USERNAME")
+                    password = (project.findProperty("ucloud.mvn.token") as? String?)
+                        ?: System.getenv("UCLOUD_MVN_TOKEN")
                 }
             }
         }

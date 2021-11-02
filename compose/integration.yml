@@ -1,15 +1,15 @@
 version: "3.9"
 services:
   integration-module:
-    environment: 
+    environment:
       - SLURM_CONF=/etc/slurm/slurm.conf
       - DATA_MOUNT=/data
-    #image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.2.0-storage1
-    image: ucloud-im
-    build: 
+    build:
       context: ./provider-integration/integration-module
       target: ucloud-im
     init: true
+    # image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.2.0-storage2
+    image: ucloud-im
     volumes:
       - imKonan:/root/.konan
       - imGradle:/root/.gradle
@@ -28,7 +28,7 @@ services:
       - backend
       - c2
     ports:
-      - 8889:8889
+      - ${INTEGRATION_PORT:-8889}:8889
     hostname: integration-module
     labels:
       - "cluster=slurm"

@@ -3,10 +3,10 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "redis-cleaner"
-    version = "0.4.1"
+    version = "2021.3.0-alpha0"
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
     }.also {
         // We don't actually want the deployment but we do want the template
         resources.remove(it)

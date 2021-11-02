@@ -14,7 +14,7 @@ Micro reads the database configuration using the [DatabaseConfigurationFeature](
 
 ```kotlin
 // Put in Server.kt
-val db = AsyncDBSessionFactory(micro.databaseConfig)
+val db = AsyncDBSessionFactory(micro)
 ```
 
 __Code:__ Creating an `AsyncDBSessionFactory`. This factory will provide you with database connections as needed.

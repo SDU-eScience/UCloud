@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import theme from "ui-components/theme";
+import theme from "@/ui-components/theme";
 import Flex from "./Flex";
 import Text from "./Text";
 
@@ -9,6 +9,9 @@ const SelectableTextWrapper = styled(Flex)`
 `;
 
 const SelectableText = styled(Text) <{selected: boolean}>`
+    margin-right: 1em;
+    cursor: pointer;
+    font-size: 20px;
     border-bottom: ${props => props.selected ? `3px solid ${theme.colors.blue}` : ""};
 `;
 

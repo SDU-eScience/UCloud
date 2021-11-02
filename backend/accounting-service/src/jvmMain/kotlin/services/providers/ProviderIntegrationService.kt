@@ -31,7 +31,7 @@ class ProviderIntegrationService(
         provider: String,
     ): IntegrationConnectResponse {
         // TODO This would ideally check if the user has been approved
-        val providerSpec = providers.retrieveProvider(Actor.System, provider).specification
+        val providerSpec = providers.retrieve(ActorAndProject(Actor.System, null), provider, null).specification
         val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
         val auth = RefreshingJWTAuthenticator(
             serviceClient.client,

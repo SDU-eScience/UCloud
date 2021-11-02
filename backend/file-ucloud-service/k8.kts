@@ -3,12 +3,31 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-ucloud"
-    version = "0.1.0"
+    version = "2021.3.0-alpha1"
     
-    withAmbassador() {}
+    withAmbassador(null) {
+        addSimpleMapping("/ucloud/ucloud/chunked")
+        addSimpleMapping("/ucloud/ucloud/files")
+        addSimpleMapping("/ucloud/ucloud/shares")
+        addSimpleMapping("/ucloud/ucloud/download")
+    }
     
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
+        injectSecret("ucloud-provider-tokens")
+
+        val cephfsVolume = "cephfs"
+        serviceContainer.volumeMounts.add(VolumeMount().apply {
+            name = cephfsVolume
+            mountPath = "/mnt/cephfs"
+        })
+
+        volumes.add(Volume().apply {
+            name = cephfsVolume
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                claimName = cephfsVolume
+            }
+        })
     }
     
     withPostgresMigration(deployment)

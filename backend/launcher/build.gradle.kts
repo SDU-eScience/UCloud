@@ -35,10 +35,8 @@ kotlin {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-server"))
-                implementation("io.swagger.core.v3:swagger-models:2.1.5")
-                implementation("io.swagger.core.v3:swagger-core:2.1.5")
-                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.4.0")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:1.4.0")
+                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.10")
+                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.10")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
@@ -49,6 +47,11 @@ kotlin {
                             .find { it.name == p.name }!!.subprojects
                             .any { it.name == "api" }
                         if (hasApiProject) implementation(project(":" + p.name + ":api"))
+
+                        val hasUtilProject = rootProject.subprojects
+                            .find { it.name == p.name }!!.subprojects
+                            .any { it.name == "util" }
+                        if (hasUtilProject) implementation(project(":" + p.name + ":util"))
                     }
             }
         }

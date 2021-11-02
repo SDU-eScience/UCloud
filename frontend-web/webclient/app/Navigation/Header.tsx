@@ -1,41 +1,42 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import BackgroundTask from "BackgroundTasks/BackgroundTask";
-import {HeaderSearchType, KeyCode} from "DefaultObjects";
-import {HeaderStateToProps} from "Navigation";
-import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
-import Notification from "Notifications";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
+import {HeaderStateToProps} from "@/Navigation";
+import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
+import Notification from "@/Notifications";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import * as SearchActions from "Search/Redux/SearchActions";
+import * as SearchActions from "@/Search/Redux/SearchActions";
 import styled from "styled-components";
-import * as ui from "ui-components";
-import {DevelopmentBadgeBase} from "ui-components/Badge";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Dropdown} from "ui-components/Dropdown";
-import Link from "ui-components/Link";
-import {TextSpan} from "ui-components/Text";
-import {ThemeToggler} from "ui-components/ThemeToggle";
-import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import * as ui from "@/ui-components";
+import {DevelopmentBadgeBase} from "@/ui-components/Badge";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Dropdown} from "@/ui-components/Dropdown";
+import Link from "@/ui-components/Link";
+import {TextSpan} from "@/ui-components/Text";
+import {ThemeToggler} from "@/ui-components/ThemeToggle";
+import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {searchPage} from "@/Utilities/SearchUtilities";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {
     displayErrorMessageOrDefault,
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
     useFrameHidden,
-    stopPropagationAndPreventDefault
-} from "UtilityFunctions";
+    stopPropagationAndPreventDefault, doNothing
+} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
-import {ContextSwitcher} from "Project/ContextSwitcher";
-import {NewsPost} from "Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
-import {VersionManager} from "VersionManager/VersionManager";
-import * as Applications from "Applications"
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
+import {VersionManager} from "@/VersionManager/VersionManager";
+import * as Applications from "@/Applications"
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -52,7 +53,7 @@ export function NonAuthenticatedHeader(): JSX.Element {
             <ui.Link to="/login">
                 <ui.Button color="green" textColor="headerIconColor" mr="12px">Log in</ui.Button>
             </ui.Link>
-        </HeaderContainer >
+        </HeaderContainer>
     );
 }
 
@@ -67,8 +68,10 @@ function Header(props: HeaderProps): JSX.Element | null {
             props.fetchAvatar();
             fetchDowntimes();
         }
-        setIntervalId(setInterval(fetchDowntimes, 600_000));
-        return () => {if (intervalId !== -1) clearInterval(intervalId);};
+        setIntervalId(window.setInterval(fetchDowntimes, 600_000));
+        return () => {
+            if (intervalId !== -1) clearInterval(intervalId);
+        };
     }, [Client.isLoggedIn]);
 
     if (useFrameHidden()) return null;
@@ -116,7 +119,9 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <DevelopmentBadge />
             </ui.Hide>
             <VersionManager />
-            <BackgroundTask />
+            <ui.Flex width="48px" justifyContent="center">
+                <BackgroundTasks />
+            </ui.Flex>
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
             </ui.Flex>
@@ -204,22 +209,22 @@ export const Refresh = ({
 ) : <ui.Box width="24px" />;
 
 const RefreshIcon = styled(ui.Icon)`
-    cursor: pointer;
+  cursor: pointer;
 `;
 
 const HeaderContainer = styled(ui.Flex)`
-    height: 48px;
-    align-items: center;
-    position: fixed;
-    top: 0;
-    width: 100%;
-    z-index: 100;
-    box-shadow: ${ui.theme.shadows.sm};
+  height: 48px;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 100;
+  box-shadow: ${ui.theme.shadows.sm};
 `;
 
 const LogoText = styled(ui.Text)`
-    vertical-align: top;
-    font-weight: 700;
+  vertical-align: top;
+  font-weight: 700;
 `;
 
 const Logo = (): JSX.Element => (
@@ -245,40 +250,46 @@ const Logo = (): JSX.Element => (
 );
 
 const SearchInput = styled(ui.Flex)`
-    min-width: 250px;
-    width: 425px;
-    max-width: 425px;
-    height: 36px;
-    align-items: center;
-    color: white;
-    background-color: rgba(236, 239, 244, 0.25);
-    border-radius: 5px;
+  min-width: 250px;
+  width: 425px;
+  max-width: 425px;
+  height: 36px;
+  align-items: center;
+  color: white;
+  background-color: rgba(236, 239, 244, 0.25);
+  border-radius: 5px;
 
-    & > input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
-        color: white;
-    }
-    & > input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
-        color: black;
-    }
-    & > input:focus ~ div > span > div > svg, input:focus + div > label > svg {
-        color: black;
-    }
-    & > input ~ div > span > div > svg, input + div > label > svg {
-        color: white;
-    }
-    & > input:focus {
-        color: black;
-        background-color: white;
-        transition: ${ui.theme.duration.fast};
-    }
-    & > input {
-        color: white;
-        transition: ${ui.theme.duration.fast};
-    }
-    & > ${Dropdown} > ${ui.Text} > input {
-        width: 350px;
-        height: 36px;
-    }
+  & > input::placeholder {
+    color: white;
+  }
+
+  & > input:focus::placeholder {
+    color: black;
+  }
+
+  & > input:focus ~ div > span > div > svg, input:focus + div > label > svg {
+    color: black;
+  }
+
+  & > input ~ div > span > div > svg, input + div > label > svg {
+    color: white;
+  }
+
+  & > input:focus {
+    color: black;
+    background-color: white;
+    transition: ${ui.theme.duration.fast};
+  }
+
+  & > input {
+    color: white;
+    transition: ${ui.theme.duration.fast};
+  }
+
+  & > ${Dropdown} > ${ui.Text} > input {
+    width: 350px;
+    height: 36px;
+  }
 `;
 
 
@@ -304,6 +315,10 @@ const _Search = (props: SearchProps): JSX.Element => {
     }, []);
     const {prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
+    const [onSearch] = useGlobal("onSearch", doNothing);
+    const hasSearch = onSearch !== doNothing;
+
     return (
         <ui.Relative>
             <SearchInput>
@@ -314,10 +329,21 @@ const _Search = (props: SearchProps): JSX.Element => {
                     pb="6px"
                     id="search_input"
                     type="text"
+                    overrideDisabledColor={ui.theme.colors.darkBlue}
                     value={props.search}
+                    disabled={!hasSearch}
+                    placeholder={searchPlaceholder}
                     noBorder
                     onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER && props.search) fetchAll();
+                        if (e.keyCode === KeyCode.ENTER) {
+                            if (hasSearch) {
+                                onSearch(props.search);
+                            } else {
+                                if (props.search) {
+                                    fetchAll();
+                                }
+                            }
+                        }
                     }}
                     onChange={e => props.setSearch(e.target.value)}
                 />
@@ -336,7 +362,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                     keepOpenOnClick
                     squareTop
                     trigger={(
-                        <ui.Absolute top={-12.5} right={12} bottom={0} left={-22}>
+                        <ui.Absolute hidden={!hasSearch} top={-12.5} right={12} bottom={0} left={-22}>
                             <ui.Icon cursor="pointer" name="chevronDown" size="12px" />
                         </ui.Absolute>
                     )}
@@ -361,7 +387,7 @@ const _Search = (props: SearchProps): JSX.Element => {
         </ui.Relative>
     );
 
-    function fetchAll(itemsPerPage?: number): void {
+    function fetchAll(): void {
         history.push(searchPage(prioritizedSearch, props.search));
     }
 };
@@ -400,6 +426,6 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const isAnyLoading = (rO: ReduxObject): boolean =>
-    rO.loading === true || rO.notifications.loading || rO.activity.loading;
+    rO.loading === true || rO.notifications.loading;
 
-export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);
+export default connect(mapStateToProps, mapDispatchToProps)(Header);

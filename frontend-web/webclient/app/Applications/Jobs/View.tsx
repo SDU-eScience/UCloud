@@ -2,70 +2,71 @@ import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
-import {AppToolLogo} from "Applications/AppToolLogo";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
-import {Box, Button, Flex, Icon, Link} from "ui-components";
-import {DashboardCard} from "Dashboard/Dashboard";
-import {IconName} from "ui-components/Icon";
-import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
-import {device, deviceBreakpoint} from "ui-components/Hide";
+import {Box, Button, Flex, Icon, Link} from "@/ui-components";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {IconName} from "@/ui-components/Icon";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
-import {arrayToPage} from "Types";
-import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute} from "UCloud";
-import Job = compute.Job;
-import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import AppParameterValueNS = compute.AppParameterValueNS;
-import JobUpdate = compute.JobUpdate;
-import {creditFormatter} from "Project/ProjectUsage";
-import JobStatus = compute.JobStatus;
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {margin, MarginProps} from "styled-system";
-import {useProjectStatus} from "Project/cache";
-import {ProjectName} from "Project";
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import JobSpecification = compute.JobSpecification;
-import {bulkRequestOf} from "DefaultObjects";
-import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
-import {addStandardDialog} from "UtilityComponents";
+import {useProjectStatus} from "@/Project/cache";
+import {ProjectName} from "@/Project";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
+import {compute} from "@/UCloud";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import AppParameterValueNS = compute.AppParameterValueNS;
+import {
+    priceExplainer,
+    ProductCompute,
+    usageExplainer
+} from "@/Accounting";
+import {FilesBrowse} from "@/Files/Files";
+import {BrowseType} from "@/Resource/BrowseType";
 
 const enterAnimation = keyframes`
-  from {
-    transform: scale3d(1, 1, 1);
-  }
-  50% {
-    transform: scale3d(1.05, 1.05, 1.05);
-  }
-  to {
-    transform: scale3d(1, 1, 1);
-  }
+    from {
+        transform: scale3d(1, 1, 1);
+    }
+    50% {
+        transform: scale3d(1.05, 1.05, 1.05);
+    }
+    to {
+        transform: scale3d(1, 1, 1);
+    }
 `;
 
 const busyAnim = keyframes`
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 `;
 
 const zoomInAnim = keyframes`
-  from {
-    opacity: 0;
-    transform: scale3d(0.3, 0.3, 0.3);
-  }
-  50% {
-    opacity: 1;
-  }
+    from {
+        opacity: 0;
+        transform: scale3d(0.3, 0.3, 0.3);
+    }
+    50% {
+        opacity: 1;
+    }
 `;
 
 const Container = styled.div`
@@ -178,10 +179,10 @@ const Container = styled.div`
   }
 `;
 
-// TODO WS calls don't currently have their types generated
+// NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: { rank: number; stdout?: string; stderr?: string }[];
+    log: {rank: number; stdout?: string; stderr?: string}[];
     newStatus?: JobStatus;
 }
 
@@ -191,17 +192,17 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-                init: conn => {
-                    conn.subscribe({
-                        call: "jobs.follow",
-                        payload: {id: job.id},
-                        handler: message => {
-                            const streamEntry = message.payload as JobsFollowResponse;
-                            callback(streamEntry);
-                        }
-                    });
-                }
-            });
+            init: conn => {
+                conn.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: job.id},
+                    handler: message => {
+                        const streamEntry = message.payload as JobsFollowResponse;
+                        callback(streamEntry);
+                    }
+                });
+            }
+        });
 
         return () => {
             conn.close();
@@ -213,8 +214,8 @@ interface JobUpdateListener {
     handler: (e: JobsFollowResponse) => void;
 }
 
-export const View: React.FunctionComponent = () => {
-    const {id} = useParams<{ id: string }>();
+export function View(): JSX.Element {
+    const {id} = useParams<{id: string}>();
     const history = useHistory();
 
     // Note: This might not match the real app name
@@ -224,10 +225,10 @@ export const View: React.FunctionComponent = () => {
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-    const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({includeChildren: true}),
-        {wallets: []}
-    );
+    // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
+    //     retrieveBalance({includeChildren: true}),
+    //     {wallets: []}
+    // );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -251,28 +252,29 @@ export const View: React.FunctionComponent = () => {
 
     async function confirmExtendAllocation(duration: number): Promise<boolean> {
         if (showInsufficientFundsWarning) {
-            fetchBalance({...balanceParams, reloadId: Math.random()});
-            const balance = balanceFetcher.data;
-            if (!balance || !status?.expiresAt || !job) {
-                return true;
-            }
+            // fetchBalance({...balanceParams, reloadId: Math.random()});
+            // const balance = balanceFetcher.data;
+            // if (!balance || !status?.expiresAt || !job) {
+            //     return true;
+            // }
+            //
+            // const expires = status.expiresAt + (3600 * 1000 * duration);
+            // const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
+            // const wallet = balance.wallets.find(it => it.wallet.paysFor.name === job.status.resolvedProduct?.category.name);
+            //
+            // if (!wallet) {
+            //     return true;
+            // }
 
-            const expires = status.expiresAt + (3600 * 1000 * duration);
-            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
-            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.specification.resolvedProduct?.category.id);
-
-            if (!wallet) {
-                return true;
-            }
-
+            /*
             if (wallet.balance < needed) {
                 const extend = await new Promise(resolve => addStandardDialog({
                     title: "Extend job beyond balance?",
                     message: <>
                         <Box mb="20px">You are trying to extend the allocation of the job beyond your current
                             funds.</Box>
-                        <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
-                        <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
+                        <Box><b>Current balance:</b> {currencyFormatter(wallet.balance)}</Box>
+                        <Box><b>New estimated cost for finishing the job:</b> {currencyFormatter(needed)}</Box>
                         <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when
                             your balance reaches 0 DKK.</Box>
                     </>,
@@ -292,6 +294,7 @@ export const View: React.FunctionComponent = () => {
                     return false
                 }
             }
+             */
         }
         return true;
     }
@@ -325,14 +328,14 @@ export const View: React.FunctionComponent = () => {
         let t1: number | undefined;
         let t2: number | undefined;
         if (job) {
-            t1 = setTimeout(() => {
+            t1 = window.setTimeout(() => {
                 setDataAnimationAllowed(true);
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
             }, delayInitialAnim ? 3000 : 400);
 
-            t2 = setTimeout(() => {
+            t2 = window.setTimeout(() => {
                 setLogoAnimationAllowed(true);
             }, delayInitialAnim ? 2200 : 0);
         }
@@ -391,7 +394,7 @@ export const View: React.FunctionComponent = () => {
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
-        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
+        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
     return <MainContainer
@@ -401,8 +404,8 @@ export const View: React.FunctionComponent = () => {
                     <div className="logo-scale">
                         <div className={"logo"}>
                             <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                                         type={"APPLICATION"}
-                                         size={"200px"}/>
+                                type={"APPLICATION"}
+                                size={"200px"} />
                         </div>
                     </div>
                 </div>
@@ -419,21 +422,21 @@ export const View: React.FunctionComponent = () => {
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"}/>
+                                <div className={"fake-logo"} />
                                 <div className={"header-text"}>
-                                    <InQueueText job={job!}/>
+                                    <InQueueText job={job!} />
                                 </div>
                             </Flex>
 
                             <Content>
                                 <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                    <DashboardCard color={"purple"}>
+                                    <HighlightedCard color={"purple"}>
                                         <Box py={"16px"}>
-                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
+                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
                                         </Box>
-                                    </DashboardCard>
+                                    </HighlightedCard>
                                 </Box>
-                                <InfoCards job={job} status={status}/>
+                                <InfoCards job={job} status={status} />
                             </Content>
                         </div>
                     </CSSTransition>
@@ -448,9 +451,9 @@ export const View: React.FunctionComponent = () => {
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"}/>
+                                <div className={"fake-logo"} />
                                 <div className={"header-text"}>
-                                    <RunningText job={job}/>
+                                    <RunningText job={job} />
                                 </div>
                             </Flex>
 
@@ -473,15 +476,15 @@ export const View: React.FunctionComponent = () => {
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"}/>
+                                <div className={"fake-logo"} />
                                 <div className={"header-text"}>
-                                    <CompletedText job={job} state={status.state}/>
+                                    <CompletedText job={job} state={status.state} />
                                 </div>
                             </Flex>
 
                             <Content>
-                                <OutputFiles job={job}/>
-                                <InfoCards job={job} status={status}/>
+                                <OutputFiles job={job} />
+                                <InfoCards job={job} status={status} />
                             </Content>
                         </div>
                     </CSSTransition>
@@ -489,49 +492,52 @@ export const View: React.FunctionComponent = () => {
             </Container>
         }
     />;
-};
+}
 
 const Content = styled.div`
-  display: flex;
-  align-items: center;
-  flex-direction: column;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
 `;
 
-const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
-    }, [status]);
+        const support = job.status.resolvedSupport?.support as ComputeSupport;
+        if (support.docker.utilization === true || support.virtualMachine.utilization === true) {
+            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+        }
+    }, [job]);
 
     return <>
         <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
         </Heading.h3>
-        <Busy job={job} utilization={utilization.data}/>
+        <Busy job={job} utilization={utilization.data} />
     </>;
 };
 
 const BusyWrapper = styled(Box)`
-  display: none;
+    display: none;
 
-  &.active {
-    animation: 1s ${busyAnim};
-    display: block;
-  }
+    &.active {
+        animation: 1s ${busyAnim};
+        display: block;
+    }
 `;
 
 const Busy: React.FunctionComponent<{
@@ -557,7 +563,7 @@ const Busy: React.FunctionComponent<{
                 {clusterUtilization > 80 ? (
                     <>
                         Due to high resource utilization, it might take longer than normal to prepare the machine you
-                        requested.<br/>
+                        requested.<br />
                         {utilization ? (
                             <>
                                 Cluster utilization is currently at {clusterUtilization}%
@@ -572,7 +578,7 @@ const Busy: React.FunctionComponent<{
                 )}
             </Box>
 
-            <CancelButton job={job} state={"IN_QUEUE"}/>
+            <CancelButton job={job} state={"IN_QUEUE"} />
         </Box>
     </BusyWrapper>;
 };
@@ -586,7 +592,7 @@ const InfoCardsContainer = styled.div`
   justify-content: center;
 `;
 
-const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({job, status}) => {
+const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
     let time = job.specification.timeAllocation;
     if (status.expiresAt && status.startedAt) {
         const msTime = status.expiresAt - status.startedAt;
@@ -623,7 +629,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
     const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
         "My Workspace";
 
-    const machine = job.specification.resolvedProduct;
+    const machine = job.status.resolvedProduct! as unknown as ProductCompute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
     const estimatedCost = time ?
         (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
@@ -635,7 +641,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
-            <b>{job.specification.product.provider} / {job.specification.product.id}</b><br/>
+            <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
@@ -644,7 +650,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
             {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
         </InfoCard>
-        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
+        {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
             null :
             <InfoCard
                 stat={prettyTime}
@@ -652,9 +658,13 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
                 icon={"hourglass"}
             >
                 {!isJobStateTerminal(status?.state) ? (<>
-                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
-                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
-                </>) : <><b>Charged: </b>{creditFormatter(job.billing.creditsCharged, 0)}</>}
+                    {!time ? null : <>
+                        <b>Estimated price:</b>{" "}
+                        {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
+                        <br />
+                    </>}
+                    <b>Price per hour:</b> {priceExplainer(machine)}
+                </>) : null}
             </InfoCard>
         }
         <InfoCard
@@ -694,19 +704,19 @@ const InfoCard: React.FunctionComponent<{
     statTitle: string,
     icon: IconName,
 }> = props => {
-    return <DashboardCard color={"purple"} isLoading={false}>
+    return <HighlightedCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
-            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"}/>
+            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
             <div className={"stat-title"}>{props.statTitle}</div>
             <div className={"content"}>
                 {props.children}
             </div>
         </InfoCardContainer>
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
-const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
         <Flex justifyContent={"space-between"}>
             <Box>
@@ -715,13 +725,13 @@ const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
                 </Heading.h2>
                 <Heading.h3>
                     <i>
-                        {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                         {" "}v{job.specification.application.version}
                     </i>
                 </Heading.h3>
             </Box>
             {job.specification.replicas > 1 ? null : (
-                <RunningButtonGroup job={job} rank={0}/>
+                <RunningButtonGroup job={job} rank={0} />
             )}
         </Flex>
     </>;
@@ -736,7 +746,7 @@ const RunningInfoWrapper = styled.div`
   justify-content: center;
 `;
 
-const AltButtonGroup = styled.div<{ minButtonWidth: string } & MarginProps>`
+const AltButtonGroup = styled.div<{minButtonWidth: string} & MarginProps>`
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
@@ -826,9 +836,9 @@ const RunningContent: React.FunctionComponent<{
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
 
-    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
+    const support = (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support;
     const supportsExtension =
         (backendType === "DOCKER" && support.docker.timeExtension) ||
         (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.timeExtension);
@@ -844,22 +854,22 @@ const RunningContent: React.FunctionComponent<{
 
     return <>
         <RunningInfoWrapper>
-            <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box><b>Reservation:</b> {job.specification.product.provider} / {job.specification.product.id} (x{job.specification.replicas})</Box>
                     <Box><b>Input:</b> {jobInputString(job.specification, projectNames)}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Box mt={"16px"}>
-                        <CancelButton job={job} state={"RUNNING"} fullWidth/>
+                        <CancelButton job={job} state={"RUNNING"} fullWidth />
                     </Box>
                 </Flex>
-            </DashboardCard>
-            {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
+            </HighlightedCard>
+            {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
                 ? null :
-                <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+                <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                     <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                         <Box>
                             <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
@@ -878,7 +888,7 @@ const RunningContent: React.FunctionComponent<{
                         }
 
 
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
 
                         {!expiresAt || !supportsExtension ? null :
                             <Box>
@@ -893,17 +903,17 @@ const RunningContent: React.FunctionComponent<{
                             </Box>
                         }
                     </Flex>
-                </DashboardCard>
+                </HighlightedCard>
             }
-            <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
-                <ProviderUpdates job={job} updateListeners={updateListeners}/>
-            </DashboardCard>
+            <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+                <ProviderUpdates job={job} updateListeners={updateListeners} />
+            </HighlightedCard>
         </RunningInfoWrapper>
 
         {!supportsLogs ? null :
             <RunningJobsWrapper>
                 {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
+                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
                 })}
             </RunningJobsWrapper>
         }
@@ -1030,21 +1040,21 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <DashboardCard color={"purple"} isLoading={false}>
+        <HighlightedCard color={"purple"} isLoading={false}>
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
                     <Heading.h3>Node</Heading.h3>
                 </div>
 
-                <div className={"term"} ref={termRef}/>
+                <div className={"term"} ref={termRef} />
 
                 {job.specification.replicas === 1 ? null : (
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-                                        toggleExpand={toggleExpand}></RunningButtonGroup>
+                        toggleExpand={toggleExpand}></RunningButtonGroup>
                 )}
             </RunningJobRankWrapper>
-        </DashboardCard>
+        </HighlightedCard>
     </>;
 };
 
@@ -1069,19 +1079,20 @@ function jobStateToText(state: JobState) {
     }
 }
 
-const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
+    const app = job.specification.application;
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
             <i>
-                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                 {" "}v{job.specification.application.version}
             </i>
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
-            <Link to={`/applications/${job.specification.application.name}/${job.specification.application.version}`}>
+            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
                 <Button>Run application again</Button>
             </Link>
         </AltButtonGroup>
@@ -1099,20 +1110,10 @@ const OutputFilesWrapper = styled.div`
   }
 `;
 
-const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
+    const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <Heading.h3>Files</Heading.h3>
-        {/*
-        TODO
-        <VirtualFileTable
-            embedded
-            disableNavigationButtons
-            previewEnabled
-            permissionAlertEnabled={false}
-            onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage(files)}
-        />
-        */}
+        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true} />
     </OutputFilesWrapper>;
 };
 
@@ -1122,9 +1123,9 @@ const RunningButtonGroup: React.FunctionComponent<{
     expanded?: boolean | false,
     toggleExpand?: () => void | undefined
 }> = ({job, rank, expanded, toggleExpand}) => {
-    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
+    const support = (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support;
     const supportTerminal =
         backendType === "VIRTUAL_MACHINE" ? support.virtualMachine.terminal :
             backendType === "DOCKER" ? support.docker.terminal : false;
@@ -1186,7 +1187,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
+            await invokeCommand(JobsApi.terminate(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 
@@ -1255,7 +1256,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} ref={termRef}/>
+    return <Box height={"200px"} ref={termRef} />
 };
 
 export default View;

@@ -5,9 +5,6 @@ package dk.sdu.cloud.providers
 /* Generated at: Tue May 25 13:07:01 CEST 2021 */
 
 
-import dk.sdu.cloud.providers.UCloudRpcDispatcher
-import dk.sdu.cloud.providers.UCloudWsDispatcher
-import dk.sdu.cloud.providers.UCloudWsContext
 import dk.sdu.cloud.calls.CallDescription
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -185,9 +182,9 @@ abstract class JobsController(
      *
      * An API for retrieving the products and the support from a provider.
      */
-    abstract fun retrieveProducts(
-        request: kotlin.Unit,
-    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
+//    abstract fun retrieveProducts(
+//        request: kotlin.Unit,
+//    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
     
     
     @Suppress("UNCHECKED_CAST")
@@ -205,7 +202,7 @@ abstract class JobsController(
             "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
             "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
             "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
-            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+//            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
             else -> error("Unhandled call")
         }
     }
@@ -309,7 +306,7 @@ abstract class IngressController(
     
     abstract fun retrieveSettings(
         request: dk.sdu.cloud.accounting.api.ProductReference,
-    ): dk.sdu.cloud.app.orchestrator.api.IngressSettings
+    ): dk.sdu.cloud.app.orchestrator.api.IngressSupport
     
     
     @Suppress("UNCHECKED_CAST")

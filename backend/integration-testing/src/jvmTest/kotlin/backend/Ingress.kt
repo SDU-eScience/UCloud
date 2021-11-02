@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -31,7 +32,7 @@ class Ingress : IntegrationTest() {
 
         assertThatInstance(browseResults, "should be empty") { it.items.isEmpty() }
 
-        val product = ProductReference(sampleIngress.id, sampleIngress.category.id, sampleIngress.category.provider)
+        val product = ProductReference(sampleIngress.name, sampleIngress.category.name, sampleIngress.category.provider)
         val settings = Ingresses.retrieveSettings.call(
             product,
             user.client
@@ -86,7 +87,7 @@ class Ingress : IntegrationTest() {
 
         assertThatInstance(browseResults, "should be empty") { it.items.isEmpty() }
 
-        val product = ProductReference(sampleIngress.id, sampleIngress.category.id, sampleIngress.category.provider)
+        val product = ProductReference(sampleIngress.name, sampleIngress.category.name, sampleIngress.category.provider)
         val settings = Ingresses.retrieveSettings.call(
             product,
             user.client
@@ -121,7 +122,7 @@ class Ingress : IntegrationTest() {
         val user = createUser()
         addFundsToPersonalProject(root, user.username, sampleIngress.category)
 
-        val product = ProductReference(sampleIngress.id, sampleIngress.category.id, sampleIngress.category.provider)
+        val product = ProductReference(sampleIngress.name, sampleIngress.category.name, sampleIngress.category.provider)
         val settings = Ingresses.retrieveSettings.call(product, user.client).orThrow()
 
         val responses = (0 until 5).map {
@@ -149,3 +150,6 @@ class Ingress : IntegrationTest() {
         ) { responses.drop(1).all { it.statusCode == HttpStatusCode.Conflict } }
     }
 }
+
+
+ */

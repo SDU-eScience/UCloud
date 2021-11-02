@@ -1,28 +1,28 @@
-import {WSFactory} from "Authentication/HttpClientInstance";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject} from "DefaultObjects";
+import {NotificationsReduxObject} from "@/DefaultObjects";
 import * as React from "react";
 import {connect, useSelector} from "react-redux";
 import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
-import {Snack} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Snack} from "@/Snackbar/Snackbars";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {IconName} from "ui-components/Icon";
-import {TextSpan} from "ui-components/Text";
-import theme, {Theme, ThemeColor} from "ui-components/theme";
-import * as UF from "UtilityFunctions";
+import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {IconName} from "@/ui-components/Icon";
+import {TextSpan} from "@/ui-components/Text";
+import theme, {Theme, ThemeColor} from "@/ui-components/theme";
+import * as UF from "@/UtilityFunctions";
 import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
     receiveSingleNotification
 } from "./Redux/NotificationsActions";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {getProjectNames} from "Utilities/ProjectUtilities";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {useProjectStatus} from "@/Project/cache";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
 
 interface NotificationProps {
     items: Notification[];
@@ -38,6 +38,12 @@ function Notifications(props: Notifications): JSX.Element {
     const history = useHistory();
     const projectNames = getProjectNames(useProjectStatus());
     const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+
+    const [showError, setShowError] = React.useState(false);
+
+    React.useEffect(() => {
+        setShowError(!!props.error);
+    }, [props.error]);
 
     React.useEffect(() => {
         reload();
@@ -85,14 +91,14 @@ function Notifications(props: Notifications): JSX.Element {
         }
     }
 
-    const entries: JSX.Element[] = props.items.map((notification, index) => (
+    const entries: JSX.Element[] = React.useMemo(() => props.items.map((notification, index) => (
         <NotificationEntry
             key={index}
             notification={notification}
             onMarkAsRead={it => props.notificationRead(it.id)}
             onAction={onNotificationAction}
         />
-    ));
+    )), [props.items]);
 
     if (props.redirectTo) {
         return <Redirect to={props.redirectTo} />;
@@ -112,7 +118,7 @@ function Notifications(props: Notifications): JSX.Element {
             width="380px"
             left="-270px"
             trigger={(
-                <Flex>
+                <Flex onClick={() => showError ? setShowError(false) : undefined}>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="48px">
                             <Icon
@@ -129,11 +135,19 @@ function Notifications(props: Notifications): JSX.Element {
                                 </Absolute>
                             </ThemeProvider>
                         ) : null}
+                        {showError ? (
+                            <ThemeProvider theme={theme}>
+                                <Absolute top="-12px" left="28px">
+                                    <Badge bg="red">!</Badge>
+                                </Absolute>
+                            </ThemeProvider>
+                        ) : null}
                     </Relative>
                 </Flex>
             )}
         >
             <ContentWrapper>
+                <Error error={props.error} />
                 {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
             </ContentWrapper>
         </ClickableDropdown>

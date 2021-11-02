@@ -1,28 +1,28 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import styled from "styled-components";
-import ReactModal from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate} from "ui-components";
-import {TextSpan} from "ui-components/Text";
+import {default as ReactModal} from "react-modal";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "@/ui-components";
+import {TextSpan} from "@/ui-components/Text";
 import {
     errorMessageOrDefault,
     extensionFromPath,
     inSuccessRange,
     preventDefault
-} from "UtilityFunctions";
-import {fetcherFromDropOrSelectEvent} from "Files/HTML5FileSelector";
-import {supportedProtocols, Upload, UploadState} from "Files/Upload";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {useToggleSet} from "Utilities/ToggleSet";
-import {Operation, Operations} from "ui-components/Operation";
-import * as UCloud from "UCloud";
-import FileApi = UCloud.file.orchestrator;
-import {callAPI} from "Authentication/DataHook";
-import {bulkRequestOf} from "DefaultObjects";
-import {BulkResponse} from "UCloud";
-import {ChunkedFileReader, createLocalStorageUploadKey} from "Files/ChunkedFileReader";
-import {sizeToString} from "Utilities/FileUtilities";
+} from "@/UtilityFunctions";
+import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
+import {supportedProtocols, Upload, UploadState} from "@/Files/Upload";
+import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
+import {callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {BulkResponse} from "@/UCloud";
+import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {fileName, sizeToString} from "@/Utilities/FileUtilities";
+import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
 
 const maxConcurrentUploads = 5;
 const entityName = "Upload";
@@ -30,9 +30,9 @@ const maxChunkSize = 32 * 1000 * 1000;
 const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {
-    chunk: number;
+    offset: number;
     size: number;
-    response: FileApi.FilesCreateUploadResponseItem;
+    strategy: FilesCreateUploadResponseItem;
     expiration: number;
 }
 
@@ -47,8 +47,6 @@ function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadI
 }
 
 async function processUpload(upload: Upload) {
-
-
     const strategy = upload.uploadResponse;
     if (!strategy) {
         upload.error = "Internal client error";
@@ -76,10 +74,38 @@ async function processUpload(upload: Upload) {
     const reader = new ChunkedFileReader(theFile.fileObject);
 
     const uploadInfo = fetchValidUploadFromLocalStorage(fullFilePath);
-    if (uploadInfo !== null) reader.offset = uploadInfo.chunk;
+    if (uploadInfo !== null) reader.offset = uploadInfo.offset;
 
     upload.initialProgress = reader.offset;
     upload.fileSizeInBytes = reader.fileSize();
+
+    upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+    await upload.resume();
+}
+
+function createResumeable(
+    reader: ChunkedFileReader,
+    upload: Upload,
+    strategy: FilesCreateUploadResponseItem,
+    fullFilePath: string
+) {
+    return async () => {
+        while (!reader.isEof() && !upload.terminationRequested) {
+            await sendChunk(await reader.readChunk(maxChunkSize));
+
+            const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
+            localStorage.setItem(
+                createLocalStorageUploadKey(fullFilePath),
+                JSON.stringify({offset: reader.offset, size: upload.fileSizeInBytes, strategy: strategy!, expiration} as LocalStorageFileUploadInfo)
+            );
+        }
+
+        if (!upload.paused) {
+            localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+        } else {
+            upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+        }
+    };
 
     function sendChunk(chunk: ArrayBuffer): Promise<void> {
         return new Promise(((resolve, reject) => {
@@ -91,11 +117,11 @@ async function processUpload(upload: Upload) {
             request.setRequestHeader("Content-Type", "application/octet-stream");
             request.responseType = "text";
 
-            request.upload.onprogress = (ev) => {
+            request.upload.onprogress = ev => {
                 upload.progressInBytes = progressStart + ev.loaded;
                 if (upload.terminationRequested) {
                     upload.state = UploadState.DONE;
-                    request.abort();
+                    if (!upload.paused) request.abort();
                 }
             };
 
@@ -109,18 +135,6 @@ async function processUpload(upload: Upload) {
             request.send(chunk);
         }))
     }
-
-    while (!reader.isEof() && !upload.terminationRequested) {
-        await sendChunk(await reader.readChunk(maxChunkSize));
-
-        const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
-        localStorage.setItem(
-            createLocalStorageUploadKey(fullFilePath),
-            JSON.stringify({chunk: reader.offset, size: upload.fileSizeInBytes, response: strategy!, expiration} as LocalStorageFileUploadInfo)
-        );
-    }
-
-    localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
 }
 
 const Uploader: React.FunctionComponent = () => {
@@ -142,19 +156,19 @@ const Uploader: React.FunctionComponent = () => {
 
         const maxUploadsToUse = maxConcurrentUploads - activeUploads;
         if (maxUploadsToUse > 0) {
-            const creationRequests: FileApi.FilesCreateUploadRequestItem[] = [];
+            const creationRequests: FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
             const resumingUploads: Upload[] = [];
 
             for (const upload of batch) {
                 if (upload.state !== UploadState.PENDING) continue;
-                if (creationRequests.length >= maxUploadsToUse) break;
+                if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
 
                 const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
 
                 const item = fetchValidUploadFromLocalStorage(fullFilePath);
                 if (item !== null) {
-                    upload.uploadResponse = item.response;
+                    upload.uploadResponse = item.strategy;
                     resumingUploads.push(upload);
                     upload.state = UploadState.UPLOADING;
                     continue;
@@ -164,7 +178,7 @@ const Uploader: React.FunctionComponent = () => {
                 creationRequests.push({
                     supportedProtocols,
                     conflictPolicy: upload.conflictPolicy,
-                    path: fullFilePath,
+                    id: fullFilePath,
                 });
 
                 actualUploads.push(upload);
@@ -173,13 +187,15 @@ const Uploader: React.FunctionComponent = () => {
             if (actualUploads.length + resumingUploads.length === 0) return;
 
             try {
-                const responses = (await callAPI<BulkResponse<FileApi.FilesCreateUploadResponseItem>>(
-                    FileApi.files.createUpload(bulkRequestOf(...creationRequests))
-                )).responses;
+                if (creationRequests.length > 0) {
+                    const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
+                        FilesApi.createUpload(bulkRequestOf(...creationRequests))
+                    )).responses;
 
-                for (const [index, response] of responses.entries()) {
-                    const upload = actualUploads[index];
-                    upload.uploadResponse = response;
+                    for (const [index, response] of responses.entries()) {
+                        const upload = actualUploads[index];
+                        upload.uploadResponse = response;
+                    }
                 }
 
                 for (const upload of [...actualUploads, ...resumingUploads]) {
@@ -213,8 +229,33 @@ const Uploader: React.FunctionComponent = () => {
         }
     }, []);
 
+    const pauseUploads = useCallback((batch: Upload[]) => {
+        for (const upload of batch) {
+            upload.terminationRequested = true;
+            upload.paused = true;
+            upload.state = UploadState.PENDING;
+        }
+    }, []);
+
+    const resumeUploads = useCallback((batch: Upload[]) => {
+        batch.forEach(async it => {
+            it.terminationRequested = undefined;
+            it.paused = undefined;
+            it.state = UploadState.UPLOADING;
+            it.resume?.().then(() => {
+                it.state = UploadState.DONE;
+                setLookForNewUploads(true);
+            }).catch(e => {
+                if (typeof e === "string") {
+                    it.error = e;
+                    it.state = UploadState.DONE;
+                }
+            });
+        });
+    }, [uploads]);
+
     const callbacks: UploadCallback = useMemo(() => {
-        return {startUploads, stopUploads};
+        return {startUploads, stopUploads, pauseUploads, resumeUploads};
     }, [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
@@ -272,6 +313,16 @@ const Uploader: React.FunctionComponent = () => {
         }
     }, [lookForNewUploads, startUploads]);
 
+
+    const [pausedFilesInFolder, setPausedFilesInFolder] = useState<string[]>([]);
+
+    useEffect(() => {
+        const matches = Object.keys(localStorage).filter(key => key.startsWith(UPLOAD_LOCALSTORAGE_PREFIX)).map(key =>
+            key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
+        ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
+        setPausedFilesInFolder(matches);
+    }, [uploadPath]);
+
     return <>
         <ReactModal
             isOpen={uploaderVisible}
@@ -280,9 +331,9 @@ const Uploader: React.FunctionComponent = () => {
             ariaHideApp={false}
             onRequestClose={closeModal}
         >
-            <div data-tag={"uploadModal"}>
+            <div data-tag="uploadModal">
                 <Operations
-                    location={"TOPBAR"}
+                    location="TOPBAR"
                     operations={operations}
                     selected={toggleSet.checked.items}
                     extra={callbacks}
@@ -358,6 +409,12 @@ const Uploader: React.FunctionComponent = () => {
                         />
                     ))}
                 </List>
+                {pausedFilesInFolder.length === 0 ? null :
+                    <div>
+                        <Text>Uploads that can be resumed:</Text>
+                        {pausedFilesInFolder.map(it => <Text bold key={it}>{fileName(it)}</Text>)}
+                    </div>
+                }
             </div>
         </ReactModal>
     </>;
@@ -366,6 +423,8 @@ const Uploader: React.FunctionComponent = () => {
 interface UploadCallback {
     startUploads: (batch: Upload[]) => void;
     stopUploads: (batch: Upload[]) => void;
+    pauseUploads: (batch: Upload[]) => void;
+    resumeUploads: (batch: Upload[]) => void;
 }
 
 const operations: Operation<Upload, UploadCallback>[] = [
@@ -378,10 +437,23 @@ const operations: Operation<Upload, UploadCallback>[] = [
         icon: "trash",
         confirm: true,
         primary: true,
+    }, {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
+        onClick: (selected, cb) => cb.pauseUploads(selected),
+        text: "Pause",
+        color: "blue",
+        icon: undefined, // TODO: Pause icon
+    }, {
+        enabled: selected => selected.length > 0 && selected.every(it => it.paused),
+        onClick: (selected, cb) => cb.resumeUploads(selected),
+        text: "Resume",
+        color: "blue",
+        icon: "play",
+        primary: true
     }
 ];
 
-const UploaderArt: React.FunctionComponent = props => {
+const UploaderArt: React.FunctionComponent = () => {
     return <UploadArtWrapper>
         <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
         <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />

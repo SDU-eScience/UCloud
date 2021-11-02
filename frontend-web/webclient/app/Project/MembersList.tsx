@@ -1,17 +1,18 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project";
-import {useAsyncCommand} from "Authentication/DataHook";
-import {useAvatars} from "AvataaarLib/hook";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "@/Project";
+import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-components";
-import {IconName} from "ui-components/Icon";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {addStandardDialog} from "UtilityComponents";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import styled from "styled-components";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
+import {IconName} from "@/ui-components/Icon";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {addStandardDialog} from "@/UtilityComponents";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -45,18 +46,18 @@ export function MembersList(props: Readonly<{
     return (<>
         {props.members.map(member =>
             <React.Fragment key={member.username}>
-                <Flex alignItems="center" mb="16px">
+                <Flex alignItems="center" mb="16px" mt="16px">
                     <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
                     {!props.isOutgoingInvites ?
                         <div>
                             <Text bold>{member.username}</Text>
                             {member.memberOfAnyGroup !== false ? null : (
-                                <Text color={"red"}>
-                                    <Icon name={"warning"} size={20} mr={"6px"} />
+                                <Text color="red">
+                                    <Icon name="warning" size={20} mr="6px" />
                                     Not a member of any group
                                 </Text>
                             )}
-                        </div>:
+                        </div> :
                         <div>
                             <Text bold>{member.username}</Text>
                             Invited to join
@@ -130,11 +131,13 @@ export function MembersList(props: Readonly<{
 
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
-                            <ConfirmationButton
-                                icon={"close"}
-                                actionText={"Remove"}
-                                onAction={() => props.onRemoveMember(member.username)}
-                            /> :
+                            <ConfirmationButtonStyling>
+                                <ConfirmationButton
+                                    icon={"close"}
+                                    actionText="Remove"
+                                    onAction={() => props.onRemoveMember(member.username)}
+                                />
+                            </ConfirmationButtonStyling> :
                             <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
@@ -162,3 +165,16 @@ function roleToIcon(role: ProjectRole): "user" | "userAdmin" | "userPi" {
             return "user";
     }
 }
+const ConfirmationButtonStyling = styled(Box)`
+    margin-left: 3px;
+ 
+    & > button {
+        min-width: 175px;
+        font-size: 12px;
+    }
+
+    & ${Icon} {
+        height: 12px;
+        width: 12px;
+    }
+`;

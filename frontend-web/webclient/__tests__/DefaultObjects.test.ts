@@ -40,17 +40,6 @@ describe("Initialize Redux Objects", () => {
         } as Defaults.SidebarReduxObject)
     );
 
-    test("Uploads", () =>
-        expect(JSON.parse(JSON.stringify(Defaults.initUploads()))).toEqual(JSON.parse(JSON.stringify({
-            path: "",
-            uploads: [],
-            loading: false,
-            visible: false,
-            allowMultiple: false,
-            onFilesUploaded: () => null
-        })) as Defaults.UploaderReduxObject)
-    );
-
     test("Init object", () =>
         expect(Defaults.initObject()).toBeDefined()
     );

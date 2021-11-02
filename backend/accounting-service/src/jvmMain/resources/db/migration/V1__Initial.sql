@@ -3,7 +3,7 @@ create schema if not exists "grant";
 create schema if not exists project;
 create schema if not exists "provider";
 
-create extension if not exists "uuid-ossp";
+create extension if not exists "uuid-ossp" schema public;
 create extension if not exists "pgcrypto";
 
 -- old accounting-service
@@ -232,6 +232,8 @@ create table if not exists project.groups
 	constraint groups_id_project_key
 		unique (id, project)
 );
+
+create unique index if not exists groups_id_project_key on project.groups (id, project);
 
 create unique index if not exists group_title_uniq
 	on project.groups (lower(title::text), project);
@@ -518,7 +520,7 @@ begin
     insert into project.projects
     (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
     values (
-        gen_random_uuid()::text,
+        uuid_generate_v4()::text,
         now(),
         now(),
         'Project: ' || request.requested_id,
@@ -537,7 +539,7 @@ begin
         project_id
     );
 
-    select gen_random_uuid() into generated_refresh_token;
+    select uuid_generate_v4() into generated_refresh_token;
 
     insert into provider.providers (id, domain, https, port, created_by, project, refresh_token, claim_token, public_key)
     values (

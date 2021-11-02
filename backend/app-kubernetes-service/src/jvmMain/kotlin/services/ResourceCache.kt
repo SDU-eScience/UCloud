@@ -1,13 +1,10 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlRetrieveRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.SimpleCache
@@ -28,12 +25,12 @@ class ResourceCache(private val k8: K8Dependencies) {
     )
 
     private suspend fun cache(job: Job) {
-        val resolvedProduct = job.specification.resolvedProduct
+        val resolvedProduct = job.status.resolvedProduct
         if (resolvedProduct != null) {
             products.insert(key(job.specification.product), resolvedProduct)
         }
 
-        val resolvedApplication = job.specification.resolvedApplication
+        val resolvedApplication = job.status.resolvedApplication
         if (resolvedApplication != null) {
             applications.insert(key(job.specification.application), resolvedApplication)
         }
@@ -48,15 +45,15 @@ class ResourceCache(private val k8: K8Dependencies) {
         }
 
         val retrievedJob = JobsControl.retrieve.call(
-            JobsControlRetrieveRequest(job.id, includeProduct = true, includeApplication = true),
+            ResourceRetrieveRequest(JobIncludeFlags(includeProduct = true, includeApplication = true), job.id),
             k8.serviceClient
         ).orThrow()
 
         cache(retrievedJob)
 
         return ResolvedJobResources(
-            retrievedJob.specification.resolvedProduct ?: error("No product returned"),
-            retrievedJob.specification.resolvedApplication ?: error("No application returned")
+            retrievedJob.status.resolvedProduct ?: error("No product returned"),
+            retrievedJob.status.resolvedApplication ?: error("No application returned")
         )
     }
 

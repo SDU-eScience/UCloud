@@ -1,5 +1,5 @@
 import * as React from "react";
-import {ColorFabric} from "UserSettings/AvatarOptions";
+import {ColorFabric} from "@/UserSettings/AvatarOptions";
 
 export interface Props {
   maskID: string;

@@ -18,6 +18,8 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import dk.sdu.cloud.utils.homeDirectory
+import dk.sdu.cloud.utils.startProcessAndCollectToMemory
+import dk.sdu.cloud.utils.startProcessAndCollectToString
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned

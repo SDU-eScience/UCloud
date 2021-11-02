@@ -1,36 +1,45 @@
-import {ActivityFilter, ActivityForFrontend} from "Activity";
-import {TaskReduxState} from "BackgroundTasks/redux";
-import {DashboardStateProps} from "Dashboard";
-import {Notification} from "Notifications";
-import * as ProjectRedux from "Project/Redux";
+import {DashboardStateProps} from "@/Dashboard";
+import {Notification} from "@/Notifications";
+import * as ProjectRedux from "@/Project/Redux";
 import {Reducer} from "redux";
-import {ScrollResult} from "Scroll/Types";
-import {SimpleSearchStateProps} from "Search";
-import {SidebarOption} from "Types";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Upload} from "Files/Upload";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {ProjectCache} from "Project/cache";
-import {APICallStateWithParams} from "Authentication/DataHook";
+import {SimpleSearchStateProps} from "@/Search";
+import {SidebarOption} from "@/Types";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Upload} from "@/Files/Upload";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {ProjectCache} from "@/Project/cache";
+import {APICallStateWithParams} from "@/Authentication/DataHook";
 import {
     ListGroupMembersRequestProps,
     ListOutgoingInvitesRequest,
     OutgoingInvite,
     ProjectMember,
     UserInProject
-} from "Project";
-import {GroupWithSummary} from "Project/GroupList";
-import {Product} from "Accounting";
-import * as UCloud from "UCloud";
-import {BulkRequest} from "UCloud";
+} from "@/Project";
+import {GroupWithSummary} from "@/Project/GroupList";
+import {Product} from "@/Accounting";
+import * as UCloud from "@/UCloud";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
+import {useEffect} from "react";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {doNothing} from "@/UtilityFunctions";
+import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
 }
 
+export function placeholderProduct(): { "id": "", "category": "", "provider": string } {
+    return { "id": "", "category": "", "provider": UCLOUD_CORE };
+}
+
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
     return {"type": "bulk", items};
+}
+
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
 }
 
 export const emptyPage: Readonly<Page<any>> =
@@ -38,6 +47,10 @@ export const emptyPage: Readonly<Page<any>> =
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
     {items: [], itemsPerPage: 25};
+
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -64,22 +77,12 @@ export interface ComponentWithPage<T> extends ComponentWithLoadingState {
     page: Page<T>;
 }
 
-export interface ComponentWithScroll<Item, OffsetType> extends ComponentWithLoadingState {
-    scroll?: ScrollResult<Item, OffsetType>;
-}
-
 export interface ResponsiveReduxObject {
     mediaType: string;
     orientation: string;
     lessThan: Record<string, boolean>;
     greaterThan: Record<string, boolean>;
     is: Record<string, boolean>;
-}
-
-export interface FileInfoReduxObject {
-    error?: string;
-    activity: Page<ActivityForFrontend>;
-    loading: boolean;
 }
 
 export interface NotificationsReduxObject {
@@ -106,8 +109,6 @@ export interface HeaderSearchReduxObject {
     refresh?: () => void;
 }
 
-export type ActivityReduxObject = ComponentWithScroll<ActivityForFrontend, number> & ActivityFilter;
-
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 export interface UploaderReduxObject {
@@ -119,16 +120,6 @@ export interface UploaderReduxObject {
     loading: boolean;
 }
 
-interface LegacyReducers {
-    dashboard?: Reducer<DashboardStateProps>;
-    uploader?: Reducer<UploaderReduxObject>;
-    status?: Reducer<StatusReduxObject>;
-    notifications?: Reducer<NotificationsReduxObject>;
-    header?: Reducer<HeaderSearchReduxObject>;
-    sidebar?: Reducer<SidebarReduxObject>;
-    activity?: Reducer<ActivityReduxObject>;
-}
-
 /**
  * Global state created via useGlobal() similar to ReduxObject
  */
@@ -136,6 +127,9 @@ export interface HookStore {
     uploaderVisible?: boolean;
     uploads?: Upload[];
     uploadPath?: string;
+
+    searchPlaceholder?: string;
+    onSearch?: (query: string) => void;
 
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
@@ -157,7 +151,6 @@ interface LegacyReduxObject {
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
-    activity: ActivityReduxObject;
     simpleSearch: SimpleSearchStateProps;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
@@ -167,13 +160,8 @@ interface LegacyReduxObject {
 
 declare global {
     export type ReduxObject =
-        LegacyReduxObject &
-        TaskReduxState;
+        LegacyReduxObject;
 }
-
-export const initActivity = (): ActivityReduxObject => ({
-    loading: false
-});
 
 export const initNotifications = (): NotificationsReduxObject => ({
     items: [],
@@ -193,7 +181,7 @@ export const initStatus = (): StatusReduxObject => ({
 });
 
 export const initDashboard = (): DashboardStateProps => ({
-    notifications: [],
+    notifications: {items: []},
 });
 
 export function initObject(): ReduxObject {
@@ -204,7 +192,6 @@ export function initObject(): ReduxObject {
         header: initHeader(),
         notifications: initNotifications(),
         sidebar: initSidebar(),
-        activity: initActivity(),
         simpleSearch: initSimpleSearch(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
@@ -226,3 +213,22 @@ export const initSidebar = (): SidebarReduxObject => ({
     options: []
 });
 
+export function useSearch(onSearch: (query: string) => void): void {
+    const [, setOnSearch] = useGlobal("onSearch", doNothing);
+    useEffect(() => {
+        setOnSearch(() => onSearch);
+        return () => {
+            setOnSearch(() => doNothing);
+        };
+    }, [setOnSearch, onSearch]);
+}
+
+export function useSearchPlaceholder(searchPlaceholder: string): void {
+    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", "");
+    useEffect(() => {
+        setSearchPlaceholder(searchPlaceholder);
+        return () => {
+            setSearchPlaceholder("");
+        };
+    }, [setSearchPlaceholder, searchPlaceholder]);
+}

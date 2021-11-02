@@ -3,14 +3,14 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-store"
-    version = "0.16.1"
+    version = "2021.3.0-alpha0"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc")
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectSecret("elasticsearch-credentials")
     }
 

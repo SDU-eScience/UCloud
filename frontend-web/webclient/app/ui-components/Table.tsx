@@ -40,7 +40,7 @@ TableCell.displayName = "TableCell";
 const isHighlighted = ({highlighted}: {highlighted?: boolean}): {backgroundColor: string} | null =>
     highlighted ? {backgroundColor: "--var(tableRowHighlight)"} : null;
 
-export const TableRow = styled.tr<{highlighted?: boolean; contentAlign?: string; cursor?: Cursor} & ColorProps>`
+export const TableRow = styled.tr<{highlightOnHover?: boolean; highlighted?: boolean; contentAlign?: string; cursor?: Cursor} & ColorProps>`
     ${isHighlighted};
     cursor: ${props => props.cursor};
 
@@ -50,6 +50,12 @@ export const TableRow = styled.tr<{highlighted?: boolean; contentAlign?: string;
         padding-top: 8px;
         padding-bottom: 8px;
     }
+  
+  ${p => !p.highlightOnHover ? null : `
+    &:hover {
+        background-color: var(--tableRowHighlight);
+    }
+  `}
 `;
 
 TableRow.defaultProps = {

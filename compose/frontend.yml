@@ -7,8 +7,8 @@ services:
     command:
       - sh
       - -c
-      - "npm install ; NODE_OPTIONS=--openssl-legacy-provider npm run start_use_compose_backend"
+      - "npm install ; npm run start:compose"
     ports:
-      - 9000:9000
+      - ${FRONTEND_PORT:-9000}:9000
     working_dir: /opt/ucloud
     hostname: frontend

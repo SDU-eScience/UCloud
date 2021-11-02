@@ -1,13 +1,17 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input} from "ui-components";
-import {useLayoutEffect, useState} from "react";
+import {Input} from "@/ui-components";
+import {useCallback, useLayoutEffect} from "react";
 import styled from "styled-components";
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {useProjectStatus} from "Project/cache";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {api as FilesApi} from "@/UCloud/FilesApi";
+import {prettyFilePath} from "@/Files/FilePath";
+import {BrowseType} from "@/Resource/BrowseType";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -19,7 +23,6 @@ interface FilesProps extends WidgetProps {
 
 export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const isDirectoryInput = props.parameter.type === "input_directory";
-    const [isOpen, setOpen] = useState(false);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -28,51 +31,48 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
     };
 
-    const projects = getProjectNames(useProjectStatus());
-
     useLayoutEffect(() => {
         const value = valueInput();
         const visual = visualInput();
-        const listener = () => {
+        const listener = async () => {
             if (value && visual) {
-                visual.value = value!.value;
+                const path = await prettyFilePath(value!.value);
+                const visual2 = visualInput();
+                if (visual2) {
+                    visual2.value = path;
+                }
             }
         };
-        value!.addEventListener("change", listener);
+        value?.addEventListener("change", listener);
         return () => {
-            value!.removeEventListener("change", listener);
+            value?.removeEventListener("change", listener);
         }
     }, []);
 
+    const onActivate = useCallback(() => {
+        const pathRef = {current: ""};
+        dialogStore.addDialog(
+            <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
+                const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                dialogStore.success();
+            }} />,
+            doNothing,
+            true,
+            FilesApi.fileSelectorModalStyle
+        );
+    }, []);
+
     const error = props.errors[props.parameter.name] != null;
-    return null;
-    /*
-    TODO
-    return <FileSelector
-        visible={isOpen}
-
-        canSelectFolders={isDirectoryInput}
-        onlyAllowFolders={isDirectoryInput}
-
-        onFileSelect={file => {
-            valueInput()!.value = file?.path ?? "";
-            valueInput()!.dispatchEvent(new Event("change"));
-            setOpen(false);
-        }}
-
-        trigger={
-            <>
-                <input type={"hidden"} id={widgetId(props.parameter)}/>
-                <FileSelectorInput
-                    id={widgetId(props.parameter) + "visual"}
-                    placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
-                    onClick={() => setOpen(true)}
-                    error={error}
-                />
-            </>
-        }
-    />;
-     */
+    return <>
+        <input type={"hidden"} id={widgetId(props.parameter)}/>
+        <FileSelectorInput
+            id={widgetId(props.parameter) + "visual"}
+            placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
+            onClick={onActivate}
+            error={error}
+        />
+    </>;
 };
 
 const FileSelectorInput = styled(Input)`
