@@ -192,12 +192,7 @@ class SyncService(
                             listOf(MountFolderId(folder.id.toLong()))
                         ),
                         authenticatedClient //.withMounterInfo(device)
-                    ).orRethrowAs {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.InternalServerError,
-                            "Something went nuts here"
-                        )
-                    }
+                    )
                 }
 
                 db.withSession { session ->
@@ -207,7 +202,7 @@ class SyncService(
                         },
                         """
                             delete from file_ucloud.sync_folders
-                            where id in (select unnest(:ids:bigint[]))
+                            where id in (select unnest(:ids::bigint[]))
                         """
                     )
                 }
@@ -218,40 +213,92 @@ class SyncService(
     }
 
     suspend fun removeFolders(request: BulkRequest<SyncFolder>) {
-        db.withSession { session ->
-            val devices = session.sendPreparedStatement(
+        data class DeletedFolder(
+            val id: Long,
+            val path: String,
+            val localDevice: LocalSyncthingDevice,
+            val syncType: SynchronizationType,
+            val userId: String
+        )
+
+        val deleted = db.withSession { session ->
+            val deleted = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { it.id.toLong() })
                 },
                 """
                     delete from file_ucloud.sync_folders
                     where id in (select unnest(:ids::bigint[]))
-                    returning id, device_id
+                    returning id, device_id, path, sync_type, user_id 
                 """
             ).rows.mapNotNull {
-                val id = it.getLong(0)!!
-                val deviceId = it.getString(1)!!
+                val id = it.getField(SyncFoldersTable.id)
+                val deviceId = it.getField(SyncFoldersTable.device)
+                val path = it.getField(SyncFoldersTable.path)
+                val syncType = it.getField(SyncFoldersTable.syncType)
+                val userId = it.getField(SyncFoldersTable.user)
+
                 val device = syncthing.config.devices.find { it.id == deviceId }
                 if (device != null) {
-                    id to device
+                    DeletedFolder(id, path, device, SynchronizationType.valueOf(syncType), userId)
                 } else {
                     null
                 }
             }
 
-            devices.groupBy { it.second.id }.forEach { (_, requests) ->
+            deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
                 Mounts.unmount.call(
                     UnmountRequest(
-                        requests.map { MountFolderId(it.first) }
+                        deviceFolders.value.map { MountFolderId(it.id) }
                     ),
                     authenticatedClient//.withMounterInfo(requests[0].second)
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
             }
+
+            deleted
         }
 
-        syncthing.writeConfig()
+        try {
+            syncthing.writeConfig(deleted.map { it.localDevice })
+        } catch (ex: Throwable) {
+            deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
+                Mounts.mount.call(
+                    MountRequest(
+                        deviceFolders.value.map { MountFolder(it.id, it.path) }
+                    ),
+                    authenticatedClient //.withMounterInfo(device)
+                )
+            }
+
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", deleted.map { it.id })
+                        setParameter("devices", deleted.map { it.localDevice.id })
+                        setParameter("paths", deleted.map { it.path })
+                        setParameter("users", deleted.map { it.userId })
+                        setParameter("types", deleted.map { it.syncType.name })
+                    },
+                    """
+                        insert into file_ucloud.sync_folders(
+                            id, 
+                            device_id, 
+                            path,
+                            user_id,
+                            sync_type
+                        ) values (
+                            unnest(:ids::bigint[]),
+                            unnest(:devices::text[]),
+                            unnest(:paths::text[]),
+                            unnest(:users::text[]),
+                            unnest(:types::text[])
+                        )
+                    """
+                )
+            }
+        }
     }
 
     suspend fun browseFolders(
