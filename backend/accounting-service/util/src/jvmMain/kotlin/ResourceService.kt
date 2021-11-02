@@ -187,7 +187,8 @@ abstract class ResourceService<
             permissionOneOf,
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
-            projectFilter = if (useProject) actorAndProject.project else ""
+            projectFilter = if (useProject) actorAndProject.project else "",
+            simpleFlags = SimpleResourceIncludeFlags(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
         )
 
         @Suppress("SqlResolve")
@@ -971,7 +972,7 @@ abstract class ResourceService<
         projectFilter: String? = "",
         flags: Flags? = null,
         simpleFlags: SimpleResourceIncludeFlags? = null,
-        includeUnconfirmed: Boolean = false
+        includeUnconfirmed: Boolean = false,
     ): PartialQuery {
         val includeOthers = flags?.includeOthers ?: simpleFlags?.includeOthers ?: false
         val includeUpdates = flags?.includeUpdates ?: simpleFlags?.includeUpdates ?: false
@@ -1145,7 +1146,7 @@ abstract class ResourceService<
             actorAndProject.actor,
             permissionsOneOf,
             projectFilter = if (useProject) actorAndProject.project else "",
-            flags = flags
+            flags = flags,
         )
 
         @Suppress("SqlResolve")

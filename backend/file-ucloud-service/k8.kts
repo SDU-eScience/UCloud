@@ -9,6 +9,7 @@ bundle {
         addSimpleMapping("/ucloud/ucloud/chunked")
         addSimpleMapping("/ucloud/ucloud/files")
         addSimpleMapping("/ucloud/ucloud/shares")
+        addSimpleMapping("/ucloud/ucloud/download")
     }
     
     val deployment = withDeployment {
