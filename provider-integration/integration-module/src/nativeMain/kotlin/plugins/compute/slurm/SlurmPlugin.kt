@@ -176,7 +176,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
         val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition.toString()
         
-        ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.create",  SlurmJob(job.id, slurmId.trim(), job_partition, 1 ).toJson() ) ).orThrow<Unit>()
+        ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.create",  defaultMapper.encodeToJsonElement(  SlurmJob(job.id, slurmId.trim(), job_partition, 1 )  ) as JsonObject ) ).orThrow<Unit>()
 
         sleep(2)
 
@@ -358,6 +358,8 @@ fun PluginContext.getStatus(id: String) : Status {
                                         )
                     }
 
+                    if( jobs.isEmpty() ) continue
+
 
                     // --ids 7,8 ...
                     var ids = jobs.fold( "", { acc, item ->  acc + item.slurmId + "," })
@@ -386,7 +388,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
                     //println(acctJobs)
 
-
+                    var finishedJobs:MutableList<String> = mutableListOf()
                     acctJobs.forEach{ job ->      
                         val state = job.toString().split("|").get(1)
 
@@ -408,9 +410,32 @@ fun PluginContext.getStatus(id: String) : Status {
                                         client
                                     ).orThrow()
                             }
+
+                            finishedJobs.add(thisId)
+
                             //TODO: update table job_mapping.status = 0 where slurmId in ( list ) 
                         }
-                    }       
+                    }
+
+
+
+
+                
+                    if( finishedJobs.isEmpty() ) continue
+                    //update all finished jobs to status 0
+                    (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
+
+                            connection.prepareStatement(
+                                                        """
+                                                            update job_mapping 
+                                                            set status = 0
+                                                            where local_id in ( :list )
+                                                        """
+                                        ).useAndInvokeAndDiscard{
+                                                            bindString("list", finishedJobs.joinToString( separator=",") )
+                                        }
+                    }
+
 
 
                 
