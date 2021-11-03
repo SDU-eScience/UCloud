@@ -14,6 +14,13 @@ data class Project(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Projects::class)
+data class MemberInProject(
+    val role: ProjectRole?,
+    val project: Project
+)
+
+@Serializable
 data class ProjectGroup(
     val id: String,
     val title: String

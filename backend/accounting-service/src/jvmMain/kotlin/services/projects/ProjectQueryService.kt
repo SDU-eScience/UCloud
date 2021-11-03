@@ -2,20 +2,14 @@ package dk.sdu.cloud.accounting.services.projects
 
 import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.*
-import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.db.async.mapItems
 import io.ktor.http.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -112,7 +106,7 @@ class ProjectQueryService(
 
                     val idx = queries.indexOfFirst {
                         it.group == summary.group &&
-                                it.username == summary.username
+                            it.username == summary.username
                     }
 
                     if (idx == -1) {
@@ -348,19 +342,19 @@ class ProjectQueryService(
                 if (pagination == null) null
                 else
                     session
-                    .sendPreparedStatement(
-                        params,
-                        """
+                        .sendPreparedStatement(
+                            params,
+                            """
                             select count(g.id)
                             from project.groups g
                             where
                                 g.project = :project and
                                 project.check_group_acl(:username, :userIsAdmin, g.id)
                         """
-                    )
-                    .rows
-                    .map { it.getLong(0)!!.toInt() }
-                    .singleOrNull() ?: 0
+                        )
+                        .rows
+                        .map { it.getLong(0)!!.toInt() }
+                        .singleOrNull() ?: 0
 
             val items = session
                 .sendPreparedStatement(
@@ -766,7 +760,7 @@ class ProjectQueryService(
             }
 
             return@withSession (Time.now() - latestVerification.toTimestamp()) >
-                    VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
+                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }
 
@@ -940,93 +934,64 @@ class ProjectQueryService(
 
     suspend fun listSubProjects(
         ctx: DBContext,
-        pagination: NormalizedPaginationRequest?,
+        pagination: WithPaginationRequestV2,
         actor: Actor,
         id: String
-    ): Page<Project> {
-        return ctx.withSession { session ->
-            val isAdmin = when (actor) {
-                Actor.System -> true
+    ): PageV2<MemberInProject> {
+        val isAdmin = when (actor) {
+            Actor.System -> true
 
-                is Actor.User, is Actor.SystemOnBehalfOfUser -> {
-                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
-                        true
-                    } else {
-                        projects.findRoleOfMember(ctx, id, actor.username) in ProjectRole.ADMINS
-                    }
+            is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
+                    true
+                } else {
+                    projects.findRoleOfMember(ctx, id, actor.username) in ProjectRole.ADMINS
                 }
-                else -> false
             }
-
-            if (isAdmin) {
-                session
-                    .paginatedQuery(
-                        pagination,
-                        { setParameter("id", id) },
-                        "from project.projects where parent = :id"
-                    )
-                    .mapItems { it.toProject() }
-            } else {
-                val params: EnhancedPreparedStatement.() -> Unit = {
-                    setParameter("id", id)
-                    setParameter("username", actor.username)
-                    setParameter("offset", pagination?.offset ?: 0)
-                    setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
-                }
-
-                val count =
-                    if (pagination == null) null
-                    else {
-                        session
-                            .sendPreparedStatement(
-                                params,
-
-                                """
-                            select count(p.id)
-                            from project.projects p, project.project_members pm
-                            where
-                                p.parent = :id and
-                                pm.project_id = p.id and
-                                pm.username = :username and
-                                (pm.role = 'ADMIN' or pm.role = 'PI')
-                        """
-                            )
-                            .rows
-                            .single()
-                            .getLong(0) ?: 0L
-                    }
-
-                val items = session
-                    .sendPreparedStatement(
-                        params,
-
-                        """
-                            select p.*
-                            from project.projects p, project.project_members pm
-                            where
-                                p.parent = :id and
-                                pm.project_id = p.id and
-                                pm.username = :username and
-                                (pm.role = 'ADMIN' or pm.role = 'PI')
-                            offset :offset
-                            limit :limit
-                        """
-                    )
-                    .rows
-                    .map { it.toProject() }
-
-                val itemsInTotal = count?.toInt() ?: items.size
-                Page.forRequest(pagination, itemsInTotal, items)
-            }
+            else -> false
         }
+
+        return ctx.paginateV2(
+            actor,
+            pagination.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("username", actor.username)
+                        setParameter("isAdmin", isAdmin)
+                    },
+                """
+                        declare c cursor for
+                        select p.*, pm.role
+                        from
+                            project.projects p left join
+                            project.project_members pm on
+                                pm.project_id = p.id and
+                                pm.username = :username,
+                            project.project_members parent_member
+                        where
+                            parent_member.project_id = :id and
+                            parent_member.username = :username and
+                            p.parent = :id and
+                            (:isAdmin = true or parent_member.role = 'ADMIN' or parent_member.role = 'PI')
+                        order by p.title
+                    """
+                )
+            },
+            mapper = { _, rows -> rows.map { row ->
+                val role = row.getField(ProjectMemberTable.role) as String?
+                MemberInProject(if (role == null) null else ProjectRole.valueOf(role), row.toProject()) }
+            }
+        )
     }
 
     suspend fun isAdminOrPIOfProject(ctx: DBContext, username: String, projectId: String): Boolean {
         val piAndAdmins = projects.getPIAndAdminsOfProject(ctx, projectId)
-        when {
-            piAndAdmins.first == username -> return true
-            piAndAdmins.second.contains(username) -> return true
-            else -> return false
+        return when {
+            piAndAdmins.first == username -> true
+            piAndAdmins.second.contains(username) -> true
+            else -> false
         }
     }
 

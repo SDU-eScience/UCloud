@@ -188,7 +188,10 @@ class NetworkIPService(
                 setParameter("query", query)
             },
             """
-                select * from app_orchestrator.network_ips
+                select i.* 
+                from
+                    accessible_resources resc join
+                    app_orchestrator.network_ips i on (resc.r).id = resource
                 where
                     (:query::text is null or ip_address ilike '%' || :query || '%')
             """

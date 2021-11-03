@@ -33,7 +33,6 @@ const Connect: React.FunctionComponent = () => {
     const connectToProvider = useCallback(async (provider: string) => {
         const res = await invokeCommand<provider.IntegrationConnectResponse>(IntegrationApi.connect({provider}));
         if (res) document.location.href = res.redirectTo;
-        console.log(res?.redirectTo);
     }, []);
 
     const pageRenderer: PageRenderer<provider.IntegrationBrowseResponseItem> = useCallback((page) => {

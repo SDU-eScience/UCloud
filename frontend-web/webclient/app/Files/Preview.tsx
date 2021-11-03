@@ -73,7 +73,6 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
 
     let node: JSX.Element | null;
 
-    console.log("data", data != null);
     switch (type) {
         case "text":
         case "code":

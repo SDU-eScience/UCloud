@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "2021.3.0-alpha0"
+    version = "2021.3.0-alpha11"
 
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
@@ -15,11 +15,30 @@ bundle { ctx ->
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")
-        addSimpleMapping("/ucloud/ucloud")
+        addSimpleMapping("/ucloud/ucloud/jobs")
+        addSimpleMapping("/ucloud/ucloud/ingresses")
+        addSimpleMapping("/ucloud/ucloud/networkips")
+        addSimpleMapping("/ucloud/ucloud/licenses")
+        addSimpleMapping("/ucloud/ucloud/websocket")
+        // TODO This seems wrong
+        addSimpleMapping("/ucloud/jobs.provider.ucloud/websocket")
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
+
+        val cephfsVolume = "cephfs"
+        serviceContainer.volumeMounts.add(VolumeMount().apply {
+            name = cephfsVolume
+            mountPath = "/mnt/cephfs"
+        })
+
+        volumes.add(Volume().apply {
+            name = cephfsVolume
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                claimName = cephfsVolume
+            }
+        })
 
         run {
             // Envoy configuration

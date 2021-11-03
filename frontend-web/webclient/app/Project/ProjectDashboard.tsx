@@ -3,7 +3,8 @@ import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    subprojectsCountRequest
+    Project,
+    listSubprojects
 } from "@/Project";
 import * as React from "react";
 import {Flex, Card, Icon, Box} from "@/ui-components";
@@ -49,9 +50,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         0
     );
 
-    const [subprojectsCount, setSubprojectsCount] = useCloudAPI<number>(
+    const [subprojects, setSubprojects] = useCloudAPI<Page<Project>>(
         {noop: true},
-        0
+        emptyPage
     );
 
     const [apps, setGrantParams] = useCloudAPI<IngoingGrantApplicationsResponse>(
@@ -67,7 +68,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
-        setSubprojectsCount(subprojectsCountRequest());
+        setSubprojects(listSubprojects({itemsPerPage: 10}));
         setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [projectId]);
@@ -77,7 +78,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             return false;
         } else if (groupsCount.error?.statusCode === 403) {
             return false;
-        } else if (subprojectsCount.error?.statusCode === 403) {
+        } else if (subprojects.error?.statusCode === 403) {
             return false;
         } else {
             return true;
@@ -131,7 +132,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         >
                         </HighlightedCard>
 
-                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojects.data.itemsInTotal, settings.data) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
                                 onClick={() => history.push("/project/grants/ingoing")}
@@ -170,6 +171,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </HighlightedCard>
                         )}
+                        <HighlightedCard
+                            subtitle={<RightArrow />}
+                            onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                            title="Subprojects"
+                            icon="projects"
+                            color="green"
+                        />
                     </ProjectDashboardGrid>
                 </>
             )}
@@ -177,9 +185,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 };
 
-export const RightArrow = (): JSX.Element => (
-    <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
-);
+export function RightArrow(): JSX.Element {
+    return (
+        <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
+    );
+}
 
 function noSubprojectsAndGrantsAreDisallowed(
     subprojects: number,

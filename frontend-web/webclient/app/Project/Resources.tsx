@@ -379,7 +379,6 @@ const TransferDepositModal: React.FunctionComponent<{
     }, []);
 
     const doSubmit = useCallback(() => {
-        console.log(amountField, amountField.current?.value);
         if (recipient && createdBefore) {
             const amount = normalizeBalanceForBackend(parseInt(amountField.current?.value ?? "0"),
                 wallet.productType, wallet.chargeType, wallet.unit);

@@ -101,7 +101,15 @@ abstract class ResourceService<
 
     protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
-        return PartialQuery({}, "select * from $tableName")
+        return PartialQuery(
+            {},
+            """
+                select t.*
+                from
+                    accessible_resources resc join
+                    $tableName t on (resc.r).id = resource
+            """.trimIndent()
+        )
     }
 
     override suspend fun retrieve(
@@ -134,8 +142,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -179,7 +187,8 @@ abstract class ResourceService<
             permissionOneOf,
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
-            projectFilter = if (useProject) actorAndProject.project else ""
+            projectFilter = if (useProject) actorAndProject.project else "",
+            simpleFlags = SimpleResourceIncludeFlags(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
         )
 
         @Suppress("SqlResolve")
@@ -193,8 +202,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -963,7 +972,7 @@ abstract class ResourceService<
         projectFilter: String? = "",
         flags: Flags? = null,
         simpleFlags: SimpleResourceIncludeFlags? = null,
-        includeUnconfirmed: Boolean = false
+        includeUnconfirmed: Boolean = false,
     ): PartialQuery {
         val includeOthers = flags?.includeOthers ?: simpleFlags?.includeOthers ?: false
         val includeUpdates = flags?.includeUpdates ?: simpleFlags?.includeUpdates ?: false
@@ -1137,7 +1146,7 @@ abstract class ResourceService<
             actorAndProject.actor,
             permissionsOneOf,
             projectFilter = if (useProject) actorAndProject.project else "",
-            flags = flags
+            flags = flags,
         )
 
         @Suppress("SqlResolve")
@@ -1153,8 +1162,8 @@ abstract class ResourceService<
                     """
                         declare c cursor for
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -1174,7 +1183,7 @@ abstract class ResourceService<
                         null
                     }
                 }.attachExtra(flags)
-            }
+            },
         )
     }
 

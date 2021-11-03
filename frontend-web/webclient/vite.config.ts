@@ -36,14 +36,13 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
         clearScreen: false,
         define: {
             /*  
-                Note(Jonas): Added because of React-Markdown using the `assert` function.
-                Which is why the assert package is installed 
+                Note(Jonas): Added because of React-Markdown using the `assert` function,
+                which is why the assert package is installed.
             */
             "process.env": {},
             DEVELOPMENT_ENV: mode !== "production",
         },
-        mode,
-        /* assetsInclude: "./app/Assets/", */
+        mode: mode === "production" ? "production" : "developement",
         plugins: [reactRefresh()],
         resolve: {
             alias: {

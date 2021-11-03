@@ -106,8 +106,7 @@ export const FilesBrowse: React.FunctionComponent<{
                         next: drives.data.next
                     }))}
                     page={drives.data}
-                    pageRenderer={items => {
-                        return (
+                    pageRenderer={items => (
                             <>
                                 <List childPadding={"8px"} bordered={false}>
                                     {items.map(drive => (
@@ -121,8 +120,8 @@ export const FilesBrowse: React.FunctionComponent<{
                                     ))}
                                 </List>
                             </>
-                        );
-                    }}
+                        )
+                    }
                 />
             </DriveDropdown>
             <BreadCrumbsBase embedded={props.browseType === BrowseType.Embedded}>

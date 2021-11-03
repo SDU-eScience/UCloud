@@ -132,10 +132,9 @@ function findSensitivity(file: UFile): SensitivityLevel {
 
     // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
     // TODO(Jonas): The type is not correct if this needs to be cast for this to work
-    const sensitivity = (
+    return (
         Object.values(file.status.metadata?.metadata[sensitivityTemplateId] ?? {})[0] as any
     )?.specification.document.sensitivity ?? "PRIVATE";
-    return sensitivity;
 }
 
 function findTemplateId(file: UFile, namespace: string, version: string): string {
