@@ -3,11 +3,12 @@ import {default as Api, FileMetadataTemplate, FileMetadataTemplateNamespace} fro
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
 import Create from "@/Files/Metadata/Templates/Create";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export const MetadataNamespacesBrowse: React.FunctionComponent<{
     onSelect?: (selection: FileMetadataTemplateNamespace) => void;
     isSearch?: boolean;
-    embedded?: boolean;
+    browseType: BrowseType;
     onTemplateSelect?: (selection: FileMetadataTemplate) => void;
 }> = ({onTemplateSelect, ...props}) => {
     return <ResourceBrowse api={Api} {...props} propsForInlineResources={{onTemplateSelect}} />;

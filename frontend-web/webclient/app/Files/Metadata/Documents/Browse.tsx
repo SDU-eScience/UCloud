@@ -14,6 +14,7 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export const entityName = "Metadata";
 
@@ -76,11 +77,11 @@ export const MetadataBrowse: React.FunctionComponent<{
         <ReactModal
             isOpen={lookingForTemplate}
             ariaHideApp={false}
-            shouldCloseOnEsc={true}
+            shouldCloseOnEsc
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse embedded={true} onTemplateSelect={selectTemplate} />
+            <MetadataNamespacesBrowse browseType={BrowseType.Embedded} onTemplateSelect={selectTemplate} />
         </ReactModal>
     </div>;
 };
@@ -95,7 +96,7 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
     Icon({size}) {
         return <SvgFt width={size} height={size} type={"text"} ext={"meta"}
             color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-            hasExt={true} />
+            hasExt />
     },
     MainTitle({resource}) {return !resource ? null : <>{resource.template.title}</>},
     Stats({resource}) {
