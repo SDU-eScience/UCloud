@@ -23,8 +23,11 @@ import {BulkResponse} from "@/UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useSelector, useStore} from "react-redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
-const maxConcurrentUploads = 5;
+const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
 const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
@@ -143,6 +146,8 @@ const Uploader: React.FunctionComponent = () => {
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
+    const refresh: () => void | undefined = useSelector<ReduxObject>(state => state.header.refresh);
+
     const closeModal = useCallback(() => {
         setUploaderVisible(false);
     }, []);
@@ -154,7 +159,7 @@ const Uploader: React.FunctionComponent = () => {
             if (u.state === UploadState.UPLOADING) activeUploads++;
         }
 
-        const maxUploadsToUse = maxConcurrentUploads - activeUploads;
+        const maxUploadsToUse = MAX_CONCURRENT_UPLOADS - activeUploads;
         if (maxUploadsToUse > 0) {
             const creationRequests: FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
@@ -310,8 +315,15 @@ const Uploader: React.FunctionComponent = () => {
         if (lookForNewUploads) {
             setLookForNewUploads(false);
             startUploads(uploads);
+            const shouldReload = uploads.every(it => it.state === UploadState.DONE) &&
+                uploads.some(it => it.targetPath === uploadPath && !it.terminationRequested);
+            if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {
+                refresh?.();
+            } else if (shouldReload) {
+                snackbarStore.addSuccess("File upload(s) finished.", true);
+            }
         }
-    }, [lookForNewUploads, startUploads]);
+    }, [lookForNewUploads, startUploads, refresh, uploadPath, uploaderVisible]);
 
 
     const [pausedFilesInFolder, setPausedFilesInFolder] = useState<string[]>([]);
