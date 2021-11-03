@@ -146,7 +146,7 @@ const Uploader: React.FunctionComponent = () => {
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
-    const refresh: () => void | undefined = useSelector<ReduxObject>(state => state.header.refresh);
+    const refresh = useSelector<ReduxObject, (() => void) | undefined>(state => state.header.refresh);
 
     const closeModal = useCallback(() => {
         setUploaderVisible(false);
