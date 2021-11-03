@@ -43,6 +43,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -474,6 +475,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
+                    if (Client.hasActiveProject) {return false}
                     return selected.length > 0 && selected.every(it => {
                         return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
                     });

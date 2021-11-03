@@ -172,6 +172,10 @@ class ShareService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+        if (actorAndProject.project != null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
+        }
+
         val shareWithSelf = idWithSpec.find { it.second.sharedWith == actorAndProject.actor.safeUsername() }
         if (shareWithSelf != null) {
             throw RPCException(
@@ -183,7 +187,7 @@ class ShareService(
         val returnedUsers = session.sendPreparedStatement(
             {
                 idWithSpec.split {
-                    into("username") {it.second.sharedWith}
+                    into("username") { it.second.sharedWith }
                 }
             },
             """
