@@ -134,50 +134,50 @@ class Handlers {
         // }
             
 
-        //     IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
-        //         log.debug("Asked to browse jobs!")
-        //         val req = runCatching {
-        //             defaultMapper.decodeFromJsonElement<JobsBrowseRequest>(jsonRequest.params)
-        //         }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+            IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
+                log.debug("Asked to browse jobs!")
+                val req = runCatching {
+                    defaultMapper.decodeFromJsonElement<JobsBrowseRequest>(jsonRequest.params)
+                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
-        //         println(req)
-        //         //JobsBrowseRequest(filters=[Criteria(field=status, condition==1)], itemsPerPage=null, next=null, consistency=REQUIRE, itemsToSkip=null)
+                println(req)
+                //JobsBrowseRequest(filters=[Criteria(field=status, condition==1)], itemsPerPage=null, next=null, consistency=REQUIRE, itemsToSkip=null)
 
-        //         var jobs:MutableList<SlurmJob> = mutableListOf()
-        //         val filters = req.filters.fold("where "){ acc, e -> acc.plus(e.field).plus(e.condition).plus(" and ")}.dropLast(5)
-        //         var limit = ""
+                var jobs:MutableList<SlurmJob> = mutableListOf()
+                val filters = req.filters.fold("where "){ acc, e -> acc.plus(e.field).plus(e.condition).plus(" and ")}.dropLast(5)
+                var limit = ""
 
-        //         if(req.itemsPerPage != null) limit = " limit " + req.itemsPerPage.toString()
+                if(req.itemsPerPage != null) limit = " limit " + req.itemsPerPage.toString()
 
-        //         val conditions = filters.plus(limit)
+                val conditions = filters.plus(limit)
                 
 
-        //         (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-        //                     connection.prepareStatement(
-        //                                                 """
-        //                                                     select * 
-        //                                                     from job_mapping 
-        //                                                     :conditions
-        //                                                 """.replace(":conditions", conditions )
-        //                                 ).useAndInvoke(
-        //                                     //prepare = {  bindString("conditions", "status=1" )   },
-        //                                     readRow = {  jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  ) }
-        //                                 )
-        //         }
+                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
+                            connection.prepareStatement(
+                                                        """
+                                                            select * 
+                                                            from job_mapping 
+                                                            :conditions
+                                                        """.replace(":conditions", conditions )
+                                        ).useAndInvoke(
+                                            //prepare = {  bindString("conditions", "status=1" )   },
+                                            readRow = {  jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  ) }
+                                        )
+                }
 
-        //         println(" DATABASE RESULT $jobs")
+                println(" DATABASE RESULT $jobs")
                 
 
-        //         buildJsonObject{ 
-        //             putJsonArray("jobs"){
-        //                     for (j in jobs) add(  defaultMapper.encodeToJsonElement( j )  )
-        //             }
-        //         }
+                buildJsonObject{ 
+                    putJsonArray("jobs"){
+                            for (j in jobs) add(  defaultMapper.encodeToJsonElement( j )  )
+                    }
+                }
 
-        //     }
+            }
 
 
-        // )
+        )
 
 
 
