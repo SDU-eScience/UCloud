@@ -82,10 +82,10 @@ const OperationComponent: React.FunctionComponent<{
 
     if (As === ConfirmationButton) {
         extraProps["onAction"] = onClick;
-        extraProps["asSquare"] = !op.primary;
+        extraProps["asSquare"] = !op.primary || location === "SIDEBAR";
         extraProps["actionText"] = op.text;
         extraProps["hoverColor"] = op.hoverColor;
-        if (op.primary) {
+        if (op.primary && location === "IN_ROW") {
             extraProps["align"] = "center";
             extraProps["fontSize"] = "14px";
             extraProps["mx"] = "12px";
