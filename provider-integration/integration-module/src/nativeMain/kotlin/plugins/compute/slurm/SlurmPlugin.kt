@@ -79,7 +79,7 @@ fun PluginContext.getStatus(id: String) : Status {
     runBlocking {
 
         val ipcClient = ipcClient ?: error("No ipc client")
-        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", defaultMapper.encodeToJsonElement( SlurmJob(id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
+        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", SlurmJob(id, "someid", "normal", 1 ).toJson() ) ).orThrow<SlurmJob>()
 
 
         val (code, stdout, stderr) = CmdBuilder("/usr/bin/squeue")
@@ -145,98 +145,8 @@ fun PluginContext.getStatus(id: String) : Status {
 
     override fun PluginContext.initialize() {
         val log = Log("SlurmComputePlugin")
-
-        ipcServer?.addHandler(
-            IpcHandler("slurm.jobs.create") { user, jsonRequest ->
-                log.debug("Asked to add new job mapping!")
-                val req = runCatching {
-                    defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                //println(req)
-
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-
-                        connection.prepareStatement(
-                                        """
-                                            insert into job_mapping (local_id, ucloud_id, partition, status) values ( :local_id, :ucloud_id, :partition, :status )
-                                        """
-                        ).useAndInvokeAndDiscard {
-                                            bindString("ucloud_id", req.ucloudId)
-                                            bindString("local_id", req.slurmId )
-                                            bindString("partition", req.partition )
-                                            bindInt("status", req.status )
-                        }
-                }
-
-                JsonObject(emptyMap())
-            }
-        )
-
-
-
-
-        ipcServer?.addHandler(
-            IpcHandler("slurm.jobs.retrieve") { user, jsonRequest ->
-                log.debug("Asked to get job!")
-                val req = runCatching {
-                    defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                var slurmJob:SlurmJob? = null
-
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-
-                        connection.prepareStatement(
-                                        """
-                                            select * 
-                                            from job_mapping 
-                                            where ucloud_id = :ucloud_id
-                                        """
-                        ).useAndInvoke (
-                            prepare = { bindString("ucloud_id", req.ucloudId) },
-                            readRow = { slurmJob = SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! ) }
-                        )
-                }
-
-                //println(" DATABASE RESULT $slurmJob")
-
-                defaultMapper.encodeToJsonElement(slurmJob) as JsonObject 
-            }
-        )
-
-
-        ipcServer?.addHandler(
-            IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
-                log.debug("Asked to browse jobs!")
-                // val req = runCatching {
-                //     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                // }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                var jobs:MutableList<SlurmJob> = mutableListOf()
-
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-                            connection.prepareStatement(
-                                                        """
-                                                            select * 
-                                                            from job_mapping 
-                                                            where status = 1
-                                                        """
-                                        ).useAndInvoke(
-                                            readRow = { 
-                                                jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  )
-                                            }
-                                        )
-                }
-
-                println(" DATABASE RESULT $jobs")
-
-                defaultMapper.encodeToJsonElement(jobs) as JsonObject 
-            }
-        )
-
-
-    }
+        for (handle in Handlers.ipc ) ipcServer?.addHandler(handle)
+    }   
 
 
     override fun PluginContext.create(job: Job) {
@@ -246,7 +156,7 @@ fun PluginContext.getStatus(id: String) : Status {
         mkdir("${mountpoint}/${job.id}", "0770".toUInt(8) )
 
         val job_content = job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-        val sbatch_content = manageHeader(job, config)
+        val sbatch_content = Utils.manageHeader(job, config)
 
 
         
@@ -263,9 +173,10 @@ fun PluginContext.getStatus(id: String) : Status {
 
         val ipcClient = ipcClient ?: error("No ipc client")
 
+
         val job_partition = config.plugins?.compute?.plugins?.first{ it.id == TAG }?.configuration?.partition.toString()
         
-        ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.create", defaultMapper.encodeToJsonElement(   SlurmJob(job.id, slurmId.trim(), job_partition, 1 )   ) as JsonObject ) ).orThrow<Unit>()
+        ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.create",  SlurmJob(job.id, slurmId.trim(), job_partition, 1 ).toJson() ) ).orThrow<Unit>()
 
         sleep(2)
 
@@ -305,7 +216,7 @@ fun PluginContext.getStatus(id: String) : Status {
 
 
         val ipcClient = ipcClient ?: error("No ipc client")
-        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", defaultMapper.encodeToJsonElement( SlurmJob(job.id, "someid", "normal", 1 ) ) as JsonObject ) ).orThrow<SlurmJob>()
+        val slurmJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve",  SlurmJob(job.id, "someid", "normal", 1 ).toJson() ) ).orThrow<SlurmJob>()
 
 
         // Sends SIGKILL or custom with -s INTEGER
