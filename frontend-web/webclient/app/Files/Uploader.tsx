@@ -23,8 +23,7 @@ import {BulkResponse} from "@/UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useSelector, useStore} from "react-redux";
+import {useSelector} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const MAX_CONCURRENT_UPLOADS = 5;
@@ -409,14 +408,23 @@ const Uploader: React.FunctionComponent = () => {
                                 </ListStatContainer>
                             }
                             right={
-                                <Operations
-                                    row={upload}
-                                    location={"IN_ROW"}
-                                    operations={operations}
-                                    selected={toggleSet.checked.items}
-                                    extra={callbacks}
-                                    entityNameSingular={entityName}
-                                />
+                                <>
+                                    {upload.state !== UploadState.DONE ? null : (
+                                        upload.paused ? null :
+                                            (upload.terminationRequested ?
+                                                <Icon name="close" color="red" /> :
+                                                <Icon name="check" color="green" />
+                                            )
+                                    )}
+                                    <Operations
+                                        row={upload}
+                                        location={"IN_ROW"}
+                                        operations={operations}
+                                        selected={toggleSet.checked.items}
+                                        extra={callbacks}
+                                        entityNameSingular={entityName}
+                                    />
+                                </>
                             }
                         />
                     ))}
