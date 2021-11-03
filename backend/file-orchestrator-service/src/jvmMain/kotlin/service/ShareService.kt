@@ -91,7 +91,6 @@ class ShareService(
     }
 
     private suspend fun onFilesDeleted(request: List<FindByPath>) {
-        println("onFilesDeleted")
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -105,7 +104,6 @@ class ShareService(
                                 unnest(:paths::text[]) path,
                                 unnest(:available_at::text[]) available_at
                         ),
-                        --Locating sub folders that are shares.
                         original_paths as (
                             select resource as share_id, original_file_path, s.available_at, path share_path
                             from file_orchestrator.shares s join entries on s.available_at=entries.available_at
@@ -116,16 +114,14 @@ class ShareService(
                             join file_orchestrator.shares s on (
                                 s.original_file_path like (
                                     select (
-                                        --Removes mount point, leaving only subpath
                                         op.original_file_path || (select regexp_replace(op.share_path, '([\/]\d*)', '') || '/%')
                                     )
                                 )
                             )
                         ),
-                        --Deleting shares and sub shares along with their resources.
                         affected_shares as (
                             delete from file_orchestrator.shares s
-                            using entries e, sub_shares sub
+                            using entries e left join sub_shares sub on original_file_path = e.path or original_file_path = sub.original_file_path
                             where
                                 e.path = s.original_file_path or
                                 sub.original_file_path = s.original_file_path or
@@ -155,7 +151,6 @@ class ShareService(
                             using affected_shares share, affected_file_collections fc
                             where
                             r.id = share.resource or r.id = fc.resource
-
                 """, debug = true
             )
         }
