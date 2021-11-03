@@ -133,7 +133,7 @@ function createResumeable(
             };
 
             request.send(chunk);
-        }))
+        }));
     }
 }
 
@@ -254,9 +254,9 @@ const Uploader: React.FunctionComponent = () => {
         });
     }, [uploads]);
 
-    const callbacks: UploadCallback = useMemo(() => {
-        return {startUploads, stopUploads, pauseUploads, resumeUploads};
-    }, [startUploads, stopUploads]);
+    const callbacks: UploadCallback = useMemo(() => (
+        {startUploads, stopUploads, pauseUploads, resumeUploads}
+    ), [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
@@ -321,7 +321,7 @@ const Uploader: React.FunctionComponent = () => {
             key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
         ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
         setPausedFilesInFolder(matches);
-    }, [uploadPath]);
+    }, [uploadPath, lookForNewUploads]);
 
     return <>
         <ReactModal
@@ -486,20 +486,20 @@ const modalStyle = {
 };
 
 const DropZoneBox = styled.div<{slim?: boolean}>`
-  width: 100%;
-  ${p => p.slim ? {height: "80px"} : {height: "280px"}}
-  border-width: 2px;
-  border-color: rgb(102, 102, 102);
-  border-style: dashed;
-  border-radius: 5px;
-  margin: 16px 0 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 100%;
+    ${p => p.slim ? {height: "80px"} : {height: "280px"}}
+    border-width: 2px;
+    border-color: rgb(102, 102, 102);
+    border-style: dashed;
+    border-radius: 5px;
+    margin: 16px 0 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-  & > p {
-    margin: 25px;
-  }
+    & > p {
+        margin: 25px;
+    }
 `;
 
 const UploadArtWrapper = styled.div`
