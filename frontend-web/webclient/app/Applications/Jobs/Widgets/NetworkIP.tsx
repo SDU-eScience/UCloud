@@ -13,6 +13,7 @@ import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -76,7 +77,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <NetworkIPBrowse provider={props.provider} onSelect={onUse} embedded={true}/>
+            <NetworkIPBrowse provider={props.provider} onSelect={onUse} browseType={BrowseType.Embedded}/>
         </ReactModal>
     </Flex>);
 }

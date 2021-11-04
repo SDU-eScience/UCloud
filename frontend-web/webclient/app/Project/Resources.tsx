@@ -69,6 +69,7 @@ import {
 } from "@/Accounting";
 import {InputLabel} from "@/ui-components/Input";
 import HighlightedCard from "@/ui-components/HighlightedCard";
+import {BrowseType} from "@/Resource/BrowseType";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -180,7 +181,7 @@ const Resources: React.FunctionComponent = () => {
             headerSize={60}
             sidebar={<>
                 <ResourceFilter
-                    embedded={false}
+                    browseType={BrowseType.MainContent}
                     pills={filterPills}
                     filterWidgets={filterWidgets}
                     sortEntries={[]}
