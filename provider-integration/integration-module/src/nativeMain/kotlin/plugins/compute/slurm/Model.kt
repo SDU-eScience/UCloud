@@ -16,7 +16,7 @@ import dk.sdu.cloud.defaultMapper
 
 
 @Serializable
-data class SlurmJob(  val ucloudId: String,   val slurmId: String,  val partition: String = "normal",  val status: Int = 1) {
+data class SlurmJob(  val ucloudId: String,   val slurmId: String,  val partition: String = "normal", val lastKnown: String = "init",  val status: Int = 1 ) {
     fun toJson() : JsonObject {
         return defaultMapper.encodeToJsonElement( this ) as JsonObject
     }
@@ -48,3 +48,6 @@ data class JobsBrowseRequest(
 
 @Serializable
 data class Criteria ( val field:String, val condition:String )
+
+@Serializable
+data class AcctEntry( val jobId:String?, val state:String?, val exitCode:String?, val start:String?, val end:String?)

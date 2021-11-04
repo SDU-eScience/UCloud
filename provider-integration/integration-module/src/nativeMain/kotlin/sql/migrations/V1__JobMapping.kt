@@ -12,6 +12,7 @@ fun V1__JobMapping(): MigrationScript = MigrationScript("V1__JobMapping") { conn
                 local_id text primary key,
                 partition text not null,
                 status integer default 1 not null,
+                lastknown text not null,
                 ts datetime default current_timestamp not null
             )
         """

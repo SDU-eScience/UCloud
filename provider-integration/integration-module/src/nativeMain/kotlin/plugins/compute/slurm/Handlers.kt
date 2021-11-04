@@ -111,7 +111,7 @@ class Handlers {
                                         """
                         ).useAndInvoke (
                             prepare = { bindString("ucloud_id", req.ucloudId) },
-                            readRow = { slurmJob = SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! ) }
+                            readRow = { slurmJob = SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getString(3)!!, it.getInt(4)!! ) }
                         )
                 }
 
@@ -161,7 +161,7 @@ class Handlers {
                                                         """.replace(":conditions", conditions )
                                         ).useAndInvoke(
                                             //prepare = {  bindString("conditions", "status=1" )   },
-                                            readRow = {  jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getInt(3)!! )  ) }
+                                            readRow = {  jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!! , it.getString(2)!!, it.getString(3)!!, it.getInt(4)!! )  ) }
                                         )
                 }
 
