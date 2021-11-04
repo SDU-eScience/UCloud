@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 data class NetworkIPSpecification(
@@ -200,8 +201,23 @@ data class FirewallAndIP(
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus,
         Product.NetworkIP, NetworkIPSupport>("networkips") {
-    override val typeInfo = ResourceTypeInfo<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
-            NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
 
     init {
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
@@ -320,14 +336,44 @@ firewall is controlled by the virtual machine.
 @TSNamespace("compute.networkips.control")
 object NetworkIPControl : ResourceControlApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
         NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips") {
-    override val typeInfo = ResourceTypeInfo<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
-            NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
 }
 
 open class NetworkIPProvider(provider: String) : ResourceProviderApi<NetworkIP, NetworkIPSpecification,
         NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips", provider) {
-    override val typeInfo = ResourceTypeInfo<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
-            NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
 
     override val delete get() = super.delete!!
 

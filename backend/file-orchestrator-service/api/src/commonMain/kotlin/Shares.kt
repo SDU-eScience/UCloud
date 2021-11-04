@@ -27,6 +27,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 data class Share(
@@ -135,8 +136,23 @@ data class SharesBrowseOutgoingRequest(
 
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     init {
         description = """Shares provide users a way of collaborating on individual folders in a personal workspaces.
@@ -270,14 +286,44 @@ how to use this feature. We generally recommend that you use a full-blown projec
 
 object SharesControl : ResourceControlApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 }
 
 open class SharesProvider(provider: String) : ResourceProviderApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares", provider) {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     override val delete get() = super.delete!!
 }

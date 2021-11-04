@@ -267,7 +267,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
 ) : Resource<Product.Storage, FSSupport> {
     override val billing = ResourceBilling.Free
     override val acl: List<ResourceAclEntry>? = null
-    override val updates: List<ResourceUpdate> = emptyList()
+    override val updates: List<UFileUpdate> = emptyList()
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

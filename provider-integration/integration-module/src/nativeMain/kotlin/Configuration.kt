@@ -15,23 +15,6 @@ data class ProductReferenceWithoutProvider(
 
     @UCloudApiDoc("The ID of the `Product`'s category")
     val category: String,
-
-    @UCloudApiDoc("The Price Per Minute of the `Product`'s category")
-    val ppm: String? = null,
-
-    @UCloudApiDoc("The Description of the `Product`'s category")
-    val description: String? = null,
-
-    // Physical CPUs
-    @UCloudApiDoc("The CPU of the `Product`'s category")
-    val cpu: String? = null,
-
-    @UCloudApiDoc("The GPU of the `Product`'s category")
-    val gpu: String? = null,
-
-    // Megabytes
-    @UCloudApiDoc("The Memory of the `Product`'s category")
-    val mem: String? = null,
 )
 
 @Serializable
@@ -53,9 +36,6 @@ data class PartialProductReferenceWithoutProvider(
     }
 }
 
-//Work in progress
-@Serializable
-data class PluginBasedConfiguration(val partition:String, val mountpoint:String)
 
 @Serializable
 data class ProductBasedConfiguration(
@@ -67,7 +47,7 @@ data class ProductBasedConfiguration(
         val id: String,
         val activeFor: List<PartialProductReferenceWithoutProvider> = listOf(PartialProductReferenceWithoutProvider()),
         val name: String? = null,
-        val configuration: PluginBasedConfiguration? = null,
+        val configuration: JsonObject? = null,
     )
 }
 

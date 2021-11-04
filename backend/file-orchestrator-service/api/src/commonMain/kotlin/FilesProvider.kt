@@ -12,6 +12,7 @@ import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 // ---
 
@@ -121,10 +122,25 @@ typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 // ---
 
-open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, ResourceUpdate,
+open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
-    override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
-        UFileStatus, Product.Storage, FSSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        UFile.serializer(),
+        typeOf<UFile>(),
+        UFileSpecification.serializer(),
+        typeOf<UFileSpecification>(),
+        UFileUpdate.serializer(),
+        typeOf<UFileUpdate>(),
+        UFileIncludeFlags.serializer(),
+        typeOf<UFileIncludeFlags>(),
+        UFileStatus.serializer(),
+        typeOf<UFileStatus>(),
+        FSSupport.serializer(),
+        typeOf<FSSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     val browse = call<FilesProviderBrowseRequest, FilesProviderBrowseResponse, CommonErrorMessage>("browse") {
         httpUpdate(baseContext, "browse", roles = Roles.SERVICE) // TODO FIXME

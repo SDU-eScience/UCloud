@@ -28,7 +28,7 @@ class FilesService(
     private val metadataService: MetadataService,
     private val serviceClient: AuthenticatedClient,
     private val db: DBContext,
-) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, ResourceUpdate, Product.Storage, FSSupport> {
+) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, UFileUpdate, Product.Storage, FSSupport> {
     private val moveHandlers = ArrayList<MoveHandler>()
     private val deleteHandlers = ArrayList<DeleteHandler>()
     private val trashHandlers = ArrayList<TrashHandler>()

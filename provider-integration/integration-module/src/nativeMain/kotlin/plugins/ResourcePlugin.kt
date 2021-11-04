@@ -9,7 +9,7 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 
-interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>> : Plugin {
+interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts
      */

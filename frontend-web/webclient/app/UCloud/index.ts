@@ -2790,14 +2790,14 @@ export interface Text {
 }
 /**
  * A textarea value
-    
+
  * - __Compatible with:__ `ApplicationParameter.TextArea` and `ApplicationParameter.Enumeration`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
  * - __Side effects:__ None
- * 
+ *
  * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
- * 
+ *
  */
  export interface TextArea {
     value: string,
@@ -5355,8 +5355,9 @@ export interface IntegrationControlApproveConnectionRequest {
     username: string,
 }
 export interface IntegrationBrowseResponseItem {
-    provider: string,
-    connected: boolean,
+    provider: string;
+    connected: boolean;
+    providerTitle: string;
 }
 /**
  * The base type for requesting paginated content.

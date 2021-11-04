@@ -1,8 +1,8 @@
 {
     "compute": {
         "products": [
-            { "category": "dtu", "id": "dtu-small",  "ppm": "1.1",   "description": "My product description", "cpu": "1",  "mem": "50",  "gpu": "0" },
-            { "category": "dtu", "id": "dtu-large",  "ppm": "100.0", "description": "My product description", "cpu": "10", "mem": "500", "gpu": "0" }
+            { "category": "dtu", "id": "dtu-small" },
+            { "category": "dtu", "id": "dtu-large" }
         ],
         "plugins": [
             {

@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
+import kotlin.reflect.typeOf
 
 // Useful links:
 //   - https://github.com/ginkgobioworks/react-json-schema-form-builder
@@ -176,9 +177,24 @@ object FileMetadataTemplateNamespaces : ResourceApi<
     FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec, FileMetadataTemplateNamespace.Update,
     FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status, Product,
     FileMetadataTemplateSupport>("files.metadataTemplates") {
-    override val typeInfo = ResourceTypeInfo<FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec,
-        FileMetadataTemplateNamespace.Update, FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status,
-        Product, FileMetadataTemplateSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        FileMetadataTemplateNamespace.serializer(),
+        typeOf<FileMetadataTemplateNamespace>(),
+        FileMetadataTemplateNamespace.Spec.serializer(),
+        typeOf<FileMetadataTemplateNamespace.Spec>(),
+        FileMetadataTemplateNamespace.Update.serializer(),
+        typeOf<FileMetadataTemplateNamespace.Update>(),
+        FileMetadataTemplateNamespaceFlags.serializer(),
+        typeOf<FileMetadataTemplateNamespaceFlags>(),
+        FileMetadataTemplateNamespace.Status.serializer(),
+        typeOf<FileMetadataTemplateNamespace.Status>(),
+        FileMetadataTemplateSupport.serializer(),
+        typeOf<FileMetadataTemplateSupport>(),
+        Product.serializer(),
+        typeOf<Product>(),
+    )
 
     init {
         description = """

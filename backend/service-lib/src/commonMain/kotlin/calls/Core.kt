@@ -1,6 +1,7 @@
 package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.freeze
+import dk.sdu.cloud.isFrozen
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
@@ -91,11 +92,18 @@ abstract class CallDescriptionContainer(val namespace: String) {
             errorClass,
             this
         )
+
         callDescription.handler()
-        if (!_callContainer.any { it.fullName == callDescription.fullName }) {
-            _callContainer.add(callDescription)
+
+        // NOTE(Dan): Getters will dynamically create new calls. They are not supposed to do this. It really causes
+        // problems on the native side where this is not allowed. For this reason, we won't add the description if
+        // the container has already been frozen.
+        if (!this.isFrozen()) {
+            if (!_callContainer.any { it.fullName == callDescription.fullName }) {
+                _callContainer.add(callDescription)
+            }
+            onBuildHandlers.forEach { it(callDescription) }
         }
-        onBuildHandlers.forEach { it(callDescription) }
         return callDescription
     }
 
@@ -145,6 +153,8 @@ inline fun <reified Request : Any> CallDescriptionContainer.fixedSerializer(): K
         serializer<Request>()
     } catch (ex: SerializationException) {
         @Suppress("UNCHECKED_CAST")
-        serializerLookupTable[typeOf<Request>()] as KSerializer<Request>? ?: throw ex
+        serializerLookupTable[typeOf<Request>()] as KSerializer<Request>? ?: run {
+            throw ex
+        }
     }
 }

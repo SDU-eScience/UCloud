@@ -2,7 +2,11 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.freeze
@@ -10,12 +14,12 @@ import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
 import dk.sdu.cloud.plugins.ComputePlugin
+import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
-import dk.sdu.cloud.plugins.* //delete later
 import kotlinx.coroutines.runBlocking
 
 class ComputeController(
@@ -134,6 +138,16 @@ class ComputeController(
             }
 
             OutgoingCallResponse.Ok(Unit)
+        }
+
+        implement(api.terminate) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            OutgoingCallResponse.Ok(
+                dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
+                    with(plugin) { terminateBulk(request) }
+                }
+            )
         }
     }
 

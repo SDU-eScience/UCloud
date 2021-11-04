@@ -20,6 +20,7 @@ import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
@@ -44,8 +45,23 @@ typealias FileCollectionsProviderRenameResponse = Unit
 object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
-    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
-        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        FileCollection.serializer(),
+        typeOf<FileCollection>(),
+        FileCollection.Spec.serializer(),
+        typeOf<FileCollection.Spec>(),
+        FileCollection.Update.serializer(),
+        typeOf<FileCollection.Update>(),
+        FileCollectionIncludeFlags.serializer(),
+        typeOf<FileCollectionIncludeFlags>(),
+        FileCollection.Status.serializer(),
+        typeOf<FileCollection.Status>(),
+        FSSupport.serializer(),
+        typeOf<FSSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     init {
         description = """
@@ -242,8 +258,23 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
-    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
-        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        FileCollection.serializer(),
+        typeOf<FileCollection>(),
+        FileCollection.Spec.serializer(),
+        typeOf<FileCollection.Spec>(),
+        FileCollection.Update.serializer(),
+        typeOf<FileCollection.Update>(),
+        FileCollectionIncludeFlags.serializer(),
+        typeOf<FileCollectionIncludeFlags>(),
+        FileCollection.Status.serializer(),
+        typeOf<FileCollection.Status>(),
+        FSSupport.serializer(),
+        typeOf<FSSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 }
 
 open class FileCollectionsProvider(
@@ -251,8 +282,23 @@ open class FileCollectionsProvider(
 ) : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections", provider) {
 
-    override val typeInfo = ResourceTypeInfo<FileCollection, FileCollection.Spec, FileCollection.Update,
-        FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        FileCollection.serializer(),
+        typeOf<FileCollection>(),
+        FileCollection.Spec.serializer(),
+        typeOf<FileCollection.Spec>(),
+        FileCollection.Update.serializer(),
+        typeOf<FileCollection.Update>(),
+        FileCollectionIncludeFlags.serializer(),
+        typeOf<FileCollectionIncludeFlags>(),
+        FileCollection.Status.serializer(),
+        typeOf<FileCollection.Status>(),
+        FSSupport.serializer(),
+        typeOf<FSSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     val rename = call<FileCollectionsProviderRenameRequest, BulkResponse<Unit?>,
         CommonErrorMessage>("rename") {

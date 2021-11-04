@@ -17,10 +17,25 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.CALL_REF
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.UCloudApiExampleValue
+import dk.sdu.cloud.calls.actor
+import dk.sdu.cloud.calls.basicUser
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.bulkResponseOf
+import dk.sdu.cloud.calls.comment
+import dk.sdu.cloud.calls.description
+import dk.sdu.cloud.calls.failure
+import dk.sdu.cloud.calls.provider
+import dk.sdu.cloud.calls.success
+import dk.sdu.cloud.calls.ucloudCore
+import dk.sdu.cloud.calls.useCase
 import dk.sdu.cloud.singlePageOf
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 @UCloudApiExampleValue
@@ -76,7 +91,7 @@ data class ExampleResource(
 data class ExampleResourceSupport(
     override val product: ProductReference,
     val supportsBackwardsCounting: Supported = Supported.NOT_SUPPORTED,
-): ProductSupport {
+) : ProductSupport {
     enum class Supported {
         SUPPORTED,
         NOT_SUPPORTED
@@ -133,8 +148,23 @@ typealias ExampleResourcesSuper = ResourceApi<ExampleResource, ExampleResource.S
 
 @OptIn(UCloudApiExampleValue::class)
 object Resources : ExampleResourcesSuper("example") {
-    override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
-            ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        ExampleResource.serializer(),
+        typeOf<ExampleResource>(),
+        ExampleResource.Spec.serializer(),
+        typeOf<ExampleResource.Spec>(),
+        ExampleResource.Update.serializer(),
+        typeOf<ExampleResource.Update>(),
+        ExampleResourceFlags.serializer(),
+        typeOf<ExampleResourceFlags>(),
+        ExampleResource.Status.serializer(),
+        typeOf<ExampleResource.Status>(),
+        ExampleResourceSupport.serializer(),
+        typeOf<ExampleResourceSupport>(),
+        Product.serializer(),
+        typeOf<Product>(),
+    )
 
     const val readMeFirst = """
         
@@ -244,25 +274,29 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will discover how a user can browse their catalog. This is done through the
                     browse operation. The browse operation exposes the results using the pagination API of UCloud.
                     
                     As we will see later, it is possible to filter in the results returned using the flags of the
                     operation.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     browse,
                     ResourceBrowseRequest(ExampleResourceFlags()),
-                    PageV2(50, listOf(simpleResource), null,),
+                    PageV2(50, listOf(simpleResource), null),
                     user
                 )
 
-                comment("""
+                comment(
+                    """
                     📝 NOTE: The provider has already started counting. You can observe the changes which lead to the
                     current status through the updates.
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
 
@@ -272,9 +306,11 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will discover how to create a resource and retrieve information about it.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     create!!,
@@ -283,11 +319,13 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                     user
                 )
 
-                comment("""
+                comment(
+                    """
                     📝 NOTE: Users only specify the specification when they wish to create a resource. The specification
                     defines the values which are in the control of the user. The specification remains immutable
                     for the resource's lifetime. Mutable values are instead listed in the status.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     retrieve,
@@ -304,7 +342,8 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will look at the flags which are passed to both browse and retrieve operations.
                     This value is used to:
                     
@@ -313,7 +352,8 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                     - Include additional data: These properties are prefixed by include* and can be used to load 
                       additional data. This data is returned as part of the status object. The intention of these are to
                       save the client a round-trip by retrieving all relevant data in a single call.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     browse,
@@ -330,12 +370,14 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will discover the search functionality of resources. Search allows for free-text
                     queries which attempts to find relevant results. This is very different from browse with filters, 
                     since 'relevancy' is a vaguely defined concept. Search is not guaranteed to return results in any
                     deterministic fashion, unlike browse.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 comment("We start with the following dataset.")
 
@@ -356,10 +398,12 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                     user
                 )
 
-                comment("""
+                comment(
+                    """
                     Search may look in many different fields to determine if a result is relevant. Searching for the
                     value 300 might produce the following results.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     search!!,
@@ -390,33 +434,37 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                 val user = basicUser()
                 val product = ProductReference("example-compute", "example-compute", "example")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how to use the feature detection feature of resources. Recall, that
                     providers need to specify if they support counting backwards.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     retrieveProducts,
                     Unit,
-                    SupportByProvider(mapOf(
-                        "example" to listOf(
-                            ResolvedSupport(
-                                Product.Compute(
-                                    "example-compute",
-                                    1L,
-                                    ProductCategoryId("example-compute", "example"),
-                                    "An example machine",
-                                    cpu = 1,
-                                    memoryInGigs = 1,
-                                    unitOfPrice = ProductPriceUnit.UNITS_PER_HOUR
-                                ),
-                                ExampleResourceSupport(
-                                    product,
-                                    supportsBackwardsCounting = ExampleResourceSupport.Supported.SUPPORTED
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.Compute(
+                                        "example-compute",
+                                        1L,
+                                        ProductCategoryId("example-compute", "example"),
+                                        "An example machine",
+                                        cpu = 1,
+                                        memoryInGigs = 1,
+                                        unitOfPrice = ProductPriceUnit.UNITS_PER_HOUR
+                                    ),
+                                    ExampleResourceSupport(
+                                        product,
+                                        supportsBackwardsCounting = ExampleResourceSupport.Supported.SUPPORTED
+                                    )
                                 )
                             )
                         )
-                    )),
+                    ),
                     user
                 )
 
@@ -439,33 +487,37 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                 val user = basicUser()
                 val product = ProductReference("example-compute", "example-compute", "example")
 
-                comment("""
+                comment(
+                    """
                     In this example, we will show how to use the feature detection feature of resources. Recall, that
                     providers need to specify if they support counting backwards.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     retrieveProducts,
                     Unit,
-                    SupportByProvider(mapOf(
-                        "example" to listOf(
-                            ResolvedSupport(
-                                Product.Compute(
-                                    "example-compute",
-                                    1L,
-                                    ProductCategoryId("example-compute", "example"),
-                                    "An example machine",
-                                    cpu = 1,
-                                    memoryInGigs = 1,
-                                    unitOfPrice = ProductPriceUnit.UNITS_PER_HOUR
-                                ),
-                                ExampleResourceSupport(
-                                    product,
-                                    supportsBackwardsCounting = ExampleResourceSupport.Supported.NOT_SUPPORTED
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.Compute(
+                                        "example-compute",
+                                        1L,
+                                        ProductCategoryId("example-compute", "example"),
+                                        "An example machine",
+                                        cpu = 1,
+                                        memoryInGigs = 1,
+                                        unitOfPrice = ProductPriceUnit.UNITS_PER_HOUR
+                                    ),
+                                    ExampleResourceSupport(
+                                        product,
+                                        supportsBackwardsCounting = ExampleResourceSupport.Supported.NOT_SUPPORTED
+                                    )
                                 )
                             )
                         )
-                    )),
+                    ),
                     user
                 )
 
@@ -489,10 +541,12 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                 val alice = actor("alice", "A UCloud user named Alice")
                 val bob = actor("bob", "A UCloud user named Bob")
 
-                comment("""
+                comment(
+                    """
                     In this example, we discover how to use the resource collaboration features of UCloud. This example
                     involves two users: Alice and Bob.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 comment("Alice starts by creating a resource")
 
@@ -513,8 +567,10 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
                     bob
                 )
 
-                comment("Alice can change the permissions of the resource by invoking updateAcl. " +
-                        "This causes Bob to gain READ permissions.")
+                comment(
+                    "Alice can change the permissions of the resource by invoking updateAcl. " +
+                            "This causes Bob to gain READ permissions."
+                )
 
                 success(
                     updateAcl,
@@ -554,8 +610,23 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
 @UCloudApiExampleValue
 object ResourceProvider : ResourceProviderApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example", "PROVIDERID") {
-    override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
-            ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        ExampleResource.serializer(),
+        typeOf<ExampleResource>(),
+        ExampleResource.Spec.serializer(),
+        typeOf<ExampleResource.Spec>(),
+        ExampleResource.Update.serializer(),
+        typeOf<ExampleResource.Update>(),
+        ExampleResourceFlags.serializer(),
+        typeOf<ExampleResourceFlags>(),
+        ExampleResource.Status.serializer(),
+        typeOf<ExampleResource.Status>(),
+        ExampleResourceSupport.serializer(),
+        typeOf<ExampleResourceSupport>(),
+        Product.serializer(),
+        typeOf<Product>(),
+    )
 
     init {
         description = """
@@ -588,10 +659,12 @@ The examples in this section follow the same scenario as the end-user API.
                 val ucloud = ucloudCore()
                 val provider = provider()
 
-                comment("""
+                comment(
+                    """
                     In this example, we show a simple creation request. The creation request is always initiated by a 
                     user.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     create,
@@ -669,12 +742,14 @@ The examples in this section follow the same scenario as the end-user API.
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     In this case, imagine that the provider failed to create the second resource. This should
                     immediately trigger cleanup on the provider, if the first resource was already created. The provider
                     should then respond with an appropriate error message. Providers should not attempt to only
                     partially create the resources.
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         )
     }
@@ -685,6 +760,21 @@ The examples in this section follow the same scenario as the end-user API.
 @UCloudApiExampleValue
 object ResourceControl : ResourceControlApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example") {
-    override val typeInfo = ResourceTypeInfo<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
-            ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        ExampleResource.serializer(),
+        typeOf<ExampleResource>(),
+        ExampleResource.Spec.serializer(),
+        typeOf<ExampleResource.Spec>(),
+        ExampleResource.Update.serializer(),
+        typeOf<ExampleResource.Update>(),
+        ExampleResourceFlags.serializer(),
+        typeOf<ExampleResourceFlags>(),
+        ExampleResource.Status.serializer(),
+        typeOf<ExampleResource.Status>(),
+        ExampleResourceSupport.serializer(),
+        typeOf<ExampleResourceSupport>(),
+        Product.serializer(),
+        typeOf<Product>(),
+    )
 }

@@ -1,71 +1,69 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.app.orchestrator.api.*
-import kotlinx.serialization.Serializable
-import dk.sdu.cloud.IMConfiguration
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.app.store.api.AppParameterValue.Text
 
-fun manageHeader(job: Job, config: IMConfiguration): String {
+private fun escapeBash(value: String): String {
+    return buildString {
+        for (char in value) {
+            append(
+                when (char) {
+                    '\\' -> "\\\\"
+                    '\'' -> "'\"'\"'"
+                    '\"' -> "\\\""
+                    '`' -> "\\`"
+                    '$' -> "\\$"
+                    else -> char
+                }
+            )
+        }
+    }
+}
 
-    val job_content =
-        job.specification?.parameters?.getOrElse("file_content") { throw Exception("no file_content") } as Text
-    val job_timelimit =
-        "${job.specification?.timeAllocation?.hours}:${job.specification?.timeAllocation?.minutes}:${job.specification?.timeAllocation?.seconds}"
-    val request_product = job.specification?.product as ProductReference
+suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
+    @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
+        ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
 
-    val job_partition = config.plugins?.compute?.plugins?.first { it.id == TAG }?.configuration?.partition
-    val mountpoint = config.plugins!!.compute!!.plugins!!.first { it.id == TAG }!!.configuration!!.mountpoint
-    val job_nodes = job.specification!!.replicas
-
-    val product_cpu = config.plugins?.compute?.products?.first { it.id == request_product.id }?.cpu.toString()
-    val product_mem = config.plugins?.compute?.products?.first { it.id == request_product.id }?.mem.toString()
-    val product_gpu = config.plugins?.compute?.products?.first { it.id == request_product.id }?.gpu.toString()
+    val formattedTime = "${timeAllocation.hours}:${timeAllocation.minutes}:${timeAllocation.seconds}"
+    val resolvedProduct = job.status.resolvedProduct!!
 
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
     // remove whitespaces
-    val fileBody = job_content.value.lines().map { it.trim() }.toMutableList()
-    val headerSuffix =
-        """
-            #
-            # POSTFIX START
-            #
-            #SBATCH --chdir ${mountpoint}/${job.id} 
-            #SBATCH --cpus-per-task ${product_cpu} 
-            #SBATCH --mem ${product_mem} 
-            #SBATCH --gpus-per-node ${product_gpu} 
-            #SBATCH --time ${job_timelimit} 
-            #SBATCH --nodes ${job_nodes} 
-            #SBATCH --job-name ${job.id} 
-            #SBATCH --partition ${job_partition} 
-            #SBATCH --parsable
-            #SBATCH --output=std.out 
-            #SBATCH --error=std.err
-            #
-            # POSTFIX END
-            #
-        """.trimIndent().lines()
+    val app = job.status.resolvedApplication!!.invocation
+    val givenParameters =
+        job.specification.parameters!!.mapNotNull { (paramName, value) ->
+            app.parameters.find { it.name == paramName }!! to value
+        }.toMap()
 
-    println(headerSuffix)
+    val cliInvocation = app.invocation.flatMap { parameter ->
+        parameter.buildInvocationList(givenParameters)
+    }.joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
 
-    //find first nonwhitespace non comment line
-    var headerEnd: Int = 0
-    run loop@{
-        fileBody.forEachIndexed { idx, line ->
-            //println(line)
-            if (!line.trim().startsWith("#")) {
-                headerEnd = idx
-                return@loop
-            }
-        }
+    val memoryAllocation = if (config.useFakeMemoryAllocations) {
+        "50M"
+    } else {
+        "${resolvedProduct.memoryInGigs ?: 1}G"
     }
 
-    // append lines starting with headerEnd
-    fileBody.addAll(headerEnd, headerSuffix)
-
-    println(fileBody)
-
-    // append shebang
-    return fileBody.joinToString(prefix = "#!/usr/bin/bash \n", separator = "\n", postfix = "\n#EOF\n")
-
+    return buildString {
+        appendLine("#!/usr/bin/env bash")
+        appendLine("#")
+        appendLine("# POSTFIX START")
+        appendLine("#")
+        appendLine("#SBATCH --chdir ${config.mountpoint}/${job.id}")
+        appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
+        appendLine("#SBATCH --mem $memoryAllocation")
+        appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
+        appendLine("#SBATCH --time $formattedTime")
+        appendLine("#SBATCH --nodes ${job.specification.replicas}")
+        appendLine("#SBATCH --job-name ${job.id}")
+        appendLine("#SBATCH --partition ${config.partition}")
+        appendLine("#SBATCH --parsable")
+        appendLine("#SBATCH --output=std.out")
+        appendLine("#SBATCH --error=std.err")
+        appendLine("#")
+        appendLine("# POSTFIX END")
+        appendLine("#")
+        appendLine(cliInvocation)
+        appendLine("#EOF")
+    }
 }

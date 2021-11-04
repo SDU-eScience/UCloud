@@ -5,6 +5,7 @@ import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.freeze
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
@@ -27,14 +28,14 @@ class PluginLoader(private val pluginContext: PluginContext) {
         "direct" to { DirectIdentityMapperPlugin() }
     )
 
-    private fun <T : Plugin> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
+    private fun <T : Plugin<Unit>> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
         return jsonObject.entries.firstOrNull()?.let {
             val pluginFactory = lookupTable[it.key]
             if (pluginFactory != null) {
                 val plugin = pluginFactory()
                 with(pluginContext) {
                     with(plugin) {
-                        runBlocking { initialize() }
+                        runBlocking { initialize(Unit) }
                     }
                 }
                 return plugin
@@ -44,7 +45,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
         }
     }
 
-    private fun <T : Plugin> loadProductBasedPlugin(
+    private fun <T : Plugin<ProductBasedConfiguration>> loadProductBasedPlugin(
         lookupTable: Map<String, () -> T>,
         config: ProductBasedConfiguration
     ): ProductBasedPlugins<T> {
@@ -79,7 +80,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
 
             with(pluginContext) {
                 with(loaded) {
-                    runBlocking { initialize() }
+                    runBlocking { initialize(config) }
                 }
             }
         }
@@ -88,7 +89,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
     }
 
     fun load(): LoadedPlugins {
-        val config = pluginContext.config
+        val config = pluginContext.config.freeze()
 
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
@@ -98,7 +99,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
     }
 }
 
-data class ProductBasedPlugins<T : Plugin>(
+data class ProductBasedPlugins<T : Plugin<ProductBasedConfiguration>>(
     val allProducts: List<ProductReferenceWithoutProvider>,
     val plugins: Map<String, T>,
     val criteria: List<Pair<String, PartialProductReferenceWithoutProvider>>

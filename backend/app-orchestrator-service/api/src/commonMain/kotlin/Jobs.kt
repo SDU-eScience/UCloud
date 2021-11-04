@@ -16,6 +16,7 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlin.reflect.typeOf
 
 @Serializable
 data class ExportedParametersRequest(
@@ -579,8 +580,23 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         )
     }
 
-    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
-        Product.Compute, ComputeSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Job.serializer(),
+        typeOf<Job>(),
+        JobSpecification.serializer(),
+        typeOf<JobSpecification>(),
+        JobUpdate.serializer(),
+        typeOf<JobUpdate>(),
+        JobIncludeFlags.serializer(),
+        typeOf<JobIncludeFlags>(),
+        JobStatus.serializer(),
+        typeOf<JobStatus>(),
+        ComputeSupport.serializer(),
+        typeOf<ComputeSupport>(),
+        Product.Compute.serializer(),
+        typeOf<Product.Compute>(),
+    )
 
     private const val createUseCase = "create"
     private const val followUseCase = "follow"

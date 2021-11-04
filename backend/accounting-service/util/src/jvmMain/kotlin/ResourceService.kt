@@ -188,7 +188,7 @@ abstract class ResourceService<
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
             projectFilter = if (useProject) actorAndProject.project else "",
-            simpleFlags = SimpleResourceIncludeFlags(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
+            simpleFlags = (simpleFlags ?: SimpleResourceIncludeFlags()).copy(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
         )
 
         @Suppress("SqlResolve")
@@ -240,7 +240,9 @@ abstract class ResourceService<
     private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
         if (specification.product.provider != Provider.UCLOUD_CORE_PROVIDER) {
             if (includeSupport || flags?.includeSupport == true) {
-                status.resolvedSupport = support.retrieveProductSupport(specification.product)
+                val retrieveProductSupport = support.retrieveProductSupport(specification.product)
+                status.resolvedSupport = retrieveProductSupport
+                status.resolvedProduct = retrieveProductSupport.product
             }
 
             if (flags?.includeProduct == true) {
@@ -406,7 +408,8 @@ abstract class ResourceService<
                                 generatedIds.map { it.toString() },
                                 listOf(Permission.EDIT),
                                 ctx = session,
-                                includeUnconfirmed = true
+                                includeUnconfirmed = true,
+                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                             )
                         )
                     }

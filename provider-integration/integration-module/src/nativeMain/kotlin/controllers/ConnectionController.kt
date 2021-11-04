@@ -17,7 +17,6 @@ import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import platform.posix.*
-import kotlin.system.exitProcess
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
@@ -137,6 +136,7 @@ class ConnectionController(
                 ),
                 createStreams = {
                     val devnull = NativeFile.open("/dev/null", readOnly = false)
+                    unlink("/tmp/ucloud_${uid}.log")
                     val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
                     ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
                 }

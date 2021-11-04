@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -7,7 +8,7 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.*
 
-interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job> {
+interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ProductBasedConfiguration> {
     suspend fun PluginContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse {
         return BulkResponse(request.items.map { extend(it) })
     }

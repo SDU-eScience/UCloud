@@ -3,6 +3,7 @@ package dk.sdu.cloud.calls
 import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
+import kotlin.native.concurrent.SharedImmutable
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
@@ -97,6 +98,7 @@ fun CallDescriptionContainer.docNamespaceRef(namespace: String): String {
     return "[`$namespace`](#tag/$namespace)"
 }
 
+@SharedImmutable
 private val containerTitle = AttributeKey<String>("docTitle")
 var CallDescriptionContainer.title: String?
     get() = attributes.getOrNull(containerTitle)
@@ -108,6 +110,7 @@ var CallDescriptionContainer.title: String?
         }
     }
 
+@SharedImmutable
 private val containerDescription = AttributeKey<String>("docDescription")
 var CallDescriptionContainer.description: String?
     get() = attributes.getOrNull(containerDescription)
@@ -125,6 +128,7 @@ data class RpcDocumentationOverride(
     val docs: UCloudApiDocC
 )
 
+@SharedImmutable
 private val docOverridesKey = AttributeKey<MutableMap<String, RpcDocumentationOverride>>("docOverrides")
 val CallDescriptionContainer.docOverrides: Map<String, RpcDocumentationOverride>
     get() = attributes.getOrNull(docOverridesKey) ?: emptyMap()
@@ -139,6 +143,7 @@ fun CallDescriptionContainer.document(call: CallDescription<*, *, *>, documentat
     overrides[call.fullName] = RpcDocumentationOverride(call, documentation)
 }
 
+@SharedImmutable
 private val useCasesKey = AttributeKey<MutableList<UseCase>>("useCases")
 val CallDescriptionContainer.useCases: List<UseCase>
     get() = attributes.getOrNull(useCasesKey) ?: emptyList()

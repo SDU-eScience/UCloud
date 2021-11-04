@@ -1,5 +1,6 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -21,7 +22,7 @@ abstract class BaseResourceController<
     P : Product,
     Sup : ProductSupport,
     Res : Resource<P, Sup>,
-    Plugin : ResourcePlugin<P, Sup, Res>,
+    Plugin : ResourcePlugin<P, Sup, Res, ProductBasedConfiguration>,
     Api : ResourceProviderApi<Res, *, *, *, *, P, Sup>>(
     protected val controllerContext: ControllerContext,
 ) : Controller {
@@ -71,7 +72,12 @@ abstract class BaseResourceController<
     protected abstract fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
 
     override fun H2OServer.configure() {
-        val plugins = retrievePlugins() ?: return
+        println("Configuring ${this@BaseResourceController::class.simpleName}")
+        val plugins = retrievePlugins()
+        if (plugins == null) {
+            println("No plugins active for ${this@BaseResourceController::class.simpleName}")
+            return
+        }
         val serverMode = controllerContext.configuration.serverMode
         val api = retrieveApi(controllerContext.configuration.core.providerId)
 

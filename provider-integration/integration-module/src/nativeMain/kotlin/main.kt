@@ -197,18 +197,20 @@ fun main(args: Array<String>) {
         envoyConfig?.start(config.server?.port)
 
         data class MonitoringContext(val pluginContext: PluginContext, val plugin: ComputePlugin)
-        plugins.compute?.plugins?.values?.forEach { plugin ->
-            Worker
-                .start(name = "Monitoring Loop Worker")
-                .execute(TransferMode.SAFE, { MonitoringContext(pluginContext, plugin).freeze() }) { ctx ->
-                    with(ctx.pluginContext) {
-                        with(ctx.plugin) {
-                            runBlocking {
-                                runMonitoringLoop()
+        if (config.serverMode == ServerMode.Server || config.serverMode == ServerMode.User) {
+            plugins.compute?.plugins?.values?.forEach { plugin ->
+                Worker
+                    .start(name = "Monitoring Loop Worker")
+                    .execute(TransferMode.SAFE, { MonitoringContext(pluginContext, plugin).freeze() }) { ctx ->
+                        with(ctx.pluginContext) {
+                            with(ctx.plugin) {
+                                runBlocking {
+                                    runMonitoringLoop()
+                                }
                             }
                         }
                     }
-                }
+            }
         }
 
         when (serverMode) {

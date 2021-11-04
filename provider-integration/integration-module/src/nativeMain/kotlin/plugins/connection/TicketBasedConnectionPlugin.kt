@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.connection
 
+import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
@@ -26,56 +27,58 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override suspend fun PluginContext.initialize() {
+    override suspend fun PluginContext.initialize(pluginConfig: Unit) {
         val log = Log("TicketBasedConnectionPlugin")
-        ipcServer.addHandler(
-            IpcHandler("connect.approve") { user, jsonRequest ->
-                log.debug("Asked to approve connection!")
-                if (user.uid != 0u || user.gid != 0u) {
-                    throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
-                }
+        if (config.serverMode == ServerMode.Server) {
+            ipcServer.addHandler(
+                IpcHandler("connect.approve") { user, jsonRequest ->
+                    log.debug("Asked to approve connection!")
+                    if (user.uid != 0u || user.gid != 0u) {
+                        throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
+                    }
 
-                val req = runCatching {
-                    defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
-                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+                    val req = runCatching {
+                        defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
+                    }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
-                var ucloudId: String? = null
-                dbConnection.withTransaction { connection ->
-                    connection.prepareStatement(
-                        //language=SQLite
-                        """
+                    var ucloudId: String? = null
+                    dbConnection.withTransaction { connection ->
+                        connection.prepareStatement(
+                            //language=SQLite
+                            """
                             update ticket_connections
                             set completed_at = datetime()
                             where ticket = :ticket and completed_at is null
                             returning ucloud_id
                         """
-                    ).useAndInvoke({ bindString("ticket", req.ticket) }) {
-                        ucloudId = it.getString(0)
-                    }
+                        ).useAndInvoke({ bindString("ticket", req.ticket) }) {
+                            ucloudId = it.getString(0)
+                        }
 
-                    val capturedId =
-                        ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
+                        val capturedId =
+                            ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
 
-                    connection.prepareStatement(
-                        //language=SQLite
-                        """
+                        connection.prepareStatement(
+                            //language=SQLite
+                            """
                             insert or replace into user_mapping (ucloud_id, local_identity)
                             values (:ucloud_id, :local_identity)
                         """
-                    ).useAndInvokeAndDiscard {
-                        bindString("ucloud_id", capturedId)
-                        bindString("local_identity", req.localIdentity)
+                        ).useAndInvokeAndDiscard {
+                            bindString("ucloud_id", capturedId)
+                            bindString("local_identity", req.localIdentity)
+                        }
+
+                        IntegrationControl.approveConnection.callBlocking(
+                            IntegrationControlApproveConnectionRequest(capturedId),
+                            rpcClient
+                        ).orThrow()
                     }
 
-                    IntegrationControl.approveConnection.callBlocking(
-                        IntegrationControlApproveConnectionRequest(capturedId),
-                        rpcClient
-                    ).orThrow()
+                    JsonObject(emptyMap())
                 }
-
-                JsonObject(emptyMap())
-            }
-        )
+            )
+        }
 
         commandLineInterface?.addHandler(
             CliHandler("connect") { args ->

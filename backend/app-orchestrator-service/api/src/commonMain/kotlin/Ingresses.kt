@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 data class IngressSupport(
@@ -132,8 +133,23 @@ object Ingresses : ResourceApi<
     IngressStatus,
     Product.Ingress,
     IngressSupport>("ingresses") {
-    override val typeInfo = ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate,
-        IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Ingress.serializer(),
+        typeOf<Ingress>(),
+        IngressSpecification.serializer(),
+        typeOf<IngressSpecification>(),
+        IngressUpdate.serializer(),
+        typeOf<IngressUpdate>(),
+        IngressIncludeFlags.serializer(),
+        typeOf<IngressIncludeFlags>(),
+        IngressStatus.serializer(),
+        typeOf<IngressStatus>(),
+        IngressSupport.serializer(),
+        typeOf<IngressSupport>(),
+        Product.Ingress.serializer(),
+        typeOf<Product.Ingress>(),
+    )
 
     init {
         val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
@@ -230,16 +246,44 @@ allows providers to give access to these $Job s through a custom URL.
 object IngressControl : ResourceControlApi<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags,
         IngressStatus, Product.Ingress, IngressSupport>("ingresses") {
 
-    override val typeInfo =
-        ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
-                Product.Ingress, IngressSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Ingress.serializer(),
+        typeOf<Ingress>(),
+        IngressSpecification.serializer(),
+        typeOf<IngressSpecification>(),
+        IngressUpdate.serializer(),
+        typeOf<IngressUpdate>(),
+        IngressIncludeFlags.serializer(),
+        typeOf<IngressIncludeFlags>(),
+        IngressStatus.serializer(),
+        typeOf<IngressStatus>(),
+        IngressSupport.serializer(),
+        typeOf<IngressSupport>(),
+        Product.Ingress.serializer(),
+        typeOf<Product.Ingress>(),
+    )
 }
 
 open class IngressProvider(provider: String) : ResourceProviderApi<Ingress, IngressSpecification, IngressUpdate,
         IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>("ingresses", provider) {
-    override val typeInfo =
-        ResourceTypeInfo<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
-                Product.Ingress, IngressSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Ingress.serializer(),
+        typeOf<Ingress>(),
+        IngressSpecification.serializer(),
+        typeOf<IngressSpecification>(),
+        IngressUpdate.serializer(),
+        typeOf<IngressUpdate>(),
+        IngressIncludeFlags.serializer(),
+        typeOf<IngressIncludeFlags>(),
+        IngressStatus.serializer(),
+        typeOf<IngressStatus>(),
+        IngressSupport.serializer(),
+        typeOf<IngressSupport>(),
+        Product.Ingress.serializer(),
+        typeOf<Product.Ingress>(),
+    )
 
     override val delete: CallDescription<BulkRequest<Ingress>, BulkResponse<Unit?>, CommonErrorMessage>
         get() = super.delete!!
