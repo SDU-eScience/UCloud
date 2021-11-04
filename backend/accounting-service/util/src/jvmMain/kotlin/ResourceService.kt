@@ -47,6 +47,17 @@ abstract class ResourceService<
     protected abstract val defaultSortColumn: SqlObject.Column
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
+
+    private val resourceTable = SqlObject.Table("provider.resource")
+    private val defaultSortColumns = mapOf(
+        "createdAt" to SqlObject.Column(resourceTable, "created_at"),
+        "createdBy" to SqlObject.Column(resourceTable, "created_by"),
+    )
+    private val computedSortColumns: Map<String, SqlObject.Column> by lazy {
+        defaultSortColumns + sortColumns
+    }
+
+
     protected open val resourceType: String by lazy {
         runBlocking {
             db.withSession { session ->
@@ -1138,7 +1149,7 @@ abstract class ResourceService<
     ): PageV2<Res> {
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-        val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
+        val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
@@ -1172,7 +1183,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            resc.category, resc.name, spec.$sortBy $sortDirection
+                            resc.category, resc.name, $sortBy $sortDirection
                     """,
                 )
             },
