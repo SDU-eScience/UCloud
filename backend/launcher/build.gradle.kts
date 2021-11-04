@@ -35,8 +35,8 @@ kotlin {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-server"))
-                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.10")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.10")
+                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.31")
+                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }

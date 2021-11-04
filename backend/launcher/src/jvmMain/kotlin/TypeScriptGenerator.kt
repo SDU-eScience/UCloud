@@ -423,6 +423,10 @@ fun UseCase.typescript(): String {
                         appendLine(node.code)
                     }
                 }
+
+                else -> {
+                    // TODO
+                }
             }
         }
         appendLine("```")

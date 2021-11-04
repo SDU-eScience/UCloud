@@ -46,7 +46,7 @@ class NativeFile(val fd: Int) {
 }
 
 fun NativeFile.readText(
-    charLimit: Long = 1024 * 1024 * 32,
+    charLimit: Long = 1024 * 1024 * 32L,
     bufferSize: Int = 1024 * 32,
     autoClose: Boolean = true,
 ): String {

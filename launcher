@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+from time import sleep
 import sys, tty, subprocess, shutil, termios, signal, os
 
 print("UCloud Launcher v2021.2.0")
@@ -30,6 +32,7 @@ tty.setcbreak(sys.stdin.fileno())
 frontend = False
 backend = False
 integrationModule = False
+slurm = False
 
 os.makedirs('.compose', exist_ok=True)
 
@@ -58,6 +61,11 @@ try:
 
 		printCheckbox(integrationModule)
 		print("3) Integration Module")
+
+		printCheckbox(slurm)
+		print("4) Slurm cluster - choose dev to deploy")
+
+
 		print()
 		print("Enter) Start selected modules")
 
@@ -68,10 +76,12 @@ try:
 			backend = not backend
 		elif read == '3':
 			integrationModule = not integrationModule
+		elif read == '4':
+			slurm = not slurm
 		elif read == '\n':
 			break
 
-		print("\r\033[A\033[A\033[A\033[A\033[A\033[A")
+		print("\r\033[A\033[A\033[A\033[A\033[A\033[A\033[A")
 except KeyboardInterrupt:
 	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 	sys.exit(0)
@@ -96,12 +106,12 @@ if not frontend:
 	command.append("-f")
 	command.append("compose/gateway.yml")
 
-#command.append("-e")
-#command.append("POSTGRES_DATA=postgresData")
-#command.extend(sys.argv[1:])
+if slurm:
+	command.append("-f")
+	command.append("compose/slurm.yml")
+
 command.append("up")
 command.append("-d")
-print(command)
 
 print()
 
@@ -144,6 +154,18 @@ if integrationModule:
 	print()
 	print()
 
+if slurm:
+	print(header("# Slurm Cluster"))
+	print()
+	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
+	print()
+	print()
+
+	print()
+	print(header("Instructions:"))
+	print("Interact with " + code("docker-compose exec slurmctld bash") )
+	print()
+
 print(header("# UCloud is now starting..."))
 
 print("  - Access the web-interface at: " + location("http://localhost:8080/i"))
@@ -155,5 +177,7 @@ print("  - Permanently delete local state: " + code("docker-compose down -v"))
 print("  - Default credentials: user, mypassword")
 
 print()
+
+
 
 subprocess.run(command)

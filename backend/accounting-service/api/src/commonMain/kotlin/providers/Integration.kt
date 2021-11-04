@@ -8,7 +8,11 @@ import kotlinx.serialization.Serializable
 data class IntegrationConnectRequest(val provider: String)
 
 @Serializable
-data class IntegrationConnectResponse(val redirectTo: String)
+data class IntegrationConnectResponse(val redirectTo: String) {
+    override fun toString(): String {
+        return "IntegrationConnectResponse()"
+    }
+}
 
 @Serializable
 data class IntegrationBrowseRequest(
@@ -21,7 +25,11 @@ data class IntegrationBrowseRequest(
 typealias IntegrationBrowseResponse = PageV2<IntegrationBrowseResponseItem>
 
 @Serializable
-data class IntegrationBrowseResponseItem(val provider: String, val connected: Boolean)
+data class IntegrationBrowseResponseItem(
+    val provider: String,
+    val connected: Boolean,
+    val providerTitle: String,
+)
 
 @Serializable
 data class IntegrationClearConnectionRequest(val username: String, val provider: String)

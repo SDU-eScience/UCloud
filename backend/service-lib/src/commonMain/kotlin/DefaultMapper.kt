@@ -23,3 +23,4 @@ val prettyMapper = Json {
 }.freeze()
 
 expect fun <T> T.freeze(): T
+expect fun <T> T.isFrozen(): Boolean

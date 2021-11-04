@@ -2,10 +2,10 @@ package dk.sdu.cloud.utils
 
 import dk.sdu.cloud.wexitstatus
 import dk.sdu.cloud.wifexited
-import io.ktor.util.*
 import kotlinx.cinterop.*
 import platform.posix.*
 import kotlin.system.exitProcess
+import kotlinx.cinterop.ByteVar as KotlinxCinteropByteVar
 
 data class ProcessStreams(
     val stdin: Int? = null,
@@ -13,12 +13,21 @@ data class ProcessStreams(
     val stderr: Int? = null,
 )
 
-fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing {
-    val nativeArgs = nativeHeap.allocArray<CPointerVar<ByteVar>>(args.size + 1)
+fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf() ): Nothing {
+
+    val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
     for (i in args.indices) {
         nativeArgs[i] = strdup(args[i])
     }
     nativeArgs[args.size] = null
+
+    var nativeEnv =  nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size)
+    for (i in envs.indices) {
+        nativeEnv[i] = strdup(envs[i])
+    }
+    nativeEnv[envs.size] = null
+
+
 
     if (newStreams.stdin != null) {
         close(0)
@@ -35,19 +44,25 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams): Nothing 
         dup2(newStreams.stderr, 2)
     }
 
-    execv(args[0], nativeArgs)
+
+
+
+    execve(args[0], nativeArgs, nativeEnv)
     exitProcess(255)
 }
 
 fun startProcess(
     args: List<String>,
-    createStreams: () -> ProcessStreams,
+    envs: List<String> = listOf(),
+    createStreams: () -> ProcessStreams
 ): Int {
     val forkResult = fork()
+
+
     if (forkResult == -1) {
         throw IllegalStateException("Could not start new process")
     } else if (forkResult == 0) {
-        replaceThisProcess(args, createStreams())
+        replaceThisProcess(args, createStreams(), envs = envs)
     }
 
     return forkResult
@@ -73,13 +88,7 @@ class Process(
             val result = waitpid(pid, wstatus.ptr, if (waitForExit) 0 else WNOHANG)
             return when {
                 result == 0 -> ProcessStatus(-1)
-                result < 0 -> {
-                    if (waitForExit && errno == ECHILD) {
-                        ProcessStatus(-1)
-                    } else {
-                        throw IllegalStateException(getNativeErrorMessage(errno))
-                    }
-                }
+                result < 0 -> throw IllegalStateException(getNativeErrorMessage(errno))
                 else -> ProcessStatus(
                     if (wifexited(wstatus.value)) wexitstatus(wstatus.value)
                     else 255
@@ -91,6 +100,7 @@ class Process(
 
 fun startProcess(
     args: List<String>,
+    envs: List<String> = listOf(),
     attachStdin: Boolean = false,
     attachStdout: Boolean = true,
     attachStderr: Boolean = true,
@@ -142,7 +152,9 @@ fun startProcess(
             stderrForChild = pipes[1]
         }
 
-        val pid = startProcess(args) {
+        
+
+        val pid = startProcess(args, envs = envs) {
             ProcessStreams(stdinForChild, stdoutForChild, stderrForChild)
         }
 
@@ -158,12 +170,14 @@ class ProcessResult(
 
 fun startProcessAndCollectToMemory(
     args: List<String>,
+    envs: List<String> = listOf(),
     stdin: NativeInputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResult {
     val process = startProcess(
         args,
+        envs = envs,
         attachStdin = stdin != null,
         attachStdout = stdoutMaxSizeInBytes > 0,
         attachStderr = stdoutMaxSizeInBytes > 0,
@@ -193,6 +207,7 @@ fun startProcessAndCollectToMemory(
 
             try {
                 val read = process.stdout.read(stdoutBuffer, stdoutPtr, bytesToRead)
+
                 val error = read.getErrorOrNull()
                 if (error != EAGAIN && error != EWOULDBLOCK) {
                     stdoutPtr += read.getOrThrow()
@@ -236,10 +251,52 @@ data class ProcessResultText(
 
 fun startProcessAndCollectToString(
     args: List<String>,
+    envs: List<String> = listOf(),
     stdin: NativeInputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResultText {
-    val res = startProcessAndCollectToMemory(args, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
-    return ProcessResultText(res.statusCode, res.stdout.decodeToString(), res.stderr.decodeToString())
+    val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes)
+    return ProcessResultText(res.statusCode, res.stdout.decodeToString().trim(), res.stderr.decodeToString().trim())
+}
+
+data class CommandBuilder(
+    val executable: String,
+    val args: MutableList<String> = mutableListOf(),
+    val envs: MutableList<String> = mutableListOf()
+) {
+    init {
+        args.add(executable)
+    }
+
+    fun addArg(arg: String, argValue: String? = null): CommandBuilder {
+        args.add(arg)
+        if (argValue != null) args.add(argValue)
+        return this
+    }
+
+    fun addEnv(env: String, envValue: String): CommandBuilder {
+        envs.add("${env}=${envValue}")
+        return this
+    }
+
+    fun executeToText(): ProcessResultText {
+        return startProcessAndCollectToString(args, envs)
+    }
+
+    fun executeToBinary(): ProcessResult {
+        return startProcessAndCollectToMemory(args, envs)
+    }
+}
+
+inline fun buildCommand(executable: String, block: CommandBuilder.() -> Unit): CommandBuilder {
+    return CommandBuilder(executable).also(block)
+}
+
+inline fun executeCommandToText(executable: String, block: CommandBuilder.() -> Unit): ProcessResultText {
+    return buildCommand(executable, block).executeToText()
+}
+
+inline fun executeCommandToBinary(executable: String, block: CommandBuilder.() -> Unit): ProcessResult {
+    return buildCommand(executable, block).executeToBinary()
 }

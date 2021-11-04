@@ -10,6 +10,8 @@ import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
@@ -47,10 +49,10 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val databaseConfig = atomic("").freeze()
 
 @ThreadLocal
-val dbConnection: DBContext.Connection? by lazy {
+val dbConnection: DBContext.Connection by lazy {
     val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
     if (dbConfig == null) {
-        null
+        error("This plugin does not have access to a database")
     } else {
         Sqlite3Driver(dbConfig).openSession()
     }
@@ -83,7 +85,7 @@ fun main(args: Array<String>) {
     }
 
     val ownExecutable = readSelfExecutablePath()
-    signal(SIGCHLD, SIG_IGN) // Automatically reap children
+    //signal(SIGCHLD, SIG_IGN) // Automatically reap children - commenting out as currently interferes with execve.kt
     signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
     runBlocking {
@@ -104,7 +106,7 @@ fun main(args: Array<String>) {
             databaseConfig.getAndSet(config.server.dbFile)
 
             // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
-            val handler = MigrationHandler(dbConnection!!)
+            val handler = MigrationHandler(dbConnection)
             loadMigrations(handler)
             handler.migrate()
         }
@@ -193,6 +195,23 @@ fun main(args: Array<String>) {
         }
 
         envoyConfig?.start(config.server?.port)
+
+        data class MonitoringContext(val pluginContext: PluginContext, val plugin: ComputePlugin)
+        if (config.serverMode == ServerMode.Server || config.serverMode == ServerMode.User) {
+            plugins.compute?.plugins?.values?.forEach { plugin ->
+                Worker
+                    .start(name = "Monitoring Loop Worker")
+                    .execute(TransferMode.SAFE, { MonitoringContext(pluginContext, plugin).freeze() }) { ctx ->
+                        with(ctx.pluginContext) {
+                            with(ctx.plugin) {
+                                runBlocking {
+                                    runMonitoringLoop()
+                                }
+                            }
+                        }
+                    }
+            }
+        }
 
         when (serverMode) {
             ServerMode.Server, ServerMode.User -> {

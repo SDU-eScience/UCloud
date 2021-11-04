@@ -88,34 +88,6 @@ data class ResourceTypeInfo<
 )
 
 @OptIn(ExperimentalStdlibApi::class)
-inline fun <
-    reified Res : Resource<Prod, Support>,
-    reified Spec : ResourceSpecification,
-    reified Update : ResourceUpdate,
-    reified Flags : ResourceIncludeFlags,
-    reified Status : ResourceStatus<Prod, Support>,
-    reified Prod : Product,
-    reified Support : ProductSupport
-    > ResourceTypeInfo(): ResourceTypeInfo<Res, Spec, Update, Flags, Status, Prod, Support> {
-    return ResourceTypeInfo(
-        serializer(),
-        typeOf<Res>(),
-        serializer(),
-        typeOf<Spec>(),
-        serializer(),
-        typeOf<Update>(),
-        serializer(),
-        typeOf<Flags>(),
-        serializer(),
-        typeOf<Status>(),
-        serializer(),
-        typeOf<Support>(),
-        serializer(),
-        typeOf<Prod>()
-    )
-}
-
-@OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceApi<
     Res : Resource<Prod, Support>,

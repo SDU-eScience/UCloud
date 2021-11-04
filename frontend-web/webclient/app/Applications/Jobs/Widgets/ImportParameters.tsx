@@ -261,6 +261,9 @@ async function importVersion1(application: UCloud.compute.Application, json: any
             case "text":
                 userInputValues[param.name] = {type: "text", value: valueFromFile};
                 break;
+            case "textarea":
+                userInputValues[param.name] = {type: "textarea", value: valueFromFile};
+                break;
             case "input_directory":
             case "input_file": {
                 userInputValues[param.name] = {

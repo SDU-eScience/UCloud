@@ -1,0 +1,22 @@
+---
+tool: v1
+name: dtu-slurm-poc-tool
+version: 4
+
+title: Slurm Tool
+description: Ubuntu is a Linux distribution based on Debian.
+authors: ["DTU AIT"]
+
+defaultTimeAllocation:
+  hours: 0
+  minutes: 5
+  seconds: 0
+
+backend: DOCKER
+container: alpine:3
+
+defaultNumberOfNodes: 1 
+
+# SLURM are by default not supported by any provider
+#supportedProviders:
+#- aau

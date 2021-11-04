@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonObject
 data class ProductReferenceWithoutProvider(
     @UCloudApiDoc("The `Product` ID")
     val id: String,
+
     @UCloudApiDoc("The ID of the `Product`'s category")
     val category: String,
 )
@@ -35,13 +36,14 @@ data class PartialProductReferenceWithoutProvider(
     }
 }
 
+
 @Serializable
 data class ProductBasedConfiguration(
     val products: List<ProductReferenceWithoutProvider>,
     val plugins: List<PluginConfiguration>
 ) {
     @Serializable
-    class PluginConfiguration(
+    data class PluginConfiguration(
         val id: String,
         val activeFor: List<PartialProductReferenceWithoutProvider> = listOf(PartialProductReferenceWithoutProvider()),
         val name: String? = null,

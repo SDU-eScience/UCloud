@@ -272,7 +272,7 @@ class ProviderProxy<
                                     comms.client
                                 ).orThrow()
 
-                                delay(200)
+                                delay(200L + (attempt * 500))
                                 continue
                             } else {
                                 response.throwError()
@@ -350,7 +350,7 @@ class ProviderProxy<
                                 comms.client
                             ).orThrow()
 
-                            delay(200)
+                            delay(200L + (attempt * 500))
                             continue
                         } else {
                             response.throwError()
@@ -416,7 +416,7 @@ class ProviderProxy<
                                 comms.client
                             ).orThrow()
 
-                            delay(200)
+                            delay(200L + (attempt * 500))
                             continue
                         } else {
                             response.throwError()

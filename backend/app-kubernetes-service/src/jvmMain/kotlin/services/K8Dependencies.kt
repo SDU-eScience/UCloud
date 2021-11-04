@@ -26,7 +26,6 @@ data class K8Dependencies(
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
     suspend fun addStatus(jobId: String, message: String): Boolean {
-        println("ADDING STATUS")
         val last = lastMessage.get(jobId)
         if (last != message) {
             JobsControl.update.call(
@@ -34,10 +33,8 @@ data class K8Dependencies(
                 serviceClient
             )
             lastMessage.insert(jobId, message)
-            println("...SUCCESSFUL")
             return true
         }
-        println("...NOT SUCCESSFUL")
         return false
     }
 
@@ -48,7 +45,6 @@ data class K8Dependencies(
         expectedState: JobState? = null,
         expectedDifferentState: Boolean = false
     ): Boolean {
-        println("CHANGING STATE")
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
@@ -67,10 +63,8 @@ data class K8Dependencies(
                 serviceClient
             )
             lastMessage.insert(jobId, messageAsString)
-            println("... SUCCESSFUL")
             return true
         }
-        println("... NOT SUCCESSFUL")
         return false
     }
 }

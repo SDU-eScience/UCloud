@@ -17,7 +17,6 @@ import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import platform.posix.*
-import kotlin.system.exitProcess
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
@@ -98,9 +97,8 @@ class ConnectionController(
 
         implement(calls.init) {
             val envoyConfig = envoyConfig ?: error("No envoy")
-            val db = dbConnection ?: error("No db")
             var localId: String? = null
-            db.withTransaction { conn ->
+            dbConnection.withTransaction { conn ->
                 conn.prepareStatement(
                     //language=SQLite
                     "select local_identity from user_mapping where ucloud_id = :ucloud_id"
@@ -138,6 +136,7 @@ class ConnectionController(
                 ),
                 createStreams = {
                     val devnull = NativeFile.open("/dev/null", readOnly = false)
+                    unlink("/tmp/ucloud_${uid}.log")
                     val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
                     ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
                 }

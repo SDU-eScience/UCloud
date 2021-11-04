@@ -122,6 +122,10 @@ fun UseCase.curl(): String {
                 is UseCaseNode.SourceCode -> {
                     // Do nothing
                 }
+
+                else -> {
+                    // TODO
+                }
             }
         }
         appendLine("```")

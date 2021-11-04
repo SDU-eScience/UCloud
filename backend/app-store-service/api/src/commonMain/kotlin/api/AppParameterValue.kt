@@ -59,6 +59,21 @@ A provider must reject the request if it does not support read-only mounts when 
     @SerialName("boolean")
     data class Bool(val value: Boolean) : AppParameterValue()
 
+    @UCloudApiDoc(
+        """A textual value
+    
+- __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
+- __Mountable as a resource:__ ❌ No
+- __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+- __Side effects:__ None
+
+When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+"""
+    )
+    @Serializable
+    @SerialName("textarea")
+    data class TextArea(val value: String) : AppParameterValue()
+
     @UCloudApiDoc("""
         A textual value
     

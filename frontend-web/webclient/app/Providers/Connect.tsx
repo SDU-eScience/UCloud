@@ -65,7 +65,7 @@ const ConnectRow: React.FunctionComponent<{
     connectToProvider: (provider: string) => void;
 }> = ({row, connectToProvider}) => {
     return <ListRow
-        left={row.provider}
+        left={row.providerTitle}
         right={
             <Button disabled={row.connected} onClick={() => connectToProvider(row.provider)}>Connect</Button>
         }

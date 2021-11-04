@@ -470,6 +470,11 @@ interface ArgumentBuilder {
                     return (value as AppParameterValue.Text).value
                 }
 
+                is ApplicationParameter.TextArea -> {
+                    return (value as AppParameterValue.TextArea).value
+                }
+
+
                 is ApplicationParameter.Integer -> {
                     return (value as AppParameterValue.Integer).value.toString()
                 }

@@ -72,11 +72,21 @@ fun runInstaller(
             authenticatedClient
         ).orThrow()
     } catch (ex: Throwable) {
+        println()
         println("UCloud/IM could not connect to UCloud/Core!")
 
         println("  - If you are running a local setup, please make sure UCloud is running.")
         println("  - If you are attempting to register a production system, make sure that UCloud/IM can connect to " +
             "UCloud at ${server.ucloud.scheme}://${server.ucloud.host}:${server.ucloud.port}")
+
+        println()
+
+        runCatching {
+            val path = "/tmp/ucloud-im-error.log"
+            NativeFile.open(path, readOnly = false).writeText(ex.stackTraceToString())
+            println("Error log written to: $path")
+        }
+
         exitProcess(1)
     }
 

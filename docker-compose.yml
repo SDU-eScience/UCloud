@@ -27,6 +27,17 @@ services:
       - sh
       - -c
       - "echo 'Please use the ./launcher script instead'  ; exit 0"
+# SLURM setup
+  mysql:
+    image: alpine:latest
+  slurmdbd:
+    image: alpine:latest
+  slurmctld:
+    image: alpine:latest
+  c1:
+    image: alpine:latest
+  c2:
+    image: alpine:latest
 
 volumes:
   postgresData: {}
@@ -45,3 +56,10 @@ volumes:
   backendKonan: {}
   backendGradle: {}
   m2Repo: {}
+
+# SLURM volumes
+  etc_munge: {}
+  etc_slurm: {}
+  slurm_jobdir: {}
+  var_lib_mysql: {}
+  var_log_slurm: {}

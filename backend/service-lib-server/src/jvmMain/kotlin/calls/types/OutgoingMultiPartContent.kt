@@ -7,7 +7,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.http.withCharset
-import io.ktor.util.flattenEntries
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import java.util.*
 
@@ -25,6 +25,7 @@ class OutgoingMultiPartContent(val parts: List<Part>) : OutgoingContent.WriteCha
         val writer: suspend ByteWriteChannel.() -> Unit
     )
 
+    @OptIn(InternalAPI::class)
     override suspend fun writeTo(channel: ByteWriteChannel) {
         for (part in parts) {
             channel.writeStringUtf8("--$boundary\r\n")
@@ -88,6 +89,7 @@ class OutgoingMultiPartContent(val parts: List<Part>) : OutgoingContent.WriteCha
     }
 }
 
+@OptIn(InternalAPI::class)
 operator fun Headers.plus(other: Headers): Headers = when {
     this.isEmpty() -> other
     other.isEmpty() -> this

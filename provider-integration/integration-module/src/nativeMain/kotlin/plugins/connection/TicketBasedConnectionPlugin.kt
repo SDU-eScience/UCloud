@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.connection
 
+import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
@@ -7,10 +8,7 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.*
-import dk.sdu.cloud.plugins.ConnectionPlugin
-import dk.sdu.cloud.plugins.ConnectionResponse
-import dk.sdu.cloud.plugins.HTML
-import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log
@@ -29,57 +27,58 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override fun PluginContext.initialize() {
+    override suspend fun PluginContext.initialize(pluginConfig: Unit) {
         val log = Log("TicketBasedConnectionPlugin")
-        ipcServer?.addHandler(
-            IpcHandler("connect.approve") { user, jsonRequest ->
-                log.debug("Asked to approve connection!")
-                val rpcClient = rpcClient ?: error("No RPC client")
-                if (user.uid != 0u || user.gid != 0u) {
-                    throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
-                }
+        if (config.serverMode == ServerMode.Server) {
+            ipcServer.addHandler(
+                IpcHandler("connect.approve") { user, jsonRequest ->
+                    log.debug("Asked to approve connection!")
+                    if (user.uid != 0u || user.gid != 0u) {
+                        throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
+                    }
 
-                val req = runCatching {
-                    defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
-                }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+                    val req = runCatching {
+                        defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
+                    }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
-                var ucloudId: String? = null
-                (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
-                    connection.prepareStatement(
-                        //language=SQLite
-                        """
+                    var ucloudId: String? = null
+                    dbConnection.withTransaction { connection ->
+                        connection.prepareStatement(
+                            //language=SQLite
+                            """
                             update ticket_connections
                             set completed_at = datetime()
                             where ticket = :ticket and completed_at is null
                             returning ucloud_id
                         """
-                    ).useAndInvoke({ bindString("ticket", req.ticket) }) {
-                        ucloudId = it.getString(0)
-                    }
+                        ).useAndInvoke({ bindString("ticket", req.ticket) }) {
+                            ucloudId = it.getString(0)
+                        }
 
-                    val capturedId =
-                        ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
+                        val capturedId =
+                            ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
 
-                    connection.prepareStatement(
-                        //language=SQLite
-                        """
+                        connection.prepareStatement(
+                            //language=SQLite
+                            """
                             insert or replace into user_mapping (ucloud_id, local_identity)
                             values (:ucloud_id, :local_identity)
                         """
-                    ).useAndInvokeAndDiscard {
-                        bindString("ucloud_id", capturedId)
-                        bindString("local_identity", req.localIdentity)
+                        ).useAndInvokeAndDiscard {
+                            bindString("ucloud_id", capturedId)
+                            bindString("local_identity", req.localIdentity)
+                        }
+
+                        IntegrationControl.approveConnection.callBlocking(
+                            IntegrationControlApproveConnectionRequest(capturedId),
+                            rpcClient
+                        ).orThrow()
                     }
 
-                    IntegrationControl.approveConnection.callBlocking(
-                        IntegrationControlApproveConnectionRequest(capturedId),
-                        rpcClient
-                    ).orThrow()
+                    JsonObject(emptyMap())
                 }
-
-                JsonObject(emptyMap())
-            }
-        )
+            )
+        }
 
         commandLineInterface?.addHandler(
             CliHandler("connect") { args ->
@@ -112,9 +111,8 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
-        val connection = dbConnection ?: error("Server mode required for TicketBasedConnectionPlugin")
         val ticket = secureToken(64)
-        connection.withTransaction {
+        dbConnection.withTransaction { connection ->
             connection.prepareStatement(
                 //language=SQLite
                 """
@@ -130,10 +128,9 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
-        val connection = dbConnection ?: error("Server mode required for TicketBasedConnectionPlugin")
         val ticket = query["ticket"]?.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         var ucloudUsername: String? = null
-        connection.withTransaction {
+        dbConnection.withTransaction { connection ->
             connection.prepareStatement(
                 //language=SQLite
                 """
