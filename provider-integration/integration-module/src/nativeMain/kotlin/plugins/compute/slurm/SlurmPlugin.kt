@@ -6,7 +6,16 @@ import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
+import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderSuspendRequestItem
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
+import dk.sdu.cloud.app.orchestrator.api.QueueStatus
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -16,26 +25,29 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.freeze
-import dk.sdu.cloud.ipc.IpcHandler
 import dk.sdu.cloud.ipc.JsonRpcRequest
 import dk.sdu.cloud.ipc.orThrow
 import dk.sdu.cloud.ipc.sendRequestBlocking
-import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.plugins.ComputePlugin
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.plugins.ipcServer
+import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withTransaction
-import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.utils.NativeFile
+import dk.sdu.cloud.utils.ProcessResultText
+import dk.sdu.cloud.utils.executeCommandToText
+import dk.sdu.cloud.utils.readText
+import dk.sdu.cloud.utils.writeText
 import io.ktor.http.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 import platform.posix.ceil
 import platform.posix.mkdir
 import platform.posix.sleep
@@ -67,104 +79,12 @@ class SlurmPlugin : ComputePlugin {
     private fun config(job: Job): SlurmConfiguration = config(job.specification.product)
 
     override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
-        val log = Log("SlurmComputePlugin")
         this@SlurmPlugin.pluginConfig.value = pluginConfig
 
         if (config.serverMode == ServerMode.Server) {
-            ipcServer.addHandler(
-                IpcHandler("slurm.jobs.create") { user, jsonRequest ->
-                    log.debug("Asked to add new job mapping!")
-                    val req = runCatching {
-                        defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                    }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                    //println(req)
-
-                    dbConnection.withTransaction { connection ->
-
-                        connection.prepareStatement(
-                            """
-                                insert into job_mapping (local_id, ucloud_id, partition, status) values ( :local_id, :ucloud_id, :partition, :status )
-                            """
-                        ).useAndInvokeAndDiscard {
-                            bindString("ucloud_id", req.ucloudId)
-                            bindString("local_id", req.slurmId)
-                            bindString("partition", req.partition)
-                            bindInt("status", req.status)
-                        }
-                    }
-
-                    JsonObject(emptyMap())
-                }
-            )
-
-            ipcServer.addHandler(
-                IpcHandler("slurm.jobs.retrieve") { user, jsonRequest ->
-                    log.debug("Asked to get job!")
-                    val req = runCatching {
-                        defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                    }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                    var slurmJob: SlurmJob? = null
-
-                    dbConnection.withTransaction { connection ->
-
-                        connection.prepareStatement(
-                            """
-                                select * 
-                                from job_mapping 
-                                where ucloud_id = :ucloud_id
-                            """
-                        ).useAndInvoke(
-                            prepare = { bindString("ucloud_id", req.ucloudId) },
-                            readRow = {
-                                slurmJob =
-                                    SlurmJob(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!, it.getInt(3)!!)
-                            }
-                        )
-                    }
-
-                    //println(" DATABASE RESULT $slurmJob")
-
-                    defaultMapper.encodeToJsonElement(slurmJob) as JsonObject
-                }
-            )
-
-            ipcServer.addHandler(
-                IpcHandler("slurm.jobs.browse") { user, jsonRequest ->
-                    log.debug("Asked to browse jobs!")
-                    // val req = runCatching {
-                    //     defaultMapper.decodeFromJsonElement<SlurmJob>(jsonRequest.params)
-                    // }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-                    val jobs: MutableList<SlurmJob> = mutableListOf()
-
-                    dbConnection.withTransaction { connection ->
-                        connection.prepareStatement(
-                            """
-                                select * 
-                                from job_mapping 
-                                where status = 1
-                            """
-                        ).useAndInvoke(
-                            readRow = {
-                                jobs.add(
-                                    SlurmJob(
-                                        it.getString(0)!!,
-                                        it.getString(1)!!,
-                                        it.getString(2)!!,
-                                        it.getInt(3)!!
-                                    )
-                                )
-                            }
-                        )
-                    }
-
-                    println(" DATABASE RESULT $jobs")
-
-                    defaultMapper.encodeToJsonElement(jobs) as JsonObject
-                }
-            )
+            for (handler in Handlers.ipc) {
+                ipcServer.addHandler(handler)
+            }
         }
     }
 
@@ -192,14 +112,11 @@ class SlurmPlugin : ComputePlugin {
         ipcClient.sendRequestBlocking(
             JsonRpcRequest(
                 "slurm.jobs.create",
-                defaultMapper.encodeToJsonElement(
-                    SlurmJob(
-                        resource.id,
-                        slurmId.trim(),
-                        config.partition,
-                        1
-                    )
-                ) as JsonObject
+                SlurmJob(
+                    resource.id,
+                    slurmId.trim(),
+                    config.partition
+                ).toJson()
             )
         ).orThrow<Unit>()
 
@@ -244,7 +161,7 @@ class SlurmPlugin : ComputePlugin {
         val slurmJob: SlurmJob = ipcClient.sendRequestBlocking(
             JsonRpcRequest(
                 "slurm.jobs.retrieve",
-                defaultMapper.encodeToJsonElement(SlurmJob(resource.id, "someid", "normal", 1)) as JsonObject
+                SlurmJob(resource.id, "someid").toJson()
             )
         ).orThrow<SlurmJob>()
 
@@ -337,8 +254,8 @@ class SlurmPlugin : ComputePlugin {
         var clusterMem = 0;
 
         nList.forEach { line ->
-            clusterCpu = clusterCpu + line[1].toInt()
-            clusterMem = clusterMem + line[2].replace("M", "").toInt()
+            clusterCpu += line[1].toInt()
+            clusterMem += line[2].replace("M", "").toInt()
         }
 
         //println("$clusterCpu $clusterMem")
@@ -390,18 +307,24 @@ class SlurmPlugin : ComputePlugin {
                     """
                 ).useAndInvoke(
                     readRow = {
-                        jobs.add(SlurmJob(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!, it.getInt(3)!!))
+                        jobs.add(
+                            SlurmJob(
+                                it.getString(0)!!,
+                                it.getString(1)!!,
+                                it.getString(2)!!,
+                                it.getString(3)!!,
+                                it.getInt(4)!!
+                            )
+                        )
                     }
                 )
             }
 
-            // --ids 7,8 ...
-            val ids = jobs.fold("", { acc, item -> acc + item.slurmId + "," })
-
+            if (jobs.isEmpty()) continue
 
             //println(ids)
             val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
-                addArg("--jobs", ids)
+                addArg("--jobs", jobs.joinToString(",") { it.slurmId })
                 addArg("--allusers")
                 addArg("--format", "jobid,state,exitcode,start,end")
                 addArg("--noheader")
@@ -409,46 +332,97 @@ class SlurmPlugin : ComputePlugin {
                 addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
             }
 
-            val acctStdLines = if (!stdout.trim().isEmpty()) stdout.lines() else continue
-
-            // take job completion info not just batch ie TIMEOUT
-            val acctJobs: List<String> = acctStdLines.fold(emptyList(), { acc, line ->
-                if (!line.split("|").get(0).contains(".") && !line.isEmpty()) {
-                    acc + line
-                } else {
-                    acc
-                }
-            })
+            val acctStdLines = stdout.lines().filter { !it.isEmpty() && !it.split("|")[0].contains(".") }
+                .mapNotNull { line -> line.split("|") }
+            // create map then list of objects
+            val header = acctStdLines[0]
+            val acctJobs =
+                acctStdLines
+                    .mapIndexedNotNull { idx, line ->    //[{Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=33}, {Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=34}]
+                        val map: MutableMap<String, String> = HashMap()
+                        line.forEachIndexed { idx, word ->
+                            map[header[idx]] = word
+                        }
+                        if (idx > 0) map else null
+                    }
+                    .mapNotNull { map ->                                        // // [acctEntry(jobId=33, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46), acctEntry(jobId=34, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46)]
+                        AcctEntry(map["JobID"], map["State"], map["ExitCode"], map["Start"], map["End"])
+                    }
 
             acctJobs.forEach { job ->
-                val state = job.toString().split("|").get(1)
+                val dbState = jobs.first { it.slurmId == job.jobId }.lastKnown
+                if (job.state !in terminalStates && !job.state.equals(dbState)) {
 
-                if (state in terminalStates) {
+                    println("updating " + job)
 
-                    val thisId = job.toString().split("|").get(0)
-                    val ucloudId = jobs.first { it.slurmId == thisId }.ucloudId
+                    val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
+                    val mState: SlurmStatus = retrieveSlurmStatus(ucloudId)
 
-                    val start = Instant.parse(job.toString().split("|").get(3).plus("Z"))
-                    val end = Instant.parse(job.toString().split("|").get(4).plus("Z"))
+                    JobsControl.update.call(
+                        bulkRequestOf(
+                            ResourceUpdateAndId(
+                                mState.id,
+                                JobUpdate(mState.ucloudState, status = mState.message)
+                            )
+                        ),
+                        rpcClient,
+                    ).orThrow()
+
+                    //update all finished jobs to status 0
+                    dbConnection.withTransaction { connection ->
+                        connection.prepareStatement(
+                            """
+                                update job_mapping 
+                                set lastknown = :lastknown
+                                where local_id = :local_id
+                            """
+                        ).useAndInvokeAndDiscard {
+                            bindString("local_id", job.jobId!!)
+                            bindString("lastknown", mState.ucloudState.toString())
+                        }
+                    }
+                }
+            }
+
+            val finishedJobs = acctJobs.mapNotNull { job ->
+                if (job.state in terminalStates) {
+
+                    val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
+
+                    val start = Instant.parse(job.start.plus("Z"))
+                    val end = Instant.parse(job.end.plus("Z"))
                     val lastTs = Clock.System.now().toString()
                     val uDuration = run { end - start }.let { SimpleDuration.fromMillis(it.inWholeMilliseconds) }
 
-                    println("JOBID: " + ucloudId + " " + lastTs + " " + uDuration)
+                    JobsControl.chargeCredits.call(
+                        bulkRequestOf(
+                            ResourceChargeCredits(
+                                ucloudId,
+                                lastTs,
+                                // TODO(Dan): This is not always true. It depends on the product's payment model.
+                                ceil(uDuration.toMillis() / (1000L * 60.0)).toLong(),
+                            )
+                        ),
+                        rpcClient
+                    ).orThrow()
 
-                    runBlocking {
-                        JobsControl.chargeCredits.call(
-                            bulkRequestOf(
-                                ResourceChargeCredits(
-                                    ucloudId,
-                                    lastTs,
-                                    // TODO(Dan): This is not always true. It depends on the product's payment model.
-                                    ceil(uDuration.toMillis() / (1000L * 60.0)).toLong(),
-                                )
-                            ),
-                            rpcClient
-                        ).orThrow()
-                    }
-                    //TODO: update table job_mapping.status = 0 where slurmId in ( list )
+                    job.jobId
+                } else null
+            }
+
+            println("finishedjobs " + finishedJobs)
+
+            if (finishedJobs.isEmpty()) continue
+            //update all finished jobs to status 0
+            dbConnection.withTransaction { connection ->
+                connection.prepareStatement(
+                    """
+                        update job_mapping 
+                        set status = 0
+                        where local_id in ( :list )
+                    """
+                ).useAndInvokeAndDiscard {
+                    bindString("list", finishedJobs.joinToString(separator = ","))
                 }
             }
         }
@@ -509,11 +483,11 @@ class SlurmPlugin : ComputePlugin {
         val slurmJob: SlurmJob = ipcClient.sendRequestBlocking(
             JsonRpcRequest(
                 "slurm.jobs.retrieve",
-                defaultMapper.encodeToJsonElement(SlurmJob(id, "someid", "normal", 1)) as JsonObject
+                SlurmJob(id, "someid").toJson()
             )
         ).orThrow()
 
-        val (code, stdout, _) =executeCommandToText(SQUEUE_EXE) {
+        val (code, stdout, _) = executeCommandToText(SQUEUE_EXE) {
             addArg("--partition", slurmJob.partition)
             addArg("--jobs", slurmJob.slurmId)
             addArg("--noheader")

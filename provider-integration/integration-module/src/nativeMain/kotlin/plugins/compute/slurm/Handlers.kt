@@ -152,6 +152,18 @@ class Handlers {
                 val conditions = filters.plus(limit)
                 
 
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
+                // TODO FIXME
                 (dbConnection ?: error("No DB connection available")).withTransaction { connection ->
                             connection.prepareStatement(
                                                         """

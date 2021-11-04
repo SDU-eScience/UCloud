@@ -2,7 +2,7 @@ package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -13,7 +13,8 @@ data class SlurmJob(
     val ucloudId: String,
     val slurmId: String,
     val partition: String = "normal",
-    val status: Int = 1
+    val lastKnown: String = "init",
+    val status: Int = 1,
 ) {
     fun toJson(): JsonObject {
         return defaultMapper.encodeToJsonElement(this) as JsonObject
@@ -28,6 +29,18 @@ data class SlurmStatus(
     val ucloudState: UCloudState,
     val slurmStatus: String,
     val message: String
+)
+
+@Serializable
+data class Criteria(val field: String, val condition: String)
+
+@Serializable
+data class AcctEntry(
+    val jobId: String?,
+    val state: String?,
+    val exitCode: String?,
+    val start: String?,
+    val end: String?
 )
 
 @Serializable
