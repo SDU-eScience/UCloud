@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import platform.posix.ceil
 import platform.posix.mkdir
@@ -301,7 +302,7 @@ class SlurmPlugin : ComputePlugin {
             dbConnection.withTransaction { connection ->
                 connection.prepareStatement(
                     """
-                        select * 
+                        select ucloud_id, local_id, partition, lastknown, status
                         from job_mapping 
                         where status = 1
                     """
