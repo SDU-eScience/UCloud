@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
@@ -54,7 +55,12 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
                     } else {
                         ResolvedSupport(product, it)
                     }
-                }
+                }.sortedWith(
+                    Comparator
+                        .comparing<ResolvedSupport<P, Support>?, String> { it.product.category.name }
+                        .thenComparing<Int> { it.product.priority }
+                        .thenComparing<String> { it.product.name }
+                )
             }.getOrElse {
                 log.debug("Unable to fetch support for $provider")
                 log.debug(it.stackTraceToString())
