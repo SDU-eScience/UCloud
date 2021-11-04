@@ -62,7 +62,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
                 "/auth/": sharedProxySetting,
                 "/api/": sharedProxySetting,
                 "/ucloud/": sharedProxySetting,
-                "/assets/Assets/AppVersion.txt": sharedProxySetting
+                "/AppVersion.txt": sharedProxySetting
             }
         }
     });
