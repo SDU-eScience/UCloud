@@ -1,7 +1,8 @@
 import * as React from "react";
 import {default as IngressApi, Ingress, IngressSupport} from "@/UCloud/IngressApi";
-import {BrowseType, ResourceBrowse} from "@/Resource/Browse";
+import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {BrowseType} from "@/Resource/BrowseType";
 
 
 const Browse: React.FunctionComponent<{
