@@ -23,8 +23,10 @@ import {BulkResponse} from "@/UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
+import {useSelector} from "react-redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
-const maxConcurrentUploads = 5;
+const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
 const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
@@ -133,7 +135,7 @@ function createResumeable(
             };
 
             request.send(chunk);
-        }))
+        }));
     }
 }
 
@@ -142,6 +144,8 @@ const Uploader: React.FunctionComponent = () => {
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
+
+    const refresh = useSelector<ReduxObject, (() => void) | undefined>(state => state.header.refresh);
 
     const closeModal = useCallback(() => {
         setUploaderVisible(false);
@@ -154,7 +158,7 @@ const Uploader: React.FunctionComponent = () => {
             if (u.state === UploadState.UPLOADING) activeUploads++;
         }
 
-        const maxUploadsToUse = maxConcurrentUploads - activeUploads;
+        const maxUploadsToUse = MAX_CONCURRENT_UPLOADS - activeUploads;
         if (maxUploadsToUse > 0) {
             const creationRequests: FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
@@ -254,9 +258,9 @@ const Uploader: React.FunctionComponent = () => {
         });
     }, [uploads]);
 
-    const callbacks: UploadCallback = useMemo(() => {
-        return {startUploads, stopUploads, pauseUploads, resumeUploads};
-    }, [startUploads, stopUploads]);
+    const callbacks: UploadCallback = useMemo(() => (
+        {startUploads, stopUploads, pauseUploads, resumeUploads}
+    ), [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
@@ -310,8 +314,15 @@ const Uploader: React.FunctionComponent = () => {
         if (lookForNewUploads) {
             setLookForNewUploads(false);
             startUploads(uploads);
+            const shouldReload = uploads.every(it => it.state === UploadState.DONE) &&
+                uploads.some(it => it.targetPath === uploadPath && !it.terminationRequested);
+            if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {
+                refresh?.();
+            } else if (shouldReload) {
+                snackbarStore.addSuccess("File upload(s) finished.", true);
+            }
         }
-    }, [lookForNewUploads, startUploads]);
+    }, [lookForNewUploads, startUploads, refresh, uploadPath, uploaderVisible]);
 
 
     const [pausedFilesInFolder, setPausedFilesInFolder] = useState<string[]>([]);
@@ -321,7 +332,7 @@ const Uploader: React.FunctionComponent = () => {
             key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
         ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
         setPausedFilesInFolder(matches);
-    }, [uploadPath]);
+    }, [uploadPath, lookForNewUploads]);
 
     return <>
         <ReactModal
@@ -397,14 +408,23 @@ const Uploader: React.FunctionComponent = () => {
                                 </ListStatContainer>
                             }
                             right={
-                                <Operations
-                                    row={upload}
-                                    location={"IN_ROW"}
-                                    operations={operations}
-                                    selected={toggleSet.checked.items}
-                                    extra={callbacks}
-                                    entityNameSingular={entityName}
-                                />
+                                <>
+                                    {upload.state !== UploadState.DONE ? null : (
+                                        upload.paused ? null :
+                                            (upload.terminationRequested ?
+                                                <Icon name="close" color="red" /> :
+                                                <Icon name="check" color="green" />
+                                            )
+                                    )}
+                                    <Operations
+                                        row={upload}
+                                        location={"IN_ROW"}
+                                        operations={operations}
+                                        selected={toggleSet.checked.items}
+                                        extra={callbacks}
+                                        entityNameSingular={entityName}
+                                    />
+                                </>
                             }
                         />
                     ))}
@@ -486,20 +506,20 @@ const modalStyle = {
 };
 
 const DropZoneBox = styled.div<{slim?: boolean}>`
-  width: 100%;
-  ${p => p.slim ? {height: "80px"} : {height: "280px"}}
-  border-width: 2px;
-  border-color: rgb(102, 102, 102);
-  border-style: dashed;
-  border-radius: 5px;
-  margin: 16px 0 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 100%;
+    ${p => p.slim ? {height: "80px"} : {height: "280px"}}
+    border-width: 2px;
+    border-color: rgb(102, 102, 102);
+    border-style: dashed;
+    border-radius: 5px;
+    margin: 16px 0 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-  & > p {
-    margin: 25px;
-  }
+    & > p {
+        margin: 25px;
+    }
 `;
 
 const UploadArtWrapper = styled.div`
