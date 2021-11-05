@@ -16,7 +16,6 @@ import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.provider.api.ResourceBilling
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
@@ -39,9 +38,6 @@ data class Share(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Storage, ShareSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     @Serializable
     data class Spec(
         val sharedWith: String,
@@ -101,6 +97,9 @@ data class ShareFlags(
     val filterOriginalPath: String? = null,
     val filterRejected: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 typealias SharesUpdatePermissionsRequest = BulkRequest<SharesUpdatePermissionsRequestItem>

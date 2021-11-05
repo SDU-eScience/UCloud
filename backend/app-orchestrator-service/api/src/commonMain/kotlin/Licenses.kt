@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductPriceUnit
@@ -27,6 +25,9 @@ data class LicenseIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -56,10 +57,7 @@ data class License(
     override val updates: List<LicenseUpdate> = emptyList(),
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.License, LicenseSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-}
+) : Resource<Product.License, LicenseSupport>
 
 @UCloudApiDoc("The status of an `License`")
 @Serializable

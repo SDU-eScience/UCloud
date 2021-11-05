@@ -5,7 +5,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate, SortFlags
 } from "./ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
@@ -14,9 +14,11 @@ import * as H from "history";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
-import {BulkRequest} from "@/UCloud/index";
+import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
+import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -87,6 +89,26 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             column: "title",
             helpText: "Name of the drive, for example: Research data"
         });
+
+        this.registerFilter(
+            ConditionalFilter(
+                () => Client.hasActiveProject,
+                CheckboxFilter("search", "filterMemberFiles", "Show member files", false)
+            )
+        );
+    }
+
+    browse(
+        req: PaginationRequestV2 & FileCollectionFlags & SortFlags
+    ): APICallParameters<PaginationRequestV2 & FileCollectionFlags, PageV2<FileCollection>> {
+        if (req["filterMemberFiles"] === "true") {
+            req.filterProductId = "project-home";
+            req.filterProductCategory = "u1-cephfs";
+        } else {
+            req.hideProductId = "project-home";
+        }
+        delete req["filterMemberFiles"];
+        return super.browse(req);
     }
 
     retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {

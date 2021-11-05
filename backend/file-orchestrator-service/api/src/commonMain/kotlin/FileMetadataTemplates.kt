@@ -7,7 +7,6 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.calls.*
@@ -31,9 +30,6 @@ data class FileMetadataTemplateNamespace(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product, FileMetadataTemplateSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     @Serializable
     data class Spec(
         val name: String,
@@ -129,6 +125,9 @@ data class FileMetadataTemplateNamespaceFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
     val filterName: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

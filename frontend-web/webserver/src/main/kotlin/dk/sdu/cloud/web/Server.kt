@@ -9,6 +9,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.*
 import io.ktor.response.respond
 import io.ktor.response.respondFile
+import io.ktor.response.respondText
 import io.ktor.response.respondRedirect
 import io.ktor.routing.get
 import io.ktor.routing.routing
@@ -18,7 +19,7 @@ import java.io.File
 
 class Server {
     fun start() {
-        val version = File("/var/www/Assets/AppVersion.txt").takeIf { it.exists() }?.readText() ?: ""
+        val version = File("/var/www/AppVersion.txt").takeIf { it.exists() }?.readText() ?: ""
 
         embeddedServer(Netty, port = 8080) {
             install(Compression)
@@ -66,6 +67,14 @@ class Server {
                 .find { it.exists() && it.isDirectory }
 
             routing {
+                get("/AppVersion.txt") {
+                    call.respondText(version)
+                }
+
+                get("/assets/Assets/AppVersion.txt") {
+                    call.respondText(version)
+                }
+
                 static("/assets") {
                     if (staticContent != null) {
                         files(File(staticContent, "assets"))

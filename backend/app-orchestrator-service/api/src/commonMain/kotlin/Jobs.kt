@@ -207,12 +207,6 @@ data class Job(
 
     override val permissions: ResourcePermissions? = null,
 ) : Resource<Product.Compute, ComputeSupport>, DocVisualizable {
-    @Suppress("OverridingDeprecatedMember")
-    override val acl: List<ResourceAclEntry>? = null
-
-    @Suppress("OverridingDeprecatedMember")
-    override val billing = ResourceBilling.Free
-
     companion object {
         fun fromSpecification(
             id: String,
@@ -267,19 +261,6 @@ data class JobStatus(
 
     override var resolvedProduct: Product.Compute? = null
 ) : ResourceStatus<Product.Compute, ComputeSupport>
-
-@Serializable
-data class JobBilling(
-    @UCloudApiDoc("The amount of credits charged to the `owner` of this job")
-    override val creditsCharged: Long,
-
-    @UCloudApiDoc("The unit price of this job")
-    override val pricePerUnit: Long,
-
-    @UCloudApiInternal(InternalLevel.BETA)
-    @Deprecated("Only used for a single quick and temporary hack")
-    val __creditsAllocatedToWalletDoNotDependOn__: Long,
-) : ResourceBilling
 
 @Serializable
 @UCloudApiOwnedBy(Jobs::class)
@@ -404,6 +385,9 @@ data class JobIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -1230,7 +1214,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                     "1254151",
                                     listOf("1254151"),
                                     500,
-                                    1_000_000 * 500,
+                                    1_000_000 * 500L,
                                     500,
                                     start,
                                     null,

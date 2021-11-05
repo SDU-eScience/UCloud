@@ -1007,6 +1007,12 @@ abstract class ResourceService<
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
                 )
+                setParameter("hide_provider", flags?.hideProvider ?: simpleFlags?.hideProvider)
+                setParameter("hide_product_id", flags?.hideProductId ?: simpleFlags?.hideProductId)
+                setParameter(
+                    "hide_product_category",
+                    flags?.hideProductCategory ?: simpleFlags?.hideProductCategory
+                )
                 setParameter(
                     "filter_provider_ids",
                     (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
@@ -1105,6 +1111,9 @@ abstract class ResourceService<
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (:hide_provider::text is null or p_cat.provider != :hide_provider) and
+                          (:hide_product_id::text is null or the_product.name != :hide_product_id) and
+                          (:hide_product_category::text is null or p_cat.category != :hide_product_category) and
                           (
                               :filter_provider_ids::text[] is null or
                               r.provider_generated_id = some(:filter_provider_ids::text[])

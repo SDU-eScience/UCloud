@@ -105,10 +105,7 @@ data class NetworkIP(
     val resolvedProduct: Product.NetworkIP? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.NetworkIP, NetworkIPSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-}
+) : Resource<Product.NetworkIP, NetworkIPSupport>
 
 @UCloudApiDoc("The status of an `NetworkIP`")
 @Serializable
@@ -175,6 +172,9 @@ data class NetworkIPFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

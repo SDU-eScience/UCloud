@@ -48,9 +48,6 @@ data class ExampleResource(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product, ExampleResourceSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     @UCloudApiExampleValue
     @Serializable
     data class Spec(
@@ -114,6 +111,9 @@ data class ExampleResourceFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiExampleValue

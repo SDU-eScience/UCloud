@@ -52,6 +52,12 @@ export interface ResourceIncludeFlags {
     includeOthers?: boolean;
     includeSupport?: boolean;
     includeUpdates?: boolean;
+    filterProvider?: string;
+    filterProductId?: string;
+    filterProductCategory?: string;
+    hideProvider?: string;
+    hideProductId?: string;
+    hideProductCategory?: string;
 }
 
 export interface UpdatedAcl {
