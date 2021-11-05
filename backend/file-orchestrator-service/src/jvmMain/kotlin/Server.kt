@@ -47,7 +47,15 @@ class Server(override val micro: Micro) : CommonServer {
         val metadataTemplateNamespaces = MetadataTemplateNamespaces(db, providers, templateSupport, serviceClient)
         val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
-        val filesService = FilesService(fileCollections, providers, providerSupport, metadataService, serviceClient, db)
+        val filesService = FilesService(
+            fileCollections,
+            providers,
+            providerSupport,
+            metadataService,
+            metadataTemplateNamespaces,
+            serviceClient,
+            db
+        )
         val shares = ShareService(
             db,
             providers,
