@@ -12,7 +12,7 @@ import {
     preventDefault
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
-import {supportedProtocols, Upload, UploadState} from "@/Files/Upload";
+import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
 import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
@@ -25,11 +25,13 @@ import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
 import {useSelector} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
-const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
+const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -95,10 +97,15 @@ function createResumeable(
         while (!reader.isEof() && !upload.terminationRequested) {
             await sendChunk(await reader.readChunk(maxChunkSize));
 
-            const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
+            const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
             localStorage.setItem(
                 createLocalStorageUploadKey(fullFilePath),
-                JSON.stringify({offset: reader.offset, size: upload.fileSizeInBytes, strategy: strategy!, expiration} as LocalStorageFileUploadInfo)
+                JSON.stringify({
+                    offset: reader.offset,
+                    size: upload.fileSizeInBytes,
+                    strategy: strategy!,
+                    expiration
+                } as LocalStorageFileUploadInfo)
             );
         }
 
@@ -121,6 +128,7 @@ function createResumeable(
 
             request.upload.onprogress = ev => {
                 upload.progressInBytes = progressStart + ev.loaded;
+                uploadTrackProgress(upload);
                 if (upload.terminationRequested) {
                     upload.state = UploadState.DONE;
                     if (!upload.paused) request.abort();
@@ -272,7 +280,8 @@ const Uploader: React.FunctionComponent = () => {
             state: UploadState.PENDING,
             conflictPolicy: "RENAME",
             targetPath: uploadPath,
-            initialProgress: 0
+            initialProgress: 0,
+            uploadEvents: []
         }));
 
         setUploads(uploads.concat(newUploads));
@@ -350,15 +359,15 @@ const Uploader: React.FunctionComponent = () => {
                     extra={callbacks}
                     entityNameSingular={entityName}
                 />
-                <Divider />
+                <Divider/>
 
                 <label htmlFor={"fileUploadBrowse"}>
                     <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                        onDragOver={preventDefault} slim={uploads.length > 0}>
+                                 onDragOver={preventDefault} slim={uploads.length > 0}>
                         <Flex width={320} alignItems={"center"} flexDirection={"column"}>
-                            {uploads.length > 0 ? null : <UploaderArt />}
+                            {uploads.length > 0 ? null : <UploaderArt/>}
                             <Box ml={"-1.5em"}>
-                                <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
                                 <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                 <i>browse</i>
                                 <input
@@ -372,63 +381,21 @@ const Uploader: React.FunctionComponent = () => {
                     </DropZoneBox>
                 </label>
 
-                <List>
+                <List childPadding={"8px"} bordered={false}>
                     {uploads.map((upload, idx) => (
-                        <ListRow
+                        <ItemRow
                             key={`${upload.row.rootEntry.name}-${idx}`}
-                            isSelected={toggleSet.checked.has(upload)}
-                            select={() => toggleSet.toggle(upload)}
-                            icon={
-                                <FtIcon
-                                    fileIcon={{
-                                        type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
-                                        ext: extensionFromPath(upload.row.rootEntry.name)
-                                    }}
-                                    size={"42px"}
-                                />
-                            }
-                            left={
-                                <Truncate
-                                    title={upload.row.rootEntry.name}
-                                    width={["320px", "320px", "320px", "320px", "440px", "560px"]}
-                                    fontSize={20}
-                                >
-                                    {upload.row.rootEntry.name}
-                                </Truncate>
-                            }
-                            leftSub={
-                                <ListStatContainer>
-                                    {!upload.fileSizeInBytes ? null :
-                                        <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
-                                            {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                                            {" / "}
-                                            {sizeToString(upload.fileSizeInBytes)}
-                                        </ListRowStat>
-                                    }
-                                </ListStatContainer>
-                            }
-                            right={
-                                <>
-                                    {upload.state !== UploadState.DONE ? null : (
-                                        upload.paused ? null :
-                                            (upload.terminationRequested ?
-                                                <Icon name="close" color="red" /> :
-                                                <Icon name="check" color="green" />
-                                            )
-                                    )}
-                                    <Operations
-                                        row={upload}
-                                        location={"IN_ROW"}
-                                        operations={operations}
-                                        selected={toggleSet.checked.items}
-                                        extra={callbacks}
-                                        entityNameSingular={entityName}
-                                    />
-                                </>
-                            }
+                            browseType={BrowseType.Embedded}
+                            renderer={renderer}
+                            toggleSet={toggleSet}
+                            operations={operations}
+                            callbacks={callbacks}
+                            itemTitle={entityName}
+                            item={upload}
                         />
                     ))}
                 </List>
+
                 {pausedFilesInFolder.length === 0 ? null :
                     <div>
                         <Text>Uploads that can be resumed:</Text>
@@ -447,7 +414,67 @@ interface UploadCallback {
     resumeUploads: (batch: Upload[]) => void;
 }
 
+const renderer: ItemRenderer<Upload> = {
+    Icon: (props) => {
+        const upload = props.resource;
+        if (!upload) return null;
+        return <FtIcon
+            fileIcon={{
+                type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
+                ext: extensionFromPath(upload.row.rootEntry.name)
+            }}
+            size={props.size}
+        />
+    },
+
+    MainTitle: ({resource}) => {
+        if (!resource) return null;
+        return <Truncate
+            title={resource.row.rootEntry.name}
+            width={["320px", "320px", "320px", "320px", "440px", "560px"]}
+            fontSize={20}
+        >
+            {resource.row.rootEntry.name}
+        </Truncate>
+    },
+
+    Stats: ({resource}) => {
+        if (!resource) return null;
+        return <>
+            {!resource.fileSizeInBytes ? null :
+                <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
+                    {sizeToString(resource.progressInBytes + resource.initialProgress)}
+                    {" / "}
+                    {sizeToString(resource.fileSizeInBytes)}
+                    {" "}
+                    ({sizeToString(uploadCalculateSpeed(resource))}/s)
+                </ListRowStat>
+            }
+        </>
+    },
+
+    ImportantStats: ({resource}) => {
+        const upload = resource;
+        if (!upload) return null;
+        return <>
+            {upload.state !== UploadState.DONE ? null : (
+                upload.paused ? null :
+                    (upload.terminationRequested ?
+                        <Icon name="close" color="red" /> :
+                        <Icon name="check" color="green" />
+                    )
+            )}
+        </>;
+    }
+};
+
 const operations: Operation<Upload, UploadCallback>[] = [
+    {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
+        onClick: (selected, cb) => cb.pauseUploads(selected),
+        text: "Pause",
+        icon: "pauseSolid"
+    },
     {
         enabled: selected => selected.length > 0 &&
             selected.every(it => it.state === UploadState.PENDING || it.state === UploadState.UPLOADING),
@@ -456,18 +483,11 @@ const operations: Operation<Upload, UploadCallback>[] = [
         color: "red",
         icon: "trash",
         confirm: true,
-        primary: true,
-    }, {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
-        onClick: (selected, cb) => cb.pauseUploads(selected),
-        text: "Pause",
-        color: "blue",
-        icon: undefined, // TODO: Pause icon
-    }, {
+    },
+    {
         enabled: selected => selected.length > 0 && selected.every(it => it.paused),
         onClick: (selected, cb) => cb.resumeUploads(selected),
         text: "Resume",
-        color: "blue",
         icon: "play",
         primary: true
     }
@@ -505,7 +525,7 @@ const modalStyle = {
     }
 };
 
-const DropZoneBox = styled.div<{slim?: boolean}>`
+const DropZoneBox = styled.div<{ slim?: boolean }>`
     width: 100%;
     ${p => p.slim ? {height: "80px"} : {height: "280px"}}
     border-width: 2px;
