@@ -358,6 +358,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 {items.map(it =>
                     <ItemRow
                         key={it.id}
+                        browseType={props.browseType}
                         navigate={() => {
                             if (props.navigateToChildren) {
                                 const result = props.navigateToChildren?.(history, it)
@@ -368,7 +369,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<Res, any>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />

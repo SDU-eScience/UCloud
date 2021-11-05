@@ -32,6 +32,7 @@ import Icon from "../ui-components/Icon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
+import {BrowseType} from "@/Resource/BrowseType";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -185,6 +186,7 @@ const ShareGroup: React.FunctionComponent<{
             {shares.map((share, idx) => (idx == 10 ? null :
                 <ItemRow
                     key={share.specification.sharedWith}
+                    browseType={BrowseType.MainContent}
                     item={share}
                     renderer={SharesApi.renderer}
                     toggleSet={toggleSet}
