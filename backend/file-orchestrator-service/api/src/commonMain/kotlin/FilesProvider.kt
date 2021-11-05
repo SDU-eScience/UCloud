@@ -30,6 +30,8 @@ data class PartialUFile(
     @UCloudApiDoc("The permissions of the file. Corresponds to UFile.permissions." +
         "This will default to the collection's permissions.")
     val permissions: ResourcePermissions? = null,
+    @UCloudApiDoc("Legacy for reading old sensitivity values stored on in extended attributes")
+    val legacySensitivity: String? = null
 )
 
 @Serializable

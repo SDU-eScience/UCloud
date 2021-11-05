@@ -11,11 +11,17 @@ import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.task.api.*
 import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 typealias MoveHandler = suspend (batch: List<FilesMoveRequestItem>) -> Unit
 typealias DeleteHandler = suspend (batch: List<FindByStringId>) -> Unit
@@ -26,6 +32,7 @@ class FilesService(
     private val providers: StorageProviders,
     providerSupport: StorageProviderSupport,
     private val metadataService: MetadataService,
+    private val templates: MetadataTemplateNamespaces,
     private val serviceClient: AuthenticatedClient,
     private val db: DBContext,
 ) : ResourceSvc<UFile, UFileIncludeFlags, UFileSpecification, UFileUpdate, Product.Storage, FSSupport> {
@@ -39,6 +46,36 @@ class FilesService(
             metadataService.retrieveWithHistory(actorAndProject, parentPath)
         }
     )
+
+    private var cachedSensitivityTemplate: FileMetadataTemplate? = null
+    private val sensitivityTemplateMutex = Mutex()
+    private suspend fun retrieveSensitivityTemplate(): FileMetadataTemplate {
+        if (cachedSensitivityTemplate != null) {
+            return cachedSensitivityTemplate!!
+        }
+
+        sensitivityTemplateMutex.withLock {
+            if (cachedSensitivityTemplate != null) {
+                return cachedSensitivityTemplate!!
+            }
+
+            val errorMessage = "Sensitivity template is not registered in UCloud's database. " +
+                    "Is database corrupt?"
+
+            val namespace = templates.browse(
+                ActorAndProject(Actor.System, null),
+                ResourceBrowseRequest(FileMetadataTemplateNamespaceFlags(filterName = "sensitivity"))
+            ).items.singleOrNull() ?: error(errorMessage)
+
+            val template = templates.browseTemplates(
+                ActorAndProject(Actor.System, null),
+                FileMetadataTemplatesBrowseTemplatesRequest(namespace.id)
+            ).items.singleOrNull() ?: error(errorMessage)
+
+            cachedSensitivityTemplate = template
+            return template
+        }
+    }
 
     fun addMoveHandler(handler: MoveHandler) {
         moveHandlers.add(handler)
@@ -130,7 +167,7 @@ class FilesService(
         }
     }
 
-    private fun PartialUFile.toUFile(
+    private suspend fun PartialUFile.toUFile(
         resolvedCollection: FileCollection,
         metadata: MetadataService.RetrieveWithHistory?
     ): UFile {
@@ -151,7 +188,7 @@ class FilesService(
                 }?.toMap()
             }
 
-            val templates = metadata.templates
+            val templates = metadata.templates.toMutableMap()
             val history = HashMap<String, List<FileMetadataOrDeleted>>()
             // NOTE(Dan): First we pre-fill the history with the inherited metadata. This metadata is sorted such that
             // the highest priority is listed first, which means we shouldn't override if an existing entry is present.
@@ -166,6 +203,29 @@ class FilesService(
             val ownMetadata = metadata.metadataByFile[id] ?: emptyMap()
             ownMetadata.forEach { (template, docs) ->
                 history[template] = docs
+            }
+
+            if (legacySensitivity != null) {
+                val template = retrieveSensitivityTemplate()
+                templates[template.namespaceId] = template
+                if (template.namespaceId !in history) {
+                    history[template.namespaceId] = listOf(
+                        FileMetadataDocument(
+                            "LEGACY-SENSITIVITY",
+                            FileMetadataDocument.Spec(
+                                template.namespaceId,
+                                template.version,
+                                JsonObject(mapOf(
+                                    "sensitivity" to JsonPrimitive(legacySensitivity)
+                                )),
+                                ""
+                            ),
+                            Time.now(),
+                            FileMetadataDocument.Status(FileMetadataDocument.ApprovalStatus.NotRequired),
+                            "_ucloud"
+                        )
+                    )
+                }
             }
 
             FileMetadataHistory(templates, history)
