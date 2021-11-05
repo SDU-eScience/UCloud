@@ -12,9 +12,12 @@ import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.SyncConfiguration
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.content.*
@@ -25,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import java.io.File
+import java.net.ConnectException
 
 @Serializable
 data class SyncthingIgnoredFolder(
@@ -230,93 +234,197 @@ class SyncthingClient(
     val client: AuthenticatedClient,
     distributedLocks: DistributedLockBestEffortFactory
 ) {
-    private val httpClient = HttpClient(CIO) {
+    private val httpClient = HttpClient(OkHttp) {
         expectSuccess = false
+
+        engine {
+            threadsCount = 1
+            pipelining = false
+        }
     }
     private val mutex = Mutex()
     private val lock = distributedLocks.create("syncthing-client-writer", duration = 2_000)
+    private val limitLock = distributedLocks.create("syncthing-client-writer-limiter", duration = 2_000)
 
     private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
         return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
     }
 
-    suspend fun writeConfig(toDevices: List<LocalSyncthingDevice> = emptyList()) {
+    suspend fun writeConfig(
+        toDevices: List<LocalSyncthingDevice> = emptyList()
+    ) {
+        // Wait for limitLock to be released. limitLock is released after a fixed period since it was
+        // last acquired. This is necessary to limit the number of requests sent to Syncthing.
+        val timeout = Time.now() + 2000
+        while (timeout > Time.now()) {
+            if (limitLock.acquire()) {
+
+                if (lock.acquire()) {
+                    mutex.withLock {
+                        val devices = toDevices.ifEmpty {
+                            config.devices
+                        }
+
+                        devices.forEach { device ->
+                            val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/db/status")) {
+                                headers {
+                                    append("X-API-Key", device.apiKey)
+                                }
+                            }
+
+                            val body: String = resp.receive()
+                        }
+
+                        val result = db.withSession { session ->
+                            session.sendPreparedStatement(
+                                {
+                                    setParameter("devices", devices.map { it.id })
+                                },
+                                """
+                                       select f.id, path, sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                                       from
+                                          file_ucloud.sync_folders f join
+                                          file_ucloud.sync_devices d on f.user_id = d.user_id
+                                       where
+                                          f.device_id in (select unnest(:devices::text[]))
+                                    """
+                            )
+                        }.rows
+
+                        devices.forEach { device ->
+                            val newConfig = SyncthingConfig(
+                                devices = result
+                                    .filter {
+                                        it.getString("local_device_id") == device.id
+                                    }
+                                    .distinctBy { it.getField(SyncDevicesTable.device) }
+                                    .map { row ->
+                                        SyncthingDevice(
+                                            deviceID = row.getField(SyncDevicesTable.device),
+                                            name = row.getField(SyncDevicesTable.device)
+                                        )
+                                    } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                                folders = result
+                                    .filter {
+                                        it.getString("local_device_id") == device.id
+                                    }
+                                    .distinctBy { it.getField(SyncFoldersTable.id) }
+                                    .map { row ->
+                                        SyncthingFolder(
+                                            id = row.getField(SyncFoldersTable.id).toString(),
+                                            label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
+                                            devices = result
+                                                .filter {
+                                                    it.getString("local_device_id") == device.id &&
+                                                        it.getField(SyncFoldersTable.id) == row.getField(
+                                                        SyncFoldersTable.id
+                                                    ) &&
+                                                        it.getField(SyncDevicesTable.user) == row.getField(
+                                                        SyncFoldersTable.user
+                                                    )
+                                                }.map {
+                                                    SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
+                                                },
+                                            path = File(
+                                                "/mnt/sync",
+                                                row.getField(SyncFoldersTable.id).toString()
+                                            ).absolutePath,
+                                            type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
+                                            rescanIntervalS = device.rescanIntervalSeconds
+                                        )
+                                    },
+                                defaults = SyncthingDefaults(),
+                                gui = SyncthingGui(
+                                    address = device.hostname,
+                                    apiKey = device.apiKey,
+                                    user = device.username,
+                                    password = device.password
+                                ),
+                                ldap = SyncthingLdap(),
+                                options = SyncthingOptions()
+                            )
+
+                            /*var retries = 0
+
+                            while (true) {
+                                if (retries == 3) {
+                                    lock.release()
+                                    throw RPCException(
+                                        "The synchronization feature is offline. Please try again later.",
+                                        HttpStatusCode.ServiceUnavailable,
+                                    )
+                                }
+
+                                try {
+                                    val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
+                                        body = TextContent(
+                                            defaultMapper.encodeToString(newConfig),
+                                            ContentType.Application.Json
+                                        )
+                                        headers {
+                                            append("X-API-Key", device.apiKey)
+                                        }
+                                    }
+
+                                    if (resp.status != HttpStatusCode.OK) {
+                                        throw RPCException(
+                                            resp.content.toByteArray().toString(Charsets.UTF_8),
+                                            HttpStatusCode.BadRequest
+                                        )
+                                    } else {
+                                        break
+                                    }
+
+                                } catch (ex: Throwable) {
+                                    retries++
+                                }
+                            }*/
+
+
+                            val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
+                                body = TextContent(
+                                    defaultMapper.encodeToString(newConfig),
+                                    ContentType.Application.Json
+                                )
+                                headers {
+                                    append("X-API-Key", device.apiKey)
+                                }
+                            }
+
+                            if (resp.status != HttpStatusCode.OK) {
+                                throw RPCException(
+                                    resp.content.toByteArray().toString(Charsets.UTF_8),
+                                    HttpStatusCode.BadRequest
+                                )
+                            }
+                        }
+                    }
+                    lock.release()
+                    break
+                }
+            }
+        }
+    }
+
+    suspend fun drainConfig() {
         if (lock.acquire()) {
             mutex.withLock {
-                val devices = toDevices.ifEmpty {
-                    config.devices
-                }
-
-                val result = db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("devices", devices.map { it.id })
-                        },
-                        """
-                               select f.id, path, sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                               from
-                                  file_ucloud.sync_folders f join
-                                  file_ucloud.sync_devices d on f.user_id = d.user_id
-                               where
-                                  f.device_id in (select unnest(:devices::text[]))
-                            """
+                config.devices.forEach { device ->
+                    val newConfig = SyncthingConfig(
+                        devices = emptyList(),
+                        folders = emptyList(),
+                        defaults = SyncthingDefaults(),
+                        gui = SyncthingGui(
+                            address = device.hostname,
+                            apiKey = device.apiKey,
+                            user = device.username,
+                            password = device.password
+                        ),
+                        ldap = SyncthingLdap(),
+                        options = SyncthingOptions()
                     )
-                }.rows
 
-                if (result.size < 1) {
-                    devices.forEach { device ->
-                        val newConfig = SyncthingConfig(
-                            devices = result
-                                .filter {
-                                    it.getString("local_device_id") == device.id
-                                }
-                                .distinctBy { it.getField(SyncDevicesTable.device) }
-                                .map { row ->
-                                    SyncthingDevice(
-                                        deviceID = row.getField(SyncDevicesTable.device),
-                                        name = row.getField(SyncDevicesTable.device)
-                                    )
-                                } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
-                            folders = result
-                                .filter {
-                                    it.getString("local_device_id") == device.id
-                                }
-                                .distinctBy { it.getField(SyncFoldersTable.id) }
-                                .map { row ->
-                                    SyncthingFolder(
-                                        id = row.getField(SyncFoldersTable.id).toString(),
-                                        label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
-                                        devices = result
-                                            .filter {
-                                                it.getString("local_device_id") == device.id &&
-                                                    it.getField(SyncFoldersTable.id) == row.getField(
-                                                    SyncFoldersTable.id
-                                                ) &&
-                                                    it.getField(SyncDevicesTable.user) == row.getField(
-                                                    SyncFoldersTable.user
-                                                )
-                                            }.map {
-                                                SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
-                                            },
-                                        path = File(
-                                            "/mnt/sync",
-                                            row.getField(SyncFoldersTable.id).toString()
-                                        ).absolutePath,
-                                        type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
-                                        rescanIntervalS = device.rescanIntervalSeconds
-                                    )
-                                },
-                            defaults = SyncthingDefaults(),
-                            gui = SyncthingGui(
-                                address = device.hostname,
-                                apiKey = device.apiKey,
-                                user = device.username,
-                                password = device.password
-                            ),
-                            ldap = SyncthingLdap(),
-                            options = SyncthingOptions()
-                        )
-
+                    try {
                         val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
                             body = TextContent(
                                 defaultMapper.encodeToString(newConfig),
@@ -333,22 +441,29 @@ class SyncthingClient(
                                 HttpStatusCode.BadRequest
                             )
                         }
+                    } catch (e: ConnectException) {
+                        throw RPCException(
+                            "The synchronization feature is offline. Please try again later.",
+                            HttpStatusCode.ServiceUnavailable,
+                        )
+                    } finally {
+                        lock.release()
                     }
                 }
             }
-
-            lock.release()
         }
     }
 
     suspend fun isReady(device: LocalSyncthingDevice): Boolean {
+        /*println("check is ready")
         val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/system/ping")) {
             headers {
                 append("X-API-Key", device.apiKey)
             }
         }
-
-        return resp.status == HttpStatusCode.OK
+        println("check is done $resp")
+        return resp.status == HttpStatusCode.OK*/
+        return true
     }
 
     suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
