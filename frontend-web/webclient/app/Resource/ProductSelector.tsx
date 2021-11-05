@@ -51,7 +51,7 @@ export const ProductSelector: React.FunctionComponent<{
                             {products.map(machine => {
                                 if (machine === null) return null;
                                 return <TableRow key={machine.name} onClick={() => setSelected(machine)}>
-                                    <TableCell pl="6px">{machine.name}</TableCell>
+                                    <TableCell>{machine.name}</TableCell>
                                     <TableCell>{priceExplainer(machine)}</TableCell>
                                 </TableRow>;
                             })}
@@ -97,6 +97,7 @@ const Wrapper = styled.div`
 const ProductBoxWrapper = styled.div`
   cursor: pointer;
   padding: 8px;
+  padding-top: 1px;
 
   ul {
     list-style: none;
@@ -133,6 +134,7 @@ const ProductDropdown = styled(Box)`
   cursor: pointer;
   border-radius: 5px;
   border: ${theme.borderWidth} solid var(--midGray, #f00);
+  height: 36px;
   width: 100%;
   min-width: 500px;
 
