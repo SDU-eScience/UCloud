@@ -282,7 +282,7 @@ const Uploader: React.FunctionComponent = () => {
             targetPath: uploadPath,
             initialProgress: 0,
             uploadEvents: []
-        }));
+        })).filter(it => !it.row.rootEntry.isDirectory);
 
         setUploads(uploads.concat(newUploads));
         startUploads(newUploads);
