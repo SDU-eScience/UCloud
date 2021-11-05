@@ -13,7 +13,7 @@ import {
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
-import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
+import {ListRowStat} from "@/ui-components/List";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
@@ -278,7 +278,7 @@ const Uploader: React.FunctionComponent = () => {
             row: it,
             progressInBytes: 0,
             state: UploadState.PENDING,
-            conflictPolicy: "RENAME",
+            conflictPolicy: "RENAME" as const,
             targetPath: uploadPath,
             initialProgress: 0,
             uploadEvents: []
