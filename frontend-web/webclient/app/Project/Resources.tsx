@@ -101,23 +101,10 @@ filterPills.push(props =>
 filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
 
-const showSubAllocationsProp = "showSubAllocations";
-
-filterWidgets.push(props =>
-    <CheckboxFilterWidget propertyName={showSubAllocationsProp} icon={"grant"}
-        title={"Show sub-allocations"} {...props} />)
-
-
 const ResourcesGrid = styled.div`
     display: grid;
     grid-template-columns: 1fr;
     grid-gap: 16px;
-
-    ${deviceBreakpoint({minWidth: "1600px"})} {
-        &.two-columns {
-            grid-template-columns: 60% calc(40% - 32px);
-        }
-    }
 `;
 
 const Resources: React.FunctionComponent = () => {
@@ -172,7 +159,6 @@ const Resources: React.FunctionComponent = () => {
         "large" : "slim";
     const breakdownClassName = breakdowns.data.charts.length > 3 ? "large" : "slim";
 
-    const subAllocationsVisible = filters[showSubAllocationsProp] === "true";
     return (
         <MainContainer
             header={
@@ -192,7 +178,7 @@ const Resources: React.FunctionComponent = () => {
                     onApplyFilters={reloadPage}
                 />
             </>}
-            main={<ResourcesGrid className={subAllocationsVisible ? "two-columns" : undefined}>
+            main={<ResourcesGrid>
                 <Grid gridGap={"16px"}>
                     {maximizedUsage == null ? null : <>
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
@@ -215,15 +201,13 @@ const Resources: React.FunctionComponent = () => {
                                     <DonutChart key={idx} chart={it} />
                                 )}
                             </VisualizationSection>
+
+                            <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                                 loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
+                                                 filterByWorkspace={filterByWorkspace} />
                         </>
                     }
                 </Grid>
-
-                {!subAllocationsVisible ? null :
-                    <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                        loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
-                        filterByWorkspace={filterByWorkspace} />
-                }
             </ResourcesGrid>}
         />
     );
