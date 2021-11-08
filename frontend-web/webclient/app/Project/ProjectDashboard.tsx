@@ -171,13 +171,15 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </HighlightedCard>
                         )}
-                        <HighlightedCard
-                            subtitle={<RightArrow />}
-                            onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
-                            title="Subprojects"
-                            icon="projects"
-                            color="green"
-                        />
+                        {isPersonalProjectActive(projectId) ? null :
+                            <HighlightedCard
+                                subtitle={<RightArrow/>}
+                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                                title="Subprojects"
+                                icon="projects"
+                                color="green"
+                            />
+                        }
                     </ProjectDashboardGrid>
                 </>
             )}

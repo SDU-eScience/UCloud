@@ -709,6 +709,10 @@ const SubAllocationViewer: React.FunctionComponent<{
             loading={allocations.loading}
             page={allocations.data}
             onLoadMore={loadMore}
+            customEmptyPage={<Box mt={"8px"}>
+                You don't currently have any sub-allocations. You can create one by right-clicking on of your existing
+                allocations and selecting <i>"Deposit into..."</i>.
+            </Box>}
             pageRenderer={(page: SubAllocation[]) => {
                 return <Table mt={"8px"}>
                     <TableHeader>
