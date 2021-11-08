@@ -40,12 +40,12 @@
         "recharts": "^2.1.4",
         "redux": "4.1.1",
         "redux-responsive": "^4.3.8",
-        "styled-components": "^5.3.1",
+        "styled-components": "^5.3.3",
         "styled-system": "^5.1.5",
         "svgi": "^1.1.0",
         "ua-parser-js": "0.7.28",
-        "vfile": "5.1.1",
-        "xterm": "^4.14.1",
+        "vfile": "5.2.0",
+        "xterm": "^4.15.0",
         "xterm-addon-fit": "^0.5.0"
     },
     "devDependencies": {

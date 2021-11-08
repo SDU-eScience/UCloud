@@ -24,7 +24,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
     pathRef?: React.MutableRefObject<string>;
     forceNavigationToPage?: boolean;
 }> = props => {
@@ -173,14 +173,12 @@ export const FilesBrowse: React.FunctionComponent<{
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
-        browseType={props.browseType}
+        browseType={props.browseType ?? BrowseType.MainContent}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}
         onRename={onRename}
         emptyPage={
-            props.browseType === BrowseType.MainContent ?
             <>No files found folder. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
-                : <>No files found in this folder.</>
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
