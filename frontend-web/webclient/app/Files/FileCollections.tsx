@@ -10,7 +10,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 export const FileCollectionBrowse: React.FunctionComponent<{
     onSelect?: (selection: FileCollection) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
     const onRename = useCallback(async (text: string, res: FileCollection, cb: ResourceBrowseCallbacks<FileCollection>) => {
         await cb.invokeCommand(FileCollectionsApi.rename(bulkRequestOf({
@@ -30,7 +30,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         api={FileCollectionsApi}
         onSelect={props.onSelect}
         onRename={onRename}
-        browseType={props.browseType}
+        browseType={props.browseType ?? BrowseType.MainContent}
         onInlineCreation={((text, product, cb) => ({
                 product: {id: product.name, category: product.category.name, provider: product.category.provider},
                 title: text
