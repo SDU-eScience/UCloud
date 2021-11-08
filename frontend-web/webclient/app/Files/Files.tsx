@@ -73,6 +73,14 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [path, props.browseType, props.pathRef]);
 
     useEffect(() => {
+        if (props.browseType !== BrowseType.MainContent) {
+            if (path === "" && drives.data.items.length > 0) {
+                setPathFromState("/" + drives.data.items[0].id);
+            }
+        }
+    }, [props.browseType, path, drives.data.items.length]);
+
+    useEffect(() => {
         const components = pathComponents(path);
         if (components.length >= 1) {
             const collectionId = components[0];
@@ -169,9 +177,11 @@ export const FilesBrowse: React.FunctionComponent<{
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}
         onRename={onRename}
-        emptyPage={<>
-            No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.
-        </>}
+        emptyPage={
+            props.browseType === BrowseType.MainContent ?
+            <>No files found folder. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
+                : <>No files found in this folder.</>
+        }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={breadcrumbsComponent}
