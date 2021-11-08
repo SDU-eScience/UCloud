@@ -41,7 +41,8 @@ export const FilesBrowse: React.FunctionComponent<{
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
 
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
-        FileCollectionsApi.browse({itemsPerPage: 10}), emptyPageV2
+        FileCollectionsApi.browse({itemsPerPage: 250}),
+        emptyPageV2
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
