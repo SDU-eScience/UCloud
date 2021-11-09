@@ -2,10 +2,11 @@ import * as React from "react";
 import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement} from "react";
 import {Route, Switch} from "react-router-dom";
+import {BrowseType} from "./BrowseType";
 
 interface RouterProps<T extends Resource> {
     api: ResourceApi<T, never>;
-    Browser: React.FunctionComponent<{isSearch?: boolean}>;
+    Browser: React.FunctionComponent<{isSearch?: boolean; browseType?: BrowseType}>;
     Create?: React.FunctionComponent;
 }
 

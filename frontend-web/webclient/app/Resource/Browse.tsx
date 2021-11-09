@@ -205,11 +205,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onSelect,
         dispatch,
         history,
-        startRenaming: (res, value) => {
+        startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
             setRenamingValue(value);
         },
-        startCreation: () => {
+        startCreation() {
             if (props.onInlineCreation != null) {
                 setSelectedProduct(props.inlineProduct ?? null);
                 setIsCreating(true);
@@ -333,7 +333,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             <Spacer left={null} right={pageSize.current > 0 ?
                 <Box width="160px">
                     <EnumFilterWidget
-                        expanded={false} propertyName="direction" title="Sort direction" facedownChevron
+                        expanded={false} browseType={props.browseType} propertyName="direction" title="Sort direction" facedownChevron
                         id={0} onExpand={doNothing} properties={filters} options={sortDirections}
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
