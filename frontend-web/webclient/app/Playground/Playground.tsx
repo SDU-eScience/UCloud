@@ -88,7 +88,13 @@ const SheetDemo: React.FunctionComponent = () => {
             cells={cells}
             renderer={sheet}
             onRowUpdated={(row) => {
+                const s = sheet.current!;
                 console.log("Row has been updated", row, sheet.current!.sheetId);
+                s.registerValidation(1, row, "valid");
+                s.registerValidation(3, row, "invalid");
+                s.registerValidation(3, row);
+                s.registerValidation(4, row, "loading");
+                s.registerValidation(5, row, "valid");
             }}
             rows={500}
         />

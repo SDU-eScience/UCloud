@@ -5,6 +5,7 @@ import styled from "styled-components";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ListRow, ListRowStat} from "@/ui-components/List";
 import {DropdownContent} from "@/ui-components/Dropdown";
+import sdLoader from "@/Assets/Images/sd-loader.png";
 
 export type Cell = StaticCell | DropdownCell | TextCell;
 
@@ -147,7 +148,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
     }, [props.cells]);
 
     return <>
-        <StyledSheet id={sheetId}>
+        <div id={sheetId + "-templates"}>
             {requiredIcons.map(icon => (
                 <Template key={icon} className={"icon-" + icon}>
                     <Icon name={icon} size={"20px"} color={"iconColor"} color2={"iconColor2"}/>
@@ -179,6 +180,28 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
                 />
             </Template>
 
+            <Template className={"validation-valid"}>
+                <Icon size={"20px"} color={"green"} name={"check"} className={"validation"}/>
+            </Template>
+
+            <Template className={"validation-invalid"}>
+                <Icon size={"20px"} color={"red"} name={"close"} className={"validation"}/>
+            </Template>
+
+            <Template className={"validation-warning"}>
+                <Icon size={"20px"} color={"orange"} name={"warning"} className={"validation"}/>
+            </Template>
+
+            <Template className={"validation-loading"}>
+                {/* NOTE(Dan): We use this static loader, instead of the normal one, for performance reasons.
+                    It makes a _very_ significant difference. Going from completely locking up the UI
+                    (< 5 frames/minutes) to being actually usable (> 30 FPS)
+                */}
+                <img alt={"Loading..."} src={sdLoader} width={"20px"} height={"20px"} className={"spin validation"} />
+            </Template>
+        </div>
+
+        <StyledSheet id={sheetId}>
             <thead>
             <tr>
                 {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
@@ -197,6 +220,8 @@ const Template = styled.div`
   display: none;
 `;
 
+type ValidationState = "valid" | "invalid" | "warning" | "loading";
+
 export class SheetRenderer {
     private rows: number;
     public readonly sheetId: string;
@@ -209,6 +234,7 @@ export class SheetRenderer {
     private table: HTMLTableElement;
     private body: HTMLTableSectionElement;
     private portal: HTMLDivElement;
+    private templates: HTMLDivElement;
 
     private clickHandler: (ev) => void = doNothing;
     private keyHandler: (ev) => void = doNothing;
@@ -220,12 +246,34 @@ export class SheetRenderer {
 
     private clipboard: string[][] | null = null;
 
+    private validation: Record<string, ValidationState> = {};
+
     public onRowUpdated: (row: number) => void = doNothing;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
         this.sheetId = sheetId;
         this.cells = cells;
+    }
+
+    registerValidation(column: number, row: number, validationState?: ValidationState) {
+        const key = `${column},${row}`;
+        if (validationState) {
+            this.validation[key] = validationState;
+        } else {
+            delete this.validation[key];
+        }
+
+        const cell = this.findTableCell(column, row);
+        if (!cell) return;
+        cell.querySelector(".validation")?.remove();
+        if (validationState) {
+            cell.append(...this.cloneTemplate(".validation-" + validationState));
+        }
+    }
+
+    private findTableCell(column: number, row: number): Element | null {
+        return this.body.children.item(row)?.children?.item(column) ?? null;
     }
 
     mount() {
@@ -235,10 +283,14 @@ export class SheetRenderer {
         if (!body) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
         const portal = document.querySelector<HTMLDivElement>(`#${this.sheetId}-portal`);
         if (!portal) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        const templates = document.querySelector<HTMLDivElement>(`#${this.sheetId}-templates`);
+        if (!templates) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
 
         this.table = table;
         this.body = body;
         this.portal = portal;
+        this.templates = templates;
+
         const rowCount = this.rows;
         this.rows = 0;
         for (let i = 0; i < rowCount; i++) {
@@ -614,7 +666,7 @@ export class SheetRenderer {
     }
 
     private cloneTemplate(template: string): Element[] {
-        const iconTemplate = this.table.querySelector<HTMLDivElement>(template);
+        const iconTemplate = this.templates.querySelector<HTMLDivElement>(template);
         if (!iconTemplate) throw "Unknown template: " + template;
         return [...(iconTemplate.cloneNode(true)["children"])];
     }
@@ -638,6 +690,15 @@ const StyledSheet = styled.table`
   tr, td, th {
     border: 2px inset #eee;
     padding: 4px;
+  }
+  
+  td {
+    position: relative;
+  }
+  
+  .validation {
+    position: absolute;
+    right: 10px;
   }
 
   td.active, th.active {
@@ -667,5 +728,14 @@ const StyledSheet = styled.table`
 
   .pointer {
     cursor: pointer;
+  }
+  
+  .spin {
+    animation: sheetSpin 4s infinite linear;
+  }
+  
+  @keyframes sheetSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
