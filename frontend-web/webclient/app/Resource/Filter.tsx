@@ -143,9 +143,9 @@ export const ResourceFilter: React.FunctionComponent<{
         <Grid gridGap={"8px"}>
             <WidgetWrapper embedded={isEmbedded} gridGap="12px">
                 <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                    icon={"properties"} title={"Sort by"} options={sortOptions} />
+                    icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
                 {props.pills.map((Pill, idx) =>
-                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} />
+                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
                 )}
             </WidgetWrapper>
             {!isDirty ? null :
