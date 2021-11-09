@@ -378,7 +378,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
-                    cb.reload();
                 }
             },
             {
@@ -429,7 +428,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
-                    cb.reload();
                 }
             },
             {
@@ -468,7 +466,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
-                    cb.reload();
                 }
             },
             {
