@@ -1,10 +1,10 @@
 import * as React from "react";
+import {useLayoutEffect, useMemo} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import styled from "styled-components";
-import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ListRow, ListRowStat} from "@/ui-components/List";
+import {DropdownContent} from "@/ui-components/Dropdown";
 
 export type Cell = StaticCell | DropdownCell | TextCell;
 
@@ -15,10 +15,10 @@ interface CellBase {
 
 interface StaticCell extends CellBase {
     type: "static";
-    textFn: (row: string[]) => string;
+    textFn: (sheetId: string, coordinates: CellCoordinates) => string;
 }
 
-export function StaticCell(textFn: string | ((row: string[]) => string), opts?: Partial<StaticCell>): StaticCell {
+export function StaticCell(textFn: string | ((sheetId: string, coordinates: CellCoordinates) => string), opts?: Partial<StaticCell>): StaticCell {
     return {
         type: "static",
         textFn: typeof textFn === "string" ? () => textFn : textFn,
@@ -47,12 +47,8 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
         options,
         activate: (sheetId, column, row, key) => {
             const fnKey = id(sheetId, column, row);
-            const fn = window[fnKey];
-            const anchor = document.querySelector("#" + fnKey);
-            if (fn && anchor) {
-                const rect = anchor.getBoundingClientRect();
-                fn(rect.left, rect.top + 30);
-            }
+            const anchor = document.querySelector<HTMLElement>("#" + fnKey);
+            anchor?.click();
         },
         ...opts,
     };
@@ -64,15 +60,18 @@ function id(sheetId: string, column: number, row: number): string {
 
 interface TextCell extends CellBase {
     type: "text";
+    placeholder?: string;
 }
 
-export function TextCell(opts?: Partial<TextCell>): TextCell {
+export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCell {
     return {
         type: "text",
+        placeholder,
         activate: (sheetId, column, row, key) => {
             const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
             if (!cell) return;
             cell.focus(); // key is entered into the element by focusing it during the event handler
+            cell.select();
         },
         ...opts
     }
@@ -88,260 +87,479 @@ interface SheetProps {
     cells: Cell[];
     selectedCell: CellCoordinates[];
     onCellSelected: (coordinate: CellCoordinates[]) => void;
-    data: string[][];
-    onDataUpdated: (newDate: string[][]) => void;
+    rows: number;
 }
 
 export const Sheet: React.FunctionComponent<SheetProps> = props => {
+    if (props.header.length !== props.cells.length) {
+        throw `header.length and cells.length are not equal (${props.header.length} != ${props.cells.length})`;
+    }
+
+    if (props.rows < 0) {
+        throw `props.rows < 0 (${props.rows} < 0)`;
+    }
+
     const sheetId = useMemo(() => "sheet-" + Math.ceil(Math.random() * 1000000000).toString(), []);
-    const selected: boolean[][] = useMemo(() => {
-        const result: boolean[][] = [];
-        for (let row = 0; row <= props.data.length; row++) {
-            const newRow: boolean[] = [];
-            for (let col = 0; col <= props.data[0].length; col++) {
-                let isSelected = false;
-                for (const sel of props.selectedCell) {
-                    if (sel.row === row && sel.column === col) {
-                        isSelected = true;
-                        break;
-                    }
-                }
-                newRow.push(isSelected);
-            }
-            result.push(newRow);
+    const renderer = useMemo(() => new SheetRenderer(props.rows, sheetId, props.cells), [props.cells]);
+    useLayoutEffect(() => {
+        renderer.mount();
+
+        return () => {
+            renderer.unmount();
         }
-        return result;
-    }, [props.data.length, props.selectedCell]);
+    }, [renderer]);
 
-    const onCellSelected = useCallback((clear: boolean, coordinates: CellCoordinates[]) => {
-        if (clear) {
-            props.onCellSelected(coordinates);
-        } else {
-            props.onCellSelected([...props.selectedCell, ...coordinates]);
-        }
-    }, [props.selectedCell, props.onCellSelected]);
-
-    useEffect(() => {
-        const listener = (ev: KeyboardEvent) => {
-            const hasInputFocused = document.querySelector("input:focus") != null;
-            if (hasInputFocused) return;
-            let dx = 0;
-            let dy = 0;
-            switch (ev.code) {
-                case "ArrowLeft":
-                    dx = -1;
-                    break;
-                case "ArrowRight":
-                    dx = 1;
-                    break;
-                case "ArrowDown":
-                    dy = 1;
-                    break;
-                case "ArrowUp":
-                    dy = -1;
-                    break;
-
-                case "Home":
-                case "End": {
-                    const row = props.selectedCell.length > 0 ?
-                        props.selectedCell[props.selectedCell.length - 1].row : 0;
-                    const columns = props.cells.length;
-                    const column = ev.code === "Home" ? 0 : columns - 1;
-
-                    if (!ev.shiftKey) {
-                        onCellSelected(true, [{column, row}]);
-                    } else {
-                        const startColumn = props.selectedCell.length > 0 ?
-                            props.selectedCell[props.selectedCell.length - 1].column : 0;
-                        const newCoordinates: CellCoordinates[] = [];
-
-                        const min = startColumn > column ? column : startColumn;
-                        const max = startColumn > column ? startColumn : column;
-                        for (let i = min; i <= max; i++) {
-                            newCoordinates.push({row, column: i});
-                        }
-                        onCellSelected(true, newCoordinates);
+    const requiredIcons: IconName[] = useMemo(() => {
+        const result: IconName[] = [];
+        result.push("chevronDown");
+        for (const cell of props.cells) {
+            switch (cell.type) {
+                case "dropdown": {
+                    for (const opt of cell.options) {
+                        result.push(opt.icon);
                     }
                     break;
                 }
-
-                case "Escape":
-                    onCellSelected(true, []);
-                    break;
 
                 default: {
-                    const isEnter = ev.code === "NumpadEnter" || ev.code === "Enter";
-                    const baseCell = props.selectedCell.length > 0 ?
-                        props.selectedCell[props.selectedCell.length - 1] : null;
-                    if (!baseCell) return;
-                    if (isEnter) {
-                        props.cells[baseCell.column].activate(sheetId, baseCell.column, baseCell.row);
-                    } else {
-                        props.cells[baseCell.column].activate(sheetId, baseCell.column, baseCell.row, ev.code);
-                    }
-                    return;
+                    // Do nothing
+                    break;
                 }
-            }
-
-            if (dx != 0 || dy != 0) {
-                const baseCell = props.selectedCell.length > 0 ?
-                    props.selectedCell[props.selectedCell.length - 1] : {column: 0, row: 0};
-                const columns = props.cells.length;
-                const rows = props.data.length;
-
-                const newCoordinate: CellCoordinates = {column: baseCell.column + dx, row: baseCell.row + dy};
-                if (newCoordinate.column >= 0 && newCoordinate.column < columns && newCoordinate.row >= 0 &&
-                    newCoordinate.row < rows) {
-                    onCellSelected(!ev.shiftKey, [newCoordinate]);
-                }
-            }
-        };
-
-        document.body.addEventListener("keydown", listener);
-        return () => {
-            document.body.removeEventListener("keydown", listener);
-        };
-    }, [props.selectedCell, onCellSelected]);
-
-    return <StyledSheet>
-        <thead>
-        <tr>
-            {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
-        </tr>
-        </thead>
-        <tbody>
-        {props.data.map((row, idx) => (
-            <RowRenderer key={idx} row={row} cells={props.cells} selected={selected[idx]} onDataUpdated={doNothing}
-                         rowIdx={idx} onCellSelected={onCellSelected} sheetId={sheetId}/>
-        ))}
-        </tbody>
-    </StyledSheet>;
-};
-
-const RowRenderer: React.FunctionComponent<{
-    rowIdx: number;
-    row: string[];
-    cells: Cell[];
-    onDataUpdated: (newRow: string[]) => void;
-    selected: boolean[];
-    onCellSelected: (clear: boolean, coordinate: CellCoordinates[]) => void;
-    sheetId: string;
-}> = props => {
-    return <tr>
-        {props.cells.map((cell, idx) => (
-            <CellRenderer key={idx} cell={cell} coordinates={{row: props.rowIdx, column: idx}}
-                          selected={props.selected[idx]} onCellSelected={props.onCellSelected} sheetId={props.sheetId}
-                          row={props.row}/>
-        ))}
-    </tr>;
-};
-
-const CellRenderer: React.FunctionComponent<{
-    coordinates: CellCoordinates;
-    cell: Cell;
-    selected: boolean;
-    onCellSelected: (clear: boolean, coordinate: CellCoordinates[]) => void;
-    row: string[];
-    sheetId: string;
-}> = ({coordinates, cell, selected, onCellSelected, row, sheetId}) => {
-    const [selectedItem, setSelectedItem] = useState(0);
-    const onClick = useCallback(() => {
-        onCellSelected(true, [coordinates]);
-    }, [onCellSelected, coordinates]);
-
-    const onKeyDown: (ev: any) => void = useCallback((ev) => {
-        if (cell.type === "text") {
-            if (ev.code === "Escape") {
-                const input = ev.target as HTMLInputElement;
-                input.blur();
-                ev.preventDefault();
-                ev.stopPropagation();
-            }
-        } else if (cell.type === "dropdown") {
-            console.log(ev.code);
-            if (ev.code === "ArrowDown") {
-                setSelectedItem(prev => Math.min(cell.options.length - 1, prev + 1));
-            } else if (ev.code === "ArrowUp") {
-                setSelectedItem(prev => Math.max(0, prev - 1));
-            } else if (ev.code === "Home") {
-                setSelectedItem(0);
-            } else if (ev.code === "End") {
-                setSelectedItem(cell.options.length - 1);
             }
         }
-    }, [cell]);
+        return result;
+    }, [props.cells]);
 
-    let dropdownOption: DropdownOption | null = null;
-    if (cell.type === "dropdown") {
-        const option = cell.options.find(it => it.value === row[coordinates.column]);
-        if (option) {
-            dropdownOption = option;
+    return <>
+        <StyledSheet id={sheetId}>
+            {requiredIcons.map(icon => (
+                <Template key={icon} className={"icon-" + icon}>
+                    <Icon name={icon} size={"20px"} color={"iconColor"} color2={"iconColor2"}/>
+                </Template>
+            ))}
+
+            <Template className={"dropdown-row"}>
+                <ListRow
+                    fontSize={"16px"}
+                    icon={<div className={"icon"}/>}
+                    left={<div className={"left"}/>}
+                    leftSub={<ListRowStat>
+                        <div className={"help"}/>
+                    </ListRowStat>}
+                    right={null}
+                />
+            </Template>
+
+            <Template className={"dropdown-container"}>
+                <DropdownContent
+                    overflow={"visible"}
+                    squareTop={false}
+                    cursor="pointer"
+                    fixed={true}
+                    width={"300px"}
+                    hover={false}
+                    visible={true}
+                    paddingControlledByContent
+                />
+            </Template>
+
+            <thead>
+            <tr>
+                {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </StyledSheet>
+
+        <div id={`${sheetId}-portal`}/>
+    </>;
+};
+
+// <template> doesn't work with JSX (it doesn't put the nodes in the content as it should)
+const Template = styled.div`
+  display: none;
+`;
+
+class SheetRenderer {
+    private rows: number;
+    private readonly sheetId: string;
+    private readonly cells: Cell[];
+
+    private cellStartX: number = -1;
+    private cellEndX: number = -1;
+    private cellStartY: number = -1;
+    private cellEndY: number = -1;
+    private table: HTMLTableElement;
+    private body: HTMLTableSectionElement;
+    private portal: HTMLDivElement;
+
+    private clickHandler: (ev) => void = doNothing;
+    private keyHandler: (ev) => void = doNothing;
+
+    private dropdownCoordinates: CellCoordinates | null = null;
+    private dropdownOpen = false;
+    private dropdownCell: DropdownCell | null = null;
+    private dropdownEntry = 0;
+
+    private movementCooldown = false;
+
+    constructor(rows: number, sheetId: string, cells: Cell[]) {
+        this.rows = rows;
+        this.sheetId = sheetId;
+        this.cells = cells;
+    }
+
+    mount() {
+        const table = document.querySelector<HTMLTableElement>(`#${this.sheetId}`);
+        if (!table) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        const body = table.querySelector("tbody");
+        if (!body) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        const portal = document.querySelector<HTMLDivElement>(`#${this.sheetId}-portal`);
+        if (!portal) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+
+        this.table = table;
+        this.body = body;
+        this.portal = portal;
+        const rowCount = this.rows;
+        this.rows = 0;
+        for (let i = 0; i < rowCount; i++) {
+            this.addRow();
+        }
+
+        this.keyHandler = (ev: KeyboardEvent) => {
+            if (this.dropdownOpen) {
+                switch (ev.code) {
+                    case "Escape":
+                        this.closeDropdown();
+                        break;
+
+                    case "ArrowUp":
+                        ev.preventDefault();
+                        this.dropdownSelectEntry(this.dropdownEntry - 1);
+                        break;
+
+                    case "ArrowDown":
+                        ev.preventDefault();
+                        this.dropdownSelectEntry(this.dropdownEntry + 1);
+                        break;
+
+                    case "Enter":
+                        ev.preventDefault();
+                        this.dropdownConfirmChoice();
+                        break;
+                }
+            } else {
+                // NOTE(Dan): If a dropdown is not open, then the input will either go to the active input field or
+                // it will go to the sheet. We detect if an input currently has focus by querying the document.
+                const activeInput = document.querySelector<HTMLInputElement>("input:focus");
+                if (activeInput) {
+                    // NOTE(Dan): escape blurs the field, giving control back to the sheet
+                    if (ev.code === "Escape") activeInput.blur();
+                } else {
+                    let dx = ev.code === "ArrowLeft" ? -1 : ev.code === "ArrowRight" ? 1 : 0;
+                    let dy = ev.code === "ArrowUp" ? -1 : ev.code === "ArrowDown" ? 1 : 0;
+                    const goToStart = ev.code === "Home";
+                    const goToEnd = ev.code === "End";
+
+                    const hasInput = dx != 0 || dy != 0 || goToStart || goToEnd;
+
+                    let initialX = -1;
+                    let initialY = -1;
+
+                    if (this.cellStartX != -1) initialX = this.cellStartX;
+                    if (this.cellStartY != -1) initialY = this.cellStartY;
+                    let endX = this.cellEndX != -1 ? this.cellEndX : initialX;
+                    let endY = this.cellEndY != -1 ? this.cellEndY : initialY;
+
+                    const hasAnyField = initialX != -1 && initialY != -1;
+                    if (!hasInput) {
+                        console.log(ev.code);
+                        if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape") return;
+                        // NOTE(Dan): This should activate the current cell, if any
+                        if (!hasAnyField) return;
+
+                        // NOTE(Dan): However, only if there is just a single field
+                        if (initialX != endX || initialY != endY) return;
+
+                        const cellType = this.cells[initialX];
+                        cellType.activate(this.sheetId, initialX, initialY, ev.code);
+                    } else {
+                        ev.preventDefault();
+                        if (!hasAnyField) {
+                            // NOTE(Dan): If no fields are active, then pretend that the user has just selected the first
+                            // element.
+
+                            initialX = 0;
+                            initialY = 0;
+                            endX = 0;
+                            endY = 0;
+
+                            if (goToEnd) {
+                                initialX = this.cells.length;
+                            }
+                        } else {
+                            // NOTE(Dan): We only apply movement if some fields were previously selected
+                            if (ev.shiftKey) {
+                                if (goToStart) {
+                                    endX = 0;
+                                } else if (goToEnd) {
+                                    endX = this.cells.length;
+                                } else {
+                                    endX = Math.max(0, Math.min(this.cells.length - 1, endX + dx));
+                                    endY = Math.max(0, Math.min(this.rows, endY + dy));
+                                }
+                            } else {
+                                if (goToStart) {
+                                    initialX = 0;
+                                } else if (goToEnd) {
+                                    initialX = this.cells.length - 1;
+                                } else {
+                                    initialX = Math.max(0, Math.min(this.cells.length - 1, initialX + dx));
+                                    initialY = Math.max(0, Math.min(this.rows, initialY + dy));
+                                }
+                                endX = initialX;
+                                endY = initialY;
+                            }
+                        }
+
+                        // NOTE(Dan): At this point we just need to dispatch to the renderer
+                        this.cellStartX = initialX;
+                        this.cellStartY = initialY;
+                        this.cellEndX = endX;
+                        this.cellEndY = endY;
+
+                        this.markActiveCells();
+                    }
+                }
+            }
+        };
+
+        this.clickHandler = (ev: MouseEvent) => {
+            this.closeDropdown();
+        };
+
+        document.body.addEventListener("click", this.clickHandler);
+        document.body.addEventListener("keydown", this.keyHandler);
+    }
+
+    private addRow() {
+        const newRow = document.createElement("tr");
+        for (let col = 0; col < this.cells.length; col++) {
+            const cell = this.cells[col];
+            const cellElement = document.createElement("td");
+            if (cell.width) {
+                cellElement.style.width = cell.width;
+            }
+            newRow.appendChild(cellElement);
+
+            this.renderCell(cell, cellElement, this.rows, col);
+        }
+        this.body.append(newRow);
+        this.rows++;
+    }
+
+    private markActiveCells() {
+        const activeCells = this.table.querySelectorAll(".active");
+        Array.from(activeCells).forEach(it => it.classList.remove("active", "primary"));
+        if (this.cellStartY == -1 || this.cellStartX == -1) return;
+
+        const startX = Math.min(this.cellStartX, this.cellEndX);
+        const startY = Math.min(this.cellStartY, this.cellEndY);
+        const endX = Math.max(this.cellStartX, this.cellEndX);
+        const endY = Math.max(this.cellStartY, this.cellEndY);
+        for (let row = startY; row <= endY; row++) {
+            const rowElement = this.body.children[row];
+            if (!rowElement) return;
+
+            for (let col = startX; col <= endX; col++) {
+                const cellElement = rowElement.children[col];
+                if (!cellElement) break;
+                cellElement.classList.add("active");
+                if (col === startX && row === startY) {
+                    cellElement.classList.add("primary");
+                }
+            }
         }
     }
 
-    const activationRef = useRef<(left: number, top: number) => void>(doNothing);
-    useLayoutEffect(() => {
-        const key = `${sheetId}-${coordinates.column}-${coordinates.row}`;
-        window[key] = activationRef.current;
-        return () => {
-            delete window[key];
-        }
-    });
+    private renderCell(
+        cell: Cell,
+        element: HTMLTableCellElement,
+        row: number,
+        column: number,
+        value?: string
+    ) {
+        const domId = id(this.sheetId, column, row);
 
-    const domId = id(sheetId, coordinates.column, coordinates.row);
+        element.onclick = (ev) => {
+            this.cellStartX = this.cellEndX = column;
+            this.cellStartY = this.cellEndY = row;
+            this.markActiveCells();
+        };
 
-    return <td
-        className={selected ? "active" : undefined}
-        onClick={onClick}
-        width={cell.width}
-    >
-        {cell.type === "static" ? cell.textFn(row) : null}
-        {cell.type === "text" ?
-            <input type={"text"} id={domId} onKeyDown={onKeyDown}/> : null}
-        {cell.type === "dropdown" ? <div id={domId} onKeyDown={onKeyDown}>
-            <ClickableDropdown
-                width={"300px"}
-                paddingControlledByContent
-                chevron
-                useMousePositioning
-                openFnRef={activationRef}
-                trigger={!dropdownOption ? null :
-                    <Icon name={dropdownOption.icon} color={"iconColor"} color2={"iconColor2"}/>
+        switch (cell.type) {
+            case "text": {
+                const input = document.createElement("input");
+                input.id = domId;
+                if (cell.placeholder) input.placeholder = cell.placeholder;
+                element.appendChild(input);
+                break;
+            }
+            case "dropdown": {
+                element.classList.add("pointer");
+
+                let selectedIcon: IconName = cell.options[0].icon;
+                if (value) {
+                    const actualOpt = cell.options.find(it => it.value === value);
+                    if (actualOpt) selectedIcon = actualOpt.icon;
                 }
-                onKeyDown={onKeyDown}
-            >
-                {cell.options.map((option, idx) => (
-                    <ListRow
-                        key={option.value}
-                        select={doNothing}
-                        fontSize={"16px"}
-                        isSelected={idx === selectedItem}
-                        icon={
-                            <Icon
-                                name={option.icon}
-                                size={"20px"}
-                                ml={"16px"}
-                                color={"iconColor"}
-                                color2={"iconColor2"}
-                            />
+
+                this.renderDropdownTrigger(element, selectedIcon);
+
+                {
+                    // Create input field (for dropdown choice)
+                    const input = document.createElement("input");
+                    input.id = domId;
+                    input.setAttribute("type", "hidden");
+                    if (value) input.value = value;
+                    element.appendChild(input);
+                }
+
+                element.onclick = (ev) => {
+                    ev.stopPropagation();
+                    SheetRenderer.removeChildren(this.portal);
+                    this.cellStartX = this.cellEndX = column;
+                    this.cellStartY = this.cellEndY = row;
+                    this.markActiveCells();
+
+                    const container = this.cloneTemplate(".dropdown-container")[0];
+                    {
+                        // Create container for dropdown
+                        this.portal.appendChild(container);
+                        const boundingClientRect = element.getBoundingClientRect();
+                        this.portal.style.position = "fixed";
+                        this.portal.style.top = (boundingClientRect.top + 30) + "px";
+                        this.portal.style.left = boundingClientRect.left + "px";
+                    }
+
+                    {
+                        // Add rows to the container
+                        let optIdx = 0;
+                        for (const opt of cell.options) {
+                            const optElement = this.renderDropdownRow(container, opt);
+                            const thisIdx = optIdx;
+                            optElement.addEventListener("click", ev => {
+                                this.dropdownEntry = thisIdx;
+                                this.dropdownConfirmChoice();
+                            });
+                            optIdx++;
                         }
-                        left={option.title}
-                        leftSub={<ListRowStat>{option.helpText}</ListRowStat>}
-                        right={null}
-                        stopPropagation={false}
-                    />
-                ))}
-            </ClickableDropdown>
-        </div> : null}
-    </td>;
-};
+                    }
+
+                    {
+                        // Configure dropdown state
+                        this.dropdownEntry = -1;
+                        this.dropdownCell = cell;
+                        this.dropdownCoordinates = {row, column};
+                        this.dropdownOpen = true;
+                    }
+                };
+                break;
+            }
+            case "static": {
+                const italics = document.createElement("i");
+                italics.textContent = cell.textFn(this.sheetId, {column: 0, row: 0});
+                element.appendChild(italics);
+                break;
+            }
+        }
+    }
+
+    private renderDropdownRow(container: Element, opt: DropdownOption): Element {
+        const optElement = this.cloneTemplate(".dropdown-row")[0];
+        container.appendChild(optElement);
+
+        optElement.querySelector(".icon")!.append(...this.cloneTemplate(".icon-" + opt.icon));
+        optElement.querySelector(".left")!.textContent = opt.title;
+        if (opt.helpText) optElement.querySelector(".help")!.textContent = opt.helpText;
+
+        return optElement;
+    }
+
+    private renderDropdownTrigger(parent: HTMLElement, icon: IconName) {
+        parent.append(...this.cloneTemplate(".icon-" + icon));
+        parent.append(...this.cloneTemplate(".icon-chevronDown"));
+    }
+
+    private dropdownConfirmChoice() {
+        const cell = this.dropdownCell;
+        if (!this.dropdownOpen) return;
+        if (!cell) return;
+        const coord = this.dropdownCoordinates;
+        if (!coord) return;
+        if (this.dropdownEntry < 0 || this.dropdownEntry >= cell.options.length) return;
+
+        const tableCell = this.body.children.item(coord.row)?.children.item(coord.column)! as HTMLTableCellElement;
+        SheetRenderer.removeChildren(tableCell);
+        this.renderCell(cell, tableCell, coord.row, coord.column, cell.options[this.dropdownEntry].value);
+        this.closeDropdown();
+    }
+
+    private static removeChildren(element: Element) {
+        Array.from(element.children).forEach(it => it.remove());
+    }
+
+    private dropdownSelectEntry(entry: number) {
+        const cell = this.dropdownCell;
+        if (!this.dropdownOpen) return;
+        if (!cell) return;
+        if (entry < 0) return;
+        if (entry >= cell.options.length) return;
+
+        this.dropdownEntry = entry;
+        const container = this.portal.children.item(0);
+        if (!container) return;
+
+        const rows = Array.from(container.children);
+        let idx = 0;
+        for (const row of rows) {
+            row.setAttribute("data-selected", idx === entry ? "true" : "false");
+            idx++;
+        }
+    }
+
+    private closeDropdown() {
+        if (this.dropdownOpen) {
+            Array.from(this.portal.children).forEach(it => it.remove());
+            this.dropdownOpen = false;
+        }
+    }
+
+    private cloneTemplate(template: string): Element[] {
+        const iconTemplate = this.table.querySelector<HTMLDivElement>(template);
+        if (!iconTemplate) throw "Unknown template: " + template;
+        return [...(iconTemplate.cloneNode(true)["children"])];
+    }
+
+    unmount() {
+        document.body.removeEventListener("keydown", this.keyHandler);
+        document.body.removeEventListener("click", this.clickHandler);
+        this.body.remove();
+        const node = document.createElement("tbody");
+        this.table.appendChild(node);
+        this.body = node;
+    }
+}
 
 const StyledSheet = styled.table`
   width: 100%;
   color: var(--text);
+  position: relative;
+  border-collapse: collapse;
 
-  table, tr, td, th {
-    border: 1px inset var(--borderGray);
+  tr, td, th {
+    border: 2px inset #eee;
     padding: 4px;
   }
 
@@ -352,6 +570,9 @@ const StyledSheet = styled.table`
   th {
     font-weight: bold;
     text-align: left;
+    position: sticky;
+    top: 0;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
   }
 
   input {
@@ -365,5 +586,9 @@ const StyledSheet = styled.table`
   input:focus {
     border: 0;
     outline: none;
+  }
+  
+  .pointer {
+    cursor: pointer;
   }
 `;

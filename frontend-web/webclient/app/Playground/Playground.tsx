@@ -7,6 +7,7 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Cell, CellCoordinates, DropdownCell, Sheet, StaticCell, TextCell} from "@/ui-components/Sheet";
 import {useMemo, useState} from "react";
+import {productTypes, productTypeToIcon, productTypeToTitle} from "@/Accounting";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -61,15 +62,22 @@ const SheetDemo: React.FunctionComponent = () => {
                 {icon: "projects", title: "Project", value: "PROJECT"},
                 {icon: "user", title: "Personal Workspace", value: "USER"},
             ],
-            {width: "70px"}
+            {width: "50px"}
         ),
         TextCell(),
-        StaticCell("2"),
+        DropdownCell(
+            productTypes.map(type => ({
+                icon: productTypeToIcon(type),
+                title: productTypeToTitle(type),
+                value: type
+            })),
+            {width: "50px"}
+        ),
         TextCell(),
-        StaticCell("4"),
-        StaticCell("5"),
-        StaticCell("6"),
-        StaticCell("7"),
+        TextCell("Immediately"),
+        TextCell("No expiration"),
+        TextCell(),
+        StaticCell("DKK"),
     ]), []);
 
     return <>
@@ -78,8 +86,7 @@ const SheetDemo: React.FunctionComponent = () => {
             cells={cells}
             selectedCell={selectedCells}
             onCellSelected={setSelectedCells}
-            data={data}
-            onDataUpdated={setData}
+            rows={500}
         />
     </>
 };
