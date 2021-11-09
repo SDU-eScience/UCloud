@@ -10,7 +10,7 @@ export type Cell = StaticCell | DropdownCell | TextCell;
 
 interface CellBase {
     width?: string;
-    activate: (sheetId: string, column: number, row: number, key?: string) => void;
+    activate: (sheetId: string, column: number, row: number, columnEnd: number, rowEnd: number, key?: string) => void;
 }
 
 interface StaticCell extends CellBase {
@@ -46,6 +46,7 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
         type: "dropdown",
         options,
         activate: (sheetId, column, row, key) => {
+            console.log(key);
             const fnKey = id(sheetId, column, row);
             const anchor = document.querySelector<HTMLElement>("#" + fnKey);
             anchor?.click();
@@ -67,11 +68,23 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
     return {
         type: "text",
         placeholder,
-        activate: (sheetId, column, row, key) => {
-            const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
-            if (!cell) return;
-            cell.focus(); // key is entered into the element by focusing it during the event handler
-            cell.select();
+        activate: (sheetId, column, row, columnEnd, rowEnd, key) => {
+            console.log(key, column, columnEnd, row, rowEnd);
+            if (column === columnEnd && row === rowEnd) {
+                const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
+                if (!cell) return;
+                cell.focus(); // key is entered into the element by focusing it during the event handler
+                cell.select();
+            } else {
+                if (key === "Delete" || key === "Backspace") {
+                    for (let y = Math.min(row, rowEnd); y <= Math.max(row, rowEnd); y++) {
+                        for (let x = Math.min(column, columnEnd); x <= Math.max(column, columnEnd); x++) {
+                            const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, x, y)}`);
+                            if (cell) cell.value = "";
+                        }
+                    }
+                }
+            }
         },
         ...opts
     }
@@ -202,7 +215,7 @@ class SheetRenderer {
     private dropdownCell: DropdownCell | null = null;
     private dropdownEntry = 0;
 
-    private movementCooldown = false;
+    private clipboard: string[][] | null = null;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -253,10 +266,12 @@ class SheetRenderer {
                 // NOTE(Dan): If a dropdown is not open, then the input will either go to the active input field or
                 // it will go to the sheet. We detect if an input currently has focus by querying the document.
                 const activeInput = document.querySelector<HTMLInputElement>("input:focus");
-                if (activeInput) {
+                if (activeInput && ev.code !== "ArrowUp" && ev.code !== "ArrowDown") {
                     // NOTE(Dan): escape blurs the field, giving control back to the sheet
-                    if (ev.code === "Escape") activeInput.blur();
+                    if (ev.code === "Escape" || ev.code == "NumpadEnter" || ev.code === "Enter") activeInput.blur();
                 } else {
+                    if (activeInput) activeInput.blur();
+
                     let dx = ev.code === "ArrowLeft" ? -1 : ev.code === "ArrowRight" ? 1 : 0;
                     let dy = ev.code === "ArrowUp" ? -1 : ev.code === "ArrowDown" ? 1 : 0;
                     const goToStart = ev.code === "Home";
@@ -273,17 +288,50 @@ class SheetRenderer {
                     let endY = this.cellEndY != -1 ? this.cellEndY : initialY;
 
                     const hasAnyField = initialX != -1 && initialY != -1;
-                    if (!hasInput) {
-                        console.log(ev.code);
-                        if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape") return;
+                    if ((ev.metaKey || ev.ctrlKey) && ev.key === "a") {
+                        ev.preventDefault();
+                        this.cellStartX = 0;
+                        this.cellStartY = 0;
+                        this.cellEndX = this.cells.length - 1;
+                        this.cellEndY = this.rows - 1;
+                        this.markActiveCells();
+                    } else if ((ev.metaKey || ev.ctrlKey) && ev.key === "c") {
+                        if (!hasAnyField) return;
+                        const copiedData: string[][] = [];
+                        for (let y = Math.min(initialY, endY); y <= Math.max(initialY, endY); y++) {
+                            const copiedRow: string[] = [];
+                            for (let x = Math.min(initialX, endX); x <= Math.max(initialX, endX); x++) {
+                                const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
+                                copiedRow.push(cell?.value ?? "");
+                            }
+                            copiedData.push(copiedRow);
+                        }
+                        this.clipboard = copiedData;
+                    } else if ((ev.metaKey || ev.ctrlKey) && ev.key === "v") {
+                        if (!hasAnyField) return;
+                        const clipboard = this.clipboard;
+                        if (!clipboard) return;
+
+                        for (let y = initialY; y < Math.min(initialY + clipboard.length, this.rows - 1); y++) {
+                            const clipboardRow = clipboard[y - initialY];
+                            for (let x = initialX; x < Math.min(initialX + clipboardRow.length, this.cells.length - 1); x++) {
+                                const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
+                                const parentNode = cell?.parentNode! as HTMLTableCellElement;
+                                SheetRenderer.removeChildren(parentNode);
+                                this.renderCell(this.cells[x], parentNode, y, x,
+                                    clipboardRow[x - initialX]);
+                            }
+                        }
+                    } else if (!hasInput) {
+                        console.log(ev.code, ev.key);
+                        if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape" ||
+                            ev.code === "ControlLeft" || ev.code === "ControlRight") return;
+
                         // NOTE(Dan): This should activate the current cell, if any
                         if (!hasAnyField) return;
 
-                        // NOTE(Dan): However, only if there is just a single field
-                        if (initialX != endX || initialY != endY) return;
-
                         const cellType = this.cells[initialX];
-                        cellType.activate(this.sheetId, initialX, initialY, ev.code);
+                        cellType.activate(this.sheetId, initialX, initialY, endX, endY, ev.code);
                     } else {
                         ev.preventDefault();
                         if (!hasAnyField) {
@@ -403,6 +451,12 @@ class SheetRenderer {
                 const input = document.createElement("input");
                 input.id = domId;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
+                if (value) input.value = value;
+                input.onclick = (ev) => {
+                    ev.preventDefault();
+                    input.blur();
+                };
+                input.ondblclick = (ev) => input.focus();
                 element.appendChild(input);
                 break;
             }
@@ -423,6 +477,7 @@ class SheetRenderer {
                     input.id = domId;
                     input.setAttribute("type", "hidden");
                     if (value) input.value = value;
+                    else input.value = cell.options[0].value;
                     element.appendChild(input);
                 }
 
@@ -587,7 +642,7 @@ const StyledSheet = styled.table`
     border: 0;
     outline: none;
   }
-  
+
   .pointer {
     cursor: pointer;
   }
