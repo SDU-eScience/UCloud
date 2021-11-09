@@ -5,8 +5,8 @@ import {Grid, Box} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {Cell, CellCoordinates, DropdownCell, Sheet, StaticCell, TextCell} from "@/ui-components/Sheet";
-import {useMemo, useState} from "react";
+import {Cell, CellCoordinates, DropdownCell, Sheet, SheetRenderer, StaticCell, TextCell} from "@/ui-components/Sheet";
+import {useMemo, useRef, useState} from "react";
 import {productTypes, productTypeToIcon, productTypeToTitle} from "@/Accounting";
 
 export const Playground: React.FunctionComponent = () => {
@@ -80,12 +80,16 @@ const SheetDemo: React.FunctionComponent = () => {
         StaticCell("DKK"),
     ]), []);
 
+    const sheet = useRef<SheetRenderer>(null);
+
     return <>
         <Sheet
             header={header}
             cells={cells}
-            selectedCell={selectedCells}
-            onCellSelected={setSelectedCells}
+            renderer={sheet}
+            onRowUpdated={(row) => {
+                console.log("Row has been updated", row, sheet.current!.sheetId);
+            }}
             rows={500}
         />
     </>

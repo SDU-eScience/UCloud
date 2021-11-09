@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useLayoutEffect, useMemo} from "react";
+import {useEffect, useLayoutEffect, useMemo} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import styled from "styled-components";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -46,7 +46,6 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
         type: "dropdown",
         options,
         activate: (sheetId, column, row, key) => {
-            console.log(key);
             const fnKey = id(sheetId, column, row);
             const anchor = document.querySelector<HTMLElement>("#" + fnKey);
             anchor?.click();
@@ -69,7 +68,6 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
         type: "text",
         placeholder,
         activate: (sheetId, column, row, columnEnd, rowEnd, key) => {
-            console.log(key, column, columnEnd, row, rowEnd);
             if (column === columnEnd && row === rowEnd) {
                 const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
                 if (!cell) return;
@@ -98,9 +96,9 @@ export interface CellCoordinates {
 interface SheetProps {
     header: string[];
     cells: Cell[];
-    selectedCell: CellCoordinates[];
-    onCellSelected: (coordinate: CellCoordinates[]) => void;
     rows: number;
+    onRowUpdated: (row: number) => void;
+    renderer: React.MutableRefObject<SheetRenderer | null>;
 }
 
 export const Sheet: React.FunctionComponent<SheetProps> = props => {
@@ -116,11 +114,16 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
     const renderer = useMemo(() => new SheetRenderer(props.rows, sheetId, props.cells), [props.cells]);
     useLayoutEffect(() => {
         renderer.mount();
+        props.renderer.current = renderer;
 
         return () => {
             renderer.unmount();
         }
-    }, [renderer]);
+    }, [renderer, props.renderer]);
+
+    useEffect(() => {
+        renderer.onRowUpdated = props.onRowUpdated;
+    }, [renderer, props.onRowUpdated]);
 
     const requiredIcons: IconName[] = useMemo(() => {
         const result: IconName[] = [];
@@ -194,9 +197,9 @@ const Template = styled.div`
   display: none;
 `;
 
-class SheetRenderer {
+export class SheetRenderer {
     private rows: number;
-    private readonly sheetId: string;
+    public readonly sheetId: string;
     private readonly cells: Cell[];
 
     private cellStartX: number = -1;
@@ -216,6 +219,8 @@ class SheetRenderer {
     private dropdownEntry = 0;
 
     private clipboard: string[][] | null = null;
+
+    public onRowUpdated: (row: number) => void = doNothing;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -269,6 +274,16 @@ class SheetRenderer {
                 if (activeInput && ev.code !== "ArrowUp" && ev.code !== "ArrowDown") {
                     // NOTE(Dan): escape blurs the field, giving control back to the sheet
                     if (ev.code === "Escape" || ev.code == "NumpadEnter" || ev.code === "Enter") activeInput.blur();
+                    if (ev.code === "NumpadEnter" || ev.code === "Enter") {
+                        const x = this.cellStartX;
+                        const y = this.cellStartY;
+                        if (x != -1 && y != -1 && y < this.rows - 1) {
+                            this.cellStartY = y + 1;
+                            this.cellEndY = this.cellStartY;
+                            this.cellEndX = this.cellStartX;
+                            this.markActiveCells();
+                        }
+                    }
                 } else {
                     if (activeInput) activeInput.blur();
 
@@ -312,18 +327,22 @@ class SheetRenderer {
                         const clipboard = this.clipboard;
                         if (!clipboard) return;
 
-                        for (let y = initialY; y < Math.min(initialY + clipboard.length, this.rows - 1); y++) {
-                            const clipboardRow = clipboard[y - initialY];
-                            for (let x = initialX; x < Math.min(initialX + clipboardRow.length, this.cells.length - 1); x++) {
-                                const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
-                                const parentNode = cell?.parentNode! as HTMLTableCellElement;
-                                SheetRenderer.removeChildren(parentNode);
-                                this.renderCell(this.cells[x], parentNode, y, x,
-                                    clipboardRow[x - initialX]);
+                        const timesToRepeat = Math.max(1, Math.floor((endY - initialY + 1) / clipboard.length));
+                        for (let iteration = 0; iteration < timesToRepeat; iteration++) {
+                            let rowStart = initialY + (iteration * clipboard.length);
+                            for (let y = rowStart; y < Math.min(rowStart + clipboard.length, this.rows - 1); y++) {
+                                const clipboardRow = clipboard[y - rowStart];
+                                for (let x = initialX; x < Math.min(initialX + clipboardRow.length, this.cells.length - 1); x++) {
+                                    const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
+                                    const parentNode = cell?.parentNode! as HTMLTableCellElement;
+                                    SheetRenderer.removeChildren(parentNode);
+                                    this.renderCell(this.cells[x], parentNode, y, x,
+                                        clipboardRow[x - initialX]);
+                                }
+                                this.onRowUpdated(y);
                             }
                         }
                     } else if (!hasInput) {
-                        console.log(ev.code, ev.key);
                         if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape" ||
                             ev.code === "ControlLeft" || ev.code === "ControlRight") return;
 
@@ -452,6 +471,7 @@ class SheetRenderer {
                 input.id = domId;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
+                input.onblur = () => this.onRowUpdated(row);
                 input.onclick = (ev) => {
                     ev.preventDefault();
                     input.blur();
@@ -478,6 +498,7 @@ class SheetRenderer {
                     input.setAttribute("type", "hidden");
                     if (value) input.value = value;
                     else input.value = cell.options[0].value;
+                    input.onblur = () => this.onRowUpdated(row);
                     element.appendChild(input);
                 }
 
@@ -559,6 +580,7 @@ class SheetRenderer {
         SheetRenderer.removeChildren(tableCell);
         this.renderCell(cell, tableCell, coord.row, coord.column, cell.options[this.dropdownEntry].value);
         this.closeDropdown();
+        this.onRowUpdated(coord.row);
     }
 
     private static removeChildren(element: Element) {
