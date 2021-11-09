@@ -1,0 +1,449 @@
+package services
+
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.*
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.api.*
+import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.*
+import io.ktor.util.*
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import org.elasticsearch.ElasticsearchException
+import org.elasticsearch.action.bulk.BulkRequest
+import org.elasticsearch.action.bulk.BulkRequestBuilder
+import org.elasticsearch.action.delete.DeleteRequest
+import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.action.update.UpdateRequest
+import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.joda.time.DateTime
+import org.joda.time.LocalDateTime
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.*
+import java.util.concurrent.Executors
+import kotlin.math.abs
+
+class FileScanner(
+    private val elastic: RestHighLevelClient,
+    private val authenticatedService: AuthenticatedClient,
+    private val db: DBContext,
+    private val fs: NativeFS,
+    private val pathConverter: PathConverter,
+    private val fastDirectoryStats: CephFsFastDirectoryStats,
+    private val query: ElasticQueryService,
+    ) {
+    private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
+    private lateinit var lastScan: LocalDateTime
+
+    private suspend fun retrieveCollections(
+        providerGenerated: Boolean,
+        includeOthers: Boolean,
+        collections: List<String>,
+        next: String?
+    ): PageV2<FileCollection> {
+        val includeFlags = if (providerGenerated) {
+            FileCollectionIncludeFlags(filterProviderIds = collections.joinToString(","), includeOthers = includeOthers)
+        } else {
+            FileCollectionIncludeFlags(filterIds = collections.joinToString(","), includeOthers = includeOthers)
+        }
+
+        return FileCollectionsControl.browse.call(
+            ResourceBrowseRequest(includeFlags, itemsPerPage = 200, next = next),
+            authenticatedService
+        ).orThrow()
+
+    }
+
+    suspend fun runScan() {
+        val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
+        val homeRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
+        val projectsRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
+        val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
+        val home = fs.listFiles(homeRoot)
+        val project = fs.listFiles(projectsRoot)
+
+        db.withSession { session ->
+            lastScan = session.sendPreparedStatement(
+                """
+                    SELECT last_system_scan
+                    from file_ucloud.storage_scan
+                """
+            ).rows
+                .firstOrNull()
+                ?.getDate(0)
+                ?: LocalDateTime()
+
+
+            collections.chunked(100).forEach { chunk ->
+                var resolvedCollections =
+                    retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
+                while (true) {
+                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                        withContext(pool) {
+                            launch {
+                                val file =
+                                    pathConverter.relativeToInternal(RelativeInternalFile("/collections/${path}"))
+                                submitScan(file, coll)
+                            }.join()
+                        }
+                    }
+                    if (resolvedCollections.next == null) {
+                        return@forEach
+                    }
+                    resolvedCollections = retrieveCollections(
+                        providerGenerated = false,
+                        includeOthers = true,
+                        chunk.map { it.toString() },
+                        next = resolvedCollections.next
+                    )
+                }
+            }
+
+
+            home.chunked(100).forEach { chunk ->
+                var resolvedCollections = retrieveCollections(
+                    providerGenerated = true,
+                    includeOthers = true,
+                    chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it },
+                    next = null
+                )
+                while (true) {
+                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                        withContext(pool) {
+                            launch {
+                                chunk.map { it }.forEach {
+                                    val file =
+                                        pathConverter.relativeToInternal(RelativeInternalFile("/home/$path"))
+                                    submitScan(file, coll)
+                                }
+                            }.join()
+                        }
+                    }
+                    if (resolvedCollections.next == null) {
+                        return@forEach
+                    }
+                    resolvedCollections = retrieveCollections(
+                        providerGenerated = true,
+                        includeOthers = true,
+                        chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it },
+                        resolvedCollections.next
+                    )
+                }
+            }
+
+
+            project.chunked(100).forEach { chunk ->
+                var resolvedCollections = retrieveCollections(
+                    providerGenerated = true,
+                    includeOthers = true,
+                    chunk.map { PathConverter.COLLECTION_PROJECT_PREFIX + it },
+                    next = null
+                )
+                while (true) {
+                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                        withContext(pool) {
+                            launch {
+                                val file =
+                                    pathConverter.relativeToInternal(RelativeInternalFile("/projects/$path}"))
+                                submitScan(file, coll)
+                            }.join()
+                        }
+                    }
+                    if (resolvedCollections.next == null) {
+                        return@forEach
+                    }
+                    resolvedCollections = retrieveCollections(
+                        providerGenerated = true,
+                        includeOthers = true,
+                        chunk.map { PathConverter.COLLECTION_PROJECT_PREFIX + it },
+                        resolvedCollections.next
+                    )
+                }
+            }
+
+
+            if (session.sendPreparedStatement(
+                """
+                    UPDATE file_ucloud.storage_scan
+                    last_system_scan = now()
+                    where true
+                """
+            ).rowsAffected == 0L ) {
+                session.sendPreparedStatement(
+                    """
+                        INSERT into file_ucloud.storage_scan
+                        values (now())
+                    """.trimIndent()
+                )
+            }
+        }
+    }
+
+    //Loses microseconds from timestamp
+    private fun rctimeToApproxLocalDateTime(rctime: String): LocalDateTime {
+        return LocalDateTime(Date(rctime.split(".").first().toLong()))
+    }
+
+    private suspend fun submitScan(file: InternalFile, collection: FileCollection, upperLimitOfEntries: Long = Long.MAX_VALUE) {
+        val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
+        if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
+            log.info("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
+            return
+        }
+        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan ) {
+            return
+        }
+
+        val thisFileInIndex = run {
+            val source =
+                elastic.get(GetRequest(FILES_INDEX, pathConverter.internalToUCloud(file).path), RequestOptions.DEFAULT)?.sourceAsString
+            if (source != null) {
+                defaultMapper.decodeFromString<ElasticIndexedFile>(source)
+            } else {
+                null
+            }
+        }
+
+        var newUpperLimitOfEntries = 1L
+        if (File(file.path).isDirectory) {
+            val rctime = runCatching { fastDirectoryStats.getRecursiveTime(file) }.getOrNull()
+            val (shouldContinue, limit) = shouldContinue(file, upperLimitOfEntries)
+            newUpperLimitOfEntries = limit
+            if (rctime != null && thisFileInIndex != null && thisFileInIndex.rctime == rctime && !shouldContinue) {
+                log.debug("${file.path} already up-to-date")
+                return
+            }
+        }
+        val filesInDir = fileList.map {
+            fs.stat(it).toElasticIndexedFile(it,collection)
+        }.associateBy { it.path }
+
+        val filesInIndex = query.queryForScan(
+            FileQuery(
+                listOf(file.path),
+                fileDepth = AnyOf.with(
+                    Comparison(file.path.depth() + 1, ComparisonOperator.EQUALS)
+                )
+            )
+        ).associateBy { it.path }
+
+        val bulk = BulkRequestBuilder()
+
+        //Delete files not in folder anymore and their sub files/directories
+        filesInIndex.values.asSequence()
+            .filter { it.path !in filesInDir }
+            .forEach {
+                bulk.add(DeleteRequest(FILES_INDEX, it.path))
+                val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
+                queryDeleteRequest.setConflicts("proceed")
+                queryDeleteRequest.setQuery(
+                    QueryBuilders.wildcardQuery(
+                        "_id",
+                        "${it.path}/*"
+                    )
+                )
+                queryDeleteRequest.batchSize = 100
+                try {
+                    var moreToDelete = true
+                    while (moreToDelete) {
+                        val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                        if (response.deleted == 0L) moreToDelete = false
+                    }
+                } catch (ex: ElasticsearchException) {
+                    log.warn(ex.message)
+                    log.warn("Deletion of ${it.path}/* , failed")
+                }
+            }
+
+        filesInDir.values.asSequence()
+            .filter { it.path !in filesInIndex }
+            .forEach {
+                bulk.add(
+                    UpdateRequest().apply {
+                        val writeValueAsBytes = defaultMapper.encodeToString(it).encodeToByteArray()
+                        doc(writeValueAsBytes, XContentType.JSON)
+                        docAsUpsert(true)
+                    }
+                )
+            }
+
+        if (thisFileInIndex == null) {
+            val update = UpdateRequest().apply {
+                val writeValueAsBytes =
+                    defaultMapper.encodeToString(fs.stat(file).toElasticIndexedFile(file, collection))
+                        .encodeToByteArray()
+                doc(writeValueAsBytes, XContentType.JSON)
+                docAsUpsert(true)
+            }
+            bulk.add(update)
+        }
+
+        bulk.flush()
+
+        fileList.mapNotNull { f ->
+            val stat = fs.stat(f)
+            withContext(pool) {
+                if (stat.fileType == FileType.DIRECTORY) {
+                    launch {
+                        submitScan(
+                            pathConverter.relativeToInternal(RelativeInternalFile(f.path)),
+                            collection,
+                            newUpperLimitOfEntries
+                        )
+                    }
+                } else {
+                    null
+                }
+            }
+        }.joinAll()
+    }
+
+    data class ShouldContinue(val shouldContinue: Boolean, val newUpperLimitOfEntries: Long)
+
+    private fun shouldContinue(internalFile: InternalFile, upperLimitOfEntries: Long): ShouldContinue {
+        val file = File(internalFile.path)
+        if (file.isFile) return ShouldContinue(true, 1)
+        if (upperLimitOfEntries < 100) return ShouldContinue(true, upperLimitOfEntries)
+        val recursiveEntryCount = fastDirectoryStats.getRecursiveEntryCount(internalFile)
+        if (recursiveEntryCount > upperLimitOfEntries) return ShouldContinue(true, recursiveEntryCount)
+
+        val fileStats = query.statisticsQuery(
+            StatisticsRequest(
+                FileQuery(listOf(internalFile.path)),
+                size = NumericStatisticsRequest(calculateSum = true)
+            )
+        )
+
+        val fileCount = query.statisticsQuery(
+            StatisticsRequest(
+                FileQuery(
+                    listOf(internalFile.path),
+                    fileTypes = AnyOf.with(FileType.FILE)
+                )
+            )
+        )
+
+        val dirCount = query.statisticsQuery(
+            StatisticsRequest(
+                FileQuery(
+                    listOf(internalFile.path),
+                    fileTypes = AnyOf.with(FileType.DIRECTORY)
+                )
+            )
+        )
+
+        val size = fileStats.size!!
+        val recursiveFiles = fileCount.count
+        val recursiveSubDirs = dirCount.count
+
+        if (recursiveEntryCount != recursiveFiles + recursiveSubDirs) {
+            log.info("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs)")
+            return ShouldContinue(true, recursiveEntryCount)
+        }
+
+        val actualRecursiveSize = fastDirectoryStats.getRecursiveSize(internalFile)
+        if (actualRecursiveSize == null ) {
+            log.debug("Did not get size - not testing and cannot find ceph commands")
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }
+
+        val sum = size.sum
+        if (sum!!.toLong() != actualRecursiveSize) {
+            val percentage = if (sum.toLong() == 0L) {
+                1.0
+            } else {
+                1 - (actualRecursiveSize / sum)
+            }
+
+            if (percentage >= abs(0.05)) {
+                log.info("Size is different $actualRecursiveSize != $sum")
+                return ShouldContinue(true, recursiveEntryCount)
+            }
+        }
+        val actualRecursiveFiles = fastDirectoryStats.getRecursiveDirectoryCount(internalFile)
+        val actualRecursiveSubDirs = fastDirectoryStats.getRecursiveDirectoryCount(internalFile)
+        if (recursiveSubDirs != actualRecursiveSubDirs) {
+            log.info("Sub dirs is different ${recursiveSubDirs} ${actualRecursiveSubDirs}")
+            return ShouldContinue(true, recursiveEntryCount)
+        }
+
+        if (recursiveFiles != actualRecursiveFiles) {
+            log.info("Recursive files is different $recursiveFiles $actualRecursiveFiles")
+            return ShouldContinue(true, recursiveEntryCount)
+        }
+
+        log.info("Skipping ${internalFile.path} ($recursiveEntryCount entries has been skipped)")
+
+        return ShouldContinue(false, recursiveEntryCount)
+    }
+
+    private fun NativeStat.toElasticIndexedFile(file: InternalFile, collection: FileCollection): ElasticIndexedFile {
+        return ElasticIndexedFile(
+            path = file.path,
+            size = size,
+            fileType = FileType.FILE,
+            rctime = runCatching {
+                fastDirectoryStats.getRecursiveTime(file)
+            }.getOrNull(),
+            permission = collection.permissions?.others?.first()?.permissions ?: emptyList(),
+            collection.owner.createdBy
+        )
+    }
+
+    inner class BulkRequestBuilder {
+        private var bulkCount = 0
+        private var bulk = BulkRequest()
+
+        fun flush() {
+            if (bulkCount > 0) {
+                elastic.bulk(bulk, RequestOptions.DEFAULT)
+                bulkCount = 0
+                bulk = BulkRequest()
+            }
+        }
+
+        private fun flushIfNeeded() {
+            if (bulkCount >= 100) {
+                flush()
+            }
+        }
+
+        fun add(updateRequest: UpdateRequest) {
+            bulkCount++
+            bulk.add(updateRequest)
+            flushIfNeeded()
+        }
+
+        fun add(deleteRequest: DeleteRequest) {
+            bulkCount++
+            bulk.add(deleteRequest)
+            flushIfNeeded()
+        }
+
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+        internal const val FILES_INDEX = "files"
+    }
+}

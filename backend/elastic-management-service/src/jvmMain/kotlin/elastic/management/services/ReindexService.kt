@@ -12,12 +12,11 @@ import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.core.TimeValue
 import org.elasticsearch.index.reindex.ReindexRequest
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class ReindexService(
     private val elastic: RestHighLevelClient
@@ -35,7 +34,6 @@ class ReindexService(
             }
 
             val request = ReindexRequest()
-
             request.setSourceIndices(fromIndex)
             request.setDestIndex(toIndex)
             request.setSourceBatchSize(2500)

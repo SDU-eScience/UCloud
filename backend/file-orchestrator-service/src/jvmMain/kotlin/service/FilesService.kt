@@ -617,7 +617,6 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesTrashRequest
     ): FilesTrashResponse {
-        println("trash")
         return bulkProxyEdit(
             actorAndProject,
             request,

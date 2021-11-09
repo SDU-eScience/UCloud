@@ -20,8 +20,11 @@ import dk.sdu.cloud.Roles
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
+import org.elasticsearch.client.RestHighLevelClient
+import services.FileScanner
 
 // NOTE(Dan): This is only used in development mode
 object Scans : CallDescriptionContainer("file.ucloud.scans") {
@@ -38,6 +41,7 @@ class Server(
     private val cephConfig: CephConfiguration,
 ) : CommonServer {
     override val log = logger()
+    private lateinit var elastic: RestHighLevelClient
 
     override fun start() {
         val (refreshToken, validation) =
@@ -63,6 +67,8 @@ class Server(
         val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), authenticatedClient)
         val nativeFs = NativeFS(pathConverter, micro)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
+
+        elastic = micro.elasticHighLevelClient
 
         val limitChecker = LimitChecker(db)
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
@@ -101,7 +107,36 @@ class Server(
             nativeFs
         )
 
+        FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
+
+        val elasticQueryService = ElasticQueryService(
+            micro.elasticHighLevelClient,
+            cephStats,
+            fsRootFile.path
+        )
         taskSystem.launchScheduler(micro.backgroundScope)
+
+        GlobalScope.launch {
+            while (true) {
+                if (File("/tmp/test.txt").exists()) {
+                    try {
+                        FileScanner(
+                            micro.elasticHighLevelClient,
+                            authenticatedClient,
+                            db,
+                            nativeFs,
+                            pathConverter,
+                            cephStats,
+                            elasticQueryService
+                        ).runScan()
+                    } catch (ex: Exception) {
+                        println(ex.stackTraceToString())
+                    }
+                    File("/tmp/test.txt").delete()
+                }
+                delay(5000)
+            }
+        }
 
 //        useTestingSizes = micro.developmentModeEnabled
 
