@@ -127,8 +127,6 @@ const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 function findSensitivityWithFallback(file: UFile): SensitivityLevel {
-    // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
-    // TODO(Jonas): The type is not correct if this needs to be cast for this to work
     return findSensitivity(file) ?? "PRIVATE";
 }
 
