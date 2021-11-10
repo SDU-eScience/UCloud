@@ -694,7 +694,9 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             if (!value) return;
             if (value === SensitivityLevelMap.INHERIT) {
                 // Find latest that is active and remove that one. At most one will be active.
-                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId][0];
+                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId].find(
+                    it => ["approved", "not_required"].includes(it.status.approval.type)
+                );
                 if (!entryToDelete) return;
 
                 await invokeCommand(
