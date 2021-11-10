@@ -100,7 +100,7 @@ object FilesIndex {
                             "type": "keyword"
                         },
                         "createdBy" : {
-                            "type": "text
+                            "type": "text"
                         }
                     }
                 }

@@ -91,13 +91,16 @@ class FileScanner(
             ).rows
                 .firstOrNull()
                 ?.getDate(0)
-                ?: LocalDateTime()
+                ?: LocalDateTime().withDate(1970,1,1)
 
+
+            println(lastScan)
 
             collections.chunked(100).forEach { chunk ->
                 var resolvedCollections =
                     retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
                 while (true) {
+                    println(resolvedCollections)
                     resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
                         withContext(pool) {
                             launch {
@@ -107,6 +110,7 @@ class FileScanner(
                             }.join()
                         }
                     }
+                    println(resolvedCollections.next)
                     if (resolvedCollections.next == null) {
                         return@forEach
                     }
@@ -139,6 +143,7 @@ class FileScanner(
                             }.join()
                         }
                     }
+                    println("in home " + resolvedCollections.next)
                     if (resolvedCollections.next == null) {
                         return@forEach
                     }
@@ -169,6 +174,8 @@ class FileScanner(
                             }.join()
                         }
                     }
+                    println("in project " + resolvedCollections.next)
+
                     if (resolvedCollections.next == null) {
                         return@forEach
                     }
@@ -205,6 +212,7 @@ class FileScanner(
     }
 
     private suspend fun submitScan(file: InternalFile, collection: FileCollection, upperLimitOfEntries: Long = Long.MAX_VALUE) {
+        println("SUBMITTED SCAN FOR: ${file.path}")
         val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
         if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
             log.info("Skipping ${file.path} due to .skipFolder file or because the folder is empty")

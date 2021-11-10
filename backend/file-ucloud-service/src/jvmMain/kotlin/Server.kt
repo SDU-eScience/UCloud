@@ -17,6 +17,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.file.ucloud.rpc.FileSearchController
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
@@ -114,6 +115,9 @@ class Server(
             cephStats,
             fsRootFile.path
         )
+
+        val fileSearchService = FileSearchService(elasticQueryService, db)
+
         taskSystem.launchScheduler(micro.backgroundScope)
 
         GlobalScope.launch {
@@ -143,6 +147,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker),
             FileCollectionsController(fileCollectionService),
+            FileSearchController(fileSearchService, pathConverter, fileQueries),
             ShareController(shareService),
             object : Controller {
                 override fun configure(rpcServer: RpcServer) {

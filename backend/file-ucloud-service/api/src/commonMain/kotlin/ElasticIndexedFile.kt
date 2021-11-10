@@ -1,10 +1,9 @@
 package dk.sdu.cloud.file.ucloud.api
 
-import dk.sdu.cloud.file.orchestrator.api.FileType
-import dk.sdu.cloud.file.orchestrator.api.depth
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.ResourcePermissions
 
 data class ElasticIndexedFile(
     val path: String, //Also is ID in elastic
