@@ -19,7 +19,7 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import {doNothing, extensionFromPath, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extensionFromPath, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -46,8 +46,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {InvokeCommand} from "@/Authentication/DataHook";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
-import {sensitivity} from "@/ui-components/icons";
-
+import {Spacer} from "@/ui-components/Spacer";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -128,20 +127,18 @@ const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 function findSensitivityWithFallback(file: UFile): SensitivityLevel {
-    if (!sensitivityTemplateId) {
-        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
-        if (!sensitivityTemplateId) {
-            return "PRIVATE";
-        }
-    }
-
     // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
     // TODO(Jonas): The type is not correct if this needs to be cast for this to work
     return findSensitivity(file) ?? "PRIVATE";
 }
 
 function findSensitivity(file: UFile): SensitivityLevel | undefined {
-    console.log(file.status.metadata?.metadata)
+    if (!sensitivityTemplateId) {
+        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+        if (!sensitivityTemplateId) {
+            return "PRIVATE";
+        }
+    }
     const entry = file.status.metadata?.metadata[sensitivityTemplateId]?.[0];
     if (entry?.type === "deleted") return undefined;
     return entry?.specification.document.sensitivity;
@@ -204,10 +201,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 />;
             return <>{favoriteComponent}{icon}</>
         },
-        ImportantStats({resource}) {
+        ImportantStats({resource, callbacks}) {
             if (!resource) return null;
             const sensitivity = findSensitivityWithFallback(resource);
-            return <div><Sensitivity sensitivity={sensitivity} /></div>;
+            return <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
+                <Sensitivity sensitivity={sensitivity} />
+            </div>;
         },
         Stats({resource}) {
             if (resource == null) return null;
@@ -535,23 +534,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "trash",
-                text: "Empty Trash",
-                confirm: true,
-                color: "red",
-                enabled: (selected, cb) => {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
-                        return true;
-                    }
-                    return false
+                text: "Change sensitivity",
+                icon: "sensitivity",
+                enabled(selected, cb) {
+                    return selected.length === 1 && selected.every(it => it.status.icon == null)
                 },
-                onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload()
+                onClick(selected, extra) {
+                    addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
                 }
             },
             {
@@ -559,7 +548,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "trash",
                 color: "red",
                 primary: true,
-                canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -582,15 +570,25 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
             },
             {
-                text: "Change sensitivity",
-                icon: "sensitivity",
-                enabled(selected, cb) {
-                    return selected.length === 1 && selected.every(it => it.status.icon == null)
+                icon: "trash",
+                text: "Empty Trash",
+                confirm: true,
+                color: "red",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
+                        return true;
+                    }
+                    return false
                 },
-                onClick(selected, extra) {
-                    addFileSensitivityDialog(selected[0], extra.invokeCommand);
+                onClick: async (selected, cb) => {
+                    await cb.invokeCommand(
+                        this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                    );
+                    cb.reload()
                 }
-            }
+            },
         ];
 
         return ourOps.concat(base);
@@ -679,7 +677,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
-function SensitivityDialog({file, invokeCommand}: {file: UFile, invokeCommand: InvokeCommand}): JSX.Element {
+function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
     // Note(Jonas): It should be initialized at this point, but let's make sure.
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
@@ -694,15 +692,8 @@ function SensitivityDialog({file, invokeCommand}: {file: UFile, invokeCommand: I
         e.stopPropagation();
         try {
             const value = selection.current?.value;
-            const reasonText = reason.current?.value ?? "No reason supplied"
+            const reasonText = reason.current?.value ?? "No reason provided."
             if (!value) return;
-
-            if ((originalSensitivity === undefined && value === SensitivityLevelMap.INHERIT) ||
-                originalSensitivity === value) {
-                dialogStore.failure();
-                return;
-            }
-
             if (value === SensitivityLevelMap.INHERIT) {
                 // Find latest that is active and remove that one. At most one will be active.
                 const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId][0];
@@ -733,25 +724,32 @@ function SensitivityDialog({file, invokeCommand}: {file: UFile, invokeCommand: I
                     {defaultErrorHandler: false}
                 );
             }
+
+            reload();
+            dialogStore.success();
         } catch (e) {
-            console.log(e);
+            displayErrorMessageOrDefault(e, "Failed to update sensitivity.")
         }
     }, []);
 
-    return (<form onSubmit={onUpdate} style={{width: "600px", height: "300px"}}>
-        <Text>Change sensitivity</Text>
-        <Select selectRef={selection} defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
+    return (<form onSubmit={onUpdate} style={{width: "600px", height: "260px"}}>
+        <Text fontSize={24} mb="12px">Change sensitivity</Text>
+        <Select my="8px" selectRef={selection} defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
             {Object.keys(SensitivityLevelMap).map(it =>
                 <option key={it} value={it}>{prettierString(it)}</option>
             )}
         </Select>
-        <TextArea required ref={reason} rows={4} placeholder="Reason for sensitivity change..." />
-        <Button>Update</Button>
+        <TextArea style={{marginTop: "6px", marginBottom: "6px"}} required ref={reason} width="100%" rows={4} placeholder="Reason for sensitivity change..." />
+        <Spacer
+            mt="12px"
+            left={<Button color="red" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
+            right={<Button color="green">Update</Button>}
+        />
     </form>);
 }
 
-function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand): void {
-    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} />, () => undefined, false);
+function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {
+    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
 }
 
 const api = new FilesApi();
