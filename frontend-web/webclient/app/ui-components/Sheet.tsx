@@ -133,8 +133,7 @@ export interface CellCoordinates {
 interface SheetProps {
     header: string[];
     cells: Cell[];
-    rows: number;
-    onRowUpdated: (row: number) => void;
+    onRowUpdated: (row: number, values: (string | null)[]) => void;
     renderer: React.MutableRefObject<SheetRenderer | null>;
 }
 
@@ -143,12 +142,8 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         throw `header.length and cells.length are not equal (${props.header.length} != ${props.cells.length})`;
     }
 
-    if (props.rows < 0) {
-        throw `props.rows < 0 (${props.rows} < 0)`;
-    }
-
     const sheetId = useMemo(() => "sheet-" + Math.ceil(Math.random() * 1000000000).toString(), []);
-    const renderer = useMemo(() => new SheetRenderer(props.rows, sheetId, props.cells), [props.cells]);
+    const renderer = useMemo(() => new SheetRenderer(0, sheetId, props.cells), [props.cells]);
     useLayoutEffect(() => {
         renderer.mount();
         props.renderer.current = renderer;
@@ -284,7 +279,7 @@ export class SheetRenderer {
 
     private validation: Record<string, ValidationState> = {};
 
-    public onRowUpdated: (row: number) => void = doNothing;
+    public onRowUpdated: (row: number, values: (string | null)[]) => void = doNothing;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -323,7 +318,43 @@ export class SheetRenderer {
         if (row >= this.rows) throw "row is out-of-bounds";
 
         const cell = this.cells[column];
-        this.renderCell(cell, this.findTableCell(column, row)!, row, column, value);
+        const element = this.findTableCell(column, row)!;
+        SheetRenderer.removeChildren(element);
+        this.renderCell(cell, element, row, column, value);
+        this.writeOriginalValue(element, value);
+    }
+
+    private runRowUpdateHandler(row: number) {
+        const cols = this.cells.length;
+        let dirty = false;
+        const values: (string | null)[] = [];
+        for (let col = 0; col < cols; col++) {
+            const cell = this.findTableCell(col, row);
+            if (!cell) return;
+
+            const originalValue = cell.getAttribute("data-original-value") ?? null;
+            const currentValue = this.readValue(col, row);
+            values.push(currentValue);
+            if (originalValue !== currentValue) {
+                if (!(currentValue === "" && originalValue === null)) {
+                    dirty = true;
+                    console.log(currentValue, originalValue);
+                    this.writeOriginalValue(cell, currentValue);
+                }
+            }
+        }
+
+        if (dirty) {
+            this.onRowUpdated(row, values);
+        }
+    }
+
+    private writeOriginalValue(element: HTMLTableCellElement, value: string | null) {
+        if (value) {
+            element.setAttribute("data-original-value", value);
+        } else {
+            element.removeAttribute("data-original-value");
+        }
     }
 
     mount() {
@@ -467,7 +498,7 @@ export class SheetRenderer {
                                     this.renderCell(this.cells[x], parentNode, y, x,
                                         clipboardRow[x - initialX]);
                                 }
-                                this.onRowUpdated(y);
+                                this.runRowUpdateHandler(y);
                             }
                         }
                     } else if (!hasInput) {
@@ -538,7 +569,16 @@ export class SheetRenderer {
         document.body.addEventListener("keydown", this.keyHandler);
     }
 
-    private addRow() {
+    clear() {
+        this.rows = 0;
+        this.dropdownEntry = -1;
+        this.dropdownCell = null;
+        this.dropdownCoordinates = null;
+        this.dropdownOpen = false;
+        SheetRenderer.removeChildren(this.body);
+    }
+
+    addRow() {
         const newRow = document.createElement("tr");
         for (let col = 0; col < this.cells.length; col++) {
             const cell = this.cells[col];
@@ -600,7 +640,7 @@ export class SheetRenderer {
                 input.type = cell.fieldType;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
-                input.onblur = () => this.onRowUpdated(row);
+                input.onblur = () => this.runRowUpdateHandler(row);
                 if (cell.fieldType != "date") {
                     input.onclick = (ev) => {
                         ev.preventDefault();
@@ -629,7 +669,7 @@ export class SheetRenderer {
                     input.setAttribute("type", "hidden");
                     if (value) input.value = value;
                     else input.value = cell.options[0].value;
-                    input.onblur = () => this.onRowUpdated(row);
+                    input.onblur = () => this.runRowUpdateHandler(row);
                     element.appendChild(input);
                 }
 
@@ -650,7 +690,7 @@ export class SheetRenderer {
                 input.id = domId;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
-                input.onblur = () => this.onRowUpdated(row);
+                input.onblur = () => this.runRowUpdateHandler(row);
                 input.onclick = (ev) => {
                     ev.preventDefault();
                     input.blur();
@@ -732,13 +772,16 @@ export class SheetRenderer {
         if (!options) return;
         const coord = this.dropdownCoordinates;
         if (!coord) return;
-        if (this.dropdownEntry < 0 || this.dropdownEntry >= options.length) return;
+        if (this.dropdownEntry < 0 || this.dropdownEntry >= options.length) {
+            this.closeDropdown();
+            return;
+        }
 
         const tableCell = this.body.children.item(coord.row)?.children.item(coord.column)! as HTMLTableCellElement;
         SheetRenderer.removeChildren(tableCell);
         this.renderCell(this.cells[coord.column], tableCell, coord.row, coord.column, options[this.dropdownEntry].value);
         this.closeDropdown();
-        this.onRowUpdated(coord.row);
+        this.runRowUpdateHandler(coord.row);
     }
 
     private static removeChildren(element: Element) {
