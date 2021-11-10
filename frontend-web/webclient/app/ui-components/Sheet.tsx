@@ -6,6 +6,7 @@ import Icon, {IconName} from "@/ui-components/Icon";
 import {ListRow, ListRowStat} from "@/ui-components/List";
 import {DropdownContent} from "@/ui-components/Dropdown";
 import sdLoader from "@/Assets/Images/sd-loader.png";
+import {Operations, useOperationOpener} from "@/ui-components/Operation";
 
 export type Cell = StaticCell | DropdownCell | TextCell | FuzzyCell;
 
@@ -133,7 +134,7 @@ export interface CellCoordinates {
 interface SheetProps {
     header: string[];
     cells: Cell[];
-    onRowUpdated: (row: number, values: (string | null)[]) => void;
+    onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void;
     renderer: React.MutableRefObject<SheetRenderer | null>;
 }
 
@@ -142,11 +143,13 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         throw `header.length and cells.length are not equal (${props.header.length} != ${props.cells.length})`;
     }
 
+    const [opRef, onContextMenu] = useOperationOpener();
     const sheetId = useMemo(() => "sheet-" + Math.ceil(Math.random() * 1000000000).toString(), []);
     const renderer = useMemo(() => new SheetRenderer(0, sheetId, props.cells), [props.cells]);
     useLayoutEffect(() => {
         renderer.mount();
         props.renderer.current = renderer;
+        renderer.onContextMenu = onContextMenu;
 
         return () => {
             renderer.unmount();
@@ -228,7 +231,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
                     It makes a _very_ significant difference. Going from completely locking up the UI
                     (< 5 frames/minutes) to being actually usable (> 30 FPS)
                 */}
-                <img alt={"Loading..."} src={sdLoader} width={"20px"} height={"20px"} className={"spin validation"} />
+                <img alt={"Loading..."} src={sdLoader} width={"20px"} height={"20px"} className={"spin validation"}/>
             </Template>
         </div>
 
@@ -243,6 +246,43 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         </StyledSheet>
 
         <div id={`${sheetId}-portal`}/>
+
+        <Operations
+            openFnRef={opRef}
+            location={"TOPBAR"}
+            hidden
+            operations={[
+                {
+                    text: "Insert row",
+                    icon: "upload",
+                    enabled: () => true,
+                    onClick: doNothing
+                },
+                {
+                    text: "Insert 50 rows",
+                    icon: "uploadFolder",
+                    enabled: () => true,
+                    onClick: doNothing
+                },
+                {
+                    text: "Clone",
+                    icon: "copy",
+                    enabled: () => true,
+                    onClick: doNothing
+                },
+                {
+                    text: "Delete",
+                    icon: "trash",
+                    confirm: true,
+                    color: "red",
+                    enabled: () => true,
+                    onClick: doNothing
+                }
+            ]}
+            selected={[]}
+            extra={{}}
+            entityNameSingular={""}
+        />
     </>;
 };
 
@@ -278,8 +318,9 @@ export class SheetRenderer {
     private clipboard: string[][] | null = null;
 
     private validation: Record<string, ValidationState> = {};
+    public onContextMenu: (ev) => void = doNothing;
 
-    public onRowUpdated: (row: number, values: (string | null)[]) => void = doNothing;
+    public onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void = doNothing;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -327,6 +368,9 @@ export class SheetRenderer {
     private runRowUpdateHandler(row: number) {
         const cols = this.cells.length;
         let dirty = false;
+        const rowId = this.body.rows.item(row)?.getAttribute("data-row-id");
+        if (!rowId) return;
+
         const values: (string | null)[] = [];
         for (let col = 0; col < cols; col++) {
             const cell = this.findTableCell(col, row);
@@ -338,14 +382,13 @@ export class SheetRenderer {
             if (originalValue !== currentValue) {
                 if (!(currentValue === "" && originalValue === null)) {
                     dirty = true;
-                    console.log(currentValue, originalValue);
                     this.writeOriginalValue(cell, currentValue);
                 }
             }
         }
 
         if (dirty) {
-            this.onRowUpdated(row, values);
+            this.onRowUpdated(rowId, row, values);
         }
     }
 
@@ -371,12 +414,7 @@ export class SheetRenderer {
         this.body = body;
         this.portal = portal;
         this.templates = templates;
-
-        const rowCount = this.rows;
         this.rows = 0;
-        for (let i = 0; i < rowCount; i++) {
-            this.addRow();
-        }
 
         this.keyHandler = (ev: KeyboardEvent) => {
             if (this.dropdownOpen) {
@@ -489,7 +527,7 @@ export class SheetRenderer {
                         const timesToRepeat = Math.max(1, Math.floor((endY - initialY + 1) / clipboard.length));
                         for (let iteration = 0; iteration < timesToRepeat; iteration++) {
                             let rowStart = initialY + (iteration * clipboard.length);
-                            for (let y = rowStart; y < Math.min(rowStart + clipboard.length, this.rows - 1); y++) {
+                            for (let y = rowStart; y < Math.min(rowStart + clipboard.length, this.rows); y++) {
                                 const clipboardRow = clipboard[y - rowStart];
                                 for (let x = initialX; x < Math.min(initialX + clipboardRow.length, this.cells.length - 1); x++) {
                                     const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
@@ -578,8 +616,10 @@ export class SheetRenderer {
         SheetRenderer.removeChildren(this.body);
     }
 
-    addRow() {
+    addRow(rowId: string) {
         const newRow = document.createElement("tr");
+        newRow.oncontextmenu = ev => this.onContextMenu(ev);
+        newRow.setAttribute("data-row-id", rowId);
         for (let col = 0; col < this.cells.length; col++) {
             const cell = this.cells[col];
             const cellElement = document.createElement("td");
@@ -844,11 +884,11 @@ const StyledSheet = styled.table`
     border: 2px inset #eee;
     padding: 4px;
   }
-  
+
   td {
     position: relative;
   }
-  
+
   .validation {
     position: absolute;
     right: 10px;
@@ -882,17 +922,29 @@ const StyledSheet = styled.table`
   .pointer {
     cursor: pointer;
   }
-  
+
   .spin {
     animation: sheetSpin 4s infinite linear;
   }
-  
+
   @keyframes sheetSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
-  
+
+  [type="date"] {
+    cursor: text;
+  }
+
   [type="date"] ~ .validation {
     right: 30px;
+  }
+
+  input {
+    cursor: default;
   }
 `;
