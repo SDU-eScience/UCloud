@@ -7,7 +7,7 @@ import {ListRow, ListRowStat} from "@/ui-components/List";
 import {DropdownContent} from "@/ui-components/Dropdown";
 import sdLoader from "@/Assets/Images/sd-loader.png";
 
-export type Cell = StaticCell | DropdownCell | TextCell;
+export type Cell = StaticCell | DropdownCell | TextCell | FuzzyCell;
 
 interface CellBase {
     width?: string;
@@ -23,9 +23,7 @@ export function StaticCell(textFn: string | ((sheetId: string, coordinates: Cell
     return {
         type: "static",
         textFn: typeof textFn === "string" ? () => textFn : textFn,
-        activate: (sheetId, column, row, key) => {
-            // Do nothing
-        },
+        activate: doNothing,
         ...opts
     }
 }
@@ -46,7 +44,7 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
     return {
         type: "dropdown",
         options,
-        activate: (sheetId, column, row, key) => {
+        activate: (sheetId, column, row) => {
             const fnKey = id(sheetId, column, row);
             const anchor = document.querySelector<HTMLElement>("#" + fnKey);
             anchor?.click();
@@ -55,13 +53,10 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
     };
 }
 
-function id(sheetId: string, column: number, row: number): string {
-    return `${sheetId}-${column}-${row}`;
-}
-
 interface TextCell extends CellBase {
     type: "text";
     placeholder?: string;
+    fieldType: "text" | "date";
 }
 
 export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCell {
@@ -85,8 +80,49 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
                 }
             }
         },
+        fieldType: "text",
         ...opts
     }
+}
+
+interface FuzzyCell extends CellBase {
+    type: "fuzzy";
+    placeholder?: string;
+    suggestions: (query: string, column: number, row: number) => DropdownOption[];
+}
+
+export function FuzzyCell(
+    suggestions: (query: string, column: number, row: number) => DropdownOption[],
+    placeholder?: string,
+    opts?: Partial<FuzzyCell>
+): FuzzyCell {
+    return {
+        type: "fuzzy",
+        placeholder,
+        suggestions,
+        activate: (sheetId, column, row, columnEnd, rowEnd, key) => {
+            if (column === columnEnd && row === rowEnd) {
+                const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
+                if (!cell) return;
+                cell.focus(); // key is entered into the element by focusing it during the event handler
+                cell.select();
+            } else {
+                if (key === "Delete" || key === "Backspace") {
+                    for (let y = Math.min(row, rowEnd); y <= Math.max(row, rowEnd); y++) {
+                        for (let x = Math.min(column, columnEnd); x <= Math.max(column, columnEnd); x++) {
+                            const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, x, y)}`);
+                            if (cell) cell.value = "";
+                        }
+                    }
+                }
+            }
+        },
+        ...opts
+    }
+}
+
+function id(sheetId: string, column: number, row: number): string {
+    return `${sheetId}-${column}-${row}`;
 }
 
 export interface CellCoordinates {
@@ -241,7 +277,7 @@ export class SheetRenderer {
 
     private dropdownCoordinates: CellCoordinates | null = null;
     private dropdownOpen = false;
-    private dropdownCell: DropdownCell | null = null;
+    private dropdownCell: DropdownOption[] | null = null;
     private dropdownEntry = 0;
 
     private clipboard: string[][] | null = null;
@@ -272,8 +308,22 @@ export class SheetRenderer {
         }
     }
 
-    private findTableCell(column: number, row: number): Element | null {
-        return this.body.children.item(row)?.children?.item(column) ?? null;
+    private findTableCell(column: number, row: number): HTMLTableCellElement | null {
+        return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
+    }
+
+    public readValue(column: number, row: number): string | null {
+        return document.querySelector<HTMLInputElement>("#" + id(this.sheetId, column, row))?.value ?? null;
+    }
+
+    public writeValue(column: number, row: number, value: string) {
+        if (column < 0) throw "column is negative";
+        if (row < 0) throw "row is negative";
+        if (column >= this.cells.length) throw "column is out-of-bounds";
+        if (row >= this.rows) throw "row is out-of-bounds";
+
+        const cell = this.cells[column];
+        this.renderCell(cell, this.findTableCell(column, row)!, row, column, value);
     }
 
     mount() {
@@ -312,6 +362,16 @@ export class SheetRenderer {
                     case "ArrowDown":
                         ev.preventDefault();
                         this.dropdownSelectEntry(this.dropdownEntry + 1);
+                        break;
+
+                    case "Home":
+                        ev.preventDefault();
+                        this.dropdownSelectEntry(0);
+                        break;
+
+                    case "End":
+                        ev.preventDefault();
+                        this.dropdownSelectEntry(-1);
                         break;
 
                     case "Enter":
@@ -378,6 +438,22 @@ export class SheetRenderer {
                         if (!hasAnyField) return;
                         const clipboard = this.clipboard;
                         if (!clipboard) return;
+
+                        {
+                            // NOTE(Dan): correct ordering is required for the copy & paste
+                            let tmp: number = 0;
+                            if (endX < initialX) {
+                                tmp = initialX;
+                                initialX = endX;
+                                endX = tmp;
+                            }
+
+                            if (endY < initialY) {
+                                tmp = initialY;
+                                initialY = endY;
+                                endY = tmp;
+                            }
+                        }
 
                         const timesToRepeat = Math.max(1, Math.floor((endY - initialY + 1) / clipboard.length));
                         for (let iteration = 0; iteration < timesToRepeat; iteration++) {
@@ -521,14 +597,17 @@ export class SheetRenderer {
             case "text": {
                 const input = document.createElement("input");
                 input.id = domId;
+                input.type = cell.fieldType;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
                 input.onblur = () => this.onRowUpdated(row);
-                input.onclick = (ev) => {
-                    ev.preventDefault();
-                    input.blur();
-                };
-                input.ondblclick = (ev) => input.focus();
+                if (cell.fieldType != "date") {
+                    input.onclick = (ev) => {
+                        ev.preventDefault();
+                        input.blur();
+                    };
+                    input.ondblclick = (ev) => input.focus();
+                }
                 element.appendChild(input);
                 break;
             }
@@ -560,39 +639,32 @@ export class SheetRenderer {
                     this.cellStartX = this.cellEndX = column;
                     this.cellStartY = this.cellEndY = row;
                     this.markActiveCells();
-
-                    const container = this.cloneTemplate(".dropdown-container")[0];
-                    {
-                        // Create container for dropdown
-                        this.portal.appendChild(container);
-                        const boundingClientRect = element.getBoundingClientRect();
-                        this.portal.style.position = "fixed";
-                        this.portal.style.top = (boundingClientRect.top + 30) + "px";
-                        this.portal.style.left = boundingClientRect.left + "px";
-                    }
-
-                    {
-                        // Add rows to the container
-                        let optIdx = 0;
-                        for (const opt of cell.options) {
-                            const optElement = this.renderDropdownRow(container, opt);
-                            const thisIdx = optIdx;
-                            optElement.addEventListener("click", ev => {
-                                this.dropdownEntry = thisIdx;
-                                this.dropdownConfirmChoice();
-                            });
-                            optIdx++;
-                        }
-                    }
-
-                    {
-                        // Configure dropdown state
-                        this.dropdownEntry = -1;
-                        this.dropdownCell = cell;
-                        this.dropdownCoordinates = {row, column};
-                        this.dropdownOpen = true;
-                    }
+                    this.renderDropdownMenu(element, cell.options, column, row);
                 };
+                break;
+            }
+            case "fuzzy": {
+                const input = document.createElement("input");
+                element.appendChild(input);
+
+                input.id = domId;
+                if (cell.placeholder) input.placeholder = cell.placeholder;
+                if (value) input.value = value;
+                input.onblur = () => this.onRowUpdated(row);
+                input.onclick = (ev) => {
+                    ev.preventDefault();
+                    input.blur();
+                };
+                input.ondblclick = (ev) => input.focus();
+
+                input.oninput = (ev) => {
+                    ev.stopPropagation();
+                    SheetRenderer.removeChildren(this.portal);
+
+                    const suggestions = cell.suggestions(input.value, column, row);
+                    this.renderDropdownMenu(element, suggestions, column, row);
+                };
+
                 break;
             }
             case "static": {
@@ -601,6 +673,40 @@ export class SheetRenderer {
                 element.appendChild(italics);
                 break;
             }
+        }
+    }
+
+    private renderDropdownMenu(anchor: Element, options: DropdownOption[], column: number, row: number) {
+        const container = this.cloneTemplate(".dropdown-container")[0];
+        {
+            // Create container for dropdown
+            this.portal.appendChild(container);
+            const boundingClientRect = anchor.getBoundingClientRect();
+            this.portal.style.position = "fixed";
+            this.portal.style.top = (boundingClientRect.top + 30) + "px";
+            this.portal.style.left = boundingClientRect.left + "px";
+        }
+
+        {
+            // Add rows to the container
+            let optIdx = 0;
+            for (const opt of options) {
+                const optElement = this.renderDropdownRow(container, opt);
+                const thisIdx = optIdx;
+                optElement.addEventListener("click", ev => {
+                    this.dropdownEntry = thisIdx;
+                    this.dropdownConfirmChoice();
+                });
+                optIdx++;
+            }
+        }
+
+        {
+            // Configure dropdown state
+            this.dropdownEntry = -1;
+            this.dropdownCell = options;
+            this.dropdownCoordinates = {row, column};
+            this.dropdownOpen = true;
         }
     }
 
@@ -621,16 +727,16 @@ export class SheetRenderer {
     }
 
     private dropdownConfirmChoice() {
-        const cell = this.dropdownCell;
+        const options = this.dropdownCell;
         if (!this.dropdownOpen) return;
-        if (!cell) return;
+        if (!options) return;
         const coord = this.dropdownCoordinates;
         if (!coord) return;
-        if (this.dropdownEntry < 0 || this.dropdownEntry >= cell.options.length) return;
+        if (this.dropdownEntry < 0 || this.dropdownEntry >= options.length) return;
 
         const tableCell = this.body.children.item(coord.row)?.children.item(coord.column)! as HTMLTableCellElement;
         SheetRenderer.removeChildren(tableCell);
-        this.renderCell(cell, tableCell, coord.row, coord.column, cell.options[this.dropdownEntry].value);
+        this.renderCell(this.cells[coord.column], tableCell, coord.row, coord.column, options[this.dropdownEntry].value);
         this.closeDropdown();
         this.onRowUpdated(coord.row);
     }
@@ -640,11 +746,15 @@ export class SheetRenderer {
     }
 
     private dropdownSelectEntry(entry: number) {
-        const cell = this.dropdownCell;
+        const options = this.dropdownCell;
         if (!this.dropdownOpen) return;
-        if (!cell) return;
-        if (entry < 0) return;
-        if (entry >= cell.options.length) return;
+        if (!options) return;
+        if (entry < 0) {
+            entry = options.length - 1;
+        }
+        if (entry >= options.length) {
+            entry = 0;
+        }
 
         this.dropdownEntry = entry;
         const container = this.portal.children.item(0);
@@ -737,5 +847,9 @@ const StyledSheet = styled.table`
   @keyframes sheetSpin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+  
+  [type="date"] ~ .validation {
+    right: 30px;
   }
 `;

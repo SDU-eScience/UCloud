@@ -5,9 +5,29 @@ import {Grid, Box} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {Cell, CellCoordinates, DropdownCell, Sheet, SheetRenderer, StaticCell, TextCell} from "@/ui-components/Sheet";
+import {
+    Cell,
+    CellCoordinates,
+    DropdownCell,
+    FuzzyCell,
+    Sheet,
+    SheetRenderer,
+    StaticCell,
+    TextCell
+} from "@/ui-components/Sheet";
 import {useMemo, useRef, useState} from "react";
-import {productTypes, productTypeToIcon, productTypeToTitle} from "@/Accounting";
+import {
+    browseWallets,
+    listProducts,
+    Product, ProductType,
+    productTypes,
+    productTypeToIcon,
+    productTypeToTitle,
+    Wallet
+} from "@/Accounting";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {PageV2} from "@/UCloud";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -45,6 +65,8 @@ const SheetDemo: React.FunctionComponent = () => {
         ["PROJECT", "ProjectId", "compute", "u1-standard @ ucloud", "01/11/21", "01/11/22", "5000", "DKK"]
     ]);
 
+    const [wallets] = useCloudAPI<PageV2<Wallet>>(browseWallets({itemsPerPage: 250}), emptyPageV2);
+
     const header: string[] = useMemo(() => ([
         "",
         "Recipient",
@@ -73,9 +95,23 @@ const SheetDemo: React.FunctionComponent = () => {
             })),
             {width: "50px"}
         ),
-        TextCell(),
-        TextCell("Immediately"),
-        TextCell("No expiration"),
+        FuzzyCell(
+            (query, column, row) => {
+                const currentType = sheet.current!.readValue(2, row) as ProductType;
+                const lq = query.toLowerCase();
+                return wallets.data.items
+                    .filter(it => {
+                        return it.productType === currentType && it.paysFor.name.toLowerCase().indexOf(lq) != -1;
+                    })
+                    .map(it => ({
+                        icon: productTypeToIcon(it.productType),
+                        title: it.paysFor.name + " @ " + it.paysFor.provider,
+                        value: it.paysFor.name + " @ " + it.paysFor.provider
+                    }));
+            }
+        ),
+        TextCell("Immediately", { fieldType: "date" }),
+        TextCell("No expiration", { fieldType: "date" }),
         TextCell(),
         StaticCell("DKK"),
     ]), []);
