@@ -21,6 +21,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import service.TokenValidationChain
 import java.util.*
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.sync.mounter.api.MountFolderId
+import dk.sdu.cloud.sync.mounter.api.joinPath
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
@@ -148,6 +150,12 @@ class Server(
                 }
             }
         )
+
+        Runtime.getRuntime().addShutdownHook(Thread {
+            runBlocking {
+                syncthingClient.drainConfig()
+            }
+        })
 
         startServices()
     }

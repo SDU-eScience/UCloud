@@ -96,7 +96,7 @@ class MountService(
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
             }
 
-            if(CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
+            if (CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
             }
 

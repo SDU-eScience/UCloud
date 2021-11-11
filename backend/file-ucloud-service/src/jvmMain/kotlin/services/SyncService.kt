@@ -143,7 +143,7 @@ class SyncService(
                         unnest(:paths::text[]),
                         unnest(:users::text[]),
                         unnest(:type::text[])
-                    )
+                    ) on conflict do nothing
             """
             ).rowsAffected
 
@@ -294,7 +294,7 @@ class SyncService(
                             unnest(:paths::text[]),
                             unnest(:users::text[]),
                             unnest(:types::text[])
-                        )
+                        ) on conflict do nothing
                     """
                 )
             }
