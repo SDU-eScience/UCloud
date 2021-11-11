@@ -27,7 +27,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {ProductSyncFolder} from "@/Accounting";
 import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {FileCollection} from "@/UCloud/FileCollectionsApi";
 import {BrowseType} from "@/Resource/BrowseType";
 
 const Tab: React.FunctionComponent<{
