@@ -699,7 +699,8 @@ class AccountingService(
 
     suspend fun browseSubAllocations(
         actorAndProject: ActorAndProject,
-        request: WalletsBrowseSubAllocationsRequest
+        request: SubAllocationQuery,
+        query: String? = null,
     ): PageV2<SubAllocation> {
         return db.paginateV2(
             actorAndProject.actor,
@@ -710,6 +711,7 @@ class AccountingService(
                         setParameter("username", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
                         setParameter("filter_type", request.filterType?.name)
+                        setParameter("query", query)
                     },
                     """
                         declare c cursor for
@@ -766,6 +768,13 @@ class AccountingService(
                             (
                                 :filter_type::accounting.product_type is null or
                                 pc.product_type = :filter_type::accounting.product_type
+                            ) and
+                            (
+                                :query::text is null or
+                                alloc_project.title ilike '%' || :query || '%' or
+                                alloc_owner.username ilike '%' || :query || '%' or
+                                pc.category ilike '%' || :query || '%' or
+                                pc.provider ilike '%' || :query || '%'
                             )
                         order by pc.provider, pc.category, alloc.id
                     """

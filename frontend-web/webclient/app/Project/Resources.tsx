@@ -34,7 +34,7 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiBrowse, APICallState, apiSearch, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
@@ -155,6 +155,10 @@ const Resources: React.FunctionComponent = () => {
         }));
     }, [setFilters]);
 
+    const onSubAllocationQuery = useCallback((query: string) => {
+        fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+    }, []);
+
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
@@ -211,7 +215,8 @@ const Resources: React.FunctionComponent = () => {
 
                             <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
                                                  loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
-                                                 filterByWorkspace={filterByWorkspace} wallets={wallets}/>
+                                                 filterByWorkspace={filterByWorkspace} wallets={wallets}
+                                                 onQuery={onSubAllocationQuery}/>
                         </>
                     }
                 </Grid>
@@ -672,6 +677,10 @@ function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
     return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
 }
 
+function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
+}
+
 const Circle = styled(Box)`
   border-radius: 500px;
   width: 20px;
@@ -759,9 +768,10 @@ const SubAllocationViewer: React.FunctionComponent<{
     allocations: APICallState<PageV2<SubAllocation>>;
     generation: number;
     loadMore: () => void;
+    onQuery: (query: string) => void;
     filterByAllocation: (allocationId: string) => void;
     filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
-}> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace, wallets}) => {
+}> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace, wallets, onQuery}) => {
     const sessionId = useMemo(() => Math.ceil(Math.random() * 1000000000), []);
     const unsavedRowIds = useRef(0);
     const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef(
@@ -829,12 +839,24 @@ const SubAllocationViewer: React.FunctionComponent<{
                 if (!rowId) return "questionSolid";
 
                 if (rowId.indexOf(unsavedPrefix) === 0) {
-                    return {contents: "questionSolid", color: "blue", tooltip: "This allocation is new and has never been saved. It is not active."};
+                    return {
+                        contents: "questionSolid",
+                        color: "blue",
+                        tooltip: "This allocation is new and has never been saved. It is not active."
+                    };
                 } else {
                     if (dirtyRowStorageRef.current[rowId]) {
-                        return {contents: "edit", color: "orange", tooltip: "This allocation is based on an active allocation but changes has not been saved."};
+                        return {
+                            contents: "edit",
+                            color: "orange",
+                            tooltip: "This allocation is based on an active allocation but changes has not been saved."
+                        };
                     } else {
-                        return {contents: "check", color: "green", tooltip: "This allocation is active and you have not made any changes to it."};
+                        return {
+                            contents: "check",
+                            color: "green",
+                            tooltip: "This allocation is active and you have not made any changes to it."
+                        };
                     }
                 }
             },
@@ -864,7 +886,27 @@ const SubAllocationViewer: React.FunctionComponent<{
         writeAllocations(sheet.current!, allocations.data.items, {}, sessionId, unsavedRowIds);
     }, [allocations.data.items]);
 
-    return <HighlightedCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
+    const onSearchInput = useCallback((ev: React.KeyboardEvent) => {
+        if (ev.code === "Enter" || ev.code === "NumpadEnter") {
+            const target = ev.target as HTMLInputElement;
+            ev.preventDefault();
+            onQuery(target.value);
+        }
+    }, [onQuery]);
+
+    return <HighlightedCard
+        color={"green"}
+        icon={"grant"}
+        title={"Sub-allocations"}
+        subtitle={
+            <SearchInput>
+                <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput}/>
+                <Label htmlFor={"resource-search"}>
+                    <Icon name={"search"} size={"20px"}/>
+                </Label>
+            </SearchInput>
+        }
+    >
         <Text color="darkGray" fontSize={1} mb={"16px"}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
@@ -878,6 +920,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                         <li><b>Shift + Movement Key:</b> Select multiple</li>
                         <li><b>Ctrl/Cmd + C:</b> Copy</li>
                         <li><b>Ctrl/Cmd + V:</b> Paste</li>
+                        <li><b>Right click menu:</b> Insert rows, clone and more...</li>
                     </ul>
                 }
             </div>
@@ -977,5 +1020,15 @@ const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[
     onClick: (selected, cb) => cb.editAllocation(selected[0]),
     enabled: selected => selected.length === 1
 }];
+
+const SearchInput = styled.div`
+  position: relative;
+
+  label {
+    position: absolute;
+    left: 250px;
+    top: 10px;
+  }
+`;
 
 export default Resources;

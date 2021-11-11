@@ -696,6 +696,12 @@ export class SheetRenderer {
         newRow.oncontextmenu = ev => {
             const rowNumber = this.retrieveRowNumber(rowId);
             if (rowNumber !== null) {
+                this.cellStartX = 0;
+                this.cellEndX = this.cells.length - 1;
+                this.cellStartY = rowNumber;
+                this.cellEndY = rowNumber;
+                this.markActiveCells();
+
                 this.contextMenuTriggeredBy = rowNumber;
                 this.onContextMenu(ev);
             }
