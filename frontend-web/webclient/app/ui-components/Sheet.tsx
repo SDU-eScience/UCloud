@@ -1,32 +1,45 @@
 import * as React from "react";
-import {useEffect, useLayoutEffect, useMemo} from "react";
+import {useEffect, useLayoutEffect, useMemo, useRef} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import styled from "styled-components";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ListRow, ListRowStat} from "@/ui-components/List";
 import {DropdownContent} from "@/ui-components/Dropdown";
 import sdLoader from "@/Assets/Images/sd-loader.png";
-import {Operations, useOperationOpener} from "@/ui-components/Operation";
+import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
+import {ThemeColor} from "@/ui-components/theme";
+import {TooltipContent} from "@/ui-components/Tooltip";
 
 export type Cell = StaticCell | DropdownCell | TextCell | FuzzyCell;
 
 interface CellBase {
     width?: string;
-    activate: (sheetId: string, column: number, row: number, columnEnd: number, rowEnd: number, key?: string) => void;
+    activate: (sheet: SheetRenderer, column: number, row: number, columnEnd: number, rowEnd: number, key?: string) => void;
 }
+
+type StaticCellContent = string | {
+    contents: string;
+    color?: ThemeColor;
+    tooltip?: string;
+};
 
 interface StaticCell extends CellBase {
     type: "static";
-    textFn: (sheetId: string, coordinates: CellCoordinates) => string;
+    possibleIcons?: IconName[];
+    iconMode?: boolean;
+    textFn: (sheetId: string, coordinates: CellCoordinates) => StaticCellContent;
 }
 
-export function StaticCell(textFn: string | ((sheetId: string, coordinates: CellCoordinates) => string), opts?: Partial<StaticCell>): StaticCell {
+export function StaticCell(
+    textFn: string | ((sheetId: string, coordinates: CellCoordinates) => StaticCellContent),
+    opts?: Partial<StaticCell>
+): StaticCell {
     return {
         type: "static",
         textFn: typeof textFn === "string" ? () => textFn : textFn,
         activate: doNothing,
         ...opts
-    }
+    };
 }
 
 interface DropdownOption {
@@ -45,9 +58,8 @@ export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownC
     return {
         type: "dropdown",
         options,
-        activate: (sheetId, column, row) => {
-            const fnKey = id(sheetId, column, row);
-            const anchor = document.querySelector<HTMLElement>("#" + fnKey);
+        activate: (sheet, column, row) => {
+            const anchor = sheet.findTableCell(column, row);
             anchor?.click();
         },
         ...opts,
@@ -64,9 +76,9 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
     return {
         type: "text",
         placeholder,
-        activate: (sheetId, column, row, columnEnd, rowEnd, key) => {
+        activate: (sheet, column, row, columnEnd, rowEnd, key) => {
             if (column === columnEnd && row === rowEnd) {
-                const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
+                const cell = sheet.findTableCell(column, row)?.querySelector("input") as HTMLInputElement;
                 if (!cell) return;
                 cell.focus(); // key is entered into the element by focusing it during the event handler
                 cell.select();
@@ -74,7 +86,7 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
                 if (key === "Delete" || key === "Backspace") {
                     for (let y = Math.min(row, rowEnd); y <= Math.max(row, rowEnd); y++) {
                         for (let x = Math.min(column, columnEnd); x <= Math.max(column, columnEnd); x++) {
-                            const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, x, y)}`);
+                            const cell = sheet.findTableCell(x, y)?.querySelector("input") as HTMLInputElement;
                             if (cell) cell.value = "";
                         }
                     }
@@ -103,7 +115,7 @@ export function FuzzyCell(
         suggestions,
         activate: (sheetId, column, row, columnEnd, rowEnd, key) => {
             if (column === columnEnd && row === rowEnd) {
-                const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, column, row)}`);
+                const cell = sheetId.findTableCell(column, row)?.querySelector("input");
                 if (!cell) return;
                 cell.focus(); // key is entered into the element by focusing it during the event handler
                 cell.select();
@@ -111,7 +123,7 @@ export function FuzzyCell(
                 if (key === "Delete" || key === "Backspace") {
                     for (let y = Math.min(row, rowEnd); y <= Math.max(row, rowEnd); y++) {
                         for (let x = Math.min(column, columnEnd); x <= Math.max(column, columnEnd); x++) {
-                            const cell = document.querySelector<HTMLInputElement>(`#${id(sheetId, x, y)}`);
+                            const cell = sheetId.findTableCell(x, y)?.querySelector("input");
                             if (cell) cell.value = "";
                         }
                     }
@@ -122,13 +134,13 @@ export function FuzzyCell(
     }
 }
 
-function id(sheetId: string, column: number, row: number): string {
-    return `${sheetId}-${column}-${row}`;
-}
-
 export interface CellCoordinates {
     column: number;
     row: number;
+}
+
+interface SheetCallbacks {
+    sheet: SheetRenderer;
 }
 
 interface SheetProps {
@@ -136,6 +148,8 @@ interface SheetProps {
     cells: Cell[];
     onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void;
     renderer: React.MutableRefObject<SheetRenderer | null>;
+    newRowPrefix: string;
+    onRowDeleted: (rowId: string) => void;
 }
 
 export const Sheet: React.FunctionComponent<SheetProps> = props => {
@@ -160,11 +174,73 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         renderer.onRowUpdated = props.onRowUpdated;
     }, [renderer, props.onRowUpdated]);
 
+    const counter = useRef(0);
+    const callbacks = useMemo(() => ({sheet: renderer}), [renderer]);
+    const dropdownOptions = useMemo<Operation<never, SheetCallbacks>[]>(() => [
+        {
+            text: "Insert row",
+            icon: "upload",
+            enabled: () => true,
+            onClick: (_, cb) => {
+                const sheet = cb.sheet;
+                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+            }
+        },
+        {
+            text: "Insert 50 rows",
+            icon: "uploadFolder",
+            enabled: () => true,
+            onClick: (_, cb) => {
+                for (let i = 0; i < 50; i++) {
+                    cb.sheet.addRow(`${props.newRowPrefix}-${counter.current++}`);
+                }
+            }
+        },
+        {
+            text: "Clone",
+            icon: "copy",
+            enabled: () => true,
+            onClick: (_, cb) => {
+                const sheet = cb.sheet;
+                const rowNumber = sheet.contextMenuTriggeredBy + 1;
+                console.log("rowNumber", rowNumber);
+                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+                for (let col = 0; col < sheet.cells.length; col++) {
+                    const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
+                    if (value != null) sheet.writeValue(col, rowNumber, value);
+                }
+            }
+        },
+        {
+            text: "Delete",
+            icon: "trash",
+            confirm: true,
+            color: "red",
+            enabled: () => true,
+            onClick: (_, cb) => {
+                const sheet = cb.sheet;
+                const rowToDelete = sheet.contextMenuTriggeredBy;
+                const rowId = sheet.retrieveRowId(rowToDelete);
+                if (rowId != null) {
+                    sheet.removeRow(rowToDelete);
+                    props.onRowDeleted(rowId);
+                }
+            }
+        }
+    ], [props.newRowPrefix, props.onRowDeleted]);
+
     const requiredIcons: IconName[] = useMemo(() => {
         const result: IconName[] = [];
         result.push("chevronDown");
         for (const cell of props.cells) {
             switch (cell.type) {
+                case "static": {
+                    const icons = cell.possibleIcons;
+                    if (icons) {
+                        for (const icon of icons) result.push(icon);
+                    }
+                    break;
+                }
                 case "dropdown": {
                     for (const opt of cell.options) {
                         result.push(opt.icon);
@@ -251,38 +327,13 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
             openFnRef={opRef}
             location={"TOPBAR"}
             hidden
-            operations={[
-                {
-                    text: "Insert row",
-                    icon: "upload",
-                    enabled: () => true,
-                    onClick: doNothing
-                },
-                {
-                    text: "Insert 50 rows",
-                    icon: "uploadFolder",
-                    enabled: () => true,
-                    onClick: doNothing
-                },
-                {
-                    text: "Clone",
-                    icon: "copy",
-                    enabled: () => true,
-                    onClick: doNothing
-                },
-                {
-                    text: "Delete",
-                    icon: "trash",
-                    confirm: true,
-                    color: "red",
-                    enabled: () => true,
-                    onClick: doNothing
-                }
-            ]}
+            operations={dropdownOptions}
+            extra={callbacks}
             selected={[]}
-            extra={{}}
             entityNameSingular={""}
         />
+
+        <TooltipContent id={`${sheetId}-tooltip`} textAlign={"left"} />
     </>;
 };
 
@@ -296,7 +347,11 @@ type ValidationState = "valid" | "invalid" | "warning" | "loading";
 export class SheetRenderer {
     private rows: number;
     public readonly sheetId: string;
-    private readonly cells: Cell[];
+    public readonly cells: Cell[];
+
+    public get numberOfRows(): number {
+        return this.rows;
+    }
 
     private cellStartX: number = -1;
     private cellEndX: number = -1;
@@ -306,6 +361,7 @@ export class SheetRenderer {
     private body: HTMLTableSectionElement;
     private portal: HTMLDivElement;
     private templates: HTMLDivElement;
+    private tooltip: HTMLDivElement;
 
     private clickHandler: (ev) => void = doNothing;
     private keyHandler: (ev) => void = doNothing;
@@ -321,6 +377,8 @@ export class SheetRenderer {
     public onContextMenu: (ev) => void = doNothing;
 
     public onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void = doNothing;
+
+    public contextMenuTriggeredBy: number = -1;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -344,15 +402,15 @@ export class SheetRenderer {
         }
     }
 
-    private findTableCell(column: number, row: number): HTMLTableCellElement | null {
+    findTableCell(column: number, row: number): HTMLTableCellElement | null {
         return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
     }
 
     public readValue(column: number, row: number): string | null {
-        return document.querySelector<HTMLInputElement>("#" + id(this.sheetId, column, row))?.value ?? null;
+        return this.findTableCell(column, row)?.querySelector("input")?.value ?? null;
     }
 
-    public writeValue(column: number, row: number, value: string) {
+    public writeValue(column: number, row: number, value: string | undefined) {
         if (column < 0) throw "column is negative";
         if (row < 0) throw "row is negative";
         if (column >= this.cells.length) throw "column is out-of-bounds";
@@ -362,7 +420,7 @@ export class SheetRenderer {
         const element = this.findTableCell(column, row)!;
         SheetRenderer.removeChildren(element);
         this.renderCell(cell, element, row, column, value);
-        this.writeOriginalValue(element, value);
+        if (value !== undefined) this.writeOriginalValue(element, value);
     }
 
     private runRowUpdateHandler(row: number) {
@@ -409,11 +467,14 @@ export class SheetRenderer {
         if (!portal) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
         const templates = document.querySelector<HTMLDivElement>(`#${this.sheetId}-templates`);
         if (!templates) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        const tooltip = document.querySelector<HTMLDivElement>(`#${this.sheetId}-tooltip`);
+        if (!tooltip) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
 
         this.table = table;
         this.body = body;
         this.portal = portal;
         this.templates = templates;
+        this.tooltip = tooltip;
         this.rows = 0;
 
         this.keyHandler = (ev: KeyboardEvent) => {
@@ -497,8 +558,8 @@ export class SheetRenderer {
                         for (let y = Math.min(initialY, endY); y <= Math.max(initialY, endY); y++) {
                             const copiedRow: string[] = [];
                             for (let x = Math.min(initialX, endX); x <= Math.max(initialX, endX); x++) {
-                                const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
-                                copiedRow.push(cell?.value ?? "");
+                                const cell = this.readValue(x, y);
+                                copiedRow.push(cell ?? "");
                             }
                             copiedData.push(copiedRow);
                         }
@@ -530,8 +591,7 @@ export class SheetRenderer {
                             for (let y = rowStart; y < Math.min(rowStart + clipboard.length, this.rows); y++) {
                                 const clipboardRow = clipboard[y - rowStart];
                                 for (let x = initialX; x < Math.min(initialX + clipboardRow.length, this.cells.length - 1); x++) {
-                                    const cell = document.querySelector<HTMLInputElement>(`#${id(this.sheetId, x, y)}`);
-                                    const parentNode = cell?.parentNode! as HTMLTableCellElement;
+                                    const parentNode = this.findTableCell(x, y)!;
                                     SheetRenderer.removeChildren(parentNode);
                                     this.renderCell(this.cells[x], parentNode, y, x,
                                         clipboardRow[x - initialX]);
@@ -547,7 +607,7 @@ export class SheetRenderer {
                         if (!hasAnyField) return;
 
                         const cellType = this.cells[initialX];
-                        cellType.activate(this.sheetId, initialX, initialY, endX, endY, ev.code);
+                        cellType.activate(this, initialX, initialY, endX, endY, ev.code);
                     } else {
                         ev.preventDefault();
                         if (!hasAnyField) {
@@ -616,9 +676,30 @@ export class SheetRenderer {
         SheetRenderer.removeChildren(this.body);
     }
 
-    addRow(rowId: string) {
-        const newRow = document.createElement("tr");
-        newRow.oncontextmenu = ev => this.onContextMenu(ev);
+    retrieveRowNumber(rowId: string): number | null {
+        const rows = this.body.children;
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.getAttribute("data-row-id") === rowId) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    retrieveRowId(row: number): string | null {
+        return this.body.children[row]?.getAttribute("data-row-id") ?? null;
+    }
+
+    addRow(rowId: string, index?: number) {
+        const newRow = this.body.insertRow(index ?? -1);
+        newRow.oncontextmenu = ev => {
+            const rowNumber = this.retrieveRowNumber(rowId);
+            if (rowNumber !== null) {
+                this.contextMenuTriggeredBy = rowNumber;
+                this.onContextMenu(ev);
+            }
+        };
         newRow.setAttribute("data-row-id", rowId);
         for (let col = 0; col < this.cells.length; col++) {
             const cell = this.cells[col];
@@ -630,8 +711,11 @@ export class SheetRenderer {
 
             this.renderCell(cell, cellElement, this.rows, col);
         }
-        this.body.append(newRow);
         this.rows++;
+    }
+
+    removeRow(row: number) {
+        this.body.children[row]?.remove();
     }
 
     private markActiveCells() {
@@ -665,8 +749,6 @@ export class SheetRenderer {
         column: number,
         value?: string
     ) {
-        const domId = id(this.sheetId, column, row);
-
         element.onclick = (ev) => {
             this.cellStartX = this.cellEndX = column;
             this.cellStartY = this.cellEndY = row;
@@ -676,7 +758,6 @@ export class SheetRenderer {
         switch (cell.type) {
             case "text": {
                 const input = document.createElement("input");
-                input.id = domId;
                 input.type = cell.fieldType;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
@@ -705,7 +786,6 @@ export class SheetRenderer {
                 {
                     // Create input field (for dropdown choice)
                     const input = document.createElement("input");
-                    input.id = domId;
                     input.setAttribute("type", "hidden");
                     if (value) input.value = value;
                     else input.value = cell.options[0].value;
@@ -727,7 +807,6 @@ export class SheetRenderer {
                 const input = document.createElement("input");
                 element.appendChild(input);
 
-                input.id = domId;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
                 input.onblur = () => this.runRowUpdateHandler(row);
@@ -748,9 +827,26 @@ export class SheetRenderer {
                 break;
             }
             case "static": {
-                const italics = document.createElement("i");
-                italics.textContent = cell.textFn(this.sheetId, {column: 0, row: 0});
-                element.appendChild(italics);
+                const fnReturn = cell.textFn(this.sheetId, {column, row});
+                const content: StaticCellContent = typeof fnReturn === "string" ?
+                    { contents: fnReturn } : fnReturn;
+
+                let domElement: HTMLElement;
+                if (cell.iconMode === true) {
+                    domElement = this.cloneTemplate(".icon-" + content.contents)[0] as HTMLElement;
+                } else {
+                    domElement = document.createElement("i");
+                    domElement.textContent = content.contents;
+                }
+
+                if (content.color !== undefined) domElement.style.color = `var(--${content.color})`;
+                if (content.tooltip) {
+                    const tooltipContent = document.createElement("p");
+                    tooltipContent.textContent = content.tooltip;
+                    this.attachTooltip(domElement, tooltipContent);
+                }
+
+                element.appendChild(domElement);
                 break;
             }
         }
@@ -872,6 +968,24 @@ export class SheetRenderer {
         this.table.appendChild(node);
         this.body = node;
     }
+
+    private attachTooltip(anchor: HTMLElement, content: HTMLElement) {
+        anchor.onmouseenter = () => {
+            SheetRenderer.removeChildren(this.tooltip);
+            this.tooltip.appendChild(content);
+            this.tooltip.style.opacity = "1";
+        };
+
+        anchor.onmouseleave = () => {
+            this.tooltip.style.opacity = "0";
+        };
+
+        anchor.onmousemove = (ev) => {
+            const style = this.tooltip.style;
+            style.left = ev.clientX + "px";
+            style.top = ev.clientY + "px";
+        };
+    }
 }
 
 const StyledSheet = styled.table`
@@ -921,6 +1035,10 @@ const StyledSheet = styled.table`
 
   .pointer {
     cursor: pointer;
+  }
+  
+  a {
+    color: var(--blue);
   }
 
   .spin {

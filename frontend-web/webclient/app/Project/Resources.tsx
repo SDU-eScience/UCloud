@@ -1,7 +1,6 @@
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 import * as CONF from "../../site.config.json";
-
 import {
     Area,
     AreaChart,
@@ -36,7 +35,7 @@ import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
 import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
 import {default as ReactModal} from "react-modal";
@@ -482,7 +481,6 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
     }
 };
 
-
 const VisualizationSection = styled.div`
   --gutter: 16px;
 
@@ -697,6 +695,65 @@ function formatTimestampForInput(timestamp: number): string {
 const subAllocationsDirtyKey = "subAllocationsDirty";
 const unsavedPrefix = "unsaved";
 
+type RowOrDeleted = "deleted" | ((string | null)[]);
+
+function writeRow(s: SheetRenderer, row: RowOrDeleted, rowNumber: number) {
+    if (row !== "deleted") {
+        let col = 0;
+        for (const value of row) {
+            if (value != null) s.writeValue(col++, rowNumber, value);
+        }
+    }
+}
+
+function writeAllocations(
+    s: SheetRenderer,
+    allocations: SubAllocation[],
+    dirtyRowStorage: Record<string, RowOrDeleted>,
+    sessionId: number,
+    unsavedRowIds: { current: number }
+) {
+    let row = 0;
+    s.clear();
+    allocations.forEach(alloc => {
+        const draftCopy = dirtyRowStorage[alloc.id];
+        if (draftCopy !== "deleted") {
+            s.addRow(alloc.id);
+            if (draftCopy) {
+                writeRow(s, draftCopy, row);
+                s.writeValue(8, row, undefined);
+            } else {
+                s.writeValue(0, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
+                s.writeValue(1, row, alloc.workspaceTitle);
+                s.writeValue(2, row, alloc.productType);
+                s.writeValue(3, row, alloc.productCategoryId.name + " @ " + alloc.productCategoryId.provider);
+                s.writeValue(4, row, formatTimestampForInput(alloc.startDate));
+                if (alloc.endDate) s.writeValue(5, row, formatTimestampForInput(alloc.endDate));
+                s.writeValue(6, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType, alloc.chargeType,
+                    alloc.unit, false, 0).replace('.', '').toString());
+                s.writeValue(8, row, undefined);
+            }
+
+            row++;
+        }
+    });
+
+    for (const key of Object.keys(dirtyRowStorage)) {
+        if (key.indexOf(unsavedPrefix) === 0) {
+            s.addRow(key);
+            const draftCopy = dirtyRowStorage[key];
+            writeRow(s, draftCopy, row);
+            s.writeValue(8, row, undefined);
+            row++;
+        }
+    }
+
+    s.addRow(`${unsavedPrefix}-${sessionId}-${unsavedRowIds.current++}`);
+    s.writeValue(0, row, "PROJECT");
+    s.writeValue(2, row, "STORAGE");
+    s.writeValue(8, row, undefined);
+}
+
 const SubAllocationViewer: React.FunctionComponent<{
     wallets: APICallState<PageV2<Wallet>>;
     allocations: APICallState<PageV2<SubAllocation>>;
@@ -707,7 +764,7 @@ const SubAllocationViewer: React.FunctionComponent<{
 }> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace, wallets}) => {
     const sessionId = useMemo(() => Math.ceil(Math.random() * 1000000000), []);
     const unsavedRowIds = useRef(0);
-    const dirtyRowStorageRef: MutableRefObject<Record<string, (string | null)[]>> = useRef(
+    const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef(
         localStorage.getItem(subAllocationsDirtyKey) != null ?
             JSON.parse(localStorage.getItem(subAllocationsDirtyKey)!) :
             {}
@@ -766,61 +823,32 @@ const SubAllocationViewer: React.FunctionComponent<{
         TextCell("No expiration", {fieldType: "date"}),
         TextCell(),
         StaticCell("DKK"),
-        DropdownCell(
-            [
-                {icon: "check", value: "PUBLISHED", title: "Published"},
-                {icon: "questionSolid", value: "NEW", title: "Unpublished"},
-                {icon: "edit", value: "PUBLISHED_WITH_CHANGES", title: "Published (changes pending)"},
-            ],
-            {width: "50px"}
+        StaticCell(
+            (sheetId, coord) => {
+                const rowId = sheet.current?.retrieveRowId(coord.row);
+                if (!rowId) return "questionSolid";
+
+                if (rowId.indexOf(unsavedPrefix) === 0) {
+                    return {contents: "questionSolid", color: "blue", tooltip: "This allocation is new and has never been saved. It is not active."};
+                } else {
+                    if (dirtyRowStorageRef.current[rowId]) {
+                        return {contents: "edit", color: "orange", tooltip: "This allocation is based on an active allocation but changes has not been saved."};
+                    } else {
+                        return {contents: "check", color: "green", tooltip: "This allocation is active and you have not made any changes to it."};
+                    }
+                }
+            },
+            {
+                iconMode: true,
+                possibleIcons: ["check", "questionSolid", "edit"],
+                width: "30px"
+            }
         ),
     ]), []);
 
     useLayoutEffect(() => {
         const s = sheet.current!;
-        let row = 0;
-        s.clear();
-        allocations.data.items.forEach(alloc => {
-            s.addRow(alloc.id);
-            const draftCopy = dirtyRowStorageRef.current[alloc.id];
-            if (draftCopy) {
-                let col = 0;
-                for (const value of draftCopy) {
-                    if (value != null) s.writeValue(col++, row, value);
-                }
-                s.writeValue(8, row, "PUBLISHED_WITH_CHANGES");
-            } else {
-                s.writeValue(0, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
-                s.writeValue(1, row, alloc.workspaceTitle);
-                s.writeValue(2, row, alloc.productType);
-                s.writeValue(3, row, alloc.productCategoryId.name + " @ " + alloc.productCategoryId.provider);
-                s.writeValue(4, row, formatTimestampForInput(alloc.startDate));
-                if (alloc.endDate) s.writeValue(5, row, formatTimestampForInput(alloc.endDate));
-                s.writeValue(6, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType, alloc.chargeType,
-                    alloc.unit, false, 0).replace('.', '').toString());
-                s.writeValue(8, row, "PUBLISHED");
-            }
-
-            row++;
-        });
-
-        for (const key of Object.keys(dirtyRowStorageRef.current)) {
-            if (key.indexOf(unsavedPrefix) === 0) {
-                s.addRow(key);
-                const draftRow = dirtyRowStorageRef.current[key];
-                let col = 0;
-                for (const value of draftRow) {
-                    if (value != null) s.writeValue(col++, row, value);
-                }
-                s.writeValue(8, row, "NEW");
-                row++;
-            }
-        }
-
-        s.addRow(`${unsavedPrefix}-${sessionId}-${unsavedRowIds.current++}`);
-        s.writeValue(0, row, "PROJECT");
-        s.writeValue(2, row, "STORAGE");
-        s.writeValue(8, row, "NEW");
+        writeAllocations(s, allocations.data.items, dirtyRowStorageRef.current, sessionId, unsavedRowIds);
     }, [allocations.data.items]);
 
     const [showHelp, setShowHelp] = useState(false);
@@ -828,6 +856,13 @@ const SubAllocationViewer: React.FunctionComponent<{
         ev.preventDefault();
         setShowHelp(prev => !prev);
     }, []);
+
+    const discard = useCallback(() => {
+        dirtyRowStorageRef.current = {};
+        localStorage.removeItem(subAllocationsDirtyKey);
+        setDirtyRows([]);
+        writeAllocations(sheet.current!, allocations.data.items, {}, sessionId, unsavedRowIds);
+    }, [allocations.data.items]);
 
     return <HighlightedCard color={"green"} title={"Sub-allocations"} icon={"grant"}>
         <Text color="darkGray" fontSize={1} mb={"16px"}>
@@ -860,7 +895,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                                 </Circle>
                             }
                         >
-                            <Text color="black" fontSize={12} textAlign={"left"}>
+                            <Text textAlign={"left"}>
                                 <p>
                                     Your draft has been saved. You can safely leave the page and come
                                     back later.
@@ -873,7 +908,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                             </Text>
                         </UITooltip>
                     </Flex>
-                    <ConfirmCancelButtons onConfirm={doNothing} onCancel={doNothing} confirmText={"Save"}
+                    <ConfirmCancelButtons onConfirm={doNothing} onCancel={discard} confirmText={"Save"}
                                           cancelText={"Discard"}/>
                 </>
             }
@@ -883,17 +918,35 @@ const SubAllocationViewer: React.FunctionComponent<{
             header={header}
             cells={cells}
             renderer={sheet}
+            newRowPrefix={unsavedPrefix + sessionId + "-sh"}
+            onRowDeleted={(rowId) => {
+                const storage = dirtyRowStorageRef.current;
+                if (rowId.indexOf(unsavedPrefix) === 0) {
+                    // NOTE(Dan): Nothing special to do, we can just delete it from storage
+                    delete storage[rowId];
+                } else {
+                    // NOTE(Dan): We need to keep a record which indicates that we have deleted the entry.
+                    storage[rowId] = "deleted";
+                    setDirtyRows(rows => {
+                        if (rows.indexOf(rowId) !== -1) return rows;
+                        return [...rows, rowId];
+                    });
+                }
+
+                localStorage.setItem(subAllocationsDirtyKey, JSON.stringify(storage));
+            }}
             onRowUpdated={(rowId, row, values) => {
                 const s = sheet.current!;
-                setDirtyRows(rows => {
-                    if (rows.indexOf(rowId) !== -1) return rows;
-                    if (values[8] === "PUBLISHED") s.writeValue(8, row, "PUBLISHED_WITH_CHANGES")
-                    return [...rows, rowId];
-                });
 
                 const storage = dirtyRowStorageRef.current;
                 storage[rowId] = values;
                 localStorage.setItem(subAllocationsDirtyKey, JSON.stringify(storage));
+
+                setDirtyRows(rows => {
+                    if (rows.indexOf(rowId) !== -1) return rows;
+                    s.writeValue(8, row, undefined);
+                    return [...rows, rowId];
+                });
             }}
         />
 
@@ -924,101 +977,5 @@ const subAllocationOperations: Operation<SubAllocation, SubAllocationCallbacks>[
     onClick: (selected, cb) => cb.editAllocation(selected[0]),
     enabled: selected => selected.length === 1
 }];
-
-const SubAllocationEditModal: React.FunctionComponent<{
-    allocation: SubAllocation;
-    onClose: () => void;
-    onSubmit: (newBalance: number, newStartDate: number, newEndDate: number) => void;
-}> = props => {
-
-    const balanceField = useRef<HTMLInputElement>(null);
-    const [startDate, setStartDate] = useState(props.allocation.startDate);
-    const [endDate, setEndDate] = useState<number | undefined>(props.allocation.endDate ?? undefined);
-    const updateDates = useCallback((dates: [Date, Date] | Date) => {
-        if (Array.isArray(dates)) {
-            const [start, end] = dates;
-            const newCreatedAfter = start.getTime();
-            const newCreatedBefore = end?.getTime();
-            setStartDate(newCreatedAfter);
-            setEndDate(newCreatedBefore);
-        } else {
-            const newCreatedAfter = dates.getTime();
-            setStartDate(newCreatedAfter);
-            setEndDate(undefined);
-        }
-    }, [])
-
-    const doSubmit = useCallback((e?: React.SyntheticEvent) => {
-        e?.preventDefault();
-        const newBalance = parseInt(balanceField.current?.value ?? "NaN");
-        if (isNaN(newBalance)) {
-            snackbarStore.addFailure("Invalid balance", false);
-            return;
-        }
-        if (endDate == null) {
-            snackbarStore.addFailure("Allocation is missing an end-date", false);
-            return;
-        }
-
-        const normalizedBalance = normalizeBalanceForBackend(newBalance, props.allocation.productType,
-            props.allocation.chargeType, props.allocation.unit);
-        props.onSubmit(normalizedBalance, startDate, endDate);
-    }, [props.onSubmit, startDate, endDate]);
-
-    return <ReactModal
-        isOpen={true}
-        onRequestClose={props.onClose}
-        shouldCloseOnEsc
-        ariaHideApp={false}
-        style={transferModalStyle}
-    >
-        <form onSubmit={doSubmit}>
-            <Grid gridGap={"16px"}>
-                <Label>
-                    Balance:
-                    <Flex>
-                        <Input
-                            rightLabel
-                            ref={balanceField}
-                            defaultValue={
-                                normalizeBalanceForFrontend(
-                                    props.allocation.remaining,
-                                    props.allocation.productType,
-                                    props.allocation.chargeType,
-                                    props.allocation.unit,
-                                    false,
-                                    0
-                                )
-                            }
-                        />
-                        <InputLabel rightLabel>
-                            {explainAllocation(props.allocation.productType, props.allocation.chargeType,
-                                props.allocation.unit)}
-                        </InputLabel>
-                    </Flex>
-                </Label>
-
-                <div>
-                    <Label>Allocation Period:</Label>
-                    <SlimDatePickerWrapper>
-                        <ReactDatePicker
-                            locale={enGB}
-                            startDate={new Date(startDate)}
-                            endDate={endDate ? new Date(endDate) : undefined}
-                            onChange={updateDates}
-                            selectsRange={true}
-                            inline
-                            dateFormat="dd/MM/yy HH:mm"
-                        />
-                    </SlimDatePickerWrapper>
-                </div>
-            </Grid>
-
-            <Button fullWidth type={"submit"}>
-                <Icon name={"edit"} mr={"8px"} size={"16px"}/>Update
-            </Button>
-        </form>
-    </ReactModal>
-};
 
 export default Resources;
