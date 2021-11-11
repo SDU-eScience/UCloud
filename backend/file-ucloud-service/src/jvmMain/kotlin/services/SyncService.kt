@@ -163,11 +163,13 @@ class SyncService(
 
                     try {
                         val mounter = Mounts.ready.call(Unit, authenticatedClient) //.withMounterInfo(device))
+                        val syncthingReady = syncthing.isReady(device)
 
                         if (
                             mounter.statusCode != HttpStatusCode.OK ||
                             !mounter.orThrow().ready ||
-                            !syncthing.isReady(device)
+                            syncthingReady == null ||
+                            !syncthingReady
                         ) {
                             retries++
                         } else {

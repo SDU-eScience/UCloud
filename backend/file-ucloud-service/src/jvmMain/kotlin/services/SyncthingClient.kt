@@ -1,11 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import com.github.jasync.sql.db.util.length
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
@@ -15,17 +10,15 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.util.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.time.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import java.io.File
@@ -232,7 +225,6 @@ data class SyncthingFolderDevice(
 class SyncthingClient(
     val config: SyncConfiguration,
     val db: DBContext,
-    val client: AuthenticatedClient,
     distributedLocks: DistributedLockBestEffortFactory
 ) {
     private val httpClient = HttpClient(OkHttp) {
@@ -244,7 +236,7 @@ class SyncthingClient(
         }
     }
     private val mutex = Mutex()
-    private val lock = distributedLocks.create("syncthing-client-writer", duration = 2_000)
+    private val lock = distributedLocks.create("syncthing-client-writer", duration = 5_000)
     private val limitLock = distributedLocks.create("syncthing-client-writer-limiter", duration = 5_000)
 
     private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
@@ -257,7 +249,6 @@ class SyncthingClient(
         // Wait for limitLock to be released. limitLock is released after a fixed period since it was
         // last acquired. This is necessary to limit the number of requests sent to Syncthing.
         if (lock.acquire()) {
-            println("acquired lock")
             var nextTry = Time.now() - 1_000
             var pendingDevices = toDevices.ifEmpty {
                 config.devices
@@ -417,20 +408,49 @@ class SyncthingClient(
         }
     }
 
-    suspend fun isReady(device: LocalSyncthingDevice): Boolean {
-        val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/system/ping")) {
-            headers {
-                append("X-API-Key", device.apiKey)
+    suspend fun isReady(device: LocalSyncthingDevice): Boolean? {
+        if (lock.acquire()) {
+            mutex.withLock {
+                return try {
+                    val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/system/ping")) {
+                        headers {
+                            append("X-API-Key", device.apiKey)
+                        }
+                    }
+                    resp.status == HttpStatusCode.OK
+                } catch (ex: Throwable) {
+                    false
+                } finally {
+                    lock.release()
+                }
             }
         }
-        return resp.status == HttpStatusCode.OK
+        return null
     }
 
     suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
-        devices.ifEmpty { config.devices }.forEach { device ->
-            httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
-                headers {
-                    append("X-API-Key", device.apiKey)
+        if (lock.acquire()) {
+            mutex.withLock {
+                var pendingDevices = devices.ifEmpty { config.devices }
+                while (pendingDevices.isNotEmpty()) {
+                    log.info("Attempting syncthing rescan")
+                    delay(1000)
+                    try {
+                        pendingDevices.forEach { device ->
+                            val resp = httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
+                                headers {
+                                    append("X-API-Key", device.apiKey)
+                                }
+                            }
+
+                            if (resp.status == HttpStatusCode.OK) {
+                                pendingDevices = pendingDevices.filter { it.id != device.id }
+                            }
+                        }
+                    } catch (ex: Throwable) {
+                        // do nothing
+                    }
+                    lock.renew(1000)
                 }
             }
         }

@@ -1,11 +1,8 @@
 package dk.sdu.cloud.file.ucloud
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.file.ucloud.services.useTestingSizes
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.SyncController
@@ -19,13 +16,15 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import service.TokenValidationChain
-import java.util.*
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.sync.mounter.api.MountFolderId
-import dk.sdu.cloud.sync.mounter.api.joinPath
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.sync.mounter.api.Mounts
+import io.ktor.http.*
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 
@@ -107,7 +106,7 @@ class Server(
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
-        val syncthingClient = SyncthingClient(syncConfig, db, authenticatedClient, distributedLocks)
+        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
         val syncService =
             SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
@@ -158,6 +157,50 @@ class Server(
         })
 
         startServices()
+    }
+
+    override fun onKtorReady() {
+        runBlocking {
+            try {
+                val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
+                    val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+                    var foldersMounted = false
+                    var retryCount = 0
+
+                    while (!foldersMounted && retryCount < 5) {
+                        delay(1000L)
+                        retryCount += 1
+
+                        val ready = Mounts.ready.call(
+                            Unit,
+                            client
+                            //client.withMounterInfo(device)
+                        )
+
+                        if (ready.statusCode == HttpStatusCode.OK) {
+                            if (ready.orThrow().ready) {
+                                foldersMounted = true
+                            }
+                        }
+                    }
+
+                    if (foldersMounted) {
+                        device
+                    } else {
+                        null
+                    }
+                }
+
+                val db = AsyncDBSessionFactory(micro.databaseConfig)
+                val distributedLocks = DistributedLockBestEffortFactory(micro)
+                val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
+                syncthingClient.writeConfig(running)
+                syncthingClient.rescan(running)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while trying to configure sync-thing (is it running?)")
+                log.warn(ex.stackTraceToString())
+            }
+        }
     }
 }
 
