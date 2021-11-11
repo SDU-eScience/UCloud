@@ -141,13 +141,11 @@ export const ResourceFilter: React.FunctionComponent<{
             {onlyFilter ? "Filter" : "Sort and filter"}
         </Heading.h4>}
         <Grid gridGap={"8px"}>
-            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
-                <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                    icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
-                {props.pills.map((Pill, idx) =>
-                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
-                )}
-            </WidgetWrapper>
+            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+            {props.pills.map((Pill, idx) =>
+                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
+            )}
             {!isDirty ? null :
                 <Button color="green" size="small" onClick={applyFilters} mb={"10px"}>
                     <Icon name="check" mr="8px" size="14px" />
@@ -155,42 +153,36 @@ export const ResourceFilter: React.FunctionComponent<{
                 </Button>
             }
         </Grid>
-        <Grid gridGap={isEmbedded ? "8px" : "20px"}
+        <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
-
-            {onlyFilter ? null : <>
-                <WidgetWrapper embedded={isEmbedded} gridGap="12px">
+            <EmbeddedFilterDropdown embedded={isEmbedded}>
+                {onlyFilter ? null : <>
                     <EnumFilterWidget
                         propertyName="column" icon="properties" title="Sort by" expanded={false} options={sortOptions}
                         id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
                         browseType={props.browseType}
                     />
-                </WidgetWrapper>
-
-                {isEmbedded ? null : <Divider />}
-            </>}
-
-            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
+                    {isEmbedded ? null : <Divider />}
+                </>}
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
                 )}
-            </WidgetWrapper>
+            </EmbeddedFilterDropdown>
         </Grid>
     </>;
 };
 
-function WidgetWrapper({
-    children,
-    embedded,
-    gridGap
-}: React.PropsWithChildren<{embedded?: boolean, gridGap: string}>): JSX.Element {
-    return !embedded ?
-        <>{children}</> : (
-            <Grid style={{gridAutoFlow: "column", gridGap, gridAutoColumns: "1fr"}}>
-                {children}
+function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
+    return props.embedded ? (
+        <ClickableDropdown chevron width="250px" trigger="Filters" keepOpenOnClick colorOnHover={false}>
+            <Grid mr="5px" gridAutoFlow="row" gridGap={"12px"}>
+                {props.children}
             </Grid>
-        )
+        </ClickableDropdown>
+    ) : (<>
+        {props.children}
+    </>)
 }
 
 export const FilterPill: React.FunctionComponent<{
@@ -258,7 +250,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         </FilterWidget>
     );
 
-    if (props.browseType === BrowseType.MainContent) {
+    if (props.browseType === BrowseType.MainContent || props.browseType === BrowseType.Embedded) {
         return <>
             <div onClick={() => setOpen(o => !o)}>{trigger}</div>
             {open ? props.dropdownContent : null}
@@ -527,6 +519,10 @@ export const EnumPill: React.FunctionComponent<{
     </FilterPill>;
 };
 
+const EmbeddedOffset = styled.div<{embedded: boolean}>`
+    ${p => p.embedded ? "margin-left: -15px;" : null}
+`;
+
 export const EnumFilterWidget: React.FunctionComponent<{
     propertyName: string;
     facedownChevron?: boolean;
@@ -547,7 +543,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
         facedownChevron={props.facedownChevron}
         contentWidth={"300px"}
         dropdownContent={
-            <>
+            <EmbeddedOffset embedded={props.browseType === BrowseType.Embedded}>
                 {props.options.map(opt =>
                     <ListRow
                         key={opt.value}
@@ -562,7 +558,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
                         stopPropagation={false}
                     />
                 )}
-            </>
+            </EmbeddedOffset>
         }
     />
 };

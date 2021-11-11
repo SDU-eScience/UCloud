@@ -5,7 +5,7 @@ import {Icon} from "@/ui-components";
 import * as Text from "@/ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
-import {KeyboardEventHandler, PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
