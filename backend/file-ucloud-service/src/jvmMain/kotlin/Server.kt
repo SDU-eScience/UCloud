@@ -27,6 +27,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 // NOTE(Dan): This is only used in development mode
 object Scans : CallDescriptionContainer("file.ucloud.scans") {
@@ -45,6 +46,7 @@ class Server(
     private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
+    private val lastWrite = AtomicLong(Time.now())
 
     @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
@@ -106,7 +108,7 @@ class Server(
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
-        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
+        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
         val syncService =
             SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
@@ -193,7 +195,7 @@ class Server(
 
                 val db = AsyncDBSessionFactory(micro.databaseConfig)
                 val distributedLocks = DistributedLockBestEffortFactory(micro)
-                val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks)
+                val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
                 syncthingClient.writeConfig(running)
                 syncthingClient.rescan(running)
             } catch (ex: Throwable) {
