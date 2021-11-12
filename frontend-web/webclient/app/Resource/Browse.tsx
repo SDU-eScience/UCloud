@@ -331,7 +331,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <>
             <Spacer left={null} right={pageSize.current > 0 ?
-                <Box width="160px">
+                <Box width="170px">
                     <EnumFilterWidget
                         expanded={false} browseType={props.browseType} propertyName="direction" title="Sort direction" facedownChevron
                         id={0} onExpand={doNothing} properties={filters} options={sortDirections}
