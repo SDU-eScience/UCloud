@@ -203,7 +203,6 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
             onClick: (_, cb) => {
                 const sheet = cb.sheet;
                 const rowNumber = sheet.contextMenuTriggeredBy + 1;
-                console.log("rowNumber", rowNumber);
                 sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
                 for (let col = 0; col < sheet.cells.length; col++) {
                     const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
@@ -751,11 +750,20 @@ export class SheetRenderer {
     private renderCell(
         cell: Cell,
         element: HTMLTableCellElement,
-        row: number,
+        initialRow: number,
         column: number,
         value?: string
     ) {
+        const self = this;
+        function findRowNumber(): number | null {
+            const rowId = (element.parentNode as HTMLTableRowElement)?.getAttribute("data-row-id");
+            if (!rowId) return null;
+            return self.retrieveRowNumber(rowId);
+        }
+
         element.onclick = (ev) => {
+            const row = findRowNumber();
+            if (row === null) return;
             this.cellStartX = this.cellEndX = column;
             this.cellStartY = this.cellEndY = row;
             this.markActiveCells();
@@ -767,7 +775,11 @@ export class SheetRenderer {
                 input.type = cell.fieldType;
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
-                input.onblur = () => this.runRowUpdateHandler(row);
+                input.onblur = () => {
+                    const row = findRowNumber();
+                    if (row === null) return;
+                    this.runRowUpdateHandler(row);
+                };
                 if (cell.fieldType != "date") {
                     input.onclick = (ev) => {
                         ev.preventDefault();
@@ -795,11 +807,17 @@ export class SheetRenderer {
                     input.setAttribute("type", "hidden");
                     if (value) input.value = value;
                     else input.value = cell.options[0].value;
-                    input.onblur = () => this.runRowUpdateHandler(row);
+                    input.onblur = () => {
+                        const row = findRowNumber();
+                        if (row === null) return;
+                        this.runRowUpdateHandler(row);
+                    };
                     element.appendChild(input);
                 }
 
                 element.onclick = (ev) => {
+                    const row = findRowNumber();
+                    if (row === null) return;
                     ev.stopPropagation();
                     SheetRenderer.removeChildren(this.portal);
                     this.cellStartX = this.cellEndX = column;
@@ -815,7 +833,11 @@ export class SheetRenderer {
 
                 if (cell.placeholder) input.placeholder = cell.placeholder;
                 if (value) input.value = value;
-                input.onblur = () => this.runRowUpdateHandler(row);
+                input.onblur = () => {
+                    const row = findRowNumber();
+                    if (row === null) return;
+                    this.runRowUpdateHandler(row);
+                };
                 input.onclick = (ev) => {
                     ev.preventDefault();
                     input.blur();
@@ -823,6 +845,8 @@ export class SheetRenderer {
                 input.ondblclick = (ev) => input.focus();
 
                 input.oninput = (ev) => {
+                    const row = findRowNumber();
+                    if (row === null) return;
                     ev.stopPropagation();
                     SheetRenderer.removeChildren(this.portal);
 
@@ -833,7 +857,7 @@ export class SheetRenderer {
                 break;
             }
             case "static": {
-                const fnReturn = cell.textFn(this.sheetId, {column, row});
+                const fnReturn = cell.textFn(this.sheetId, {column, row: initialRow});
                 const content: StaticCellContent = typeof fnReturn === "string" ?
                     { contents: fnReturn } : fnReturn;
 
