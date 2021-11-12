@@ -254,6 +254,7 @@ class SyncthingClient(
                 config.devices
             }
 
+            log.debug("Writing config to Syncthing")
             while (pendingDevices.isNotEmpty()) {
                 if (Time.now() > nextTry) {
                     if (limitLock.acquire()) {
