@@ -209,8 +209,9 @@ const FilterWidgetWrapper = styled(Box)`
 export const FilterWidget: React.FunctionComponent<{
     cursor?: Cursor;
     onClick?: () => void;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
-    return <FilterWidgetWrapper cursor={props.cursor} onClick={props.onClick}>
+    return <FilterWidgetWrapper mr={props.browseType === BrowseType.Embedded ? "16px" : undefined} cursor={props.cursor} onClick={props.onClick}>
         <Icon name={props.icon} size={"16px"} color={"iconColor"} color2={"iconColor2"} mr={"8px"} />
         <b>{props.title}</b>
         {props.children}
@@ -220,9 +221,10 @@ export const FilterWidget: React.FunctionComponent<{
 export const ExpandableFilterWidget: React.FunctionComponent<{
     expanded: boolean;
     onExpand: () => void;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
     return <div>
-        <FilterWidget icon={props.icon} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
+        <FilterWidget icon={props.icon} browseType={props.browseType} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
             <Box flexGrow={1} />
             <Icon name={"chevronDownLight"} rotation={props.expanded ? 0 : -90} size={"16px"} color={"iconColor"} />
         </FilterWidget>
@@ -242,7 +244,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     const [open, setOpen] = useState(false);
 
     const trigger = (
-        <FilterWidget icon={props.icon} title={props.title} cursor={"pointer"}
+        <FilterWidget browseType={props.browseType} icon={props.icon} title={props.title} cursor={"pointer"}
             onClick={props.expanded ? props.onExpand : undefined}>
             <Box flexGrow={1} />
             <Icon name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
@@ -257,6 +259,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         </>;
     }
 
+    // TODO(Jonas) This is unreachable at this point, isn't it?
     return <div>
         {!props.expanded ?
             <ClickableDropdown
@@ -599,6 +602,7 @@ export const CheckboxPill: React.FunctionComponent<{
 export const CheckboxFilterWidget: React.FunctionComponent<{
     propertyName: string;
     invert?: boolean;
+    browseType?: BrowseType
 } & BaseFilterWidgetProps & FilterWidgetProps> = props => {
     const isTrue = props.properties[props.propertyName] === "true";
     const isChecked = props.invert === true ? !isTrue : isTrue;
@@ -616,11 +620,14 @@ export const CheckboxFilterWidget: React.FunctionComponent<{
                     icon={props.icon}
                     title={props.title}
                     cursor="pointer"
+                    browseType={props.browseType}
                     onClick={onChange}
                 />
             </Box>
             <Box flexGrow={1} />
-            <Toggle onChange={onChange} checked={isChecked} />
+            <span style={{marginRight: props.browseType === BrowseType.Embedded ? "16px" : undefined}}>
+                <Toggle onChange={onChange} checked={isChecked} />
+            </span>
         </Flex>
     );
 }
