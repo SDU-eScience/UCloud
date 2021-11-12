@@ -343,41 +343,55 @@ const Template = styled.div`
 
 type ValidationState = "valid" | "invalid" | "warning" | "loading";
 
+// NOTE(Dan): The sheet component is rendered initially by React, which is responsible for the initial DOM creation.
+// The initial DOM contains a table, with CSS applied, and a few core components which our existing React codebase knows
+// how to render. The SheetRenderer clones these nodes to ensure a consistent look-and-feel. Everything else is handled
+// by this class and React is not involved. I have attempted to do this with React, and even on a
+// high-end machine this stops working around ~50 rows of data. This version works quite a bit better and can scale up
+// to around ~1000 rows. At this point, we are basically running into core performance issues of the browser. The
+// browser is simply not capable of rendering a table with thousands of rows. As an experiment, you can try to render
+// a static table with a few thousand rows. You'll quickly notice that when you scroll the browser will be completely
+// unable to maintain more than a few frames per second. Some browsers will attempt to smooth scrolling by not rendering
+// the rows at all, this doesn't change the fact that the UI is not rendering at more than single digits FPS.
+//
+// In conclusion, if this component ever needs to be used as a proper spreadsheet, then we need to write a renderer
+// targeting WebGL (or similar hardware-accelerated API). There is simply no way around this. In case you are curios,
+// Google Sheets and the web version of Excel both use WebGL.
 export class SheetRenderer {
     private rows: number;
     public readonly sheetId: string;
     public readonly cells: Cell[];
 
-    public get numberOfRows(): number {
-        return this.rows;
-    }
-
+    // Selected cells (both inclusive). A value of -1 indicates no cell selected.
     private cellStartX: number = -1;
     private cellEndX: number = -1;
     private cellStartY: number = -1;
     private cellEndY: number = -1;
+
+    // References to the initial DOM (created by React)
     private table: HTMLTableElement;
     private body: HTMLTableSectionElement;
     private portal: HTMLDivElement;
     private templates: HTMLDivElement;
     private tooltip: HTMLDivElement;
 
+    // Global mouse and keyboard handlers
     private clickHandler: (ev) => void = doNothing;
     private keyHandler: (ev) => void = doNothing;
 
+    // Dropdown state
     private dropdownCoordinates: CellCoordinates | null = null;
     private dropdownOpen = false;
     private dropdownCell: DropdownOption[] | null = null;
     private dropdownEntry = 0;
 
+    // Clipboard state
     private clipboard: string[][] | null = null;
 
-    private validation: Record<string, ValidationState> = {};
+    // Event handlers (from components further up in the stack)
     public onContextMenu: (ev) => void = doNothing;
-
-    public onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void = doNothing;
-
     public contextMenuTriggeredBy: number = -1;
+    public onRowUpdated: (rowId: string, row: number, values: (string | null)[]) => void = doNothing;
 
     constructor(rows: number, sheetId: string, cells: Cell[]) {
         this.rows = rows;
@@ -385,89 +399,17 @@ export class SheetRenderer {
         this.cells = cells;
     }
 
-    registerValidation(column: number, row: number, validationState?: ValidationState) {
-        const key = `${column},${row}`;
-        if (validationState) {
-            this.validation[key] = validationState;
-        } else {
-            delete this.validation[key];
-        }
-
-        const cell = this.findTableCell(column, row);
-        if (!cell) return;
-        cell.querySelector(".validation")?.remove();
-        if (validationState) {
-            cell.append(...this.cloneTemplate(".validation-" + validationState));
-        }
-    }
-
-    findTableCell(column: number, row: number): HTMLTableCellElement | null {
-        return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
-    }
-
-    public readValue(column: number, row: number): string | null {
-        return this.findTableCell(column, row)?.querySelector("input")?.value ?? null;
-    }
-
-    public writeValue(column: number, row: number, value: string | undefined) {
-        if (column < 0) throw "column is negative";
-        if (row < 0) throw "row is negative";
-        if (column >= this.cells.length) throw "column is out-of-bounds";
-        if (row >= this.rows) throw "row is out-of-bounds";
-
-        const cell = this.cells[column];
-        const element = this.findTableCell(column, row)!;
-        SheetRenderer.removeChildren(element);
-        this.renderCell(cell, element, row, column, value);
-        if (value !== undefined) this.writeOriginalValue(element, value);
-    }
-
-    private runRowUpdateHandler(row: number) {
-        const cols = this.cells.length;
-        let dirty = false;
-        const rowId = this.body.rows.item(row)?.getAttribute("data-row-id");
-        if (!rowId) return;
-
-        const values: (string | null)[] = [];
-        for (let col = 0; col < cols; col++) {
-            const cell = this.findTableCell(col, row);
-            if (!cell) return;
-
-            const originalValue = cell.getAttribute("data-original-value") ?? null;
-            const currentValue = this.readValue(col, row);
-            values.push(currentValue);
-            if (originalValue !== currentValue) {
-                if (!(currentValue === "" && originalValue === null)) {
-                    dirty = true;
-                    this.writeOriginalValue(cell, currentValue);
-                }
-            }
-        }
-
-        if (dirty) {
-            this.onRowUpdated(rowId, row, values);
-        }
-    }
-
-    private writeOriginalValue(element: HTMLTableCellElement, value: string | null) {
-        if (value) {
-            element.setAttribute("data-original-value", value);
-        } else {
-            element.removeAttribute("data-original-value");
-        }
-    }
-
     mount() {
+        // Find the initial DOM created by React.
         const table = document.querySelector<HTMLTableElement>(`#${this.sheetId}`);
-        if (!table) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
-        const body = table.querySelector("tbody");
-        if (!body) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        const body = table?.querySelector("tbody");
         const portal = document.querySelector<HTMLDivElement>(`#${this.sheetId}-portal`);
-        if (!portal) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
         const templates = document.querySelector<HTMLDivElement>(`#${this.sheetId}-templates`);
-        if (!templates) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
         const tooltip = document.querySelector<HTMLDivElement>(`#${this.sheetId}-tooltip`);
-        if (!tooltip) throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+
+        if (!table || !body || !portal || !templates || !tooltip) {
+            throw "Could not render sheet, unknown mount-point: " + this.sheetId;
+        }
 
         this.table = table;
         this.body = body;
@@ -476,6 +418,7 @@ export class SheetRenderer {
         this.tooltip = tooltip;
         this.rows = 0;
 
+        // Install keyboard handler
         this.keyHandler = (ev: KeyboardEvent) => {
             if (this.dropdownOpen) {
                 switch (ev.code) {
@@ -503,6 +446,7 @@ export class SheetRenderer {
                         this.dropdownSelectEntry(-1);
                         break;
 
+                    case "NumpadEnter":
                     case "Enter":
                         ev.preventDefault();
                         this.dropdownConfirmChoice();
@@ -630,7 +574,7 @@ export class SheetRenderer {
                                     endX = this.cells.length;
                                 } else {
                                     endX = Math.max(0, Math.min(this.cells.length - 1, endX + dx));
-                                    endY = Math.max(0, Math.min(this.rows, endY + dy));
+                                    endY = Math.max(0, Math.min(this.rows - 1, endY + dy));
                                 }
                             } else {
                                 if (goToStart) {
@@ -639,7 +583,7 @@ export class SheetRenderer {
                                     initialX = this.cells.length - 1;
                                 } else {
                                     initialX = Math.max(0, Math.min(this.cells.length - 1, initialX + dx));
-                                    initialY = Math.max(0, Math.min(this.rows, initialY + dy));
+                                    initialY = Math.max(0, Math.min(this.rows - 1, initialY + dy));
                                 }
                                 endX = initialX;
                                 endY = initialY;
@@ -658,7 +602,8 @@ export class SheetRenderer {
             }
         };
 
-        this.clickHandler = (ev: MouseEvent) => {
+        // Install global mouse handler
+        this.clickHandler = () => {
             this.closeDropdown();
         };
 
@@ -666,13 +611,30 @@ export class SheetRenderer {
         document.body.addEventListener("keydown", this.keyHandler);
     }
 
-    clear() {
-        this.rows = 0;
-        this.dropdownEntry = -1;
-        this.dropdownCell = null;
-        this.dropdownCoordinates = null;
-        this.dropdownOpen = false;
-        SheetRenderer.removeChildren(this.body);
+    unmount() {
+        document.body.removeEventListener("keydown", this.keyHandler);
+        document.body.removeEventListener("click", this.clickHandler);
+        this.body.remove();
+        const node = document.createElement("tbody");
+        this.table.appendChild(node);
+        this.body = node;
+    }
+
+    registerValidation(column: number, row: number, validationState?: ValidationState) {
+        const cell = this.findTableCell(column, row);
+        if (!cell) return;
+        cell.querySelector(".validation")?.remove();
+        if (validationState) {
+            cell.append(...this.cloneTemplate(".validation-" + validationState));
+        }
+    }
+
+    findTableCell(column: number, row: number): HTMLTableCellElement | null {
+        return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
+    }
+
+    readValue(column: number, row: number): string | null {
+        return this.findTableCell(column, row)?.querySelector("input")?.value ?? null;
     }
 
     retrieveRowNumber(rowId: string): number | null {
@@ -688,6 +650,65 @@ export class SheetRenderer {
 
     retrieveRowId(row: number): string | null {
         return this.body.children[row]?.getAttribute("data-row-id") ?? null;
+    }
+
+    // Re-renders a cell with, potentially, a new value. value == undefined can be used when re-rendering is desired.
+    // This is useful for static cells which might need to re-evaluate the contents of the cell.
+    writeValue(column: number, row: number, value: string | undefined) {
+        if (column < 0) throw "column is negative";
+        if (row < 0) throw "row is negative";
+        if (column >= this.cells.length) throw "column is out-of-bounds";
+        if (row >= this.rows) throw "row is out-of-bounds";
+
+        const cell = this.cells[column];
+        const element = this.findTableCell(column, row)!;
+        SheetRenderer.removeChildren(element);
+        this.renderCell(cell, element, row, column, value);
+        if (value !== undefined) SheetRenderer.writeOriginalValue(element, value);
+    }
+
+    private static writeOriginalValue(element: HTMLTableCellElement, value: string | null) {
+        if (value) {
+            element.setAttribute("data-original-value", value);
+        } else {
+            element.removeAttribute("data-original-value");
+        }
+    }
+
+    private runRowUpdateHandler(row: number) {
+        const cols = this.cells.length;
+        let dirty = false;
+        const rowId = this.body.rows.item(row)?.getAttribute("data-row-id");
+        if (!rowId) return;
+
+        const values: (string | null)[] = [];
+        for (let col = 0; col < cols; col++) {
+            const cell = this.findTableCell(col, row);
+            if (!cell) return;
+
+            const originalValue = cell.getAttribute("data-original-value") ?? null;
+            const currentValue = this.readValue(col, row);
+            values.push(currentValue);
+            if (originalValue !== currentValue) {
+                if (!(currentValue === "" && originalValue === null)) {
+                    dirty = true;
+                    SheetRenderer.writeOriginalValue(cell, currentValue);
+                }
+            }
+        }
+
+        if (dirty) {
+            this.onRowUpdated(rowId, row, values);
+        }
+    }
+
+    clear() {
+        this.rows = 0;
+        this.dropdownEntry = -1;
+        this.dropdownCell = null;
+        this.dropdownCoordinates = null;
+        this.dropdownOpen = false;
+        SheetRenderer.removeChildren(this.body);
     }
 
     addRow(rowId: string, index?: number) {
@@ -761,7 +782,7 @@ export class SheetRenderer {
             return self.retrieveRowNumber(rowId);
         }
 
-        element.onclick = (ev) => {
+        element.onclick = () => {
             const row = findRowNumber();
             if (row === null) return;
             this.cellStartX = this.cellEndX = column;
@@ -785,7 +806,7 @@ export class SheetRenderer {
                         ev.preventDefault();
                         input.blur();
                     };
-                    input.ondblclick = (ev) => input.focus();
+                    input.ondblclick = () => input.focus();
                 }
                 element.appendChild(input);
                 break;
@@ -842,7 +863,7 @@ export class SheetRenderer {
                     ev.preventDefault();
                     input.blur();
                 };
-                input.ondblclick = (ev) => input.focus();
+                input.ondblclick = () => input.focus();
 
                 input.oninput = (ev) => {
                     const row = findRowNumber();
@@ -899,7 +920,7 @@ export class SheetRenderer {
             for (const opt of options) {
                 const optElement = this.renderDropdownRow(container, opt);
                 const thisIdx = optIdx;
-                optElement.addEventListener("click", ev => {
+                optElement.addEventListener("click", () => {
                     this.dropdownEntry = thisIdx;
                     this.dropdownConfirmChoice();
                 });
@@ -929,7 +950,10 @@ export class SheetRenderer {
 
     private renderDropdownTrigger(parent: HTMLElement, icon: IconName) {
         parent.append(...this.cloneTemplate(".icon-" + icon));
-        parent.append(...this.cloneTemplate(".icon-chevronDown"));
+
+        const chevron = this.cloneTemplate(".icon-chevronDown")[0] as HTMLElement;
+        chevron.style.height = "10px";
+        parent.appendChild(chevron);
     }
 
     private dropdownConfirmChoice() {
@@ -988,15 +1012,6 @@ export class SheetRenderer {
         const iconTemplate = this.templates.querySelector<HTMLDivElement>(template);
         if (!iconTemplate) throw "Unknown template: " + template;
         return [...(iconTemplate.cloneNode(true)["children"])];
-    }
-
-    unmount() {
-        document.body.removeEventListener("keydown", this.keyHandler);
-        document.body.removeEventListener("click", this.clickHandler);
-        this.body.remove();
-        const node = document.createElement("tbody");
-        this.table.appendChild(node);
-        this.body = node;
     }
 
     private attachTooltip(anchor: HTMLElement, content: HTMLElement) {

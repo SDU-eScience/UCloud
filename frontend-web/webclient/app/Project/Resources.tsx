@@ -47,7 +47,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
     browseWallets,
-    ChargeType, deposit,
+    ChargeType, deposit, DepositToWalletRequestItem,
     explainAllocation,
     normalizeBalanceForBackend,
     normalizeBalanceForFrontend,
@@ -58,7 +58,7 @@ import {
     productTypeToTitle,
     retrieveBreakdown, retrieveRecipient,
     retrieveUsage, transfer, TransferRecipient,
-    updateAllocation, UsageChart,
+    updateAllocation, UpdateAllocationRequestItem, UsageChart,
     usageExplainer,
     Wallet,
     WalletAllocation,
@@ -677,7 +677,7 @@ function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
     return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
 }
 
-function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
+function searchSubAllocations(request: { query: string } & PaginationRequestV2): APICallParameters {
     return apiSearch(request, "/api/accounting/wallets", "subAllocation");
 }
 
@@ -724,43 +724,60 @@ function writeAllocations(
 ) {
     let row = 0;
     s.clear();
+
+    for (const key of Object.keys(dirtyRowStorage)) {
+        s.addRow(key);
+        const draftCopy = dirtyRowStorage[key];
+        writeRow(s, draftCopy, row);
+        s.writeValue(8, row, undefined);
+        row++;
+    }
+
     allocations.forEach(alloc => {
         const draftCopy = dirtyRowStorage[alloc.id];
         if (draftCopy !== "deleted") {
+            if (draftCopy) return;
             s.addRow(alloc.id);
-            if (draftCopy) {
-                writeRow(s, draftCopy, row);
-                s.writeValue(8, row, undefined);
-            } else {
-                s.writeValue(0, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
-                s.writeValue(1, row, alloc.workspaceTitle);
-                s.writeValue(2, row, alloc.productType);
-                s.writeValue(3, row, alloc.productCategoryId.name + " @ " + alloc.productCategoryId.provider);
-                s.writeValue(4, row, formatTimestampForInput(alloc.startDate));
-                if (alloc.endDate) s.writeValue(5, row, formatTimestampForInput(alloc.endDate));
-                s.writeValue(6, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType, alloc.chargeType,
-                    alloc.unit, false, 0).replace('.', '').toString());
-                s.writeValue(8, row, undefined);
-            }
+
+            s.writeValue(0, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
+            s.writeValue(1, row, alloc.workspaceTitle);
+            s.writeValue(2, row, alloc.productType);
+            s.writeValue(3, row, alloc.productCategoryId.name + " @ " + alloc.productCategoryId.provider);
+            s.writeValue(4, row, formatTimestampForInput(alloc.startDate));
+            if (alloc.endDate) s.writeValue(5, row, formatTimestampForInput(alloc.endDate));
+            s.writeValue(6, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType, alloc.chargeType,
+                alloc.unit, false, 0).replace('.', '').toString());
+            s.writeValue(8, row, undefined);
 
             row++;
         }
     });
 
-    for (const key of Object.keys(dirtyRowStorage)) {
-        if (key.indexOf(unsavedPrefix) === 0) {
-            s.addRow(key);
-            const draftCopy = dirtyRowStorage[key];
-            writeRow(s, draftCopy, row);
-            s.writeValue(8, row, undefined);
-            row++;
-        }
-    }
-
     s.addRow(`${unsavedPrefix}-${sessionId}-${unsavedRowIds.current++}`);
     s.writeValue(0, row, "PROJECT");
     s.writeValue(2, row, "STORAGE");
     s.writeValue(8, row, undefined);
+}
+
+function parseDateFromInput(value: string): number | null {
+    const splitValue = value.split("-");
+    if (splitValue.length != 3) return null;
+    const year = parseInt(splitValue[0], 10);
+    const month = parseInt(splitValue[1], 10);
+    const date = parseInt(splitValue[2], 10);
+
+    // NOTE(Dan): Time-travel to the past is not supported by this application.
+    if (year < 2020) return null;
+    // NOTE(Dan): I am assuming that someone will rewrite this code before this date is relevant.
+    if (year >= 2100) return null;
+
+    if (month < 1 || month > 12) return null;
+
+    // NOTE(Dan): Only doing some basic validation. The browser should not allow these values. The backend will reject
+    // invalid values also.
+    if (date < 1 || date > 31) return null;
+
+    return new Date(year, month, date).getTime();
 }
 
 const SubAllocationViewer: React.FunctionComponent<{
@@ -772,16 +789,18 @@ const SubAllocationViewer: React.FunctionComponent<{
     filterByAllocation: (allocationId: string) => void;
     filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
 }> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace, wallets, onQuery}) => {
+    const originalRows = useRef<Record<string, SubAllocation>>({});
+    const projectLookupTable = useRef<Record<string, { rows: SubAllocation[]; projectId: string }[]>>({});
     const sessionId = useMemo(() => Math.ceil(Math.random() * 1000000000), []);
     const unsavedRowIds = useRef(0);
-    const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef(
-        localStorage.getItem(subAllocationsDirtyKey) != null ?
-            JSON.parse(localStorage.getItem(subAllocationsDirtyKey)!) :
-            {}
-    );
-    const [dirtyRows, setDirtyRows] = useState<string[]>(() => {
-        return Object.keys(dirtyRowStorageRef.current);
-    });
+    const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef({});
+    const [dirtyRows, setDirtyRows] = useState<string[]>([]);
+
+    useEffect(() => {
+        const dirty = localStorage.getItem(subAllocationsDirtyKey);
+        if (dirty != null) dirtyRowStorageRef.current = JSON.parse(dirty);
+        setDirtyRows(Object.keys(dirtyRowStorageRef.current));
+    }, []);
 
     // NOTE(Dan): Sheets are not powered by React, as a result, we must wrap the wallets such that we can pass it
     // down into the cells.
@@ -789,6 +808,33 @@ const SubAllocationViewer: React.FunctionComponent<{
     useEffect(() => {
         walletHolder.current = wallets;
     }, [wallets]);
+
+    useEffect(() => {
+        const table = projectLookupTable.current;
+        const original = originalRows.current;
+        for (const alloc of allocations.data.items) {
+            original[alloc.id] = alloc;
+
+            if (!alloc.workspaceIsProject) continue;
+            const existing = table[alloc.workspaceTitle];
+            if (existing === undefined) {
+                table[alloc.workspaceTitle] = [{rows: [alloc], projectId: alloc.workspaceId}];
+            } else {
+                let found = false;
+                for (const entry of existing) {
+                    if (entry.projectId === alloc.workspaceId) {
+                        entry.rows.push(alloc);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    existing.push({rows: [alloc], projectId: alloc.workspaceId});
+                }
+            }
+        }
+    }, [allocations]);
 
     const sheet = useRef<SheetRenderer>(null);
 
@@ -886,6 +932,138 @@ const SubAllocationViewer: React.FunctionComponent<{
         writeAllocations(sheet.current!, allocations.data.items, {}, sessionId, unsavedRowIds);
     }, [allocations.data.items]);
 
+    const save = useCallback(() => {
+        const dirtyRows = dirtyRowStorageRef.current;
+        const lookup = projectLookupTable.current;
+
+        const newRows: Partial<DepositToWalletRequestItem>[] = [];
+        const updatedRows: Partial<UpdateAllocationRequestItem>[] = [];
+        const deletedRows: Partial<UpdateAllocationRequestItem>[] = [];
+        const unknownProjects: string[] = [];
+
+        const original = originalRows.current;
+        const s = sheet.current;
+        if (s === null) return;
+
+        const nowTs = timestampUnixMs();
+        for (const rowId of Object.keys(dirtyRows)) {
+            const row = dirtyRows[rowId];
+            const originalRow = original[rowId];
+
+            console.log("Looking at", rowId, row, originalRow);
+
+            if (row === "deleted") {
+                deletedRows.push({
+                    id: rowId,
+                    endDate: nowTs,
+                    reason: "Allocation deleted by grant giver",
+                    startDate: originalRow?.startDate ?? nowTs,
+                    balance: originalRow?.remaining ?? 0
+                });
+            } else {
+                // Basic row validation
+                const rowNumber = s.retrieveRowNumber(rowId);
+                if (rowNumber == null) continue;
+
+                let valid = true;
+
+                const newAmount = row[6] == null ? NaN : parseInt(row[6]);
+                const newAmountValid = !isNaN(newAmount) && newAmount >= 0;
+                s.registerValidation(6, rowNumber, !newAmountValid ? "invalid" : undefined);
+                valid = valid && newAmountValid;
+
+                const startDate = row[4] == null ? null : parseDateFromInput(row[4]);
+                const endDate = row[5] == null ? null : parseDateFromInput(row[5]);
+                const startDateValid = startDate != null;
+                const endDateValid = row[5] === "" || row[5] === null || endDate != null;
+                s.registerValidation(4, rowNumber, !startDateValid ? "invalid" : undefined);
+                s.registerValidation(5, rowNumber, !endDateValid ? "invalid" : undefined);
+                valid = valid && startDateValid && endDateValid;
+
+                const isProject = row[0] === "PROJECT";
+                const recipient = row[1];
+                const recipientIsValid = recipient != null && recipient.length > 0;
+                s.registerValidation(1, rowNumber, !recipientIsValid ? "invalid" : undefined);
+                valid = valid && recipientIsValid;
+
+                let resolvedRecipient: string | null = null;
+                if (isProject && recipient != null) {
+                    if (originalRow?.workspaceTitle === recipient) {
+                        resolvedRecipient = originalRow.workspaceId;
+                    } else {
+                        const entries = projectLookupTable.current[recipient];
+                        if (entries === undefined || entries.length === 0) {
+                            // TODO We need to track that we have already attempted to load this entry
+                            s.registerValidation(1, rowNumber, "loading");
+                            unknownProjects.push(recipient);
+                        } else if (entries.length === 1) {
+                            resolvedRecipient = entries[0].projectId;
+                        } else {
+                            // NOTE(Dan): In this case, we have a conflict. The user needs to specify the full path to
+                            // resolve this conflict.
+
+                            // TODO Communicate this through a tooltip
+                            s.registerValidation(1, rowNumber, "warning");
+                        }
+                    }
+                } else if (!isProject) {
+                    resolvedRecipient = recipient;
+                }
+                valid = valid && resolvedRecipient != null;
+
+                if (!valid) continue;
+
+                const isNewRow = rowId.indexOf(unsavedPrefix) === 0;
+                if (isNewRow) {
+                    newRows.push({
+                        recipient: (isProject ?
+                                {type: "project", projectId: resolvedRecipient!} :
+                                {type: "user", username: resolvedRecipient!}
+                        ),
+                        startDate: startDate!,
+                        endDate: endDate ?? undefined,
+                        description: "Allocation created manually by grant giver",
+                        amount: newAmount! // TODO Normalize!
+                    });
+                } else {
+                    const entityDidChange = isProject != originalRow.workspaceIsProject ||
+                        resolvedRecipient != originalRow.workspaceId;
+
+                    if (entityDidChange) {
+                        deletedRows.push({
+                            id: rowId,
+                            endDate: nowTs,
+                            reason: "Allocation deleted by grant giver",
+                            startDate: originalRow?.startDate ?? nowTs,
+                            balance: originalRow?.remaining ?? 0
+                        });
+
+                        newRows.push({
+                            recipient: (isProject ?
+                                    {type: "project", projectId: resolvedRecipient!} :
+                                    {type: "user", username: resolvedRecipient!}
+                            ),
+                            startDate: startDate!,
+                            endDate: endDate ?? undefined,
+                            description: "Allocation created manually by grant giver",
+                            amount: newAmount! // TODO Normalize!
+                        });
+                    } else {
+                        updatedRows.push({
+                            id: originalRow.id,
+                            startDate: startDate!,
+                            endDate: endDate ?? undefined,
+                            balance: newAmount!, // TODO Normalize!
+                            reason: "Allocation updated by grant giver"
+                        });
+                    }
+                }
+            }
+        }
+
+        console.log(dirtyRows, projectLookupTable);
+    }, []);
+
     const onSearchInput = useCallback((ev: React.KeyboardEvent) => {
         if (ev.code === "Enter" || ev.code === "NumpadEnter") {
             const target = ev.target as HTMLInputElement;
@@ -951,7 +1129,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                             </Text>
                         </UITooltip>
                     </Flex>
-                    <ConfirmCancelButtons onConfirm={doNothing} onCancel={discard} confirmText={"Save"}
+                    <ConfirmCancelButtons onConfirm={save} onCancel={discard} confirmText={"Save"}
                                           cancelText={"Discard"}/>
                 </>
             }
