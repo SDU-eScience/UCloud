@@ -41,6 +41,7 @@ export interface ClickableDropdownProps<T> {
     // click).
     closeFnRef?: React.MutableRefObject<() => void>;
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    onKeyDown?: (ev: KeyboardEvent) => void;
 }
 
 type ClickableDropdownType = <T>(props: PropsWithChildren<ClickableDropdownProps<T>>, context?: any) =>
@@ -112,9 +113,11 @@ const ClickableDropdown: ClickableDropdownType =
             }
         }, [props.keepOpenOnOutsideClick, open]);
 
-        const handleEscPress = useCallback((event: { keyCode: KeyCode }): void => {
+        const handleEscPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
             if (event.keyCode === KeyCode.ESC && open) {
                 close();
+            } else {
+                props.onKeyDown?.(event);
             }
         }, [open]);
 
@@ -166,7 +169,7 @@ const ClickableDropdown: ClickableDropdownType =
             overflow={"visible"}
             squareTop={props.squareTop}
             cursor="pointer"
-            {...props}
+            {...(props as any)}
             top={top}
             left={left}
             fixed={props.useMousePositioning}

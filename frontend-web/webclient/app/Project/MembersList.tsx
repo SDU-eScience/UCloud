@@ -142,7 +142,7 @@ export function MembersList(props: Readonly<{
                                 <Icon
                                     color="white"
                                     name="arrowDown"
-                                    rotation={270}
+                                    rotation={-90}
                                     width="1em"
                                     title="Add to group"
                                 />

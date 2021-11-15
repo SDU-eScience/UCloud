@@ -31,7 +31,7 @@ export const Playground: React.FunctionComponent = () => {
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
-    return <MainContainer main={main} />;
+    return <MainContainer main={main}/>;
 };
 
 const colors = [
