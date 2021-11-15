@@ -55,7 +55,7 @@ class SyncFolderService(
                 setParameter("parentIds", batch.items.map { "/${it.resource.id}/%" })
             },
             """
-                select * 
+                select f.resource, f.path
                 from
                     provider.resource r join 
                     file_orchestrator.sync_folders f on f.resource = r.id join 
