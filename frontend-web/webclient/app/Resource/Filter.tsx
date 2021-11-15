@@ -256,6 +256,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         return <>
             <div onClick={() => setOpen(o => !o)}>{trigger}</div>
             {open ? props.dropdownContent : null}
+            {!props.expanded ? null : props.children}
         </>;
     }
 
@@ -347,7 +348,7 @@ export const DateRangePill: React.FunctionComponent<{
     </>;
 };
 
-const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onClick?: () => void}> = props => {
+const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onClick?: () => void;}> = props => {
     return <ListRow
         select={props.onClick}
         fontSize={"16px"}
