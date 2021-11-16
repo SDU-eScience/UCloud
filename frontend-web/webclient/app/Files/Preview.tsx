@@ -78,9 +78,9 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
         case "code":
             /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
             if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
-                node = <div><pre className="fullscreen">{data}</pre></div>
+                node = <FullWidth><pre className="fullscreen">{data}</pre></FullWidth>
             } else {
-                node = <div><SyntaxHighlighter className="fullscreen">{data}</SyntaxHighlighter></div>;
+                node = <FullWidth><SyntaxHighlighter className="fullscreen">{data}</SyntaxHighlighter></FullWidth>;
             }
             break;
         case "image":
@@ -110,14 +110,18 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
     return <ItemWrapper>{node}</ItemWrapper>;
 }
 
+const FullWidth = styled.div`
+    width: 100%;
+`;
+
 const ItemWrapper = styled.div`
     display: flex;
     justify-content: center;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
 
     & > * {
       max-width: 100%;
-      max-height: calc(100vh - 200px);
+      max-height: calc(100vh - 300px);
       overflow-y: scroll;
     }
 `;

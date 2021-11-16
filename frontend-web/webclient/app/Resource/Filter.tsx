@@ -240,7 +240,6 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     facedownChevron?: boolean;
     browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
-
     const [open, setOpen] = useState(false);
 
     const trigger = (
@@ -552,7 +551,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
                     <ListRow
                         key={opt.value}
                         icon={!opt.icon ? null :
-                            <Icon name={opt.icon} color={"iconColor"} color2={"iconColor2"} size={"16px"} ml={"16px"} />
+                            <Icon name={opt.icon} color={"iconColor"} color2={"iconColor2"} size={"16px"} />
                         }
                         left={opt.title}
                         leftSub={opt.helpText ? <ListRowStat>{opt.helpText}</ListRowStat> : null}
