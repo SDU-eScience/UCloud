@@ -210,6 +210,7 @@ typealias PushWalletChangeResponse = Unit
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
 data class SubAllocation(
     val id: String,
+    val path: String,
     val startDate: Long,
     val endDate: Long?,
 
@@ -449,7 +450,8 @@ data class DepositToWalletRequestItem(
     )
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
-    var transactionId: String = Random.nextLong().toString() + Time.now()
+    var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val dry: Boolean = false,
 )
 
 typealias DepositToWalletResponse = Unit
@@ -484,7 +486,8 @@ data class TransferToWalletRequestItem(
     )
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
-    var transactionId: String = Random.nextLong().toString() + Time.now()
+    var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val dry: Boolean = false,
 )
 
 typealias TransferToWalletResponse = Unit

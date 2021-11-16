@@ -34,7 +34,7 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import ProductCategoryId = accounting.ProductCategoryId;
 import {formatDistance} from "date-fns";
-import {apiBrowse, APICallState, apiSearch, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiBrowse, APICallState, apiSearch, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Operation, Operations, useOperationOpener} from "@/ui-components/Operation";
@@ -70,13 +70,14 @@ import {
     Cell as SheetCell,
     DropdownCell,
     FuzzyCell,
-    Sheet,
+    Sheet, SheetDropdownOption,
     SheetRenderer,
     StaticCell,
     TextCell
 } from "@/ui-components/Sheet";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmCancelButtons} from "@/UtilityComponents";
+import {IconName} from "@/ui-components/Icon";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -291,7 +292,7 @@ const AllocationViewer: React.FunctionComponent<{
                   size={"54px"} mr={"16px"}/>
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
                 <Flex alignItems={"center"} mr={"-16px"}>
-                    <div><b>{wallet.paysFor.name} / {wallet.paysFor.provider}</b></div>
+                    <div><b>[{allocation.id}] {wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
                     <Box flexGrow={1}/>
                     <Operations
                         openFnRef={opRef}
@@ -487,26 +488,10 @@ const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number |
 };
 
 const VisualizationSection = styled.div`
-  --gutter: 16px;
-
   display: grid;
   grid-gap: 16px;
-  padding: 10px;
-
-  &.large {
-    grid-auto-columns: 400px;
-    grid-template-rows: minmax(100px, 1fr) minmax(100px, 1fr);
-    grid-auto-flow: column;
-  }
-
-  &.slim {
-    grid-template-columns: repeat(auto-fit, 400px);
-  }
-
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  padding-bottom: calc(.75 * var(--gutter));
-  margin-bottom: calc(-.25 * var(--gutter));
+  padding: 10px 0;
+  grid-template-columns: repeat(auto-fill, 400px);
 `;
 
 const UsageChartStyle = styled.div`
@@ -658,6 +643,7 @@ const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => 
 
 interface SubAllocation {
     id: string;
+    path: string;
     startDate: number;
     endDate?: number | null;
 
@@ -710,9 +696,21 @@ function writeRow(s: SheetRenderer, row: RowOrDeleted, rowNumber: number) {
     if (row !== "deleted") {
         let col = 0;
         for (const value of row) {
-            if (value != null) s.writeValue(col++, rowNumber, value);
+            s.writeValue(col++, rowNumber, value ?? undefined);
         }
     }
+}
+
+function titleForSubAllocation(alloc: SubAllocation): string {
+    return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider);
+}
+
+function titleForWallet(wallet: Wallet): string {
+    return rawAllocationTitleInRow(wallet.paysFor.name, wallet.paysFor.provider);
+}
+
+function rawAllocationTitleInRow(category: string, provider: string) {
+    return `${category} @ ${provider}`;
 }
 
 function writeAllocations(
@@ -729,7 +727,7 @@ function writeAllocations(
         s.addRow(key);
         const draftCopy = dirtyRowStorage[key];
         writeRow(s, draftCopy, row);
-        s.writeValue(8, row, undefined);
+        s.writeValue(colStatus, row, undefined);
         row++;
     }
 
@@ -738,25 +736,30 @@ function writeAllocations(
         if (draftCopy !== "deleted") {
             if (draftCopy) return;
             s.addRow(alloc.id);
+            alloc.path
 
-            s.writeValue(0, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
-            s.writeValue(1, row, alloc.workspaceTitle);
-            s.writeValue(2, row, alloc.productType);
-            s.writeValue(3, row, alloc.productCategoryId.name + " @ " + alloc.productCategoryId.provider);
-            s.writeValue(4, row, formatTimestampForInput(alloc.startDate));
-            if (alloc.endDate) s.writeValue(5, row, formatTimestampForInput(alloc.endDate));
-            s.writeValue(6, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType, alloc.chargeType,
-                alloc.unit, false, 0).replace('.', '').toString());
-            s.writeValue(8, row, undefined);
+            s.writeValue(colRecipientType, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
+            s.writeValue(colRecipient, row, alloc.workspaceTitle);
+            s.writeValue(colProductType, row, alloc.productType);
+            s.writeValue(colProduct, row, titleForSubAllocation(alloc));
+            {
+                let path = alloc.path.split(".");
+                s.writeValue(colAllocation, row, path[path.length - 2]);
+            }
+            s.writeValue(colStartDate, row, formatTimestampForInput(alloc.startDate));
+            if (alloc.endDate) s.writeValue(colEndDate, row, formatTimestampForInput(alloc.endDate));
+            s.writeValue(colAmount, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType,
+                alloc.chargeType, alloc.unit, false, 0).replace('.', '').toString());
+            s.writeValue(colStatus, row, undefined);
 
             row++;
         }
     });
 
     s.addRow(`${unsavedPrefix}-${sessionId}-${unsavedRowIds.current++}`);
-    s.writeValue(0, row, "PROJECT");
-    s.writeValue(2, row, "STORAGE");
-    s.writeValue(8, row, undefined);
+    s.writeValue(colRecipientType, row, "PROJECT");
+    s.writeValue(colProductType, row, "STORAGE");
+    s.writeValue(colStatus, row, undefined);
 }
 
 function parseDateFromInput(value: string): number | null {
@@ -780,6 +783,17 @@ function parseDateFromInput(value: string): number | null {
     return new Date(year, month, date).getTime();
 }
 
+const colRecipientType: 0 = 0 as const;
+const colRecipient: 1 = 1 as const;
+const colProductType : 2= 2 as const;
+const colProduct: 3 = 3 as const;
+const colAllocation: 4 = 4 as const;
+const colStartDate: 5 = 5 as const;
+const colEndDate: 6 = 6 as const;
+const colAmount: 7 = 7 as const;
+const colUnit: 8 = 8 as const;
+const colStatus: 9 = 9 as const;
+
 const SubAllocationViewer: React.FunctionComponent<{
     wallets: APICallState<PageV2<Wallet>>;
     allocations: APICallState<PageV2<SubAllocation>>;
@@ -795,6 +809,8 @@ const SubAllocationViewer: React.FunctionComponent<{
     const unsavedRowIds = useRef(0);
     const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef({});
     const [dirtyRows, setDirtyRows] = useState<string[]>([]);
+    const [isSaveQueued, setSaveQueued] = useState<number | null>(null);
+    const loadedRecipients = useRef<Record<string, TransferRecipient | null>>({});
 
     useEffect(() => {
         const dirty = localStorage.getItem(subAllocationsDirtyKey);
@@ -839,7 +855,7 @@ const SubAllocationViewer: React.FunctionComponent<{
     const sheet = useRef<SheetRenderer>(null);
 
     const header: string[] = useMemo(() => (
-            ["", "Recipient", "", "Product", "Start Date", "End Date", "Amount", "", ""]),
+            ["", "Recipient", "", "Product", "Allocation", "Start Date", "End Date", "Amount", "", ""]),
         []
     );
 
@@ -862,7 +878,7 @@ const SubAllocationViewer: React.FunctionComponent<{
         ),
         FuzzyCell(
             (query, column, row) => {
-                const currentType = sheet.current!.readValue(2, row) as ProductType;
+                const currentType = sheet.current!.readValue(colProductType, row) as ProductType;
                 const lq = query.toLowerCase();
                 return walletHolder.current.data.items
                     .filter(it => {
@@ -870,9 +886,36 @@ const SubAllocationViewer: React.FunctionComponent<{
                     })
                     .map(it => ({
                         icon: productTypeToIcon(it.productType),
-                        title: it.paysFor.name + " @ " + it.paysFor.provider,
-                        value: it.paysFor.name + " @ " + it.paysFor.provider,
+                        title: titleForWallet(it),
+                        value: titleForWallet(it),
                     }));
+            }
+        ),
+        FuzzyCell(
+            (query, column, row) => {
+                const currentProduct = sheet.current!.readValue(colProduct, row) ?? "";
+                const entries: SheetDropdownOption[] = [];
+                for (const wallet of walletHolder.current.data.items) {
+                    let pcTitle = titleForWallet(wallet);
+                    const isRelevant = currentProduct === "" ||
+                        currentProduct === pcTitle;
+                    if (!isRelevant) continue;
+                    for (const alloc of wallet.allocations) {
+                        let allocTitle = `[${alloc.id}] ${pcTitle}`;
+                        if (allocTitle.indexOf(query) === -1) continue;
+
+                        entries.push({
+                            icon: productTypeToIcon(wallet.productType),
+                            title: allocTitle,
+                            value: alloc.id,
+                            helpText: normalizeBalanceForFrontend(alloc.balance, wallet.productType, wallet.chargeType,
+                                wallet.unit, false, 2) + " " +
+                                explainAllocation(wallet.productType,wallet.chargeType, wallet.unit)
+                        });
+                    }
+                }
+
+                return entries;
             }
         ),
         TextCell("Immediately", {fieldType: "date"}),
@@ -936,9 +979,9 @@ const SubAllocationViewer: React.FunctionComponent<{
         const dirtyRows = dirtyRowStorageRef.current;
         const lookup = projectLookupTable.current;
 
-        const newRows: Partial<DepositToWalletRequestItem>[] = [];
-        const updatedRows: Partial<UpdateAllocationRequestItem>[] = [];
-        const deletedRows: Partial<UpdateAllocationRequestItem>[] = [];
+        const newRows: { update: DepositToWalletRequestItem, rowId: string }[] = [];
+        const updatedRows: { update: UpdateAllocationRequestItem, rowId: string }[] = [];
+        const deletedRows: { update: UpdateAllocationRequestItem, rowId: string }[] = [];
         const unknownProjects: string[] = [];
 
         const original = originalRows.current;
@@ -946,19 +989,22 @@ const SubAllocationViewer: React.FunctionComponent<{
         if (s === null) return;
 
         const nowTs = timestampUnixMs();
-        for (const rowId of Object.keys(dirtyRows)) {
+        const stableKeys = Object.keys(dirtyRows);
+        let allValid = true;
+        for (const rowId of stableKeys) {
             const row = dirtyRows[rowId];
             const originalRow = original[rowId];
 
-            console.log("Looking at", rowId, row, originalRow);
-
             if (row === "deleted") {
                 deletedRows.push({
-                    id: rowId,
-                    endDate: nowTs,
-                    reason: "Allocation deleted by grant giver",
-                    startDate: originalRow?.startDate ?? nowTs,
-                    balance: originalRow?.remaining ?? 0
+                    rowId,
+                    update: {
+                        id: rowId,
+                        endDate: nowTs,
+                        reason: "Allocation deleted by grant giver",
+                        startDate: originalRow?.startDate ?? nowTs,
+                        balance: originalRow?.remaining ?? 0
+                    }
                 });
             } else {
                 // Basic row validation
@@ -967,24 +1013,38 @@ const SubAllocationViewer: React.FunctionComponent<{
 
                 let valid = true;
 
-                const newAmount = row[6] == null ? NaN : parseInt(row[6]);
+                const newAmount = row[colAmount] == null ? NaN : parseInt(row[colAmount]!);
                 const newAmountValid = !isNaN(newAmount) && newAmount >= 0;
-                s.registerValidation(6, rowNumber, !newAmountValid ? "invalid" : undefined);
+                s.registerValidation(colAmount, rowNumber, !newAmountValid ? "invalid" : undefined);
                 valid = valid && newAmountValid;
 
-                const startDate = row[4] == null ? null : parseDateFromInput(row[4]);
-                const endDate = row[5] == null ? null : parseDateFromInput(row[5]);
+                const startDate = row[colStartDate] == null ? null : parseDateFromInput(row[colStartDate]!);
+                const endDate = row[colEndDate] == null ? null : parseDateFromInput(row[colEndDate]!);
                 const startDateValid = startDate != null;
-                const endDateValid = row[5] === "" || row[5] === null || endDate != null;
-                s.registerValidation(4, rowNumber, !startDateValid ? "invalid" : undefined);
-                s.registerValidation(5, rowNumber, !endDateValid ? "invalid" : undefined);
+                const endDateValid = row[colEndDate] === "" || row[colEndDate] === null || endDate != null;
+                s.registerValidation(colStartDate, rowNumber, !startDateValid ? "invalid" : undefined);
+                s.registerValidation(colEndDate, rowNumber, !endDateValid ? "invalid" : undefined);
                 valid = valid && startDateValid && endDateValid;
 
-                const isProject = row[0] === "PROJECT";
-                const recipient = row[1];
+                const isProject = row[colRecipientType] === "PROJECT";
+                const recipient = row[colRecipient];
                 const recipientIsValid = recipient != null && recipient.length > 0;
-                s.registerValidation(1, rowNumber, !recipientIsValid ? "invalid" : undefined);
+                s.registerValidation(colRecipient, rowNumber, !recipientIsValid ? "invalid" : undefined);
                 valid = valid && recipientIsValid;
+
+                const productType = row[colProductType] as ProductType;
+                const product = row[colProduct];
+                const resolvedWallet = walletHolder.current.data.items.find(wallet => {
+                    return titleForWallet(wallet) === product && wallet.productType === productType
+                });
+                const productIsValid = resolvedWallet != null;
+                s.registerValidation(colProduct, rowNumber, !productIsValid ? "invalid" : undefined);
+                valid = valid && productIsValid;
+
+                const allocation = row[colAllocation];
+                const allocationIsValid = resolvedWallet?.allocations?.some(it => it.id === allocation) === true;
+                s.registerValidation(colAllocation, rowNumber, !allocationIsValid ? "invalid" : undefined);
+                valid = valid && allocationIsValid;
 
                 let resolvedRecipient: string | null = null;
                 if (isProject && recipient != null) {
@@ -993,9 +1053,18 @@ const SubAllocationViewer: React.FunctionComponent<{
                     } else {
                         const entries = projectLookupTable.current[recipient];
                         if (entries === undefined || entries.length === 0) {
-                            // TODO We need to track that we have already attempted to load this entry
-                            s.registerValidation(1, rowNumber, "loading");
-                            unknownProjects.push(recipient);
+                            const loaded = loadedRecipients.current[recipient];
+                            if (loaded !== undefined) {
+                                if (loaded === null || !loaded.isProject) {
+                                    s.registerValidation(colRecipient, rowNumber, "invalid");
+                                } else {
+                                    resolvedRecipient = loaded.id;
+                                    s.registerValidation(colRecipient, rowNumber, "valid");
+                                }
+                            } else {
+                                s.registerValidation(colRecipient, rowNumber, "loading");
+                                unknownProjects.push(recipient);
+                            }
                         } else if (entries.length === 1) {
                             resolvedRecipient = entries[0].projectId;
                         } else {
@@ -1003,7 +1072,7 @@ const SubAllocationViewer: React.FunctionComponent<{
                             // resolve this conflict.
 
                             // TODO Communicate this through a tooltip
-                            s.registerValidation(1, rowNumber, "warning");
+                            s.registerValidation(colRecipient, rowNumber, "warning");
                         }
                     }
                 } else if (!isProject) {
@@ -1011,58 +1080,151 @@ const SubAllocationViewer: React.FunctionComponent<{
                 }
                 valid = valid && resolvedRecipient != null;
 
-                if (!valid) continue;
+                async function lookupRecipients() {
+                    const promises: [string, Promise<TransferRecipient>][] = unknownProjects.map(p =>
+                        [p, callAPI<TransferRecipient>(retrieveRecipient({query: p}))]);
+                    for (const [p, promise] of promises) {
+                        try {
+                            const result = await promise;
+                            loadedRecipients.current[p] = result;
+                        } catch (e) {
+                            loadedRecipients.current[p] = null;
+                        }
+                    }
+                    setSaveQueued(q => (q ?? 0) + 1);
+                }
+
+                if (unknownProjects.length > 0) { // noinspection JSIgnoredPromiseFromCall
+                    lookupRecipients();
+                }
+
+                if (!valid) {
+                    allValid = false;
+                    continue;
+                }
+
+                const asDeletion: UpdateAllocationRequestItem = {
+                    id: rowId,
+                    endDate: nowTs,
+                    reason: "Allocation deleted by grant giver",
+                    startDate: originalRow?.startDate ?? nowTs,
+                    balance: originalRow?.remaining ?? 0
+                };
+
+                const asCreation: DepositToWalletRequestItem = {
+                    recipient: (isProject ?
+                            {type: "project", projectId: resolvedRecipient!} :
+                            {type: "user", username: resolvedRecipient!}
+                    ),
+                    startDate: startDate!,
+                    endDate: endDate ?? undefined,
+                    description: "Allocation created manually by grant giver",
+                    sourceAllocation: allocation!,
+                    amount: newAmount! // TODO Normalize!
+                };
+
+                const asUpdate: UpdateAllocationRequestItem = {
+                    id: originalRow?.id ?? "",
+                    startDate: startDate!,
+                    endDate: endDate ?? undefined,
+                    balance: newAmount!, // TODO Normalize!
+                    reason: "Allocation updated by grant giver"
+                };
 
                 const isNewRow = rowId.indexOf(unsavedPrefix) === 0;
                 if (isNewRow) {
-                    newRows.push({
-                        recipient: (isProject ?
-                                {type: "project", projectId: resolvedRecipient!} :
-                                {type: "user", username: resolvedRecipient!}
-                        ),
-                        startDate: startDate!,
-                        endDate: endDate ?? undefined,
-                        description: "Allocation created manually by grant giver",
-                        amount: newAmount! // TODO Normalize!
-                    });
+                    newRows.push({rowId, update: asCreation});
                 } else {
                     const entityDidChange = isProject != originalRow.workspaceIsProject ||
                         resolvedRecipient != originalRow.workspaceId;
 
-                    if (entityDidChange) {
-                        deletedRows.push({
-                            id: rowId,
-                            endDate: nowTs,
-                            reason: "Allocation deleted by grant giver",
-                            startDate: originalRow?.startDate ?? nowTs,
-                            balance: originalRow?.remaining ?? 0
-                        });
+                    const oldPath = originalRow.path.split(".");
+                    const oldAllocation = oldPath[oldPath.length - 2];
+                    const allocationDidChange = oldAllocation !== allocation;
 
-                        newRows.push({
-                            recipient: (isProject ?
-                                    {type: "project", projectId: resolvedRecipient!} :
-                                    {type: "user", username: resolvedRecipient!}
-                            ),
-                            startDate: startDate!,
-                            endDate: endDate ?? undefined,
-                            description: "Allocation created manually by grant giver",
-                            amount: newAmount! // TODO Normalize!
-                        });
+                    if (entityDidChange || allocationDidChange) {
+                        deletedRows.push({rowId, update: asDeletion});
+                        newRows.push({rowId, update: asCreation});
                     } else {
-                        updatedRows.push({
-                            id: originalRow.id,
-                            startDate: startDate!,
-                            endDate: endDate ?? undefined,
-                            balance: newAmount!, // TODO Normalize!
-                            reason: "Allocation updated by grant giver"
-                        });
+                        updatedRows.push({rowId, update: asUpdate});
                     }
                 }
             }
         }
 
-        console.log(dirtyRows, projectLookupTable);
+        if (!allValid) return;
+
+        async function attemptSave(startIdx: number, endIdx: number, dry: boolean): Promise<string | null> {
+            const update: UpdateAllocationRequestItem[] = [];
+            const create: DepositToWalletRequestItem[] = [];
+
+            for (let i = startIdx; i < endIdx; i++) {
+                const rowId = stableKeys[i];
+                for (const r of updatedRows) {
+                    r.update.dry = dry;
+                    if (r.rowId === rowId) update.push(r.update);
+                }
+                for (const r of deletedRows) {
+                    r.update.dry = dry;
+                    if (r.rowId === rowId) update.push(r.update);
+                }
+                for (const r of newRows) {
+                    r.update.dry = dry;
+                    if (r.rowId === rowId) create.push(r.update);
+                }
+            }
+
+            const createResult: Promise<any> = create.length > 0 ? callAPI(deposit(bulkRequestOf(...create))) : Promise.resolve();
+            const updateResult: Promise<any> = update.length > 0 ? callAPI(updateAllocation(bulkRequestOf(...update))) : Promise.resolve();
+
+            try {
+                await createResult;
+            } catch (e) {
+                return e.response?.why ?? "Update failed";
+            }
+
+            try {
+                await updateResult;
+            } catch (e) {
+                return e.response?.why ?? "Update failed";
+            }
+
+            return null;
+        }
+
+        async function saveOrFail() {
+            const rootErrorMessage = await attemptSave(0, stableKeys.length, true);
+            if (rootErrorMessage == null) {
+                await attemptSave(0, stableKeys.length, false);
+                discard();
+                // TODO refresh
+            } else {
+                const batchSize = Math.ceil(Math.max(1, stableKeys.length / 10));
+                if (batchSize > 0) {
+                    const errors: Promise<string | null>[] = [];
+                    for (let i = 0; i < stableKeys.length; i += batchSize) {
+                        errors.push(
+                            attemptSave(
+                                i,
+                                Math.min(stableKeys.length, i + batchSize),
+                                true
+                            )
+                        );
+                    }
+                    console.log("errors", await Promise.all(errors));
+                }
+            }
+        }
+
+        if (updatedRows.length > 0 || deletedRows.length > 0 || newRows.length > 0) {
+            // noinspection JSIgnoredPromiseFromCall
+            saveOrFail();
+        }
     }, []);
+
+    useEffect(() => {
+        if (isSaveQueued != null) save();
+    }, [isSaveQueued, save]);
 
     const onSearchInput = useCallback((ev: React.KeyboardEvent) => {
         if (ev.code === "Enter" || ev.code === "NumpadEnter") {
@@ -1165,7 +1327,7 @@ const SubAllocationViewer: React.FunctionComponent<{
 
                 setDirtyRows(rows => {
                     if (rows.indexOf(rowId) !== -1) return rows;
-                    s.writeValue(8, row, undefined);
+                    s.writeValue(colStatus, row, undefined);
                     return [...rows, rowId];
                 });
             }}

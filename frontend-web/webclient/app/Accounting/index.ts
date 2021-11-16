@@ -79,7 +79,8 @@ export interface DepositToWalletRequestItem {
     amount: number;
     description: string;
     startDate: number;
-    endDate: number;
+    endDate?: number;
+    dry?: boolean;
 }
 
 export interface TransferToWalletRequestItem {
@@ -97,6 +98,7 @@ export interface UpdateAllocationRequestItem {
     startDate: number;
     endDate?: number | null;
     reason: string;
+    dry?: boolean;
 }
 
 export function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {

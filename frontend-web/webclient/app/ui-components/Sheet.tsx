@@ -42,7 +42,7 @@ export function StaticCell(
     };
 }
 
-interface DropdownOption {
+export interface SheetDropdownOption {
     value: string;
     icon: IconName;
     title: string;
@@ -51,10 +51,10 @@ interface DropdownOption {
 
 interface DropdownCell extends CellBase {
     type: "dropdown";
-    options: DropdownOption[]
+    options: SheetDropdownOption[]
 }
 
-export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownCell>): DropdownCell {
+export function DropdownCell(options: SheetDropdownOption[], opts?: Partial<DropdownCell>): DropdownCell {
     return {
         type: "dropdown",
         options,
@@ -101,11 +101,11 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
 interface FuzzyCell extends CellBase {
     type: "fuzzy";
     placeholder?: string;
-    suggestions: (query: string, column: number, row: number) => DropdownOption[];
+    suggestions: (query: string, column: number, row: number) => SheetDropdownOption[];
 }
 
 export function FuzzyCell(
-    suggestions: (query: string, column: number, row: number) => DropdownOption[],
+    suggestions: (query: string, column: number, row: number) => SheetDropdownOption[],
     placeholder?: string,
     opts?: Partial<FuzzyCell>
 ): FuzzyCell {
@@ -382,7 +382,7 @@ export class SheetRenderer {
     // Dropdown state
     private dropdownCoordinates: CellCoordinates | null = null;
     private dropdownOpen = false;
-    private dropdownCell: DropdownOption[] | null = null;
+    private dropdownCell: SheetDropdownOption[] | null = null;
     private dropdownEntry = 0;
 
     // Clipboard state
@@ -544,7 +544,8 @@ export class SheetRenderer {
                         }
                     } else if (!hasInput) {
                         if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape" ||
-                            ev.code === "ControlLeft" || ev.code === "ControlRight") return;
+                            ev.code === "ControlLeft" || ev.code === "ControlRight" || ev.code === "MetaLeft" ||
+                            ev.code === "MetaRight") return;
 
                         // NOTE(Dan): This should activate the current cell, if any
                         if (!hasAnyField) return;
@@ -903,7 +904,7 @@ export class SheetRenderer {
         }
     }
 
-    private renderDropdownMenu(anchor: Element, options: DropdownOption[], column: number, row: number) {
+    private renderDropdownMenu(anchor: Element, options: SheetDropdownOption[], column: number, row: number) {
         const container = this.cloneTemplate(".dropdown-container")[0];
         {
             // Create container for dropdown
@@ -937,7 +938,7 @@ export class SheetRenderer {
         }
     }
 
-    private renderDropdownRow(container: Element, opt: DropdownOption): Element {
+    private renderDropdownRow(container: Element, opt: SheetDropdownOption): Element {
         const optElement = this.cloneTemplate(".dropdown-row")[0];
         container.appendChild(optElement);
 
