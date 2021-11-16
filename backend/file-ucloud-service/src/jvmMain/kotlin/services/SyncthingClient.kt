@@ -253,10 +253,12 @@ class SyncthingClient(
                 config.devices
             }
 
+            val timeout = Time.now() + 30_000
+
             log.debug("Writing config to Syncthing")
 
             // NOTE(Brian): We are waiting for changes to be written to all syncthing devices, sending requests every
-            // 5 seconds. Syncthing will start rejecting all requests if we send too many in a row.
+            // 5 seconds, for 30 seconds. Syncthing will start rejecting all requests if we send too many in a row.
             while (pendingDevices.isNotEmpty()) {
                 if (Time.now() > lastWrite.get() + 5_000) {
                     mutex.withLock {
@@ -266,7 +268,7 @@ class SyncthingClient(
                                     setParameter("devices", pendingDevices.map { it.id })
                                 },
                                 """
-                                       select f.id, path, sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                                       select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
                                        from
                                           file_ucloud.sync_folders f join
                                           file_ucloud.sync_devices d on f.user_id = d.user_id
@@ -348,11 +350,22 @@ class SyncthingClient(
                                 } else {
                                     pendingDevices = pendingDevices.filter { it.id != device.id }
                                 }
+
+                            } catch (ex: RPCException) {
+                                throw RPCException("Invalid Syncthing Configuration", HttpStatusCode.BadRequest)
                             } catch (ex: Throwable) {
+                                // Do nothing
                             }
                         }
                     }
                     lastWrite.set(Time.now())
+
+                    if (Time.now() > timeout) {
+                        throw RPCException(
+                            "Unable to contact one or more syncthing clients",
+                            HttpStatusCode.ServiceUnavailable
+                        )
+                    }
                 }
             }
             lock.release()

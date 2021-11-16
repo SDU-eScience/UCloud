@@ -355,29 +355,80 @@ class SyncService(
         }
 
         if (affectedRows > 0) {
-            syncthing.writeConfig()
+            try {
+                syncthing.writeConfig()
+            } catch (ex: Throwable) {
+                db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("ids", devices.items.map { it.id })
+                        },
+                        """
+                            delete from file_ucloud.sync_devices
+                            where id in (select unnest(:ids::bigint[]))
+                        """
+                    )
+                }
+                throw RPCException("Invalid device ID", HttpStatusCode.BadRequest)
+            }
         }
 
         return BulkResponse(emptyList())
     }
 
     suspend fun removeDevices(devices: BulkRequest<SyncDevice>) {
-        val affectedRows = db.withSession { session ->
-            devices.items.sumOf { device ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", device.id)
-                    },
-                    """
-                        delete from file_ucloud.sync_devices
-                        where id = :id
-                    """
-                ).rowsAffected
+        data class DeletedDevice(
+            val id: Long,
+            val deviceId: String,
+            val userId: String
+        )
+
+        val deleted = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", devices.items.map { it.id })
+                },
+                """
+                    delete from file_ucloud.sync_devices
+                    where id in (select unnest(:ids::bigint[]))
+                    returning id, device_id, user_id
+                """
+            ).rows.mapNotNull {
+                DeletedDevice(
+                    it.getField(SyncDevicesTable.id),
+                    it.getField(SyncDevicesTable.device),
+                    it.getField(SyncDevicesTable.user)
+                )
             }
         }
 
-        if (affectedRows > 0) {
-            syncthing.writeConfig()
+        if (deleted.isNotEmpty()) {
+            try {
+                syncthing.writeConfig()
+            } catch (ex: Throwable) {
+                println("ids: ")
+                println(deleted.map { it.id })
+                db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("ids", deleted.map { it.id })
+                            setParameter("deviceIds", deleted.map { it.deviceId })
+                            setParameter("userIds", deleted.map { it.userId })
+                        },
+                        """
+                            insert into file_ucloud.sync_devices(
+                                id,
+                                device_id,
+                                user_id
+                            ) values (
+                                unnest(:ids::bigint[]),
+                                unnest(:deviceIds::text[]),
+                                unnest(:userIds::text[])
+                            )
+                        """
+                    )
+                }
+            }
         }
     }
 
