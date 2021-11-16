@@ -497,7 +497,7 @@ data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
     val startDate: Long,
-    val endDate: Long?,
+    val endDate: Long? = null,
     val reason: String,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now()

@@ -836,7 +836,7 @@ class AccountingService(
                                 pc.category ilike '%' || :query || '%' or
                                 pc.provider ilike '%' || :query || '%'
                             )
-                        order by pc.provider, pc.category, alloc.id
+                        order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
                     """
                 )
             },

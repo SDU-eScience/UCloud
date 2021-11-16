@@ -313,6 +313,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         <StyledSheet id={sheetId}>
             <thead>
             <tr>
+                <th>#</th>
                 {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
             </tr>
             </thead>
@@ -621,17 +622,23 @@ export class SheetRenderer {
         this.body = node;
     }
 
-    registerValidation(column: number, row: number, validationState?: ValidationState) {
+    registerValidation(column: number, row: number, validationState?: ValidationState, message?: string) {
         const cell = this.findTableCell(column, row);
         if (!cell) return;
         cell.querySelector(".validation")?.remove();
         if (validationState) {
-            cell.append(...this.cloneTemplate(".validation-" + validationState));
+            const validation = this.cloneTemplate(".validation-" + validationState)[0] as HTMLElement;
+            cell.appendChild(validation);
+            if (message) {
+                const tooltipContent = document.createElement("p");
+                tooltipContent.textContent = message;
+                this.attachTooltip(validation, tooltipContent);
+            }
         }
     }
 
     findTableCell(column: number, row: number): HTMLTableCellElement | null {
-        return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
+        return this.body.children.item(row)?.children?.item(column + 1) as HTMLTableCellElement ?? null;
     }
 
     readValue(column: number, row: number): string | null {
@@ -728,6 +735,10 @@ export class SheetRenderer {
             }
         };
         newRow.setAttribute("data-row-id", rowId);
+        const rowCounter = document.createElement("th");
+        rowCounter.textContent = index !== undefined ? (index + 1).toString() : (this.rows + 1).toString();
+        newRow.appendChild(rowCounter);
+
         for (let col = 0; col < this.cells.length; col++) {
             const cell = this.cells[col];
             const cellElement = document.createElement("td");
@@ -739,10 +750,22 @@ export class SheetRenderer {
             this.renderCell(cell, cellElement, this.rows, col);
         }
         this.rows++;
+
+        if (index != undefined) this.evaluateRowNumbers(index);
+    }
+
+    evaluateRowNumbers(startIdx: number) {
+        const children = this.body.children;
+        for (let i = startIdx; i < children.length; i++) {
+            const row = children[i];
+            (row.children[0] as HTMLTableCellElement).textContent = (i + 1).toString();
+        }
     }
 
     removeRow(row: number) {
         this.body.children[row]?.remove();
+        this.evaluateRowNumbers(row);
+        this.rows--;
     }
 
     private markActiveCells() {
@@ -754,12 +777,29 @@ export class SheetRenderer {
         const startY = Math.min(this.cellStartY, this.cellEndY);
         const endX = Math.max(this.cellStartX, this.cellEndX);
         const endY = Math.max(this.cellStartY, this.cellEndY);
+        let isFirst = true;
         for (let row = startY; row <= endY; row++) {
             const rowElement = this.body.children[row];
             if (!rowElement) return;
+            if (isFirst) {
+                isFirst = false;
+
+                const scrollingContainer = this.table.parentElement;
+                if (scrollingContainer) {
+                    const height = scrollingContainer.clientHeight;
+                    const rowHeight = 34;
+
+                    const firstRow = scrollingContainer.scrollTop / rowHeight;
+                    const lastRow = ((scrollingContainer.scrollTop + height) / rowHeight) - 2;
+
+                    if (row <= firstRow || row >= lastRow) {
+                        scrollingContainer.scrollTop = rowHeight * row;
+                    }
+                }
+            }
 
             for (let col = startX; col <= endX; col++) {
-                const cellElement = rowElement.children[col];
+                const cellElement = rowElement.children[col + 1];
                 if (!cellElement) break;
                 cellElement.classList.add("active");
                 if (col === startX && row === startY) {
@@ -968,7 +1008,7 @@ export class SheetRenderer {
             return;
         }
 
-        const tableCell = this.body.children.item(coord.row)?.children.item(coord.column)! as HTMLTableCellElement;
+        const tableCell = this.body.children.item(coord.row)?.children.item(coord.column + 1)! as HTMLTableCellElement;
         SheetRenderer.removeChildren(tableCell);
         this.renderCell(this.cells[coord.column], tableCell, coord.row, coord.column, options[this.dropdownEntry].value);
         this.closeDropdown();
@@ -1038,30 +1078,36 @@ const StyledSheet = styled.table`
   width: 100%;
   color: var(--text);
   position: relative;
-  border-collapse: collapse;
-
-  tr, td, th {
-    border: 2px inset #eee;
-    padding: 4px;
-  }
-
-  td {
-    position: relative;
-  }
+  white-space: nowrap;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 
   .validation {
     position: absolute;
     right: 10px;
   }
 
+  tr, td, th {
+    border: 2px inset #eee;
+    padding: 4px;
+  }
+  
+  td, th {
+    border: 1px solid var(--text);
+  }
+
+  td {
+    position: relative;
+  }
+
   td.active, th.active {
-    border: 2px solid var(--blue);
+    background: #dcebf6;
   }
 
   th {
     font-weight: bold;
     text-align: left;
-    position: sticky;
     top: 0;
     box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
   }
@@ -1082,7 +1128,7 @@ const StyledSheet = styled.table`
   .pointer {
     cursor: pointer;
   }
-  
+
   a {
     color: var(--blue);
   }
@@ -1110,5 +1156,33 @@ const StyledSheet = styled.table`
 
   input {
     cursor: default;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--white);
+  }
+
+  td {
+    background: var(--white);
+  }
+
+  tbody th {
+    position: relative;
+  }
+
+  thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  tbody th {
+    position: sticky;
+    left: 0;
+    background: var(--white);
+    z-index: 1;
   }
 `;
