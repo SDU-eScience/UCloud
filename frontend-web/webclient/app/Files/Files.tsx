@@ -23,6 +23,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
+    onSelectRestriction?: (res: UFile) => boolean;
     isSearch?: boolean;
     browseType?: BrowseType;
     pathRef?: React.MutableRefObject<string>;
@@ -174,6 +175,7 @@ export const FilesBrowse: React.FunctionComponent<{
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
+        onSelectRestriction={props.onSelectRestriction}
         browseType={browseType}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}

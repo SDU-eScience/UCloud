@@ -224,9 +224,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             )
         },
         ImportantStats({resource, browseType}) {
+            if (browseType === BrowseType.Embedded) {
+                return null;
+            }
+
             if (browseType === BrowseType.Card) {
                 return <Text mr="-40px" fontSize="14px" color="gray">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
             }
+
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
             return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"} />

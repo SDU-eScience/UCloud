@@ -23,8 +23,6 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../NewApi";
 
-const WORK_IN_PROGRESS = true;
-
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
@@ -60,6 +58,7 @@ export const ImportParameters: React.FunctionComponent<{
             result = await cleanupImportResult(application, result)
             setMessages(result.messages);
 
+            /* Is this correct? Is the typeof an undefined value not a string? */
             if (typeof result.output === undefined) {
                 // Do nothing
             } else {
@@ -157,28 +156,33 @@ export const ImportParameters: React.FunctionComponent<{
                             }}
                         />
                     </Button>
-                    <Button hidden={WORK_IN_PROGRESS} mt="6px" fullWidth onClick={() => {
+                    <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
                             /* TODO(Jonas): Only allow files */
-                            <FilesBrowse browseType={BrowseType.Embedded} onSelect={res => {
-                                fetchAndImportParameters(res);
-                                dialogStore.success();
-                            }} />,
+                            <FilesBrowse
+                                browseType={BrowseType.Embedded}
+                                onSelect={res => {
+                                    fetchAndImportParameters(res);
+                                    dialogStore.success();
+                                }}
+                                onSelectRestriction={res => res.status.type === "FILE"}
+                            />,
                             () => undefined,
                             true
                         );
                     }}>
                         Select file from {CONF.PRODUCT_NAME}
                     </Button>
-                    <Button hidden={WORK_IN_PROGRESS} mt="6px" fullWidth onClick={() => {
+                    <Button mt="6px" fullWidth hidden onClick={() => {
                         onImportDialogClose();
-                        /* TODO(Jonas): be prettier */
                         dialogStore.addDialog(
-                            <JobBrowse browseType={BrowseType.Embedded} onSelect={res => {
-                                readParsedJSON(res.status.jobParametersJson);
-                                dialogStore.success();
-                            }} />,
+                            <JobBrowse
+                                browseType={BrowseType.Embedded}
+                                onSelect={res => {
+                                    readParsedJSON(res.status.jobParametersJson);
+                                    dialogStore.success();
+                                }} />,
                             () => undefined,
                             true
                         );
