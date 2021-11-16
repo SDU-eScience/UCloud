@@ -28,6 +28,7 @@ import {ProductSyncFolder} from "@/Accounting";
 import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 
 const Tab: React.FunctionComponent<{
     selected: boolean;
@@ -170,12 +171,20 @@ export const SynchronizationSettings: React.FunctionComponent<{
                     <Box mt="30px" mb="30px">
                         <Label>
                             <Flex>
-                                <Toggle
-                                    scale={1.5}
-                                    activeColor="--green"
-                                    checked={syncFolder !== undefined}
-                                    onChange={toggleSyncFolder}
-                                />
+                                <Box width={50} height={25} padding={0}>
+                                    { loading ? (
+                                        <Box mt="-22px">
+                                            <Spinner size={25} />
+                                        </Box>
+                                    ) : (
+                                        <Toggle
+                                            scale={1.5}
+                                            activeColor="--green"
+                                            checked={syncFolder !== undefined}
+                                            onChange={toggleSyncFolder}
+                                        />
+                                    )}
+                                </Box>
                                 <TextSpan ml={20} fontSize={2}>
                                     Add {file.id} to synchronization
                                 </TextSpan>
