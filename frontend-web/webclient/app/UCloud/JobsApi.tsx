@@ -77,6 +77,7 @@ export interface JobStatus extends ResourceStatus {
     startedAt?: number;
     expiresAt?: number;
     resolvedApplication?: Application;
+    jobParametersJson: any;
 }
 
 export interface Job extends Resource<JobUpdate, JobStatus, JobSpecification> {
