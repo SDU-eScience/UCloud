@@ -174,7 +174,7 @@ export const ImportParameters: React.FunctionComponent<{
                     }}>
                         Select file from {CONF.PRODUCT_NAME}
                     </Button>
-                    <Button mt="6px" fullWidth hidden onClick={() => {
+                    <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <JobBrowse
@@ -182,7 +182,11 @@ export const ImportParameters: React.FunctionComponent<{
                                 onSelect={res => {
                                     readParsedJSON(res.status.jobParametersJson);
                                     dialogStore.success();
-                                }} />,
+                                }}
+                                onSelectRestriction={res =>
+                                    res.specification.application.name === application.metadata.name
+                                }
+                            />,
                             () => undefined,
                             true
                         );
