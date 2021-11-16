@@ -234,6 +234,14 @@ suspend fun main(args: Array<String>) {
                         freeToUse = false,
                         description = "An example product for development use",
                     ),
+                    Product.Synchronization(
+                        "u1-sync",
+                        1L,
+                        ProductCategoryId("u1-sync", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = true,
+                        description = "An example product for development use"
+                    )
                 ),
                 userClient
             ).orThrow()
