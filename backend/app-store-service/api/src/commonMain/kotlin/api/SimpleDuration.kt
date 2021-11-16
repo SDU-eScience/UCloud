@@ -1,16 +1,15 @@
 package dk.sdu.cloud.app.store.api
 
-import dk.sdu.cloud.calls.DocVisualizable
-import dk.sdu.cloud.calls.DocVisualization
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
-
-private const val MAX_SECONDS = 59
 
 @Serializable
 data class SimpleDuration(val hours: Int, val minutes: Int, val seconds: Int) : DocVisualizable {
     init {
-        if (seconds !in 0..MAX_SECONDS) throw IllegalArgumentException("seconds must be in 0..59")
-        if (minutes !in 0..MAX_SECONDS) throw IllegalArgumentException("minutes must be in 0..59")
+        checkMinimumValue(::seconds, seconds, 0)
+        checkMaximumValue(::seconds, seconds, 59)
+        checkMinimumValue(::minutes, minutes, 0)
+        checkMaximumValue(::minutes, minutes, 59)
     }
 
     override fun toString() = StringBuilder().apply {
