@@ -309,7 +309,8 @@ export function View(): JSX.Element {
                 if (jobState) {
                     setStatus({
                         state: jobState,
-                        startedAt: timestampUnixMs()
+                        startedAt: timestampUnixMs(),
+                        jobParametersJson: {}
                     });
                 }
             }, 100);

@@ -13,7 +13,7 @@ import styled from "styled-components";
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
 
-export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) => {
+export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     const extension = extensionFromPath(file.id);
     const isValidExtension = isExtPreviewSupported(extension);
     const type = extensionTypeFromPath(file.id);
@@ -69,7 +69,7 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
     }, [file]);
 
     if (file.status.type !== "FILE") return null;
-    if (loading) return <PredicatedLoadingSpinner loading/>
+    if (loading) return <PredicatedLoadingSpinner loading />
 
     let node: JSX.Element | null;
 
@@ -84,7 +84,7 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
             }
             break;
         case "image":
-            node = <img alt={fileName(file.id)} src={data}/>
+            node = <img alt={fileName(file.id)} src={data} />
             break;
         case "audio":
             node = <audio controls src={data} />;
@@ -99,7 +99,7 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
             node = <div><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div/>
+            node = <div />
             break;
     }
 

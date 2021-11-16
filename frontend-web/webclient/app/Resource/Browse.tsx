@@ -333,7 +333,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             <Spacer left={null} right={pageSize.current > 0 ?
                 <Box width="170px">
                     <EnumFilterWidget
-                        expanded={false} browseType={props.browseType} propertyName="direction" title="Sort direction" facedownChevron
+                        expanded={false} browseType={BrowseType.Embedded} propertyName="direction" title="Sort direction" facedownChevron
                         id={0} onExpand={doNothing} properties={filters} options={sortDirections}
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
