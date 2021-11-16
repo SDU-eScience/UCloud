@@ -139,8 +139,9 @@ export interface CellCoordinates {
     row: number;
 }
 
-interface SheetCallbacks {
+export interface SheetCallbacks {
     sheet: SheetRenderer;
+    extra?: any;
 }
 
 interface SheetProps {
@@ -150,6 +151,8 @@ interface SheetProps {
     renderer: React.MutableRefObject<SheetRenderer | null>;
     newRowPrefix: string;
     onRowDeleted: (rowId: string) => void;
+    operations: (defaultOps: Operation<never, SheetCallbacks>[]) => Operation<never, SheetCallbacks>[];
+    extra?: any;
 }
 
 export const Sheet: React.FunctionComponent<SheetProps> = props => {
@@ -175,58 +178,62 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
     }, [renderer, props.onRowUpdated]);
 
     const counter = useRef(0);
-    const callbacks = useMemo(() => ({sheet: renderer}), [renderer]);
-    const dropdownOptions = useMemo<Operation<never, SheetCallbacks>[]>(() => [
-        {
-            text: "Insert row",
-            icon: "upload",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
-            }
-        },
-        {
-            text: "Insert 50 rows",
-            icon: "uploadFolder",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                for (let i = 0; i < 50; i++) {
-                    cb.sheet.addRow(`${props.newRowPrefix}-${counter.current++}`);
+    const callbacks = useMemo(() => ({sheet: renderer, extra: props.extra}), [renderer]);
+    const dropdownOptions = useMemo<Operation<never, SheetCallbacks>[]>(() => {
+        const defaultOps: Operation<never, SheetCallbacks>[] = [
+            {
+                text: "Insert row",
+                icon: "upload",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+                }
+            },
+            {
+                text: "Insert 50 rows",
+                icon: "uploadFolder",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    for (let i = 0; i < 50; i++) {
+                        cb.sheet.addRow(`${props.newRowPrefix}-${counter.current++}`);
+                    }
+                }
+            },
+            {
+                text: "Clone",
+                icon: "copy",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    const rowNumber = sheet.contextMenuTriggeredBy + 1;
+                    sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+                    for (let col = 0; col < sheet.cells.length; col++) {
+                        const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
+                        if (value != null) sheet.writeValue(col, rowNumber, value);
+                    }
+                }
+            },
+            {
+                text: "Delete",
+                icon: "trash",
+                confirm: true,
+                color: "red",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    const rowToDelete = sheet.contextMenuTriggeredBy;
+                    const rowId = sheet.retrieveRowId(rowToDelete);
+                    if (rowId != null) {
+                        sheet.removeRow(rowToDelete);
+                        props.onRowDeleted(rowId);
+                    }
                 }
             }
-        },
-        {
-            text: "Clone",
-            icon: "copy",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                const rowNumber = sheet.contextMenuTriggeredBy + 1;
-                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
-                for (let col = 0; col < sheet.cells.length; col++) {
-                    const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
-                    if (value != null) sheet.writeValue(col, rowNumber, value);
-                }
-            }
-        },
-        {
-            text: "Delete",
-            icon: "trash",
-            confirm: true,
-            color: "red",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                const rowToDelete = sheet.contextMenuTriggeredBy;
-                const rowId = sheet.retrieveRowId(rowToDelete);
-                if (rowId != null) {
-                    sheet.removeRow(rowToDelete);
-                    props.onRowDeleted(rowId);
-                }
-            }
-        }
-    ], [props.newRowPrefix, props.onRowDeleted]);
+        ];
+
+        return props.operations(defaultOps);
+    }, [props.newRowPrefix, props.onRowDeleted]);
 
     const requiredIcons: IconName[] = useMemo(() => {
         const result: IconName[] = [];
@@ -331,6 +338,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
             extra={callbacks}
             selected={[]}
             entityNameSingular={""}
+            forceEvaluationOnOpen
         />
 
         <TooltipContent id={`${sheetId}-tooltip`} textAlign={"left"} />
@@ -657,7 +665,7 @@ export class SheetRenderer {
     }
 
     retrieveRowId(row: number): string | null {
-        return this.body.children[row]?.getAttribute("data-row-id") ?? null;
+        return this.body?.children[row]?.getAttribute("data-row-id") ?? null;
     }
 
     // Re-renders a cell with, potentially, a new value. value == undefined can be used when re-rendering is desired.

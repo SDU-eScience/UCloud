@@ -1,6 +1,6 @@
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef} from "react";
+import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
@@ -133,6 +133,7 @@ interface OperationProps<EntityType, Extras = undefined> {
     all?: EntityType[];
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
     hidden?: boolean;
+    forceEvaluationOnOpen?: boolean;
 }
 
 type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
@@ -141,6 +142,17 @@ type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<
 export const Operations: OperationsType = props => {
     const closeDropdownRef = useRef<() => void>(doNothing);
     const closeDropdown = () => closeDropdownRef.current();
+
+    const [, forceRender] = useState(0);
+    const dropdownOpenFn = useRef<(left: number, top: number) => void>(doNothing);
+    const open = useCallback((left: number, top: number) => {
+        if (props.forceEvaluationOnOpen) {
+            forceRender(p => p + 1);
+        }
+
+        dropdownOpenFn.current(left, top);
+    }, []);
+    if (props.openFnRef) props.openFnRef.current = open;
 
     // Don't render anything if we are in row and we have selected something
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
@@ -202,7 +214,7 @@ export const Operations: OperationsType = props => {
         keepOpenOnClick: true,
         useMousePositioning: true,
         closeFnRef: closeDropdownRef,
-        openFnRef: props.openFnRef,
+        openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
             props.selected.length === 0 ?
