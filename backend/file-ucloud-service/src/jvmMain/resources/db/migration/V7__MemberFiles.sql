@@ -1,6 +1,6 @@
 insert into accounting.products (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category, free_to_use, description)
 select 'project-home', 1, null, null, null, null, pc.id, false, 'Member files for UCloud projects'
-from accounting.product_categories pc where pc.provider = 'ucloud' and pc.category = 'u1-cephfs_credits'
+from accounting.product_categories pc where pc.provider = 'ucloud' and pc.category = 'u1-cephfs'
 on conflict do nothing;
 
 with
@@ -11,7 +11,7 @@ with
             accounting.product_categories pc on p.category = pc.id
         where
             p.name = 'project-home' and
-            pc.category = 'u1-cephfs_credits' and
+            pc.category = 'u1-cephfs' and
             pc.provider = 'ucloud'
     ),
     users as (

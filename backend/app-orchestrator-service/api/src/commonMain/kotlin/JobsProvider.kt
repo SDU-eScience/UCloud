@@ -14,19 +14,8 @@ import dk.sdu.cloud.accounting.api.providers.ResourceChargeCreditsResponse
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.Tool
-import dk.sdu.cloud.app.store.api.ToolBackend
-import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.app.store.api.VariableInvocationParameter
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.app.store.api.exampleBatchApplication
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -60,6 +49,8 @@ import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlin.reflect.typeOf
 
 typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
 typealias JobsProviderExtendResponse = BulkResponse<Unit?>
@@ -94,38 +85,46 @@ sealed class JobsProviderFollowRequest {
 @Serializable
 @UCloudApiDoc("A message emitted by the Provider in a follow session")
 data class JobsProviderFollowResponse(
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         A unique ID for this follow session, the same identifier should be used for the entire session
         
         We recommend that Providers generate a UUID or similar for this ID.
-    """)
+    """
+    )
     val streamId: String,
 
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         The rank of the node (0-indexed)
         
         Valid values range from 0 (inclusive) until [`specification.replicas`]($TYPE_REF_LINK Job) (exclusive)
-    """)
+    """
+    )
     val rank: Int,
 
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         New messages from stdout (if any)
         
         The bytes from stdout, of the running process, should be interpreted as UTF-8. If the stream contains invalid
         bytes then these should be ignored and skipped.
         
         See https://linux.die.net/man/3/stdout for more information.
-    """)
+    """
+    )
     val stdout: String? = null,
 
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         New messages from stderr (if any)
         
         The bytes from stdout, of the running process, should be interpreted as UTF-8. If the stream contains invalid
         bytes then these should be ignored and skipped.
         
         See https://linux.die.net/man/3/stderr for more information.
-    """)
+    """
+    )
     val stderr: String? = null,
 )
 
@@ -136,11 +135,13 @@ typealias JobsProviderOpenInteractiveSessionRequest = BulkRequest<JobsProviderOp
 data class JobsProviderOpenInteractiveSessionRequestItem(
     @UCloudApiDoc("The fully resolved Job")
     val job: Job,
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
         The rank of the node (0-indexed)
         
         Valid values range from 0 (inclusive) until [`specification.replicas`]($TYPE_REF_LINK Job) (exclusive)
-    """)
+    """
+    )
     val rank: Int,
     @UCloudApiDoc("The type of session")
     val sessionType: InteractiveSessionType,
@@ -234,14 +235,29 @@ data class ComputeProductSupport(
     val support: ComputeSupport,
 )
 
-
+@OptIn(ExperimentalStdlibApi::class)
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
         JobStatus, Product.Compute, ComputeSupport>("jobs", provider) {
     override fun toString() = "JobsProvider($baseContext)"
 
-    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
-            Product.Compute, ComputeSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Job.serializer(),
+        typeOf<Job>(),
+        JobSpecification.serializer(),
+        typeOf<JobSpecification>(),
+        JobUpdate.serializer(),
+        typeOf<JobUpdate>(),
+        JobIncludeFlags.serializer(),
+        typeOf<JobIncludeFlags>(),
+        JobStatus.serializer(),
+        typeOf<JobStatus>(),
+        ComputeSupport.serializer(),
+        typeOf<ComputeSupport>(),
+        Product.Compute.serializer(),
+        typeOf<Product.Compute>(),
+    )
 
     init {
         title = "Provider API: Compute"
@@ -504,13 +520,16 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                 val ucloud = ucloudCore()
                 val provider = provider()
 
-                comment("""
+                comment(
+                    """
                     In this example we will show the creation of a simple batch Job. The procedure starts with the
                     Provider receives a create request from UCloud/Core
-                """.trimIndent())
+                """.trimIndent()
+                )
 
 
-                comment("""
+                comment(
+                    """
                     The request below contains a lot of information. We recommend that you read about and understand
                     Products, Applications and Jobs before you continue. We will attempt to summarize the information
                     below:
@@ -547,7 +566,8 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                       
                     - ...on exactly 1 node.
                       - See `specification.replicas`
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     create,
@@ -556,26 +576,32 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                     ucloud
                 )
 
-                comment("""
+                comment(
+                    """
                     📝 Note: The response in this case indicates that the Provider chose not to generate an internal ID
                     for this Job. If an ID was provided, then on subsequent requests the `providerGeneratedId` of this
                     Job would be set accordingly. This feature can help providers keep track of their internal state
                     without having to actively maintain a mapping.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     The Provider will use this information to schedule the Job on their infrastructure. Through
                     background processing, the Provider will keep track of this Job. The Provider notifies UCloud of
                     state changes as they occur. This happens through the outgoing Control API.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     JobsControl.update,
                     bulkRequestOf(
-                        ResourceUpdateAndId(jobId, JobUpdate(
-                            JobState.RUNNING,
-                            status = "The job is now running!"
-                        ))
+                        ResourceUpdateAndId(
+                            jobId, JobUpdate(
+                                JobState.RUNNING,
+                                status = "The job is now running!"
+                            )
+                        )
                     ),
                     Unit,
                     provider
@@ -588,10 +614,12 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                 success(
                     JobsControl.update,
                     bulkRequestOf(
-                        ResourceUpdateAndId(jobId, JobUpdate(
-                            JobState.SUCCESS,
-                            status = "The job has finished processing!"
-                        ))
+                        ResourceUpdateAndId(
+                            jobId, JobUpdate(
+                                JobState.SUCCESS,
+                                status = "The job has finished processing!"
+                            )
+                        )
                     ),
                     Unit,
                     provider
@@ -609,22 +637,28 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                 val ucloud = ucloudCore()
                 val provider = provider()
 
-                comment("""
+                comment(
+                    """
                     In this example, we show how a Provider can implement accounting. Accounting is done, periodically,
                     by the provider in a background process. We recommend that Providers combine this with the same
                     background processing required for state changes.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     You should read understand how Products work in UCloud. UCloud supports multiple ways of accounting
                     for usage. The most normal one, which we show here, is the `CREDITS_PER_MINUTE` policy. This policy
                     requires that a Provider charges credits (1 credit = 1/1_000_000 DKK) for every minute of usage.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     We assume that the Provider has just determined that Jobs "51231" (single replica) and "63489"
                     (23 replicas) each have used 15 minutes of compute time since last accounting iteration.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     JobsControl.chargeCredits,
@@ -648,22 +682,28 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                     provider
                 )
 
-                comment("""
+                comment(
+                    """
                     📝 Note: Because the ProductPriceUnit, of the Product associated with the Job, is
                     `CREDITS_PER_MINUTE` each unit corresponds to minutes of usage. A different ProductPriceUnit, for
                     example `CREDITS_PER_HOUR` would alter the definition of this unit.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     📝 Note: The chargeId is an identifier which must be unique for any charge made by the Provider.
                     If the Provider makes a different charge request with this ID then the request will be ignored. We
                     recommend that Providers use this to their advantage and include, for example, a timestamp from
                     the last iteration. This means that you, as a Provider, cannot accidentally charge twice for the
                     same usage.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("In the next iteration, the Provider also determines that 15 minutes has passed for these " +
-                        "Jobs.")
+                comment(
+                    "In the next iteration, the Provider also determines that 15 minutes has passed for these " +
+                            "Jobs."
+                )
 
                 success(
                     JobsControl.chargeCredits,
@@ -687,11 +727,13 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                     provider
                 )
 
-                comment("""
+                comment(
+                    """
                     However, this time UCloud has told us that 63489 no longer has enough credits to pay for this.
                     The Provider should respond to this by immediately cancelling the Job, UCloud/Core does not perform
                     this step for you!
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 comment("📝 Note: This request should be triggered by the normal life-cycle handler.")
 
@@ -722,16 +764,20 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                 val ucloud = ucloudCore()
                 val provider = provider()
 
-                comment("""
+                comment(
+                    """
                     In this example, we will explore the mechanism that UCloud/Core uses to ensure that the Provider
                     is synchronized with the core.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     UCloud/Core will periodically send the Provider a batch of active Jobs. If the Provider is unable
                     to recognize one or more of these Jobs, it should respond by updating the state of the affected
                     Job(s).
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     verify,
@@ -761,12 +807,14 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
 
         documentProviderCall(
             create, Jobs.create,
-            ProviderApiRequirements.List(listOf(
-                "[`docker.enabled = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                "[`virtualMachine.enabled = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
-            )),
+            ProviderApiRequirements.List(
+                listOf(
+                    "[`docker.enabled = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                    "[`virtualMachine.enabled = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
+                )
+            ),
 
-        )
+            )
     }
 
     val extend = call<JobsProviderExtendRequest, JobsProviderExtendResponse, CommonErrorMessage>("extend") {
@@ -775,10 +823,12 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         documentation {
             providerDescription(
                 Jobs.extend,
-                ProviderApiRequirements.List(listOf(
-                    "[`docker.timeExtension = true`]($TYPE_REF_LINK ComputeSupport.Docker) or ",
-                    "[`virtualMachine.timeExtension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
-                ))
+                ProviderApiRequirements.List(
+                    listOf(
+                        "[`docker.timeExtension = true`]($TYPE_REF_LINK ComputeSupport.Docker) or ",
+                        "[`virtualMachine.timeExtension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
+                    )
+                )
             )
         }
     }
@@ -800,50 +850,72 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         documentation {
             providerDescription(
                 Jobs.suspend,
-                ProviderApiRequirements.List(listOf(
-                    "[`virtualMachine.suspension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
-                ))
+                ProviderApiRequirements.List(
+                    listOf(
+                        "[`virtualMachine.suspension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
+                    )
+                )
             )
         }
     }
 
-    val follow = call<JobsProviderFollowRequest, JobsProviderFollowResponse, CommonErrorMessage>("follow") {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PRIVILEGED
-        }
+    val follow = call(
+        name = "follow",
+        handler = {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEGED
+            }
 
-        documentation {
-            providerDescription(
-                Jobs.follow,
-                ProviderApiRequirements.List(listOf(
-                    "[`docker.logs = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                    "[`virtualMachine.logs = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
-                ))
-            )
-        }
+            documentation {
+                providerDescription(
+                    Jobs.follow,
+                    ProviderApiRequirements.List(
+                        listOf(
+                            "[`docker.logs = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                            "[`virtualMachine.logs = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
+                        )
+                    )
+                )
+            }
 
-        websocket("/ucloud/$namespace/websocket")
-    }
+            websocket("/ucloud/$namespace/websocket")
+        },
+        JobsProviderFollowRequest.serializer(),
+        JobsProviderFollowResponse.serializer(),
+        CommonErrorMessage.serializer(),
+        typeOf<JobsProviderFollowRequest>(),
+        typeOf<JobsProviderFollowResponse>(),
+        typeOf<CommonErrorMessage>(),
+    )
 
-    val openInteractiveSession =
-        call<JobsProviderOpenInteractiveSessionRequest, JobsProviderOpenInteractiveSessionResponse,
-                CommonErrorMessage>("openInteractiveSession") {
+    val openInteractiveSession = call(
+        name = "openInteractiveSession",
+        handler = {
             httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
 
             documentation {
                 providerDescription(
                     Jobs.openInteractiveSession,
-                    ProviderApiRequirements.List(listOf(
-                        "[`docker.vnc = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                        "[`docker.terminal = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                        "[`docker.web = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                        "[`virtualMachine.vnc = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine) or",
-                        "[`virtualMachine.terminal = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
-                    ))
+                    ProviderApiRequirements.List(
+                        listOf(
+                            "[`docker.vnc = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                            "[`docker.terminal = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                            "[`docker.web = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                            "[`virtualMachine.vnc = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine) or",
+                            "[`virtualMachine.terminal = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
+                        )
+                    )
                 )
             }
-        }
+        },
+        BulkRequest.serializer(JobsProviderOpenInteractiveSessionRequestItem.serializer()),
+        BulkResponse.serializer(OpenSession.serializer().nullable),
+        CommonErrorMessage.serializer(),
+        typeOf<JobsProviderOpenInteractiveSessionRequest>(),
+        typeOf<JobsProviderOpenInteractiveSessionResponse>(),
+        typeOf<CommonErrorMessage>(),
+    )
 
     val retrieveUtilization = call<JobsProviderUtilizationRequest, JobsProviderUtilizationResponse,
             CommonErrorMessage>("retrieveUtilization") {
@@ -852,10 +924,12 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         documentation {
             providerDescription(
                 Jobs.retrieveUtilization,
-                ProviderApiRequirements.List(listOf(
-                    "[`docker.utilization = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
-                    "[`virtualMachine.utilization = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
-                ))
+                ProviderApiRequirements.List(
+                    listOf(
+                        "[`docker.utilization = true`]($TYPE_REF_LINK ComputeSupport.Docker) or",
+                        "[`virtualMachine.utilization = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)",
+                    )
+                )
             )
         }
     }

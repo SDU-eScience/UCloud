@@ -63,8 +63,6 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             ),
             ContentType("application", "json-patch+json")
         )
-
-        scheduleJobMonitoring(jobId, expiry)
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
@@ -79,8 +77,6 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             log.debug("expiry in ${expiry - now}")
             if (now >= expiry) {
                 k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
-            } else {
-                scheduleJobMonitoring(k8.nameAllocator.jobNameToJobId(name), expiry)
             }
         }
     }

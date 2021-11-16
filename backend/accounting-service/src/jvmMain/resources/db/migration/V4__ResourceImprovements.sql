@@ -6,11 +6,15 @@ alter table provider.resource drop column id;
 alter table provider.resource add column id bigserial primary key;
 alter table provider.resource_acl_entry add column resource_id bigint references provider.resource(id);
 
-alter table accounting.products drop constraint products_provider_category_fkey;
-alter table accounting.wallets drop constraint wallets_product_provider_product_category_fkey;
-alter table accounting.transactions drop constraint transactions_product_provider_product_category_fkey;
+alter table accounting.products drop constraint if exists products_provider_fkey;
+alter table accounting.products drop constraint if exists products_provider_category_fkey;
+alter table accounting.wallets drop constraint if exists wallets_product_provider_fkey;
+alter table accounting.wallets drop constraint if exists wallets_product_provider_product_category_fkey;
+alter table accounting.transactions drop constraint if exists transactions_product_provider_product_category_fkey;
+alter table accounting.transactions drop constraint if exists transactions_product_provider_fkey;
+alter table accounting.transactions drop constraint if exists transactions_account_id_fkey;
 alter table accounting.product_categories add column id bigserial not null;
-alter table accounting.product_categories drop constraint product_categories_pkey;
+alter table accounting.product_categories drop constraint if exists product_categories_pkey;
 alter table accounting.product_categories add constraint product_categories_uniq unique (provider, category);
 alter table accounting.product_categories add primary key (id);
 
@@ -28,7 +32,7 @@ alter table accounting.products drop column category;
 alter table accounting.products rename column new_category to category;
 alter table accounting.products alter column category set not null;
 
-alter table accounting.transactions drop constraint transactions_account_id_account_type_product_category_prod_fkey;
+alter table accounting.transactions drop constraint if exists transactions_account_id_account_type_product_category_prod_fkey;
 alter table accounting.wallets add column new_category bigint references accounting.product_categories;
 update accounting.wallets w
 set
@@ -46,6 +50,9 @@ alter table accounting.wallets drop column product_provider;
 alter table accounting.wallets drop column product_category;
 
 alter table accounting.transactions add column wallet bigint references accounting.wallets(id);
+alter table accounting.transactions rename to transactions_backup;
+create table accounting.transactions (like accounting.transactions_backup including all);
+
 update accounting.transactions t
 set
     wallet = (

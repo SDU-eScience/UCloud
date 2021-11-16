@@ -457,7 +457,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

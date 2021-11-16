@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const appVersionPath = path.join(__dirname, "../app/Assets/AppVersion.txt");
+const appVersionPath = path.join(__dirname, "../public/AppVersion.txt");
 
 const {version} = JSON.parse(fs.readFileSync(path.join(__dirname, "../package.json"),));
 

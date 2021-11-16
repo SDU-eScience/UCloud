@@ -148,7 +148,8 @@ class ProviderService(
         private val random = SecureRandom()
 
         val whitelistedProviders = listOf(
-            "_app-orchestrator"
+            "_app-orchestrator",
+            "_file-orchestrator",
         )
     }
 }

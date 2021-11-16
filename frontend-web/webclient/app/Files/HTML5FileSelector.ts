@@ -48,7 +48,7 @@ interface FileSystemDirectoryEntry extends FileSystemEntry {
 }
 
 interface FileSystemDirectoryReader {
-    readEntries(successCallback: (batch: FileSystemEntry[]) => void, errorCallback: (error: unknown) => void)
+    readEntries(successCallback: (batch: FileSystemEntry[]) => void, errorCallback: (error: unknown) => void): Promise<PackagedFile[]>;
 }
 
 type FileListFetcher = () => Promise<PackagedFile[]>;
@@ -72,7 +72,7 @@ function traverseDirectory(entry: FileSystemDirectoryEntry): FileListFetcher {
         return true;
     }
 
-    return function readEntries() {
+    return function readEntries(): Promise<PackagedFile[]> {
         // According to the FileSystem API spec, readEntries() must be called until
         // it calls the callback with an empty array.
         if (!fetchNewReader()) return Promise.resolve([]);
@@ -135,11 +135,12 @@ function packageFile(file: File, entry?: FileSystemEntry): PackagedFile {
     };
 }
 
-function copyString(aString) {
+/* What is this for? Copying and ensuring that modifying one string doesn't modify original? */
+function copyString(aString: string): string {
     return ` ${aString}`.slice(1);
 }
 
-function getFile(entry): Promise<PackagedFile> {
+function getFile(entry: FileSystemEntry): Promise<PackagedFile> {
     return new Promise((resolve) => {
         entry.file((file) => {
             resolve(packageFile(file, entry));

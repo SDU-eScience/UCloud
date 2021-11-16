@@ -19,6 +19,8 @@ import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.serializer
+import kotlin.reflect.typeOf
 
 @Serializable
 @UCloudApiDoc("""
@@ -37,12 +39,9 @@ data class Provider(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions? = null
 ) : Resource<Product, ProviderSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     override fun toString(): String {
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
-                "billing=$billing, owner=$owner)"
+                "owner=$owner)"
     }
 
     override fun visualize(): DocVisualization {
@@ -117,6 +116,7 @@ data class ProviderStatus(
 ) : ResourceStatus<Product, ProviderSupport>
 
 @Serializable
+@UCloudApiOwnedBy(Providers::class)
 @UCloudApiDoc("Updates regarding a Provider, not currently in use")
 data class ProviderUpdate(
     override val timestamp: Long,
@@ -147,6 +147,9 @@ data class ProviderIncludeFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
     val filterName: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -189,6 +192,12 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         serializerLookupTable = mapOf(
             serializerEntry(ProvidersRequestApprovalRequest.serializer()),
             serializerEntry(ProvidersRequestApprovalResponse.serializer()),
+            serializerEntry(Product.serializer()),
+            serializerEntry(Product.Compute.serializer()),
+            serializerEntry(Product.Ingress.serializer()),
+            serializerEntry(Product.NetworkIP.serializer()),
+            serializerEntry(Product.Storage.serializer()),
+            serializerEntry(Product.License.serializer()),
         )
 
         description = """
@@ -420,8 +429,23 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         )
     }
 
-    override val typeInfo = ResourceTypeInfo<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
-            ProviderStatus, Product, ProviderSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Provider.serializer(),
+        typeOf<Provider>(),
+        ProviderSpecification.serializer(),
+        typeOf<ProviderSpecification>(),
+        ProviderUpdate.serializer(),
+        typeOf<ProviderUpdate>(),
+        ProviderIncludeFlags.serializer(),
+        typeOf<ProviderIncludeFlags>(),
+        ProviderStatus.serializer(),
+        typeOf<ProviderStatus>(),
+        ProviderSupport.serializer(),
+        typeOf<ProviderSupport>(),
+        Product.serializer(),
+        typeOf<Product>()
+    )
 
     override val create get() = super.create!!
     override val delete: Nothing? = null

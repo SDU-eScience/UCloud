@@ -35,8 +35,8 @@ export type ResourceSpecification = UCloud.provider.ResourceSpecification;
 export type Permission = "READ" | "EDIT" | "ADMIN";
 
 export type AclEntity =
-    { type: "project_group", projectId: string, group: string } |
-    { type: "user", username: string };
+    {type: "project_group", projectId: string, group: string} |
+    {type: "user", username: string};
 
 export interface ResourceAclEntry {
     entity: AclEntity;
@@ -52,6 +52,12 @@ export interface ResourceIncludeFlags {
     includeOthers?: boolean;
     includeSupport?: boolean;
     includeUpdates?: boolean;
+    filterProvider?: string;
+    filterProductId?: string;
+    filterProductCategory?: string;
+    hideProvider?: string;
+    hideProductId?: string;
+    hideProductCategory?: string;
 }
 
 export interface UpdatedAcl {
@@ -151,7 +157,7 @@ export abstract class ResourceApi<Res extends Resource,
         }
     ];
 
-   public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
+    public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
         this.filterWidgets.push(w);
         this.filterPills.push(p);
     }
@@ -172,7 +178,7 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
-    }> = props => <ResourceProperties {...props} api={this}/>
+    }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
@@ -229,7 +235,7 @@ export abstract class ResourceApi<Res extends Resource,
                 onClick: (selected, cb) => {
                     if (!cb.embedded) {
                         dialogStore.addDialog(
-                            <ResourcePermissionEditor reload={cb.reload} entity={selected[0]} api={cb.api}/>,
+                            <ResourcePermissionEditor reload={cb.reload} entity={selected[0]} api={cb.api} />,
                             doNothing,
                             true
                         );
@@ -326,8 +332,8 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     search(
-        req: { query: string; flags: Flags; } & PaginationRequestV2 & SortFlags
-    ): APICallParameters<{ query: string; flags: Flags; } & PaginationRequestV2, PageV2<Res>> {
+        req: {query: string; flags: Flags;} & PaginationRequestV2 & SortFlags
+    ): APICallParameters<{query: string; flags: Flags;} & PaginationRequestV2, PageV2<Res>> {
         return {
             context: "",
             method: "POST",

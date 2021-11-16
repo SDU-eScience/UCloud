@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.service
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
@@ -17,30 +18,21 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FilesMoveRequestItem
-import dk.sdu.cloud.file.orchestrator.api.OutgoingShareGroup
-import dk.sdu.cloud.file.orchestrator.api.Share
-import dk.sdu.cloud.file.orchestrator.api.ShareFlags
-import dk.sdu.cloud.file.orchestrator.api.ShareSupport
-import dk.sdu.cloud.file.orchestrator.api.Shares
-import dk.sdu.cloud.file.orchestrator.api.SharesControl
-import dk.sdu.cloud.file.orchestrator.api.SharesProvider
-import dk.sdu.cloud.file.orchestrator.api.SharesUpdatePermissionsRequest
-import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 
 typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
@@ -70,7 +62,7 @@ class ShareService(
 
     init {
         files.addMoveHandler(::onFilesMoved)
-        files.addDeleteHandler(::onFilesDeleted)
+        files.addTrashHandler(::onFilesDeleted)
     }
 
     private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
@@ -98,37 +90,70 @@ class ShareService(
         }
     }
 
-    private suspend fun onFilesDeleted(request: List<FindByStringId>) {
-        /*
+    private suspend fun onFilesDeleted(request: List<FindByPath>) {
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     request.split { into("paths") { it.id.normalize() } }
+                    request.split { into("available_at") { "/${it.id.normalize().split('/')[1]}" }}
                 },
                 """
                     with
                         entries as (
-                            select unnest(:paths::text[]) path
+                            select
+                                unnest(:paths::text[]) path,
+                                unnest(:available_at::text[]) available_at
+                        ),
+                        original_paths as (
+                            select resource as share_id, original_file_path, s.available_at, path share_path
+                            from file_orchestrator.shares s join entries on s.available_at=entries.available_at
+                        ),
+                        sub_shares as (
+                            select s.original_file_path
+                            from original_paths op
+                            join file_orchestrator.shares s on (
+                                s.original_file_path like (
+                                    select (
+                                        op.original_file_path || (select regexp_replace(op.share_path, '([\/]\d*)', '') || '/%')
+                                    )
+                                )
+                            )
                         ),
                         affected_shares as (
                             delete from file_orchestrator.shares s
-                            using entries e
+                            using entries e left join sub_shares sub on original_file_path = e.path or original_file_path = sub.original_file_path
                             where
-                                e.path = original_file_path or
-                                original_file_path like e.path || '/%'
-                            returning s.resource, s.shared_with, s.permissions, s.state
+                                e.path = s.original_file_path or
+                                sub.original_file_path = s.original_file_path or
+                                s.original_file_path like e.path || '/%'
+                            returning s.resource, s.shared_with, s.permissions, s.state, split_part(s.available_at, '/', 2) available_at
+                        ),
+                        affected_file_collections as (
+                            delete from file_orchestrator.file_collections fc
+                            using affected_shares
+                            where
+                            fc.resource::text = affected_shares.available_at
+                            returning fc.resource
+                        ),
+                        delete_resources_updates as (
+                            delete from provider.resource_update ru
+                            using affected_shares share , affected_file_collections fc
+                            where
+                            ru.resource = share.resource or ru.resource = fc.resource
+                        ),
+                        delete_resource_acl as (
+                            delete from provider.resource_acl_entry entry
+                            using affected_shares share, affected_file_collections fc
+                            where
+                                share.resource = entry.resource_id or fc.resource = entry.resource_id
                         )
-                    delete from provider.resource_acl_entry entry
-                    using affected_shares share
-                    where
-                        share.state = 'APPROVED' and
-                        share.resource = entry.resource_id and
-                        share.shared_with = entry.username and
-                        entry.permission = some(share.permissions)
-                """
+                    delete from provider.resource r
+                            using affected_shares share, affected_file_collections fc
+                            where
+                            r.id = share.resource or r.id = fc.resource
+                """, debug = true
             )
         }
-         */
     }
 
     override suspend fun updateAcl(
@@ -147,6 +172,10 @@ class ShareService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+        if (actorAndProject.project != null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
+        }
+
         val shareWithSelf = idWithSpec.find { it.second.sharedWith == actorAndProject.actor.safeUsername() }
         if (shareWithSelf != null) {
             throw RPCException(
@@ -154,6 +183,23 @@ class ShareService(
                 HttpStatusCode.BadRequest
             )
         }
+        //Check users exists
+        val returnedUsers = session.sendPreparedStatement(
+            {
+                idWithSpec.split {
+                    into("username") { it.second.sharedWith }
+                }
+            },
+            """
+                select *
+                from "auth".principals
+                where id in (select unnest(:username::text[]))
+            """
+        ).rows
+        if (idWithSpec.size != returnedUsers.size) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+
         val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()
         collections.retrieveBulk(
             actorAndProject,
@@ -162,34 +208,55 @@ class ShareService(
             ctx = session
         )
 
-        session.sendPreparedStatement(
-            {
-                idWithSpec.split {
-                    into("ids") { it.first }
-                    into("file_paths") { it.second.sourceFilePath.normalize() }
-                    into("shared_with") { it.second.sharedWith }
-                    into("permissions") {
-                        it.second.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+        try {
+            session.sendPreparedStatement(
+                {
+                    idWithSpec.split {
+                        into("ids") { it.first }
+                        into("file_paths") { it.second.sourceFilePath.normalize() }
+                        into("shared_with") { it.second.sharedWith }
+                        into("permissions") {
+                            it.second.permissions.filter { it.canBeGranted }.joinToString(",") { it.name }
+                        }
                     }
-                }
-            },
-            """
-                with 
-                    requests as (
-                        select unnest(:ids::bigint[]) id, unnest(:file_paths::text[]) file_path,
-                               unnest(:shared_with::text[]) shared_with,
-                               regexp_split_to_array(unnest(:permissions::text[]), ',') permissions
-                    ),
-                    inserted_specs as (
-                        insert into file_orchestrator.shares (resource, original_file_path, shared_with, permissions) 
-                        select id, file_path, shared_with, permissions
-                        from requests
+                },
+                """
+                    with 
+                        requests as (
+                            select unnest(:ids::bigint[]) id, unnest(:file_paths::text[]) file_path,
+                                   unnest(:shared_with::text[]) shared_with,
+                                   regexp_split_to_array(unnest(:permissions::text[]), ',') permissions
+                        ),
+                        inserted_specs as (
+                            insert into file_orchestrator.shares (resource, original_file_path, shared_with, permissions) 
+                            select id, file_path, shared_with, permissions
+                            from requests
+                        )
+                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                    select null, shared_with, unnest(permissions), id
+                    from requests
+                """
+            )
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == "23505") {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared. Check shares page.")
+            }
+            else throw ex
+        }
+
+        idWithSpec.forEach {
+            NotificationDescriptions.create.call(
+                CreateNotification(
+                    it.second.sharedWith,
+                    Notification(
+                        NotificationType.SHARE_REQUEST.name,
+                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        meta = JsonObject(emptyMap())
                     )
-                insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
-                select null, shared_with, unnest(permissions), id
-                from requests
-            """
-        )
+                ),
+                serviceClient
+            )
+        }
     }
 
     override suspend fun onUpdate(
@@ -521,17 +588,25 @@ class ShareService(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())
                 setParameter("filter_ingoing", flags?.filterIngoing)
+                setParameter("filter_rejected", flags?.filterRejected)
                 setParameter("query", query)
             },
             """
-                select *
-                from file_orchestrator.shares s
+                select s.*
+                from
+                    accessible_resources resc join
+                    file_orchestrator.shares s on (resc.r).id = resource
                 where
                     (:filter_path::text is null or :filter_path = s.original_file_path) and
                     (
                         :filter_ingoing::boolean is null or
                         (:filter_ingoing = true and :username = s.shared_with) or
                         (:filter_ingoing = false and :username is distinct from s.shared_with)
+                    ) and
+                    (
+                        :filter_rejected::boolean is null or
+                        (:filter_rejected = true and 'REJECTED' is distinct from s.state) or
+                        (:filter_rejected = false and true)
                     ) and
                     (
                         :query::text is null or

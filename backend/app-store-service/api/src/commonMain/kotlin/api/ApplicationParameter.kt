@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonElement
 private const val TYPE_INPUT_FILE = "input_file"
 private const val TYPE_INPUT_DIRECTORY = "input_directory"
 private const val TYPE_TEXT = "text"
+private const val TYPE_TEXTAREA = "textarea"
 private const val TYPE_INTEGER = "integer"
 private const val TYPE_BOOLEAN = "boolean"
 private const val TYPE_ENUMERATION = "enumeration"
@@ -76,6 +77,16 @@ sealed class ApplicationParameter {
         __Compatible with:__ $TYPE_REF AppParameterValue.Text
     """, importance = 929)
     data class Text(
+        override var name: String = "",
+        override val optional: Boolean = false,
+        override val defaultValue: JsonElement? = null,
+        override val title: String = "",
+        override val description: String = ""
+    ) : ApplicationParameter()
+
+    @Serializable
+    @SerialName(TYPE_TEXTAREA)
+    data class TextArea(
         override var name: String = "",
         override val optional: Boolean = false,
         override val defaultValue: JsonElement? = null,

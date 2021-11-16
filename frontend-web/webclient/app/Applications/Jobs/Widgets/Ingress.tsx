@@ -12,6 +12,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import IngressBrowse from "@/Applications/Ingresses/Browse";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -75,7 +76,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <IngressBrowse computeProvider={props.provider} onSelect={onUse} embedded={true}/>
+            <IngressBrowse computeProvider={props.provider} onSelect={onUse} browseType={BrowseType.Embedded}/>
         </ReactModal>
     </Flex>);
 }

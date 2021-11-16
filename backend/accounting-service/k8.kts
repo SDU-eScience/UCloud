@@ -3,14 +3,18 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting"
-    version = "1.8.0-storage0"
+    version = "2021.3.0-alpha2"
 
     withAmbassador("/api/accounting") {
         addSimpleMapping("/api/products")
+        addSimpleMapping("/api/gifts")
+        addSimpleMapping("/api/grant")
+        addSimpleMapping("/api/projects")
+        addSimpleMapping("/api/providers")
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 2)
     }
 
     withPostgresMigration(deployment)

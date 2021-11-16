@@ -35,11 +35,11 @@ class ProviderIntegrationService(
         val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
         val auth = RefreshingJWTAuthenticator(
             serviceClient.client,
-            JwtRefresher.ProviderOrchestrator(serviceClient, provider)
+            JwtRefresher.ProviderOrchestrator(serviceClient, providerSpec.id)
         )
         val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
 
-        val integrationProvider = IntegrationProvider(provider)
+        val integrationProvider = IntegrationProvider(providerSpec.id)
 
         integrationProvider.retrieveManifest.call(Unit, httpClient).orNull()?.enabled?.takeIf { it }
             ?: throw RPCException("Connection is not supported by this provider", HttpStatusCode.BadRequest)
@@ -49,7 +49,7 @@ class ProviderIntegrationService(
             httpClient
         ).orRethrowAs {
             val errorMessage = it.error?.why ?: it.statusCode.description
-            throw RPCException("Connection with $provider has failed ($errorMessage)", HttpStatusCode.BadGateway)
+            throw RPCException("Connection with ${providerSpec.id} has failed ($errorMessage)", HttpStatusCode.BadGateway)
         }
 
         if (connection.redirectTo.startsWith("http://") || connection.redirectTo.startsWith("https://")) {
@@ -98,24 +98,32 @@ class ProviderIntegrationService(
                                     where username = :username
                                 ),
                                 available as(
-                                    select w.product_provider
+                                    select p.resource, p.unique_name
                                     from
                                         project.project_members pm join
-                                        accounting.wallets w on
-                                            pm.project_id = w.account_id and
-                                            w.account_type = 'PROJECT'
-                                    where username = :username
+                                        accounting.wallet_owner wo on
+                                            pm.project_id = wo.project_id and
+                                            pm.username = :username join
+                                        accounting.wallets w on w.owned_by = wo.id join
+                                        accounting.product_categories pc on w.category = pc.id join
+                                        provider.providers p on pc.provider = p.unique_name
                                     union
-                                    select w.product_provider
-                                    from accounting.wallets w
-                                    where w.account_id = :username and w.account_type = 'USER'
+                                    select p.resource, p.unique_name
+                                    from
+                                        accounting.wallet_owner wo join
+                                        accounting.wallets w on w.owned_by = wo.id join
+                                        accounting.product_categories pc on w.category = pc.id join
+                                        provider.providers p on pc.provider = p.unique_name
+                                    where
+                                        wo.username = :username
                                 )
                             select
-                                a.product_provider as provider_id, 
-                                c.provider_id is not null as is_connected
+                                a.resource as provider_id,
+                                c.provider_id is not null as is_connected,
+                                a.unique_name as provider_name
                             from
                                 available a left join
-                                connected c on c.provider_id = a.product_provider
+                                connected c on c.provider_id = a.resource
                             order by provider_id
                         """
                     )
@@ -123,8 +131,9 @@ class ProviderIntegrationService(
             mapper = { _, rows ->
                 rows.map { row ->
                     IntegrationBrowseResponseItem(
-                        row.getString(0)!!,
+                        row.getLong(0)!!.toString(),
                         row.getBoolean(1)!!,
+                        row.getString(2)!!,
                     )
                 }
             }
@@ -165,8 +174,11 @@ class ProviderIntegrationService(
                         setParameter("provider_id", providerId)
                     },
                     """
-                        insert into provider.connected_with (username, provider_id) values
-                        (:username, :provider_id) on conflict do nothing 
+                        insert into provider.connected_with (username, provider_id)
+                        select :username, p.resource
+                        from provider.providers p
+                        where p.unique_name = :provider_id
+                        on conflict do nothing 
                     """
                 )
         }

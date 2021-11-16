@@ -18,9 +18,11 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
+import dk.sdu.cloud.provider.api.Resources
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 interface WithConflictPolicy {
     val conflictPolicy: WriteConflictPolicy
@@ -133,19 +135,39 @@ typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponse
 @Serializable
 data class FilesCreateDownloadResponseItem(var endpoint: String)
 
+@Serializable
+data class UFileUpdate(override val timestamp: Long, override val status: String?) : ResourceUpdate
+
 // ---
 
 @UCloudApiExperimental(ExperimentalLevel.BETA)
-object Files : ResourceApi<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
+object Files : ResourceApi<UFile, UFileSpecification, UFileUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
         FSSupport>("files") {
-    override val typeInfo = ResourceTypeInfo<UFile, UFileSpecification, ResourceUpdate, UFileIncludeFlags,
-            UFileStatus, Product.Storage, FSSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        UFile.serializer(),
+        typeOf<UFile>(),
+        UFileSpecification.serializer(),
+        typeOf<UFileSpecification>(),
+        UFileUpdate.serializer(),
+        typeOf<UFileUpdate>(),
+        UFileIncludeFlags.serializer(),
+        typeOf<UFileIncludeFlags>(),
+        UFileStatus.serializer(),
+        typeOf<UFileStatus>(),
+        FSSupport.serializer(),
+        typeOf<FSSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     init {
         title = "Files"
 
         //language=markdown
         description = """Files in UCloud is a resource for storing, retrieving and organizing data in UCloud.
+
+${Resources.readMeFirst}
 
 The file-system of UCloud provide researchers with a way of storing large data-sets efficiently and securely. The
 file-system is one of UCloud's core features and almost all other features, either directly or indirectly, interact

@@ -3,12 +3,15 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-orchestrator"
-    version = "0.1.0"
+    version = "2021.3.0-alpha6"
     
-    withAmbassador() {}
+    withAmbassador(null) {
+        addSimpleMapping("/api/files")
+        addSimpleMapping("/api/shares")
+    }
     
     val deployment = withDeployment {
-        deploy.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
     }
     
     withPostgresMigration(deployment)

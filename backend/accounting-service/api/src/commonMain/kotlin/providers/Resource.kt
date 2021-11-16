@@ -4,8 +4,12 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.accounting.api.providers.SupportByProvider
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.DocStatLine
+import dk.sdu.cloud.calls.DocVisualizable
+import dk.sdu.cloud.calls.DocVisualization
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.visualizeValue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -23,6 +27,9 @@ interface ResourceIncludeFlags {
     val filterProvider: String?
     val filterProductId: String?
     val filterProductCategory: String?
+    val hideProductId: String?
+    val hideProductCategory: String?
+    val hideProvider: String?
 
     @UCloudApiDoc("Filters by the provider ID. The value is comma-separated.")
     val filterProviderIds: String?
@@ -46,28 +53,10 @@ data class SimpleResourceIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
-
-@UCloudApiDoc(
-    """Contains information related to the accounting/billing of a `Resource`
-
-Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
-the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-to be charged a different price than newly launched products."""
-)
-interface ResourceBilling {
-    @UCloudApiDoc("The price per unit. This can differ from current price of `Product`")
-    val pricePerUnit: Long
-
-    @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
-    val creditsCharged: Long
-
-    @Serializable
-    object Free : ResourceBilling {
-        override val creditsCharged: Long = 0L
-        override val pricePerUnit: Long = 0L
-    }
-}
 
 @UCloudApiDoc("The owner of a `Resource`")
 @Serializable
@@ -155,29 +144,15 @@ interface ResourceStatus<P : Product, Support : ProductSupport> {
 
     @UCloudApiDoc(
         "The resolved product referenced by `product`.\n\n" +
-            "This attribute is not included by default unless `includeProduct` is specified."
+                "This attribute is not included by default unless `includeProduct` is specified."
     )
     var resolvedProduct: P?
 }
 
 @UCloudApiDoc(
-    """A `Resource` is the core data model used to synchronize tasks between UCloud and a
-    [provider](/backend/provider-service/README.md).
+    """A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.
 
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 """
 )
 interface Resource<P : Product, Support : ProductSupport> : DocVisualizable {
@@ -206,23 +181,12 @@ resource."""
     )
     val updates: List<ResourceUpdate>
 
-    // ---
-    @UCloudApiDoc("Contains information related to billing information for this `Resource`")
-    @Deprecated("Going away")
-    val billing: ResourceBilling
-
-    // ---
-
     @UCloudApiDoc("Contains information about the original creator of the `Resource` along with project association")
     val owner: ResourceOwner
 
-    @UCloudApiDoc("An ACL for this `Resource`")
-    @Deprecated("Replace with permissions")
-    val acl: List<ResourceAclEntry>?
-
     @UCloudApiDoc(
         "Permissions assigned to this resource\n\n" +
-            "A null value indicates that permissions are not supported by this resource type."
+                "A null value indicates that permissions are not supported by this resource type."
     )
     val permissions: ResourcePermissions?
 

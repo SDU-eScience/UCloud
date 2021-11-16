@@ -287,9 +287,9 @@ class PathConverter(
         const val COLLECTION_DIRECTORY = "collections"
         const val PERSONAL_REPOSITORY = "Members' Files"
 
-        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs_credits", UCLOUD_PROVIDER)
-        val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs_credits", UCLOUD_PROVIDER)
-        val PRODUCT_SHARE_REFERENCE = ProductReference("share", "u1-cephfs_credits", UCLOUD_PROVIDER)
+        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs", UCLOUD_PROVIDER)
+        val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs", UCLOUD_PROVIDER)
+        val PRODUCT_SHARE_REFERENCE = ProductReference("share", "u1-cephfs", UCLOUD_PROVIDER)
     }
 }
 

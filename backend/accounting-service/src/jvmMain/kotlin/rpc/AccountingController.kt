@@ -62,6 +62,10 @@ class AccountingController(
             ok(accounting.browseWallets(actorAndProject, request))
         }
 
+        implement(Wallets.searchSubAllocations) {
+            ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
+        }
+
         implement(Wallets.browseSubAllocations) {
             ok(accounting.browseSubAllocations(actorAndProject, request))
         }

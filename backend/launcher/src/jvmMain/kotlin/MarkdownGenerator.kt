@@ -628,7 +628,8 @@ fun generateMarkdownForExample(useCase: UseCase): String {
     outs.appendLine(
         summary(
             "<b>Communication Flow:</b> Visual",
-            useCase.visual()
+            useCase.visual(),
+            open = true
         )
     )
     return out.toString()

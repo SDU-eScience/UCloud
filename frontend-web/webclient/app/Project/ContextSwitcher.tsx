@@ -1,7 +1,7 @@
 import {emptyPage} from "@/DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
-import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {isAbsoluteUrl, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
@@ -97,6 +97,9 @@ const HoverIcon = styled(Icon)`
 function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
     const {pathname, search} = window.location;
     runThisFunction();
+    if (pathname === "/app/files") {
+        history.push("/drives")
+    }
     refresh?.();
 }
 

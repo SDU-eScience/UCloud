@@ -73,7 +73,10 @@ class FileCollectionService(
                 setParameter("query", query)
             },
             """
-                select * from file_orchestrator.file_collections
+                select c.*
+                from
+                    accessible_resources resc join
+                    file_orchestrator.file_collections c on (resc.r).id = resource
                 where
                     (:query::text is null or title ilike '%' || :query || '%')
             """

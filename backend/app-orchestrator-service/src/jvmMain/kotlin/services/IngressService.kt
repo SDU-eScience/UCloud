@@ -69,8 +69,10 @@ class IngressService(
                 setParameter("filter_state", flags?.filterState?.name)
             },
             """
-                select *
-                from app_orchestrator.ingresses
+                select i.*
+                from
+                    accessible_resources resc join
+                    app_orchestrator.ingresses i on (resc.r).id = resource
                 where
                     (:query::text is null or domain ilike ('%' || :query || '%')) and
                     (:filter_state::text is null or :filter_state = current_state)

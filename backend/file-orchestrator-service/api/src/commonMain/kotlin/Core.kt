@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.provider.api.*
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -49,52 +48,7 @@ enum class FileType {
     DANGLING_METADATA
 }
 
-//@Serializable
-// @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
-typealias FilePermission = Permission/* {
-    @UCloudApiDoc(
-        """The user is allowed to read the contents of the file
-
-- For regular files (`FILE`) this allows a user to read the data and metadata of the file.
-- For directories (`DIRECTORY`) this allows the user to read metadata about the folder along with _listing_ the files
-  of that directory
-- For soft symbolic links (`SOFT_LINK`) this allows the user to read metadata about the link along with reading the
-  pointer of this link. That is, the user is not necessarily allowed to read the file which the pointer points to.
-- For dangling metadata (`DANGLING_METADATA`) this allows the user to read the metadata which is dangling
-
-In addition, this will allow users to read the metadata of a file.
-"""
-    )
-    READ,
-
-    @UCloudApiDoc(
-        """The user is allowed to write to this file
-
-- For regular files (`FILE`) this allows a user to change the contents of a file, including deleting the file entirely
-- For directories (`DIRECTORY`) this allows a user to change the contents of a folder. This includes creating and
-  deleting files from a directory.
-- For soft symbolic links (`SOFT_LINK`) this allows a user to change where the link points to
-- For dangling metadata (`DANGLING_METADATA`) this allows the user to move the metadata to another file
-
-In addition, this will allow users to change the metadata of a file. However, it will not allow the user to add new
-metadata templates to the file.
-"""
-    )
-    WRITE,
-
-    @UCloudApiDoc(
-        """The user is allowed to perform administrative actions to this file
-
-For all files, this will allow the entity to change the permissions and ACL of a file.
-
-This permission also allows the user to attach new metadata templates to a file. If a metadata template is inheritable,
-see `FileMetadataTemplate.specification.inheritable`, then users will be able to change the value on descendants of this
-file.
-"""
-    )
-    ADMINISTRATOR,
-}
-*/
+typealias FilePermission = Permission
 
 @Serializable
 data class UFileIncludeFlags(
@@ -126,6 +80,9 @@ This value is `true` by default """)
     @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
     val filterHiddenFiles: Boolean = false,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -266,9 +223,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions? = null
 ) : Resource<Product.Storage, FSSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-    override val updates: List<ResourceUpdate> = emptyList()
+    override val updates: List<UFileUpdate> = emptyList()
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -436,32 +391,15 @@ data class FileCollectionIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc(
-    """A `FileCollection` is an entrypoint to a user's files
-
-This entrypoint allows the user to access all the files they have access to within a single project. It is important to
-note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
-below:
-
-| Name              | Typical path                | Comment                                                     |
-|-------------------|-----------------------------|-------------------------------------------------------------|
-| Home directory    | `/home/${"$"}username/`     | The home folder is typically the main collection for a user |
-| Work directory    | `/work/${"$"}projectId/`    | The project 'home' folder                                   |
-| Scratch directory | `/scratch/${"$"}projectId/` | Temporary storage for a project                             |
-
-The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
-play an important role in accounting and resource management. A file collection can have a quota attached to it and
-billing information is also stored in this object. Each file collection can be attached to a different product type, and
-as a result, can have different billing information attached to it. This is, for example, useful if a storage provider
-has both fast and slow tiers of storage, which is typically billed very differently.
-
-All file collections additionally have a title. This title can be used for a user-friendly version of the folder. This
-title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
-if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
+    """
 """
 )
 @Serializable
@@ -475,9 +413,6 @@ data class FileCollection(
     override val permissions: ResourcePermissions? = null,
     override val providerGeneratedId: String? = null
 ) : Resource<Product.Storage, FSSupport> {
-    override val acl: List<ResourceAclEntry>? = null
-    override val billing = ResourceBilling.Free
-
     @Serializable
     data class Spec(
         val title: String,
@@ -489,6 +424,7 @@ data class FileCollection(
     }
 
     @Serializable
+    @UCloudApiOwnedBy(FileCollections::class)
     data class Update(
         override val timestamp: Long,
         override val status: String?,

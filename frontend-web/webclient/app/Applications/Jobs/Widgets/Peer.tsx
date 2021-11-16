@@ -15,6 +15,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/NewApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -141,7 +142,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                     setAllowAutoConfigure(false);
                     doClose();
                 }}
-                embedded={true}
+                browseType={BrowseType.Embedded}
             />
         </ReactModal>
     </Flex>);

@@ -100,7 +100,7 @@ The ID is unique across a provider for a single resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ProviderUpdate.md'>ProviderUpdate</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#providerupdate'>ProviderUpdate</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
 </summary>
 
 

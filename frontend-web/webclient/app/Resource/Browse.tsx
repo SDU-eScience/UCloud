@@ -205,11 +205,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onSelect,
         dispatch,
         history,
-        startRenaming: (res, value) => {
+        startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
             setRenamingValue(value);
         },
-        startCreation: () => {
+        startCreation() {
             if (props.onInlineCreation != null) {
                 setSelectedProduct(props.inlineProduct ?? null);
                 setIsCreating(true);
@@ -285,7 +285,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle resource={resource} /> : null;
+                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
@@ -319,7 +319,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </div>
                 }
             </>}
-            {RemainingStats ? <RemainingStats resource={resource} /> : null}
+            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
@@ -331,9 +331,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <>
             <Spacer left={null} right={pageSize.current > 0 ?
-                <Box width="160px">
+                <Box width="170px">
                     <EnumFilterWidget
-                        expanded={false} propertyName="direction" title="Sort direction" facedownChevron
+                        expanded={false} browseType={props.browseType} propertyName="direction" title="Sort direction" facedownChevron
                         id={0} onExpand={doNothing} properties={filters} options={sortDirections}
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
@@ -343,6 +343,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
                     <ItemRow
+                        browseType={props.browseType}
                         renderer={modifiedRenderer as ItemRenderer<unknown>}
                         itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         operations={operations} callbacks={callbacks}
@@ -357,6 +358,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 {items.map(it =>
                     <ItemRow
                         key={it.id}
+                        browseType={props.browseType}
                         navigate={() => {
                             if (props.navigateToChildren) {
                                 const result = props.navigateToChildren?.(history, it)
@@ -367,7 +369,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<Res>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />

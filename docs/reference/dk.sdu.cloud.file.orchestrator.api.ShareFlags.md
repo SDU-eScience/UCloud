@@ -22,6 +22,7 @@ data class ShareFlags(
     val filterProviderIds: String?,
     val filterIngoing: Boolean?,
     val filterOriginalPath: String?,
+    val filterRejected: String?,
     val filterIds: String?,
 )
 ```
@@ -166,6 +167,17 @@ data class ShareFlags(
 <details>
 <summary>
 <code>filterOriginalPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterRejected</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

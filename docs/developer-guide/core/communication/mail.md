@@ -26,15 +26,11 @@
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#send'><code>send</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#sendbulk'><code>sendBulk</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#sendsupport'><code>sendSupport</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#sendtouser'><code>sendToUser</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -153,11 +149,7 @@
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#sendbulkrequest'><code>SendBulkRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#sendrequest'><code>SendRequest</code></a></td>
+<td><a href='#sendrequestitem'><code>SendRequestItem</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -189,32 +181,6 @@
 
 
 
-### `send`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#sendrequest'>SendRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `sendBulk`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#sendbulkrequest'>SendBulkRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `sendSupport`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -225,6 +191,19 @@
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#sendsupportemailrequest'>SendSupportEmailRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `sendToUser`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#sendrequestitem'>SendRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2085,50 +2064,14 @@ data class RetrieveEmailSettingsRequest(
 
 ---
 
-### `SendBulkRequest`
+### `SendRequestItem`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class SendBulkRequest(
-    val messages: List<SendRequest>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>messages</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#sendrequest'>SendRequest</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `SendRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class SendRequest(
+data class SendRequestItem(
     val receiver: String,
     val mail: Mail,
     val mandatory: Boolean?,

@@ -4,7 +4,6 @@ import dk.sdu.cloud.accounting.api.Accounting
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.alerting.api.Alerting
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
@@ -37,6 +36,7 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.ApiConventions
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
 import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
@@ -64,6 +64,8 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.favorite.api.ProjectFavorites
 import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.ResourceControl
+import dk.sdu.cloud.provider.api.ResourceProvider
 import dk.sdu.cloud.provider.api.Resources
 import dk.sdu.cloud.redis.cleaner.api.RedisCleaner
 import dk.sdu.cloud.slack.api.SlackDescriptions
@@ -119,6 +121,7 @@ fun Chapter.previous(): Chapter? {
     }
 }
 
+@OptIn(UCloudApiExampleValue::class)
 fun generateCode() {
     val structure = Chapter.Node(
         "developer-guide",
@@ -163,6 +166,7 @@ fun generateCode() {
                 "orchestration",
                 "Orchestration of Resources",
                 listOf(
+                    Chapter.Feature("resources", "Introduction to Resources", Resources),
                     Chapter.Node(
                         "storage",
                         "Storage",
@@ -174,14 +178,24 @@ fun generateCode() {
                                 "metadata",
                                 "Metadata",
                                 listOf(
-                                    Chapter.Feature("templates", "Templates", FileMetadataTemplateNamespaces),
-                                    Chapter.Feature("documents", "Documents", FileMetadata)
+                                    Chapter.Feature("templates", "Metadata Templates", FileMetadataTemplateNamespaces),
+                                    Chapter.Feature("documents", "Metadata Documents", FileMetadata)
                                 )
                             ),
                             Chapter.Node(
                                 "providers",
                                 "Provider APIs",
                                 listOf(
+                                    Chapter.Feature(
+                                        "resources",
+                                        "Introduction to Resources API for Providers",
+                                        ResourceProvider
+                                    ),
+                                    Chapter.Feature(
+                                        "control",
+                                        "Introduction to Resources Control API",
+                                        ResourceControl
+                                    ),
                                     Chapter.Node(
                                         "drives",
                                         "Drives (FileCollection)",
@@ -336,7 +350,6 @@ fun generateCode() {
                 listOf(
                     Chapter.Feature("types", "Core Types", CoreTypes),
                     Chapter.Feature("api-conventions", "API Conventions", ApiConventions),
-                    Chapter.Feature("resources", "Resources", Resources),
                     Chapter.Node(
                         "users",
                         "Users",
@@ -362,7 +375,6 @@ fun generateCode() {
                         listOf(
                             Chapter.Feature("auditing", "Auditing", Auditing),
                             Chapter.Feature("alerting", "Alerting", Alerting),
-                            Chapter.Feature("activity", "Activity", Activity),
                             Chapter.Node(
                                 "scripts",
                                 "Scripts",

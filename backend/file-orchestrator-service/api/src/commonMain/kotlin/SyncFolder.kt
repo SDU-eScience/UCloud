@@ -8,6 +8,7 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 enum class SynchronizationType(val syncthingValue: String) {
@@ -23,10 +24,8 @@ data class SyncFolder(
     override val status: Status,
     override val updates: List<Update>,
     override val owner: ResourceOwner,
-    override val permissions: ResourcePermissions?
+    override val permissions: ResourcePermissions?,
 ) : Resource<Product.Synchronization, SyncFolderSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
 
     @Serializable
     data class Spec(
@@ -68,6 +67,9 @@ data class SyncFolderIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProvider: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProductId: String? = null,
     val filterByPath: String? = null,
     val filterDeviceId: List<String>? = null,
     val filterUser: String? = null
@@ -76,8 +78,24 @@ data class SyncFolderIncludeFlags(
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
     Product.Synchronization, SyncFolderSupport>("sync.folders") {
-    override val typeInfo = ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
-        SyncFolder.Status, Product.Synchronization, SyncFolderSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncFolder.serializer(),
+        typeOf<SyncFolder>(),
+        SyncFolder.Spec.serializer(),
+        typeOf<SyncFolder.Spec>(),
+        SyncFolder.Update.serializer(),
+        typeOf<SyncFolder.Update>(),
+        SyncFolderIncludeFlags.serializer(),
+        typeOf<SyncFolderIncludeFlags>(),
+        SyncFolder.Status.serializer(),
+        typeOf<SyncFolder.Status>(),
+        SyncFolderSupport.serializer(),
+        typeOf<SyncFolderSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!
@@ -86,16 +104,46 @@ object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
 
 object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
     SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders") {
-    override val typeInfo =
-        ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
-            Product.Synchronization, SyncFolderSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncFolder.serializer(),
+        typeOf<SyncFolder>(),
+        SyncFolder.Spec.serializer(),
+        typeOf<SyncFolder.Spec>(),
+        SyncFolder.Update.serializer(),
+        typeOf<SyncFolder.Update>(),
+        SyncFolderIncludeFlags.serializer(),
+        typeOf<SyncFolderIncludeFlags>(),
+        SyncFolder.Status.serializer(),
+        typeOf<SyncFolder.Status>(),
+        SyncFolderSupport.serializer(),
+        typeOf<SyncFolderSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 }
 
 open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
     SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders", provider) {
-    override val typeInfo =
-        ResourceTypeInfo<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
-            Product.Synchronization, SyncFolderSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncFolder.serializer(),
+        typeOf<SyncFolder>(),
+        SyncFolder.Spec.serializer(),
+        typeOf<SyncFolder.Spec>(),
+        SyncFolder.Update.serializer(),
+        typeOf<SyncFolder.Update>(),
+        SyncFolderIncludeFlags.serializer(),
+        typeOf<SyncFolderIncludeFlags>(),
+        SyncFolder.Status.serializer(),
+        typeOf<SyncFolder.Status>(),
+        SyncFolderSupport.serializer(),
+        typeOf<SyncFolderSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 
     override val delete get() = super.delete!!
 

@@ -110,7 +110,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }));
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
-            filterTemplate: "favorite",
+            filterTemplate: "Favorite",
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
@@ -132,7 +132,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favoriteFiles={favoriteFiles}
                 onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
                     filterActive: true,
-                    filterTemplate: "favorite",
+                    filterTemplate: "Favorite",
                     itemsPerPage: 10
                 }))}
             />
@@ -371,10 +371,10 @@ function DashboardRuns({runs}: {
         error={runs.error?.why}
     >
         {runs.data.items.length === 0 ? (
-            <NoResultsCardBody title={"No available resources"}>
+            <NoResultsCardBody title={"No previous jobs found"}>
                 <Text>
-                    No runs found.
-                    <Link to="">
+                    <Link to="/applications/overview">
+                        View applications
                     </Link>
                 </Text>
             </NoResultsCardBody>
@@ -385,7 +385,7 @@ function DashboardRuns({runs}: {
                         key={job.id}
                         item={job}
                         browseType={BrowseType.Card}
-                        navigate={() => history.push(`/applications/properties/${job.id}`)}
+                        navigate={() => history.push(`/jobs/properties/${job.id}`)}
                         renderer={JobsApi.renderer}
                         toggleSet={toggle}
                         operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}

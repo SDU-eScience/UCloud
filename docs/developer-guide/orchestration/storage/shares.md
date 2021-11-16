@@ -9,11 +9,40 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Shares provide users a way of collaborating on individual folders in a personal workspaces._
+
+## Rationale
+
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
+This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
+other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
+how to use this feature. We generally recommend that you use a full-blown project for collaboration.
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-complete-example'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-complete-example'>Complete example</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -72,7 +101,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -90,7 +119,7 @@
 </tr>
 <tr>
 <td><a href='#share'><code>Share</code></a></td>
-<td>A `Resource` is the core data model used to synchronize tasks between UCloud and a</td>
+<td>A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.</td>
 </tr>
 <tr>
 <td><a href='#share.spec'><code>Share.Spec</code></a></td>
@@ -103,6 +132,10 @@
 <tr>
 <td><a href='#share.status'><code>Share.Status</code></a></td>
 <td>Describes the current state of the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#share.update'><code>Share.Update</code></a></td>
+<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#shareflags'><code>ShareFlags</code></a></td>
@@ -128,6 +161,587 @@
 
 
 </details>
+
+## Example: Complete example
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>A UCloud user named Alice (<code>alice</code>)</li>
+<li>A UCloud user named Bob (<code>bob</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+
+/* In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
+share references a UFile. */
+
+Shares.create.call(
+    bulkRequestOf(Share.Spec(
+        permissions = listOf(Permission.EDIT), 
+        product = ProductReference(
+            category = "example-ssd", 
+            id = "share", 
+            provider = "example", 
+        ), 
+        sharedWith = "bob", 
+        sourceFilePath = "/5123/work/my-project/my-collaboration", 
+    )),
+    alice
+).orThrow()
+
+/*
+BulkResponse(
+    responses = listOf(FindByStringId(
+        id = "6342", 
+    )), 
+)
+*/
+
+/* This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares. */
+
+Shares.browse.call(
+    ResourceBrowseRequest(
+        consistency = null, 
+        flags = ShareFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterIngoing = true, 
+            filterOriginalPath = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterRejected = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+        sortBy = null, 
+        sortDirection = SortDirection.ascending, 
+    ),
+    bob
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Share(
+        acl = null, 
+        billing = ResourceBilling.Free, 
+        createdAt = 1635151675465, 
+        id = "6342", 
+        owner = ResourceOwner(
+            createdBy = "alice", 
+            project = null, 
+        ), 
+        permissions = ResourcePermissions(
+            myself = listOf(Permission.READ), 
+            others = null, 
+        ), 
+        specification = Share.Spec(
+            permissions = listOf(Permission.EDIT), 
+            product = ProductReference(
+                category = "example-ssd", 
+                id = "share", 
+                provider = "example", 
+            ), 
+            sharedWith = "bob", 
+            sourceFilePath = "/5123/work/my-project/my-collaboration", 
+        ), 
+        status = Share.Status(
+            resolvedProduct = null, 
+            resolvedSupport = null, 
+            shareAvailableAt = null, 
+            state = State.PENDING, 
+        ), 
+        updates = emptyList(), 
+        providerGeneratedId = "6342", 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+
+/* Bob now approves this share request */
+
+Shares.approve.call(
+    bulkRequestOf(FindByStringId(
+        id = "6342", 
+    )),
+    bob
+).orThrow()
+
+/*
+Unit
+*/
+
+/* And the file is now shared and available at the path /6412 */
+
+Shares.browse.call(
+    ResourceBrowseRequest(
+        consistency = null, 
+        flags = ShareFlags(
+            filterCreatedAfter = null, 
+            filterCreatedBefore = null, 
+            filterCreatedBy = null, 
+            filterIds = null, 
+            filterIngoing = true, 
+            filterOriginalPath = null, 
+            filterProductCategory = null, 
+            filterProductId = null, 
+            filterProvider = null, 
+            filterProviderIds = null, 
+            filterRejected = null, 
+            includeOthers = false, 
+            includeProduct = false, 
+            includeSupport = false, 
+            includeUpdates = false, 
+        ), 
+        itemsPerPage = null, 
+        itemsToSkip = null, 
+        next = null, 
+        sortBy = null, 
+        sortDirection = SortDirection.ascending, 
+    ),
+    bob
+).orThrow()
+
+/*
+PageV2(
+    items = listOf(Share(
+        acl = null, 
+        billing = ResourceBilling.Free, 
+        createdAt = 1635151675465, 
+        id = "6342", 
+        owner = ResourceOwner(
+            createdBy = "alice", 
+            project = null, 
+        ), 
+        permissions = ResourcePermissions(
+            myself = listOf(Permission.READ), 
+            others = null, 
+        ), 
+        specification = Share.Spec(
+            permissions = listOf(Permission.EDIT), 
+            product = ProductReference(
+                category = "example-ssd", 
+                id = "share", 
+                provider = "example", 
+            ), 
+            sharedWith = "bob", 
+            sourceFilePath = "/5123/work/my-project/my-collaboration", 
+        ), 
+        status = Share.Status(
+            resolvedProduct = null, 
+            resolvedSupport = null, 
+            shareAvailableAt = "/6412", 
+            state = State.APPROVED, 
+        ), 
+        updates = emptyList(), 
+        providerGeneratedId = "6342", 
+    )), 
+    itemsPerPage = 50, 
+    next = null, 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+
+/* In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
+share references a UFile. */
+
+// Authenticated as alice
+await callAPI(SharesApi.create(
+    {
+        "items": [
+            {
+                "sharedWith": "bob",
+                "sourceFilePath": "/5123/work/my-project/my-collaboration",
+                "permissions": [
+                    "EDIT"
+                ],
+                "product": {
+                    "id": "share",
+                    "category": "example-ssd",
+                    "provider": "example"
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+    "responses": [
+        {
+            "id": "6342"
+        }
+    ]
+}
+*/
+
+/* This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares. */
+
+// Authenticated as bob
+await callAPI(SharesApi.browse(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIngoing": true,
+            "filterOriginalPath": null,
+            "filterRejected": null,
+            "filterIds": null
+        },
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "sortBy": null,
+        "sortDirection": "ascending"
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "id": "6342",
+            "specification": {
+                "sharedWith": "bob",
+                "sourceFilePath": "/5123/work/my-project/my-collaboration",
+                "permissions": [
+                    "EDIT"
+                ],
+                "product": {
+                    "id": "share",
+                    "category": "example-ssd",
+                    "provider": "example"
+                }
+            },
+            "createdAt": 1635151675465,
+            "status": {
+                "shareAvailableAt": null,
+                "state": "PENDING",
+                "resolvedSupport": null,
+                "resolvedProduct": null
+            },
+            "updates": [
+            ],
+            "owner": {
+                "createdBy": "alice",
+                "project": null
+            },
+            "permissions": {
+                "myself": [
+                    "READ"
+                ],
+                "others": null
+            },
+            "billing": {
+            },
+            "acl": null
+        }
+    ],
+    "next": null
+}
+*/
+
+/* Bob now approves this share request */
+
+await callAPI(SharesApi.approve(
+    {
+        "items": [
+            {
+                "id": "6342"
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+
+/* And the file is now shared and available at the path /6412 */
+
+await callAPI(SharesApi.browse(
+    {
+        "flags": {
+            "includeOthers": false,
+            "includeUpdates": false,
+            "includeSupport": false,
+            "includeProduct": false,
+            "filterCreatedBy": null,
+            "filterCreatedAfter": null,
+            "filterCreatedBefore": null,
+            "filterProvider": null,
+            "filterProductId": null,
+            "filterProductCategory": null,
+            "filterProviderIds": null,
+            "filterIngoing": true,
+            "filterOriginalPath": null,
+            "filterRejected": null,
+            "filterIds": null
+        },
+        "itemsPerPage": null,
+        "next": null,
+        "consistency": null,
+        "itemsToSkip": null,
+        "sortBy": null,
+        "sortDirection": "ascending"
+    }
+);
+
+/*
+{
+    "itemsPerPage": 50,
+    "items": [
+        {
+            "id": "6342",
+            "specification": {
+                "sharedWith": "bob",
+                "sourceFilePath": "/5123/work/my-project/my-collaboration",
+                "permissions": [
+                    "EDIT"
+                ],
+                "product": {
+                    "id": "share",
+                    "category": "example-ssd",
+                    "provider": "example"
+                }
+            },
+            "createdAt": 1635151675465,
+            "status": {
+                "shareAvailableAt": "/6412",
+                "state": "APPROVED",
+                "resolvedSupport": null,
+                "resolvedProduct": null
+            },
+            "updates": [
+            ],
+            "owner": {
+                "createdBy": "alice",
+                "project": null
+            },
+            "permissions": {
+                "myself": [
+                    "READ"
+                ],
+                "others": null
+            },
+            "billing": {
+            },
+            "acl": null
+        }
+    ],
+    "next": null
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
+# share references a UFile.
+
+# Authenticated as alice
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/shares" -d '{
+    "items": [
+        {
+            "sharedWith": "bob",
+            "sourceFilePath": "/5123/work/my-project/my-collaboration",
+            "permissions": [
+                "EDIT"
+            ],
+            "product": {
+                "id": "share",
+                "category": "example-ssd",
+                "provider": "example"
+            }
+        }
+    ]
+}'
+
+
+# {
+#     "responses": [
+#         {
+#             "id": "6342"
+#         }
+#     ]
+# }
+
+# This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares.
+
+# Authenticated as bob
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true&sortDirection=ascending" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "id": "6342",
+#             "specification": {
+#                 "sharedWith": "bob",
+#                 "sourceFilePath": "/5123/work/my-project/my-collaboration",
+#                 "permissions": [
+#                     "EDIT"
+#                 ],
+#                 "product": {
+#                     "id": "share",
+#                     "category": "example-ssd",
+#                     "provider": "example"
+#                 }
+#             },
+#             "createdAt": 1635151675465,
+#             "status": {
+#                 "shareAvailableAt": null,
+#                 "state": "PENDING",
+#                 "resolvedSupport": null,
+#                 "resolvedProduct": null
+#             },
+#             "updates": [
+#             ],
+#             "owner": {
+#                 "createdBy": "alice",
+#                 "project": null
+#             },
+#             "permissions": {
+#                 "myself": [
+#                     "READ"
+#                 ],
+#                 "others": null
+#             },
+#             "billing": {
+#             },
+#             "acl": null
+#         }
+#     ],
+#     "next": null
+# }
+
+# Bob now approves this share request
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/shares/approve" -d '{
+    "items": [
+        {
+            "id": "6342"
+        }
+    ]
+}'
+
+
+# {
+# }
+
+# And the file is now shared and available at the path /6412
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true&sortDirection=ascending" 
+
+# {
+#     "itemsPerPage": 50,
+#     "items": [
+#         {
+#             "id": "6342",
+#             "specification": {
+#                 "sharedWith": "bob",
+#                 "sourceFilePath": "/5123/work/my-project/my-collaboration",
+#                 "permissions": [
+#                     "EDIT"
+#                 ],
+#                 "product": {
+#                     "id": "share",
+#                     "category": "example-ssd",
+#                     "provider": "example"
+#                 }
+#             },
+#             "createdAt": 1635151675465,
+#             "status": {
+#                 "shareAvailableAt": "/6412",
+#                 "state": "APPROVED",
+#                 "resolvedSupport": null,
+#                 "resolvedProduct": null
+#             },
+#             "updates": [
+#             ],
+#             "owner": {
+#                 "createdBy": "alice",
+#                 "project": null
+#             },
+#             "permissions": {
+#                 "myself": [
+#                     "READ"
+#                 ],
+#                 "others": null
+#             },
+#             "billing": {
+#             },
+#             "acl": null
+#         }
+#     ],
+#     "next": null
+# }
+
+```
+
+
+</details>
+
+<details open>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/shares_complete.png)
+
+</details>
+
 
 
 ## Remote Procedure Calls
@@ -430,7 +1044,7 @@ data class Preview(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_A `Resource` is the core data model used to synchronize tasks between UCloud and a_
+_A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
 
 ```kotlin
 data class Share(
@@ -446,22 +1060,7 @@ data class Share(
     val providerGeneratedId: String?,
 )
 ```
-[provider](/backend/provider-service/README.md).
-
-`Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-the provider APIs for communicating the status of the `Job`.
-
-All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-with metadata, such as: ownership, billing and status.
-
-`Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-provider. It is then up to the provider to implement the functionality of the `Resource`.
-
-![](/backend/provider-service/wiki/resource_create.svg)
-
-__Figure:__ UCloud orchestrates with the provider to create a `Resource`
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 
 <details>
 <summary>
@@ -515,7 +1114,7 @@ The ID is unique across a provider for a single resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.Share.Update.md'>Share.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#share.update'>Share.Update</a>&gt;</code></code> Contains a list of updates from the provider as well as UCloud
 </summary>
 
 
@@ -803,6 +1402,88 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ---
 
+### `Share.Update`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes an update to the `Resource`_
+
+```kotlin
+data class Update(
+    val newState: Share.State,
+    val shareAvailableAt: String?,
+    val timestamp: Long,
+    val status: String?,
+)
+```
+Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+use the full update history if you only wish to know the _current_ state of a `Resource`.
+
+An update will typically contain information similar to the `status` field, for example:
+
+- A state value. For example, a compute `Job` might be `RUNNING`.
+- Change in key metrics.
+- Bindings to related `Resource`s.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>newState</code>: <code><code><a href='#share.state'>Share.State</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>shareAvailableAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ShareFlags`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -824,6 +1505,7 @@ data class ShareFlags(
     val filterProviderIds: String?,
     val filterIngoing: Boolean?,
     val filterOriginalPath: String?,
+    val filterRejected: String?,
     val filterIds: String?,
 )
 ```
@@ -968,6 +1650,17 @@ data class ShareFlags(
 <details>
 <summary>
 <code>filterOriginalPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterRejected</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

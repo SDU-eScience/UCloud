@@ -47,14 +47,16 @@ class EnvoyConfigurationService(
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         startProcess(
-            listOf(
+            
+            args = listOf(
                 "/usr/local/bin/getenvoy",
                 "run",
-                "standard:1.18.2",
-                "--",
                 "--config-path",
                 "$configDir/$configFile"
             ),
+
+            envs = listOf("ENVOY_VERSION=1.19.0"),
+
             createStreams = {
                 val devnull = NativeFile.open("/dev/null", readOnly = false)
                 val logFile = NativeFile.open("/tmp/envoy.log", readOnly = false, truncateIfNeeded = true)

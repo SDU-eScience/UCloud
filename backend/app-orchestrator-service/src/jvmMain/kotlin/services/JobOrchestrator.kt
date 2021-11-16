@@ -120,10 +120,6 @@ class JobOrchestrator(
             ?: throw JobException.VerificationError("Application does not exist")
 
         when (application.invocation.tool.tool!!.description.backend) {
-            ToolBackend.SINGULARITY -> {
-                throw JobException.VerificationError("Unsupported application")
-            }
-
             ToolBackend.DOCKER -> {
                 if (support.docker.enabled != true) {
                     throw JobException.VerificationError("Application is not supported by provider")
@@ -134,6 +130,10 @@ class JobOrchestrator(
                 if (support.virtualMachine.enabled != null) {
                     throw JobException.VerificationError("Application is not supported by provider")
                 }
+            }
+
+            else -> {
+                throw JobException.VerificationError("Unsupported application")
             }
         }
     }
@@ -290,7 +290,8 @@ class JobOrchestrator(
                     app, t
 
                 from
-                    app_orchestrator.jobs job join
+                    accessible_resources resc join
+                    app_orchestrator.jobs job on (resc.r).id = resource join
                     app_store.applications app on
                         job.application_name = app.name and job.application_version = app.version join
                     app_store.tools t on app.tool_name = t.name and app.tool_version = t.version left join

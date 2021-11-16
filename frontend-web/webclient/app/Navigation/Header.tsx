@@ -352,7 +352,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                         <ui.Icon name="search" size="20" />
                     </ui.Label>
                 </ui.Absolute>
-                <ClickableDropdown
+                {/* <ClickableDropdown
                     keepOpenOnOutsideClick
                     overflow="visible"
                     left={-425}
@@ -382,7 +382,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                         <ui.Box mr="auto" />
                     </ui.SelectableTextWrapper>
                     {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
-                </ClickableDropdown>
+                </ClickableDropdown> */}
             </SearchInput>
         </ui.Relative>
     );

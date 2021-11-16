@@ -5,6 +5,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlin.native.concurrent.ThreadLocal
 
 @Serializable
 data class AuthProvidersRegisterRequestItem(val id: String)
@@ -45,6 +46,7 @@ data class AuthProvidersGenerateKeyPairResponse(
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@ThreadLocal
 object AuthProviders : CallDescriptionContainer("auth.providers") {
     const val baseContext = "/auth/providers"
     const val PROVIDER_PREFIX = "#P_"

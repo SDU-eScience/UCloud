@@ -233,6 +233,8 @@ create table if not exists project.groups
 		unique (id, project)
 );
 
+create unique index if not exists groups_id_project_key on project.groups (id, project);
+
 create unique index if not exists group_title_uniq
 	on project.groups (lower(title::text), project);
 

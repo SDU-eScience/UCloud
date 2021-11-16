@@ -42,13 +42,15 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
         val now = Time.now()
-        loop@ for (jobFromServer in jobBatch) {
+        for (jobFromServer in jobBatch) {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
-                log.info("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
-                continue@loop
+                log.debug("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
+                continue
             }
+
+            if (now - lastTs < 60_000) continue
 
             account(k8.nameAllocator.jobNameToJobId(name), lastTs, now)
         }

@@ -1,13 +1,22 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.app.kubernetes.CephConfiguration
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
+import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -15,34 +24,33 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withHttpBody
-import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.debug.tellMeEverything
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.joinPath
-import dk.sdu.cloud.file.ucloud.services.NativeFS
-import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.DistributedLock
+import dk.sdu.cloud.service.DistributedLockFactory
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.k8.*
+import dk.sdu.cloud.service.k8.KubernetesException
+import dk.sdu.cloud.service.k8.KubernetesResources
+import dk.sdu.cloud.service.k8.NAMESPACE_ANY
+import dk.sdu.cloud.service.k8.ObjectMeta
+import dk.sdu.cloud.service.k8.createResource
+import dk.sdu.cloud.service.k8.deleteResource
+import dk.sdu.cloud.service.k8.getResource
+import dk.sdu.cloud.service.k8.listResources
 import io.ktor.http.*
-import io.ktor.util.cio.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.onReceiveOrNull
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlin.collections.ArrayList
 import kotlin.random.Random
-import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.minutes
 
 interface JobManagementPlugin {
     /**
@@ -92,23 +100,8 @@ class JobManagement(
     private val db: DBContext,
     private val sessions: SessionDao,
     private val disableMasterElection: Boolean = false,
-    private val fullScanFrequency: Long = 1000L * 60 * 5,
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
-
-    data class ScheduledMonitoringJob(val jobId: String, val timestamp: Long) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            return (other as? ScheduledMonitoringJob)?.jobId == jobId
-        }
-
-        override fun hashCode(): Int {
-            return jobId.hashCode()
-        }
-    }
-
-    private val scheduledForMonitoring = HashSet<ScheduledMonitoringJob>()
-    private val mutex = Mutex()
 
     init {
         if (disableMasterElection) {
@@ -116,23 +109,6 @@ class JobManagement(
                 "Running with master election disabled. This should only be done in development mode with a " +
                     "single instance of this service running!"
             )
-        }
-    }
-
-    /**
-     * Schedules a monitoring of a job identified by [jobId]
-     *
-     * [JobManagementPlugin.onJobMonitoring] will be called by [JobManagement] at a later point in time, but no earlier
-     * than [timestamp]. Plugins will not be notified if the job no longer exists at this point.
-     *
-     * Only one monitoring event can exist for each [jobId]. Calling this function will override existing entries
-     * with the same [jobId].
-     *
-     * This function does not save the information to persistent storage.
-     */
-    suspend fun scheduleJobMonitoring(jobId: String, timestamp: Long) {
-        mutex.withLock {
-            scheduledForMonitoring.add(ScheduledMonitoringJob(jobId, timestamp))
         }
     }
 
@@ -268,223 +244,201 @@ class JobManagement(
         return true
     }
 
+    private var lastScan: Map<String, VolcanoJob> = emptyMap()
+
+    private data class VolcanoJobEvent(
+        val jobName: String,
+        val oldJob: VolcanoJob?,
+        val newJob: VolcanoJob?,
+    ) {
+        val wasDeleted: Boolean get() = newJob == null
+        val updatedPhase: String?
+            get() {
+                val oldPhase = oldJob?.status?.state?.phase
+                val newPhase = newJob?.status?.state?.phase
+
+                return if (oldPhase != newPhase) {
+                    newPhase
+                } else {
+                    null
+                }
+            }
+
+        val updatedRunning: Int?
+            get() {
+                val oldRunning = oldJob?.status?.running
+                val newRunning = newJob?.status?.running
+
+                return if (oldRunning != newRunning) {
+                    newRunning
+                } else {
+                    null
+                }
+            }
+    }
+
+    private fun processScan(newJobs: List<VolcanoJob>): List<VolcanoJobEvent> {
+        val newJobsGrouped = newJobs
+            .asSequence()
+            .filter { it.metadata?.name != null }
+            .associateBy { it.metadata!!.name!! }
+
+        val result = ArrayList<VolcanoJobEvent>()
+        val observed = HashSet<String>()
+        for ((key, oldJob) in lastScan) {
+            val newJob = newJobsGrouped[key]
+            result.add(VolcanoJobEvent(key, oldJob, newJob))
+            observed.add(key)
+        }
+
+        for ((key, newJob) in newJobsGrouped) {
+            if (key in observed) continue
+            result.add(VolcanoJobEvent(key, null, newJob))
+        }
+
+        lastScan = newJobsGrouped
+
+        return result
+    }
+
     @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
         if (didAcquire) {
             log.info("This service has become the master responsible for handling Kubernetes events!")
 
-            coroutineScope {
-                var volcanoWatch = k8.client.watchResource<WatchEvent<VolcanoJob>>(
-                    this,
+            // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
+            delay(15_000)
+
+            var lastIteration = Time.now()
+            while (currentCoroutineContext().isActive) {
+                val now = Time.now()
+                val time = now - lastIteration
+                lastIteration = now
+                val resources = k8.client.listResources<VolcanoJob>(
                     KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
                 )
 
-                // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
-                var nextFullScan = Time.now() + 15_000
+                // NOTE(Dan): If we get to the point that Kubernetes cannot complete this call
+                // in 60 seconds we should consider splitting this up into multiple queues.
+                // To begin with we could probably also just increase the lock duration, but this
+                // means that it will take longer for a new master to be elected.
+                if (!renewLock(lock)) continue
 
-                listenerLoop@ while (currentCoroutineContext().isActive) {
-                    if (volcanoWatch.isClosedForReceive) {
-                        log.info("Stopped receiving new Volcano job watch events. Restarting watcher.")
-                        volcanoWatch = k8.client.watchResource(
-                            this,
-                            KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
-                        )
-                        continue
-                    }
+                val events = processScan(resources)
+                // TODO It looks like this code is aware of changes but they are not successfully received by UCloud/sent by this service
+                for (event in events) {
+                    val jobId = k8.nameAllocator.jobNameToJobId(event.jobName)
 
-                    val duration = measureTime {
-                        select<Unit> {
-                            onTimeout(30_000) {
-                                if (Time.now() >= nextFullScan) {
-                                    // Perform full scan
-                                    nextFullScan = Time.now() + fullScanFrequency
-
-                                    val resources = k8.client.listResources<VolcanoJob>(
-                                        KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
-                                    )
-
-                                    // NOTE(Dan): If we get to the point that Kubernetes cannot complete this call
-                                    // in 60 seconds we should consider splitting this up into multiple queues.
-                                    // To begin with we could probably also just increase the lock duration, but this
-                                    // means that it will take longer for a new master to be elected.
-                                    if (!renewLock(lock)) return@onTimeout
-
-                                    for (plugin in plugins) {
-                                        with(plugin) {
-                                            onJobMonitoring(resources)
-                                        }
-
-                                        if (!renewLock(lock)) return@onTimeout
-                                    }
-                                } else {
-                                    // Check job scheduling
-                                    val lookupIds = ArrayList<String>()
-                                    mutex.withLock {
-                                        val now = Time.now()
-                                        val iterator = scheduledForMonitoring.iterator()
-                                        while (iterator.hasNext()) {
-                                            val scheduledJob = iterator.next()
-                                            if (now >= scheduledJob.timestamp) {
-                                                lookupIds.add(scheduledJob.jobId)
-                                                iterator.remove()
-                                            }
-                                        }
-                                    }
-
-                                    if (lookupIds.isNotEmpty()) {
-                                        for (chunk in lookupIds.chunked(16)) {
-                                            val jobs = chunk.map { jobId ->
-                                                async {
-                                                    try {
-                                                        k8.client.getResource<VolcanoJob>(
-                                                            KubernetesResources.volcanoJob.withNameAndNamespace(
-                                                                k8.nameAllocator.jobIdToJobName(jobId),
-                                                                k8.nameAllocator.jobIdToNamespace(jobId)
-                                                            )
-                                                        )
-                                                    } catch (ex: KubernetesException) {
-                                                        if (ex.statusCode == HttpStatusCode.NotFound) {
-                                                            null
-                                                        } else {
-                                                            throw ex
-                                                        }
-                                                    }
-                                                }
-                                            }.awaitAll()
-
-                                            val foundJobs = jobs.filterNotNull()
-                                            if (foundJobs.isNotEmpty()) {
-                                                plugins.forEach { plugin ->
-                                                    with(plugin) {
-                                                        onJobMonitoring(foundJobs)
-                                                    }
-                                                }
-                                            }
-
-                                            if (!renewLock(lock)) break
-                                        }
-                                    }
-                                }
-                            }
-
-                            // NOTE(Dan): The Kotlin compiler appears to find the wrong overload at the moment.
-                            // Doing it like this ensures that the extension function is picked over the member
-                            // function.
-                            val volcanoWatchOnReceiveOrNull = volcanoWatch.onReceiveOrNull()
-                            volcanoWatchOnReceiveOrNull r@{ ev ->
-                                if (ev == null) return@r
-                                log.debug("Volcano job watch: ${ev.theObject.status}")
-                                val jobName = ev.theObject.metadata?.name ?: return@r
-                                val jobId = k8.nameAllocator.jobNameToJobId(jobName)
-                                val jobNamespace = ev.theObject.metadata?.namespace ?: return@r
-
-                                if (ev.type == "DELETED") {
-                                    val expiry = ev.theObject.expiry
-                                    if (expiry != null && Time.now() >= expiry) {
-                                        // NOTE(Dan): Expiry plugin will simply delete the object. This is why we must
-                                        // check if the reason was expiration here.
-                                        markJobAsComplete(jobId, ev.theObject)
-                                        k8.changeState(jobId, JobState.EXPIRED, "Job has expired")
-                                    } else {
-                                        k8.changeState(jobId, JobState.SUCCESS, "Job has terminated")
-                                    }
-                                    return@r
-                                }
-
-                                val jobStatus = ev.theObject.status ?: return@r
-                                val jobState = jobStatus.state ?: return@r
-
-                                val running = jobStatus.running
-                                val minAvailable = jobStatus.minAvailable
-                                val message = jobState.message
-                                var newState: JobState? = null
-                                var expectedState: JobState? = null
-                                var expectedDifferentState: Boolean = false
-
-                                val statusUpdate = buildString {
-                                    when (jobState.phase) {
-                                        VolcanoJobPhase.Pending -> {
-                                            append("Job is waiting in the queue")
-                                        }
-
-                                        VolcanoJobPhase.Running -> {
-                                            append("Job is now running")
-                                            newState = JobState.RUNNING
-                                            expectedDifferentState = true
-                                        }
-
-                                        VolcanoJobPhase.Restarting -> {
-                                            append("Job is restarting")
-                                        }
-
-                                        VolcanoJobPhase.Failed -> {
-                                            append("Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
-                                            newState = JobState.SUCCESS
-                                        }
-
-                                        VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
-                                        VolcanoJobPhase.Completed, VolcanoJobPhase.Completing,
-                                        VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting,
-                                        -> {
-                                            append("Job is terminating")
-                                            newState = JobState.SUCCESS
-                                        }
-                                    }
-
-                                    if (message != null) {
-                                        append(" ($message)")
-                                    }
-
-                                    if (running != null && minAvailable != null) {
-                                        append(" (${running}/${minAvailable} ready)")
-                                    }
-                                }
-
-                                if (newState != null) {
-                                    if (newState == JobState.SUCCESS) {
-                                        val didChange = k8.addStatus(jobId, statusUpdate)
-                                        if (didChange) {
-                                            markJobAsComplete(jobId, ev.theObject)
-                                            k8.client.deleteResource(
-                                                KubernetesResources.volcanoJob
-                                                    .withNameAndNamespace(jobName, jobNamespace)
-                                            )
-                                        }
-                                    } else {
-                                        val didChangeState = k8.changeState(
-                                            jobId,
-                                            newState!!,
-                                            statusUpdate,
-                                            expectedState = expectedState,
-                                            expectedDifferentState = expectedDifferentState
-                                        )
-
-                                        if (didChangeState) {
-                                            plugins.forEach { plugin ->
-                                                with(plugin) {
-                                                    with(k8) {
-                                                        onJobStart(jobId, ev.theObject)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    k8.addStatus(jobId, statusUpdate)
-                                }
+                    when {
+                        event.wasDeleted -> {
+                            val oldJob = event.oldJob!!
+                            val expiry = oldJob.expiry
+                            if (expiry != null && Time.now() >= expiry) {
+                                // NOTE(Dan): Expiry plugin will simply delete the object. This is why we must
+                                // check if the reason was expiration here.
+                                markJobAsComplete(jobId, oldJob)
+                                k8.changeState(jobId, JobState.EXPIRED, "Job has expired")
+                            } else {
+                                k8.changeState(jobId, JobState.SUCCESS, "Job has terminated")
                             }
                         }
-                    }
 
-                    if (duration >= Duration.minutes(1)) {
-                        log.warn("Took too long to process events ($duration). We will probably lose master status.")
-                    }
+                        event.updatedPhase != null || event.updatedRunning != null -> {
+                            val job = event.newJob!!
+                            val running = job.status?.running
+                            val minAvailable = job.status?.minAvailable
+                            val message = job.status?.state?.message
 
-                    if (!renewLock(lock)) break
+                            var newState: JobState? = null
+                            var expectedDifferentState: Boolean = false
+
+                            val statusUpdate = buildString {
+                                when (job.status?.state?.phase) {
+                                    VolcanoJobPhase.Pending -> {
+                                        append("Job is waiting in the queue")
+                                    }
+
+                                    VolcanoJobPhase.Running -> {
+                                        append("Job is now running")
+                                        newState = JobState.RUNNING
+                                        expectedDifferentState = true
+                                    }
+
+                                    VolcanoJobPhase.Restarting -> {
+                                        append("Job is restarting")
+                                    }
+
+                                    VolcanoJobPhase.Failed -> {
+                                        append("Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
+                                        newState = JobState.SUCCESS
+                                    }
+
+                                    VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
+                                    VolcanoJobPhase.Completed, VolcanoJobPhase.Completing,
+                                    VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting,
+                                    -> {
+                                        append("Job is terminating")
+                                        newState = JobState.SUCCESS
+                                    }
+                                }
+
+                                if (message != null) {
+                                    append(" ($message)")
+                                }
+
+                                if (running != null && minAvailable != null) {
+                                    append(" (${running}/${minAvailable} ready)")
+                                }
+                            }
+
+                            if (newState != null) {
+                                if (newState == JobState.SUCCESS) {
+                                    val didChange = k8.addStatus(jobId, statusUpdate)
+                                    if (didChange) {
+                                        markJobAsComplete(jobId, job)
+                                        k8.client.deleteResource(
+                                            KubernetesResources.volcanoJob
+                                                .withNameAndNamespace(event.jobName, job.metadata!!.namespace!!)
+                                        )
+                                    }
+                                } else {
+                                    val didChangeState = k8.changeState(
+                                        jobId,
+                                        newState!!,
+                                        statusUpdate,
+                                        expectedDifferentState = expectedDifferentState
+                                    )
+
+                                    if (didChangeState) {
+                                        plugins.forEach { plugin ->
+                                            with(plugin) {
+                                                onJobStart(jobId, job)
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                k8.addStatus(jobId, statusUpdate)
+                            }
+                        }
+
+                        else -> {
+                            // Do nothing, just run the normal job monitoring.
+                        }
+                    }
                 }
 
-                runCatching { volcanoWatch.cancel() }
+                for (plugin in plugins) {
+                    with(plugin) {
+                        onJobMonitoring(resources)
+                    }
+
+                    if (!renewLock(lock)) continue
+                }
+
+                if (!renewLock(lock)) break
+                delay(5000)
             }
         }
     }

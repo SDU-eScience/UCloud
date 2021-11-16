@@ -22,6 +22,7 @@ data class Application(
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedBy: String?,
+    val referenceId: String?,
 )
 ```
 
@@ -165,6 +166,17 @@ data class Application(
 <details>
 <summary>
 <code>statusChangedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>referenceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

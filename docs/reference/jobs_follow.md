@@ -147,7 +147,7 @@ JobsFollowResponse(
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

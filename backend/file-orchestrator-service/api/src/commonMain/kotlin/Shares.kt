@@ -10,12 +10,12 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.provider.api.ResourceBilling
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
@@ -24,7 +24,9 @@ import dk.sdu.cloud.provider.api.ResourceStatus
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 data class Share(
@@ -36,9 +38,6 @@ data class Share(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Storage, ShareSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     @Serializable
     data class Spec(
         val sharedWith: String,
@@ -48,6 +47,7 @@ data class Share(
     ) : ResourceSpecification
 
     @Serializable
+    @UCloudApiOwnedBy(Shares::class)
     data class Update(
         val newState: State,
         val shareAvailableAt: String?,
@@ -95,7 +95,11 @@ data class ShareFlags(
     override val filterProviderIds: String? = null,
     val filterIngoing: Boolean = false,
     val filterOriginalPath: String? = null,
+    val filterRejected: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 typealias SharesUpdatePermissionsRequest = BulkRequest<SharesUpdatePermissionsRequestItem>
@@ -131,8 +135,130 @@ data class SharesBrowseOutgoingRequest(
 
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
+
+    init {
+        description = """Shares provide users a way of collaborating on individual folders in a personal workspaces.
+
+${Resources.readMeFirst}
+
+This feature is currently implemented for backwards compatibility with UCloud. We don't currently recommend
+other providers implement this functionality. Nevertheless, we provide a few example to give you an idea of 
+how to use this feature. We generally recommend that you use a full-blown project for collaboration.
+        """
+    }
+
+    override fun documentation() {
+        useCase(
+            "complete",
+            "Complete example",
+            flow = {
+                val alice = actor("alice", "A UCloud user named Alice")
+                val bob = actor("bob", "A UCloud user named Bob")
+
+                comment("""
+                    In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
+                    share references a UFile.
+                """.trimIndent())
+
+                val spec = Share.Spec(
+                    "bob",
+                    "/5123/work/my-project/my-collaboration",
+                    listOf(Permission.EDIT),
+                    ProductReference("share", "example-ssd", "example")
+                )
+                success(
+                    create,
+                    bulkRequestOf(spec),
+                    BulkResponse(listOf(FindByStringId("6342"))),
+                    alice
+                )
+
+                comment("""
+                    This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares.
+                """.trimIndent())
+
+                success(
+                    browse,
+                    ResourceBrowseRequest(
+                        ShareFlags(filterIngoing = true),
+                    ),
+                    PageV2(
+                        50,
+                        listOf(
+                            Share(
+                                "6342",
+                                spec,
+                                1635151675465L,
+                                Share.Status(
+                                    null,
+                                    Share.State.PENDING
+                                ),
+                                emptyList(),
+                                ResourceOwner("alice", null),
+                                ResourcePermissions(listOf(Permission.READ), null),
+                            )
+                        ),
+                        null
+                    ),
+                    bob
+                )
+
+                comment("Bob now approves this share request")
+
+                success(
+                    approve,
+                    bulkRequestOf(FindByStringId("6342")),
+                    Unit,
+                    bob
+                )
+
+                comment("And the file is now shared and available at the path /6412")
+
+                success(
+                    browse,
+                    ResourceBrowseRequest(
+                        ShareFlags(filterIngoing = true),
+                    ),
+                    PageV2(
+                        50,
+                        listOf(
+                            Share(
+                                "6342",
+                                spec,
+                                1635151675465L,
+                                Share.Status(
+                                    "/6412",
+                                    Share.State.APPROVED
+                                ),
+                                emptyList(),
+                                ResourceOwner("alice", null),
+                                ResourcePermissions(listOf(Permission.READ), null),
+                            )
+                        ),
+                        null
+                    ),
+                    bob
+                )
+            }
+        )
+    }
 
     val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
         httpUpdate(baseContext, "approve")
@@ -159,14 +285,44 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
 
 object SharesControl : ResourceControlApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 }
 
 open class SharesProvider(provider: String) : ResourceProviderApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares", provider) {
-    override val typeInfo = ResourceTypeInfo<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
-            Product.Storage, ShareSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Share.serializer(),
+        typeOf<Share>(),
+        Share.Spec.serializer(),
+        typeOf<Share.Spec>(),
+        Share.Update.serializer(),
+        typeOf<Share.Update>(),
+        ShareFlags.serializer(),
+        typeOf<ShareFlags>(),
+        Share.Status.serializer(),
+        typeOf<Share.Status>(),
+        ShareSupport.serializer(),
+        typeOf<ShareSupport>(),
+        Product.Storage.serializer(),
+        typeOf<Product.Storage>(),
+    )
 
     override val delete get() = super.delete!!
 }

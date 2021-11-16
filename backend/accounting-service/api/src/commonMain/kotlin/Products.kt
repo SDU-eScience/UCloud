@@ -280,16 +280,16 @@ sealed class Product : DocVisualizable {
             if (memoryInGigs != null) checkMinimumValue(::memoryInGigs, memoryInGigs, 0)
         }
 
+        @OptIn(ExperimentalStdlibApi::class)
         override fun visualize(): DocVisualization {
             val baseVisualization = super.visualize() as DocVisualization.Card
             return baseVisualization.copy(
                 lines = baseVisualization.lines + listOf(
-                    DocStatLine.of("" to DocVisualization.Inline(buildString {
-                        append("| ")
-                        if (cpu != null) append("$cpu vCPU | ")
-                        if (memoryInGigs != null) append("$memoryInGigs GB | ")
-                        if (gpu != null) append("$gpu GPU | ")
-                    }))
+                    DocStatLine.of("" to DocVisualization.Inline(buildList {
+                        if (cpu != null) add("$cpu vCPU")
+                        if (memoryInGigs != null) add("$memoryInGigs GB RAM")
+                        if (gpu != null) add("$gpu GPU")
+                    }.joinToString(", ")))
                 )
             )
         }

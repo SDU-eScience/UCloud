@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.TSNamespace
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 @Serializable
 data class SyncDevice(
@@ -19,8 +20,6 @@ data class SyncDevice(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Synchronization, SyncDeviceSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
 
     @Serializable
     data class Spec(
@@ -56,15 +55,34 @@ data class SyncDeviceIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
-    override val filterIds: String?,
-    val filterOwner: List<String>? = null
+    override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
+    val filterOwner: List<String>? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
     Product.Synchronization, SyncDeviceSupport>("sync.devices") {
-    override val typeInfo = ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags,
-        SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncDevice.serializer(),
+        typeOf<SyncDevice>(),
+        SyncDevice.Spec.serializer(),
+        typeOf<SyncDevice.Spec>(),
+        SyncDevice.Update.serializer(),
+        typeOf<SyncDevice.Update>(),
+        SyncDeviceIncludeFlags.serializer(),
+        typeOf<SyncDeviceIncludeFlags>(),
+        SyncDevice.Status.serializer(),
+        typeOf<SyncDevice.Status>(),
+        SyncDeviceSupport.serializer(),
+        typeOf<SyncDeviceSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!
@@ -73,16 +91,46 @@ object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
 
 object SyncDeviceControl : ResourceControlApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags,
     SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices") {
-    override val typeInfo =
-        ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
-            Product.Synchronization, SyncDeviceSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncDevice.serializer(),
+        typeOf<SyncDevice>(),
+        SyncDevice.Spec.serializer(),
+        typeOf<SyncDevice.Spec>(),
+        SyncDevice.Update.serializer(),
+        typeOf<SyncDevice.Update>(),
+        SyncDeviceIncludeFlags.serializer(),
+        typeOf<SyncDeviceIncludeFlags>(),
+        SyncDevice.Status.serializer(),
+        typeOf<SyncDevice.Status>(),
+        SyncDeviceSupport.serializer(),
+        typeOf<SyncDeviceSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 }
 
 open class SyncDeviceProvider(provider: String) : ResourceProviderApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
     SyncDeviceIncludeFlags, SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices", provider) {
-    override val typeInfo =
-        ResourceTypeInfo<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
-            Product.Synchronization, SyncDeviceSupport>()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        SyncDevice.serializer(),
+        typeOf<SyncDevice>(),
+        SyncDevice.Spec.serializer(),
+        typeOf<SyncDevice.Spec>(),
+        SyncDevice.Update.serializer(),
+        typeOf<SyncDevice.Update>(),
+        SyncDeviceIncludeFlags.serializer(),
+        typeOf<SyncDeviceIncludeFlags>(),
+        SyncDevice.Status.serializer(),
+        typeOf<SyncDevice.Status>(),
+        SyncDeviceSupport.serializer(),
+        typeOf<SyncDeviceSupport>(),
+        Product.Synchronization.serializer(),
+        typeOf<Product.Synchronization>()
+    )
 
     override val delete get() = super.delete!!
 }

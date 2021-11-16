@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
+import kotlin.reflect.typeOf
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
@@ -16,6 +17,21 @@ object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobInc
         """.trimIndent()
     }
 
-    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
-        Product.Compute, ComputeSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Job.serializer(),
+        typeOf<Job>(),
+        JobSpecification.serializer(),
+        typeOf<JobSpecification>(),
+        JobUpdate.serializer(),
+        typeOf<JobUpdate>(),
+        JobIncludeFlags.serializer(),
+        typeOf<JobIncludeFlags>(),
+        JobStatus.serializer(),
+        typeOf<JobStatus>(),
+        ComputeSupport.serializer(),
+        typeOf<ComputeSupport>(),
+        Product.Compute.serializer(),
+        typeOf<Product.Compute>(),
+    )
 }

@@ -1,10 +1,18 @@
 {
     "compute": {
         "products": [
-            { "category": "im1", "id": "im1" }
+            { "category": "dtu", "id": "dtu-small" },
+            { "category": "dtu", "id": "dtu-large" }
         ],
         "plugins": [
-            {"id": "sample"}
+            {
+                "id": "slurm", 
+                "name": "normal-configuration",
+                "configuration": {
+                    "partition": "normal",
+                    "mountpoint": "/data"
+                } 
+            }   
         ]
     },
     "connection": {

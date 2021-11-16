@@ -41,6 +41,7 @@ PageV2(
             allocationPath = listOf("1254151"), 
             balance = 500, 
             endDate = null, 
+            grantedIn = 2, 
             id = "1254151", 
             initialBalance = 500000000, 
             localBalance = 500, 
@@ -240,7 +241,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500000000,
                     "localBalance": 500,
                     "startDate": 1633329776235,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 2
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -431,7 +433,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500000000,
 #                     "localBalance": 500,
 #                     "startDate": 1633329776235,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 2
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -554,7 +557,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>

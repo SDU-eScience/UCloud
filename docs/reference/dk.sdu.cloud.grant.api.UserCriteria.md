@@ -6,6 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Describes some criteria which match a user_
 
 ```kotlin
 sealed class UserCriteria {
@@ -14,5 +15,6 @@ sealed class UserCriteria {
     class WayfOrganization : UserCriteria()
 }
 ```
+This is used in conjunction with actions that require authorization.
 
 

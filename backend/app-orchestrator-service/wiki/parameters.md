@@ -111,6 +111,25 @@ A textual value
 When this is used with an `Enumeration` it must match the value of one of the associated `options`.
 
 
+### TextArea
+
+<!-- typedoc:dk.sdu.cloud.app.store.api.AppParameterValue.Text:includeProps=true-->
+<!--<editor-fold desc="Generated documentation">-->
+A textarea value
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `value` | `String` | No documentation |
+| `type` | `("text")` | No documentation |
+
+    
+- __Compatible with:__ `ApplicationParameter.TextArea` and `ApplicationParameter.Enumeration`
+- __Mountable as a resource:__ ❌ No
+- __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+- __Side effects:__ None
+
+When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+
 
 <!--</editor-fold>-->
 <!-- /typedoc-->

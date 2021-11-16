@@ -47,6 +47,17 @@ abstract class ResourceService<
     protected abstract val defaultSortColumn: SqlObject.Column
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
+
+    private val resourceTable = SqlObject.Table("provider.resource")
+    private val defaultSortColumns = mapOf(
+        "createdAt" to SqlObject.Column(resourceTable, "created_at"),
+        "createdBy" to SqlObject.Column(resourceTable, "created_by"),
+    )
+    private val computedSortColumns: Map<String, SqlObject.Column> by lazy {
+        defaultSortColumns + sortColumns
+    }
+
+
     protected open val resourceType: String by lazy {
         runBlocking {
             db.withSession { session ->
@@ -101,7 +112,15 @@ abstract class ResourceService<
 
     protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
-        return PartialQuery({}, "select * from $tableName")
+        return PartialQuery(
+            {},
+            """
+                select t.*
+                from
+                    accessible_resources resc join
+                    $tableName t on (resc.r).id = resource
+            """.trimIndent()
+        )
     }
 
     override suspend fun retrieve(
@@ -134,8 +153,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -179,7 +198,8 @@ abstract class ResourceService<
             permissionOneOf,
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
-            projectFilter = if (useProject) actorAndProject.project else ""
+            projectFilter = if (useProject) actorAndProject.project else "",
+            simpleFlags = (simpleFlags ?: SimpleResourceIncludeFlags()).copy(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
         )
 
         @Suppress("SqlResolve")
@@ -193,8 +213,8 @@ abstract class ResourceService<
                     },
                     """
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
@@ -231,7 +251,9 @@ abstract class ResourceService<
     private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
         if (specification.product.provider != Provider.UCLOUD_CORE_PROVIDER) {
             if (includeSupport || flags?.includeSupport == true) {
-                status.resolvedSupport = support.retrieveProductSupport(specification.product)
+                val retrieveProductSupport = support.retrieveProductSupport(specification.product)
+                status.resolvedSupport = retrieveProductSupport
+                status.resolvedProduct = retrieveProductSupport.product
             }
 
             if (flags?.includeProduct == true) {
@@ -374,7 +396,7 @@ abstract class ResourceService<
                                             returning resource_id
                                         )
                                     select distinct resource_id from acl_entries;
-                                """,
+                                """
                             )
                             .rows
                             .map { it.getLong(0)!! }
@@ -397,7 +419,8 @@ abstract class ResourceService<
                                 generatedIds.map { it.toString() },
                                 listOf(Permission.EDIT),
                                 ctx = session,
-                                includeUnconfirmed = true
+                                includeUnconfirmed = true,
+                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                             )
                         )
                     }
@@ -848,7 +871,7 @@ abstract class ResourceService<
                     """
                 ).rows.map { it.getLong(0)!! }
 
-            check(generatedIds.size == request.items.size)
+            check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )
 
             createSpecifications(
                 actorAndProject,
@@ -972,7 +995,7 @@ abstract class ResourceService<
         projectFilter: String? = "",
         flags: Flags? = null,
         simpleFlags: SimpleResourceIncludeFlags? = null,
-        includeUnconfirmed: Boolean = false
+        includeUnconfirmed: Boolean = false,
     ): PartialQuery {
         val includeOthers = flags?.includeOthers ?: simpleFlags?.includeOthers ?: false
         val includeUpdates = flags?.includeUpdates ?: simpleFlags?.includeUpdates ?: false
@@ -992,6 +1015,12 @@ abstract class ResourceService<
                 setParameter(
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
+                )
+                setParameter("hide_provider", flags?.hideProvider ?: simpleFlags?.hideProvider)
+                setParameter("hide_product_id", flags?.hideProductId ?: simpleFlags?.hideProductId)
+                setParameter(
+                    "hide_product_category",
+                    flags?.hideProductCategory ?: simpleFlags?.hideProductCategory
                 )
                 setParameter(
                     "filter_provider_ids",
@@ -1091,6 +1120,9 @@ abstract class ResourceService<
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (:hide_provider::text is null or p_cat.provider != :hide_provider) and
+                          (:hide_product_id::text is null or the_product.name != :hide_product_id) and
+                          (:hide_product_category::text is null or p_cat.category != :hide_product_category) and
                           (
                               :filter_provider_ids::text[] is null or
                               r.provider_generated_id = some(:filter_provider_ids::text[])
@@ -1135,7 +1167,7 @@ abstract class ResourceService<
     ): PageV2<Res> {
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-        val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
+        val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
@@ -1146,7 +1178,7 @@ abstract class ResourceService<
             actorAndProject.actor,
             permissionsOneOf,
             projectFilter = if (useProject) actorAndProject.project else "",
-            flags = flags
+            flags = flags,
         )
 
         @Suppress("SqlResolve")
@@ -1162,14 +1194,14 @@ abstract class ResourceService<
                     """
                         declare c cursor for
                         with
-                            spec as ($query),
-                            accessible_resources as ($resourceQuery)
+                            accessible_resources as ($resourceQuery),
+                            spec as ($query)
                         select provider.resource_to_json(resc, $converter(spec))
                         from
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            resc.category, resc.name, spec.$sortBy $sortDirection
+                            resc.category, resc.name, $sortBy $sortDirection
                     """,
                 )
             },
@@ -1183,7 +1215,7 @@ abstract class ResourceService<
                         null
                     }
                 }.attachExtra(flags)
-            }
+            },
         )
     }
 

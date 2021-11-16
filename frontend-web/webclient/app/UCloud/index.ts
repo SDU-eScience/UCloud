@@ -1554,7 +1554,7 @@ export interface NameAndVersion {
  *   used as a resource.
  *
  */
-export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
+export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
 export interface SimpleDuration {
     hours: number /* int32 */,
     minutes: number /* int32 */,
@@ -1640,7 +1640,7 @@ export interface BooleanFlagParameter {
     flag: string,
     type: ("bool_flag"),
 }
-export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
+export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.TextArea | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
 export interface VncDescription {
     password?: string,
     port: number /* int32 */,
@@ -2788,6 +2788,21 @@ export interface Bool {
 export interface Text {
     value: string,
     type: ("text"),
+}
+/**
+ * A textarea value
+
+ * - __Compatible with:__ `ApplicationParameter.TextArea` and `ApplicationParameter.Enumeration`
+ * - __Mountable as a resource:__ ❌ No
+ * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+ * - __Side effects:__ None
+ *
+ * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+ *
+ */
+ export interface TextArea {
+    value: string,
+    type: ("textarea"),
 }
 /**
  * An integral value
@@ -4246,6 +4261,14 @@ export interface Text {
     description: string,
     type: ("text"),
 }
+export interface TextArea {
+    name: string,
+    optional: boolean,
+    defaultValue?: kotlinx.serialization.json.JsonElement,
+    title: string,
+    description: string,
+    type: ("textarea"),
+}
 export interface Integer {
     name: string,
     optional: boolean,
@@ -5333,8 +5356,9 @@ export interface IntegrationControlApproveConnectionRequest {
     username: string,
 }
 export interface IntegrationBrowseResponseItem {
-    provider: string,
-    connected: boolean,
+    provider: string;
+    connected: boolean;
+    providerTitle: string;
 }
 /**
  * The base type for requesting paginated content.
@@ -6104,17 +6128,7 @@ export function viewProject(
         reloadId: Math.random(),
     };
 }
-export function listSubProjects(
-    request: ListSubProjectsRequest
-): APICallParameters<ListSubProjectsRequest, Page<Project>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/projects" + "/sub-projects", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
+
 export function countSubProjects(): APICallParameters<{}, number /* int64 */> {
     return {
         context: "",

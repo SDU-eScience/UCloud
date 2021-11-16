@@ -6,6 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive grant [Application]s._
 
 | Request | Response | Error |
 |---------|----------|-------|

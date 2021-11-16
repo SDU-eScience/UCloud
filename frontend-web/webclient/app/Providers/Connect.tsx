@@ -33,7 +33,6 @@ const Connect: React.FunctionComponent = () => {
     const connectToProvider = useCallback(async (provider: string) => {
         const res = await invokeCommand<provider.IntegrationConnectResponse>(IntegrationApi.connect({provider}));
         if (res) document.location.href = res.redirectTo;
-        console.log(res?.redirectTo);
     }, []);
 
     const pageRenderer: PageRenderer<provider.IntegrationBrowseResponseItem> = useCallback((page) => {
@@ -66,7 +65,7 @@ const ConnectRow: React.FunctionComponent<{
     connectToProvider: (provider: string) => void;
 }> = ({row, connectToProvider}) => {
     return <ListRow
-        left={row.provider}
+        left={row.providerTitle}
         right={
             <Button disabled={row.connected} onClick={() => connectToProvider(row.provider)}>Connect</Button>
         }

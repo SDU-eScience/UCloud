@@ -13,6 +13,13 @@ _Jobs in UCloud are the core abstraction used to describe units of computation._
 
 ## Rationale
 
+__📝 NOTE:__ This API follows the standard Resources API. We recommend that you have already read and understood the
+concepts described [here](/docs/developer-guide/orchestration/resources.md).
+        
+---
+
+    
+
 The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
 in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
 ['nodes'](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md). The type of applications determine
@@ -199,6 +206,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <tr>
 <td><a href='#jobstatus'><code>JobStatus</code></a></td>
 <td>Describes the current state of the `Resource`</td>
+</tr>
+<tr>
+<td><a href='#jobupdate'><code>JobUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#jobslog'><code>JobsLog</code></a></td>
@@ -959,7 +970,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -1115,7 +1126,7 @@ JobsFollowResponse(
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -1493,7 +1504,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -1825,7 +1836,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -2237,7 +2248,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -2490,7 +2501,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -2754,7 +2765,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -2998,7 +3009,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -3465,7 +3476,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -3515,6 +3526,7 @@ PageV2(
             allocationPath = listOf("1254151"), 
             balance = 500, 
             endDate = null, 
+            grantedIn = 2, 
             id = "1254151", 
             initialBalance = 500000000, 
             localBalance = 500, 
@@ -3714,7 +3726,8 @@ await callAPI(AccountingWalletsApi.browse(
                     "initialBalance": 500000000,
                     "localBalance": 500,
                     "startDate": 1633329776235,
-                    "endDate": null
+                    "endDate": null,
+                    "grantedIn": 2
                 }
             ],
             "chargePolicy": "EXPIRE_FIRST",
@@ -3905,7 +3918,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "initialBalance": 500000000,
 #                     "localBalance": 500,
 #                     "startDate": 1633329776235,
-#                     "endDate": null
+#                     "endDate": null,
+#                     "grantedIn": 2
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -4028,7 +4042,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -5084,7 +5098,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 </details>
 
-<details>
+<details open>
 <summary>
 <b>Communication Flow:</b> Visual
 </summary>
@@ -5394,7 +5408,7 @@ UCloud guarantees that no other job, regardless of compute provider, has the sam
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobUpdate.md'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;</code></code> A list of status updates from the compute backend.
 </summary>
 
 
@@ -6701,6 +6715,112 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ---
 
+### `JobUpdate`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes an update to the `Resource`_
+
+```kotlin
+data class JobUpdate(
+    val state: JobState?,
+    val outputFolder: String?,
+    val status: String?,
+    val expectedState: JobState?,
+    val expectedDifferentState: Boolean?,
+    val timestamp: Long?,
+)
+```
+Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+use the full update history if you only wish to know the _current_ state of a `Resource`.
+
+An update will typically contain information similar to the `status` field, for example:
+
+- A state value. For example, a compute `Job` might be `RUNNING`.
+- Change in key metrics.
+- Bindings to related `Resource`s.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>state</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>outputFolder</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>expectedState</code>: <code><code><a href='#jobstate'>JobState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>expectedDifferentState</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `JobsLog`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7473,7 +7593,7 @@ data class JobsFollowResponse(
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobUpdate.md'>JobUpdate</a>&gt;</code></code>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;</code></code>
 </summary>
 
 

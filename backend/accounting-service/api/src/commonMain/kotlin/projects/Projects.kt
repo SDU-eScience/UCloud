@@ -159,10 +159,12 @@ data class ExistsResponse(val exists: Boolean)
 @Serializable
 data class ListSubProjectsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
 
-typealias ListSubProjectsResponse = Page<Project>
+typealias ListSubProjectsResponse = PageV2<MemberInProject>
 
 typealias CountSubProjectsRequest = Unit
 typealias CountSubProjectsResponse = Long
@@ -783,8 +785,9 @@ implement(Descriptions.call) {
     }
 
     /**
-     * Lists sub-projects of an existing project
+     * Lists sub-projects of an existing project in the PageV2 format
      */
+
     val listSubProjects = call<ListSubProjectsRequest, ListSubProjectsResponse, CommonErrorMessage>("listSubProjects") {
         auth {
             access = AccessRight.READ_WRITE
@@ -801,7 +804,9 @@ implement(Descriptions.call) {
 
             params {
                 +boundTo(ListSubProjectsRequest::itemsPerPage)
-                +boundTo(ListSubProjectsRequest::page)
+                +boundTo(ListSubProjectsRequest::consistency)
+                +boundTo(ListSubProjectsRequest::itemsToSkip)
+                +boundTo(ListSubProjectsRequest::next)
             }
         }
     }

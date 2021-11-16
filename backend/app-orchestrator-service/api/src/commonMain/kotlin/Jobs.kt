@@ -16,6 +16,7 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlin.reflect.typeOf
 
 @Serializable
 data class ExportedParametersRequest(
@@ -206,12 +207,6 @@ data class Job(
 
     override val permissions: ResourcePermissions? = null,
 ) : Resource<Product.Compute, ComputeSupport>, DocVisualizable {
-    @Suppress("OverridingDeprecatedMember")
-    override val acl: List<ResourceAclEntry>? = null
-
-    @Suppress("OverridingDeprecatedMember")
-    override val billing = ResourceBilling.Free
-
     companion object {
         fun fromSpecification(
             id: String,
@@ -268,19 +263,7 @@ data class JobStatus(
 ) : ResourceStatus<Product.Compute, ComputeSupport>
 
 @Serializable
-data class JobBilling(
-    @UCloudApiDoc("The amount of credits charged to the `owner` of this job")
-    override val creditsCharged: Long,
-
-    @UCloudApiDoc("The unit price of this job")
-    override val pricePerUnit: Long,
-
-    @UCloudApiInternal(InternalLevel.BETA)
-    @Deprecated("Only used for a single quick and temporary hack")
-    val __creditsAllocatedToWalletDoNotDependOn__: Long,
-) : ResourceBilling
-
-@Serializable
+@UCloudApiOwnedBy(Jobs::class)
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,
@@ -402,6 +385,9 @@ data class JobIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -533,39 +519,41 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
     init {
         title = "Jobs"
         description = """
-            Jobs in UCloud are the core abstraction used to describe units of computation.
-            
-            The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
-            in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
-            ['nodes']($TYPE_REF_LINK dk.sdu.cloud.accounting.api.Product.Compute). The type of applications determine
-            what the job does:
-             
-            - __Batch__ applications provide support for long running computational workloads (typically containerized)
-            - __Web__ applications provide support for applications which expose a graphical web-interface
-            - __VNC__ applications provide support for interactive remote desktop workloads
-            - __Virtual machine__ applications provide support for more advanced workloads which aren't easily
-              containerized or require special privileges
-            
-            Every $TYPE_REF Job is created from a [`specification`]($TYPE_REF_LINK JobSpecification). The specification
-            contains [input parameters]($TYPE_REF_LINK dk.sdu.cloud.app.store.api.ApplicationParameter), such as files
-            and application flags, and additional resources. Zero or more resources can be connected to an application,
-            and provide services such as:
-            
-            - Networking between multiple $TYPE_REF Job s
-            - [Storage](/docs/developer-guide/orchestration/storage/files.md)
-            - [Public links](/docs/developer-guide/orchestration/compute/ingress.md)
-            - [Public IPs](/docs/developer-guide/orchestration/compute/ips.md)
-            - [Software licenses](/docs/developer-guide/orchestration/compute/license.md)
-            
-            ---
+Jobs in UCloud are the core abstraction used to describe units of computation.
 
-            __📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+${Resources.readMeFirst}
 
-            | End-User | Provider (Ingoing) | Control (Outgoing) |
-            |----------|--------------------|--------------------|
-            | [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) | [`JobsProvider`](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md) | [`JobsControl`](/docs/developer-guide/orchestration/compute/providers/jobs/outgoing.md) |
+The compute system allows for a variety of computational workloads to run on UCloud. All compute jobs
+in UCloud run an [application](/docs/developer-guide/orchestration/compute/appstore/apps.md) on one or more
+['nodes']($TYPE_REF_LINK dk.sdu.cloud.accounting.api.Product.Compute). The type of applications determine
+what the job does:
+ 
+- __Batch__ applications provide support for long running computational workloads (typically containerized)
+- __Web__ applications provide support for applications which expose a graphical web-interface
+- __VNC__ applications provide support for interactive remote desktop workloads
+- __Virtual machine__ applications provide support for more advanced workloads which aren't easily
+  containerized or require special privileges
 
-            ---
+Every $TYPE_REF Job is created from a [`specification`]($TYPE_REF_LINK JobSpecification). The specification
+contains [input parameters]($TYPE_REF_LINK dk.sdu.cloud.app.store.api.ApplicationParameter), such as files
+and application flags, and additional resources. Zero or more resources can be connected to an application,
+and provide services such as:
+
+- Networking between multiple $TYPE_REF Job s
+- [Storage](/docs/developer-guide/orchestration/storage/files.md)
+- [Public links](/docs/developer-guide/orchestration/compute/ingress.md)
+- [Public IPs](/docs/developer-guide/orchestration/compute/ips.md)
+- [Software licenses](/docs/developer-guide/orchestration/compute/license.md)
+
+---
+
+__📝 Provider Note:__ This is the API exposed to end-users. See the table below for other relevant APIs.
+
+| End-User | Provider (Ingoing) | Control (Outgoing) |
+|----------|--------------------|--------------------|
+| [`Jobs`](/docs/developer-guide/orchestration/compute/jobs.md) | [`JobsProvider`](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md) | [`JobsControl`](/docs/developer-guide/orchestration/compute/providers/jobs/outgoing.md) |
+
+---
         """.trimIndent()
 
         serializerLookupTable = mapOf(
@@ -576,8 +564,23 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
         )
     }
 
-    override val typeInfo = ResourceTypeInfo<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
-        Product.Compute, ComputeSupport>()
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        Job.serializer(),
+        typeOf<Job>(),
+        JobSpecification.serializer(),
+        typeOf<JobSpecification>(),
+        JobUpdate.serializer(),
+        typeOf<JobUpdate>(),
+        JobIncludeFlags.serializer(),
+        typeOf<JobIncludeFlags>(),
+        JobStatus.serializer(),
+        typeOf<JobStatus>(),
+        ComputeSupport.serializer(),
+        typeOf<ComputeSupport>(),
+        Product.Compute.serializer(),
+        typeOf<Product.Compute>(),
+    )
 
     private const val createUseCase = "create"
     private const val followUseCase = "follow"
@@ -1211,7 +1214,7 @@ object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, Job
                                     "1254151",
                                     listOf("1254151"),
                                     500,
-                                    1_000_000 * 500,
+                                    1_000_000 * 500L,
                                     500,
                                     start,
                                     null,

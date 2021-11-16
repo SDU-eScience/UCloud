@@ -33,7 +33,7 @@ value class HTML(val html: String) {
     }
 }
 
-interface ConnectionPlugin : Plugin {
+interface ConnectionPlugin : Plugin<Unit> {
     fun PluginContext.initiateConnection(username: String): ConnectionResponse
     fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
         throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

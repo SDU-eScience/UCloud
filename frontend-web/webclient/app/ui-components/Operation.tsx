@@ -82,10 +82,10 @@ const OperationComponent: React.FunctionComponent<{
 
     if (As === ConfirmationButton) {
         extraProps["onAction"] = onClick;
-        extraProps["asSquare"] = !op.primary;
+        extraProps["asSquare"] = !op.primary || location === "SIDEBAR";
         extraProps["actionText"] = op.text;
         extraProps["hoverColor"] = op.hoverColor;
-        if (op.primary) {
+        if (op.primary && location === "IN_ROW") {
             extraProps["align"] = "center";
             extraProps["fontSize"] = "14px";
             extraProps["mx"] = "12px";
@@ -119,22 +119,23 @@ const OperationComponent: React.FunctionComponent<{
     return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
 };
 
-interface OperationProps<T, R = undefined> {
+interface OperationProps<EntityType, Extras = undefined> {
     location: OperationLocation;
-    operations: Operation<T, R>[];
-    selected: T[];
-    extra: R;
+    operations: Operation<EntityType, Extras>[];
+    selected: EntityType[];
+    extra: Extras;
     entityNameSingular: string;
     entityNamePlural?: string;
     dropdownTag?: string;
-    row?: T;
+    row?: EntityType;
     showSelectedCount?: boolean;
     displayTitle?: boolean;
-    all?: T[];
+    all?: EntityType[];
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    hidden?: boolean;
 }
 
-type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
+type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
     JSX.Element | null;
 
 export const Operations: OperationsType = props => {
@@ -145,7 +146,7 @@ export const Operations: OperationsType = props => {
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
     if (props.location === "IN_ROW" && !props.row) return null;
 
-    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
@@ -203,6 +204,7 @@ export const Operations: OperationsType = props => {
         closeFnRef: closeDropdownRef,
         openFnRef: props.openFnRef,
         trigger: (
+            props.hidden ? null :
             props.selected.length === 0 ?
                 <Icon
                     onClick={preventDefault}
@@ -216,53 +218,60 @@ export const Operations: OperationsType = props => {
         )
     };
 
-    switch (props.location) {
-        case "IN_ROW":
-            return <>
-                {primaryContent}
-                <Box mr={"10px"} />
-                {content.length === 0 ? <Box ml={"30px"} /> :
-                    <Flex alignItems={"center"} justifyContent={"center"}>
-                        <ClickableDropdown {...dropdownProps}>
-                            {content}
-                        </ClickableDropdown>
-                    </Flex>
-                }
-            </>;
-
-        case "SIDEBAR":
-            if (content.length === 0 && primaryContent.length === 0) return null;
-            return (
-                <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
+    if (props.hidden === true) {
+        return <ClickableDropdown {...dropdownProps}>
+            {content}
+        </ClickableDropdown>
+    } else {
+        switch (props.location) {
+            case "IN_ROW":
+                return <>
                     {primaryContent}
-                    {content}
-                </Grid>
-            );
-
-        case "TOPBAR":
-            return <>
-                <Flex alignItems={"center"}>
-                    {props.displayTitle === false ? null :
-                        <Heading.h3 flexGrow={1}>
-                            {entityNamePlural}
-                            {" "}
-                            {props.selected.length === 0 ? null :
-                                <TextSpan color={"gray"} fontSize={"80%"}>{props.selected.length} selected</TextSpan>
-                            }
-                        </Heading.h3>
-                    }
-                    {primaryContent}
-                    <Box mr={"10px"} />
-                    {content.length === 0 ? <Box ml={"30px"} /> :
+                    <Box mr={"10px"}/>
+                    {content.length === 0 ? <Box ml={"30px"}/> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}
                             </ClickableDropdown>
                         </Flex>
                     }
-                    <Box mr={"8px"} />
-                </Flex>
-            </>;
+                </>;
+
+            case "SIDEBAR":
+                if (content.length === 0 && primaryContent.length === 0) return null;
+                return (
+                    <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
+                        {primaryContent}
+                        {content}
+                    </Grid>
+                );
+
+            case "TOPBAR":
+                return <>
+                    <Flex alignItems={"center"}>
+                        {props.displayTitle === false ? null :
+                            <Heading.h3 flexGrow={1}>
+                                {entityNamePlural}
+                                {" "}
+                                {props.selected.length === 0 ? null :
+                                    <TextSpan color={"gray"}
+                                              fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                                }
+                            </Heading.h3>
+                        }
+                        {primaryContent}
+                        <Box mr={"10px"}/>
+                        {content.length === 0 ? <Box ml={"30px"}/> :
+                            <Flex alignItems={"center"} justifyContent={"center"}>
+                                <ClickableDropdown {...dropdownProps}>
+                                    {content}
+                                </ClickableDropdown>
+                            </Flex>
+                        }
+                        <Box mr={"8px"}/>
+                    </Flex>
+                </>;
+        }
     }
 };
 

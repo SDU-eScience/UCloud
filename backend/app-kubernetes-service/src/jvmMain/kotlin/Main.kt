@@ -17,7 +17,6 @@ data class Configuration(
     val toleration: TolerationKeyAndValue? = null,
     val reloadableK8Config: String? = null,
     val disableMasterElection: Boolean = false,
-    val fullScanFrequency: Long = 1000 * 60 * 15L,
     val useSmallReservation: Boolean = false,
     val networkInterface: String? = null,
     val providerRefreshToken: String? = null,

@@ -6,6 +6,7 @@
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Matches any user with an organization matching [org] _
 
 ```kotlin
 data class WayfOrganization(
@@ -13,6 +14,7 @@ data class WayfOrganization(
     val type: String /* "wayf" */,
 )
 ```
+The organization is currently derived from the information we receive from WAYF.
 
 <details>
 <summary>

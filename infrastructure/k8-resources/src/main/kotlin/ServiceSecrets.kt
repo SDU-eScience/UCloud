@@ -66,14 +66,10 @@ class ServiceSecrets(val name: String) : KubernetesResource {
             val proxyPod = client.pods().inNamespace("stolon").list().items.find { it.metadata.name.contains("proxy") }
                 ?: throw IllegalStateException("Could not find stolon proxy")
 
-            val stolonPassword =
-                client.secrets()
-                    .inNamespace("stolon")
-                    .withName("stolon")
-                    .get()
-                    ?.data
-                    ?.get("pg_su_password")
-                    ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+            val stolonSecret = client.secrets().inNamespace("stolon").withName("stolon").get()?.data
+
+            val stolonPassword = (stolonSecret?.get("pg_su_password") ?: stolonSecret?.get("password"))
+                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }?.trim()
 
             val dbUser = name.replace('-', '_')
             val schema = dbUser
