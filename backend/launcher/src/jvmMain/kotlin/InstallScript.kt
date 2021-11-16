@@ -119,6 +119,7 @@ fun runInstaller(configDir: File) {
                           port: 8384
                           username: syncthinguser
                           password: syncthingpassword
+                      sharedSecret: someSecret
                           
                     syncMount:
                       deviceId: $deviceId
