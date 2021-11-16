@@ -126,12 +126,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         [props.onRename]
     );
 
-    const sortDirections: EnumOption[] = sortDirection === "descending" ? [{
+    const sortDirections: EnumOption[] = [{
         icon: "sortAscending",
         title: "Ascending",
         value: "ascending",
         helpText: "Increasing in value, e.g. 1, 2, 3..."
-    }] : [{
+    }, {
         icon: "sortDescending",
         title: "Descending",
         value: "descending",
@@ -335,8 +335,15 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             <Spacer left={null} right={pageSize.current > 0 ?
                 <Box width="170px">
                     <EnumFilterWidget
-                        expanded={false} browseType={BrowseType.Embedded} propertyName="direction" title="Sort direction" facedownChevron
-                        id={0} onExpand={doNothing} properties={filters} options={sortDirections}
+                        expanded={false}
+                        browseType={BrowseType.Embedded}
+                        propertyName="direction"
+                        title="Sort direction"
+                        facedownChevron
+                        id={0}
+                        onExpand={doNothing}
+                        properties={filters}
+                        options={sortDirections}
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
                     />

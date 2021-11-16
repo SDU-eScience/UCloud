@@ -233,12 +233,7 @@ export function ResourceProperties<Res extends Resource>(
     const supportByProvider: SupportByProvider = useMemo(() => {
         const result: SupportByProvider = {productsByProvider: {}};
         if (resource != null && resource.status.resolvedSupport != null) {
-            result.productsByProvider[resource.specification.product.provider] = [
-                {
-                    product: resource.status.resolvedProduct as any as Product,
-                    support: resource.status.resolvedSupport
-                }
-            ];
+            result.productsByProvider[resource.specification.product.provider] = [resource.status.resolvedSupport];
         }
         return result;
     }, [resource]);
