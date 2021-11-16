@@ -1,178 +1,17 @@
-import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
-import LoadingSpinner from "@/LoadingIcon/LoadingIcon";
-import MainContainer from "@/MainContainer/MainContainer";
-import {ResourcePage} from "@/ui-components/ResourcePage";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {Box, Button, Label, List, Select, TextArea} from "@/ui-components";
-import {doNothing, inDevEnvironment, onDevSite, PropType} from "@/UtilityFunctions";
-import {Operation, Operations} from "@/ui-components/Operation";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import * as Heading from "@/ui-components/Heading";
+import {useCallback, useState} from "react";
+import {Box, Button, Label, Select} from "@/ui-components";
+import {inDevEnvironment, onDevSite, PropType} from "@/UtilityFunctions";
+import {Operation} from "@/ui-components/Operation";
 import {addStandardDialog} from "@/UtilityComponents";
-import {auth, BulkResponse, PageV2, provider} from "@/UCloud";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {ListV2} from "@/Pagination";
-import {NoResultsCardBody} from "@/Dashboard/Dashboard";
-import Provider = provider.Provider;
+import {auth, BulkResponse} from "@/UCloud";
+import {bulkRequestOf} from "@/DefaultObjects";
 import AccessToken = auth.AccessToken;
-import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
-import ResourceDoc = provider.ResourceDoc;
-import {priceExplainer} from "@/Accounting";
 import ResourceForm from "@/Products/CreateProduct";
 import * as Types from "@/Accounting";
-
-const entityName = "Provider";
-
-function View(): JSX.Element | null {
-    const match = useRouteMatch<{id: string}>();
-    const {id} = match.params;
-    const [provider, fetchProvider] = useCloudAPI<Provider | null>({noop: true}, null);
-    const [products, fetchProducts] = useCloudAPI<PageV2<Types.Product>>({noop: true}, emptyPageV2);
-    const [productGeneration, setProductGeneration] = useState(0);
-    const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-
-    const reload = useCallback(() => {
-        fetchProvider(UCloud.provider.providers.retrieve({id}));
-        fetchProducts(UCloud.accounting.products.browse({filterProvider: id}));
-        setProductGeneration(gen => gen + 1);
-    }, [id]);
-
-    useEffect(() => {
-        reload();
-    }, [reload]);
-
-    const [commandLoading, invokeCommand] = useCloudCommand();
-    const startProductCreation = useCallback(() => {
-        setIsCreatingProduct(true);
-    }, [setIsCreatingProduct]);
-    const stopProductCreation = useCallback(() => {
-        setIsCreatingProduct(false);
-    }, [setIsCreatingProduct]);
-
-    const loadMore = useCallback(() => {
-        fetchProducts(UCloud.accounting.products.browse({filterProvider: id, next: products.data.next}));
-    }, [products.data.next, id]);
-
-    const callbacks: OpCallbacks = useMemo(() => {
-        return {invokeCommand, reload, startProductCreation, stopProductCreation, isCreatingProduct, provider: id};
-    }, [invokeCommand, reload, setIsCreatingProduct, isCreatingProduct, id]);
-
-    const onProductAdded = useCallback(() => {
-        reload();
-        stopProductCreation();
-    }, [reload, stopProductCreation]);
-
-    useRefreshFunction(reload);
-    useLoading(provider.loading || commandLoading);
-    useTitle(`${id} (Provider)`)
-
-    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner />} />;
-    if (provider.data == null) return null;
-
-    return (
-        <MainContainer
-            sidebar={
-                <>
-                    <Operations
-                        location={"SIDEBAR"}
-                        operations={operations}
-                        selected={[provider.data]}
-                        extra={callbacks}
-                        entityNameSingular={entityName}
-                        showSelectedCount={false}
-                    />
-                </>
-            }
-            main={
-                <ResourcePage
-                    entityName={entityName}
-                    aclOptions={[{icon: "edit", name: "EDIT", title: "Edit"}]}
-                    entity={provider.data as ResourceDoc}
-                    reload={reload}
-                    showMissingPermissionHelp={false}
-                    stats={[
-                        {
-                            title: "Domain",
-                            render: t => {
-                                const f = t as any;
-                                let stringBuilder = "";
-                                if (f.specification.https) {
-                                    stringBuilder += "https://"
-                                } else {
-                                    stringBuilder += "http://"
-                                }
-
-                                stringBuilder += f.specification.domain;
-
-                                if (f.specification.port) {
-                                    stringBuilder += ":";
-                                    stringBuilder += f.specification.port;
-                                }
-
-                                return stringBuilder;
-                            }
-                        },
-                        {
-                            title: "Refresh Token",
-                            // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={(t as any).refreshToken} rows={3} onChange={doNothing} />,
-                            inline: false,
-                        },
-                        {
-                            title: "Certificate",
-                            // eslint-disable-next-line react/display-name
-                            render: t => <TextArea width="100%" value={(t as any).publicKey} rows={10} onChange={doNothing} />,
-                            inline: false,
-                        },
-                    ]}
-                    updateAclEndpoint={UCloud.provider.providers.updateAcl}
-
-                    beforeUpdates={
-                        <>
-                            <Heading.h4>Products</Heading.h4>
-                            <List>
-                                <ListV2
-                                    infiniteScrollGeneration={productGeneration}
-                                    page={products.data}
-                                    pageRenderer={p => isCreatingProduct ? null : p.map(item =>
-                                        <ListRow
-                                            key={item.name}
-                                            left={item.name}
-                                            right={<></>}
-                                            leftSub={
-                                                <ListStatContainer>
-                                                    <ListRowStat icon={"id"}>{item.category.name}</ListRowStat>
-                                                    <ListRowStat icon={"grant"}>
-                                                        Unit price: {priceExplainer(item)}
-                                                    </ListRowStat>
-                                                </ListStatContainer>
-                                            }
-                                        />
-                                    )}
-                                    loading={products.loading}
-                                    customEmptyPage={
-                                        isCreatingProduct ? <></> :
-                                            <NoResultsCardBody title={"No products"}>
-                                                <Button onClick={startProductCreation}>New product</Button>
-                                            </NoResultsCardBody>
-                                    }
-                                    onLoadMore={loadMore}
-                                />
-                            </List>
-                            {!isCreatingProduct ? null :
-                                <ProductCreationForm provider={provider.data} onComplete={onProductAdded} />
-                            }
-                        </>
-                    }
-                />
-            }
-        />
-    );
-}
+import {Provider} from "@/UCloud/ProvidersApi";
 
 const productTypes: {value: PropType<Types.Product, "type">, title: string}[] = [
     {value: "compute", title: "Compute"},
@@ -200,7 +39,7 @@ function unitNameFromType(type: PropType<Types.Product, "type">): string {
     return unitName;
 }
 
-const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
+export const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
     const [type, setType] = useState<PropType<Types.Product, "type">>("compute");
     const onTypeChange = useCallback(e => setType(e.target.value as PropType<Types.Product, "type">), [setType]);
     const [licenseTagCount, setTagCount] = useState(1);
@@ -208,7 +47,7 @@ const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComple
 
     const unitName = unitNameFromType(type);
 
-    return <Box>
+    return <Box maxWidth={"800px"} margin={"0 auto"}>
         <Label>
             Type
             <Select value={type} onChange={onTypeChange}>
@@ -387,5 +226,3 @@ const operations: Operation<UCloud.provider.Provider, OpCallbacks>[] = [
         operationType: () => Button
     }
 ];
-
-export default View;

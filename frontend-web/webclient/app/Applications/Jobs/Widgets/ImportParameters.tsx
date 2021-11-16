@@ -21,7 +21,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
-import {JobBrowse} from "../NewApi";
+import {JobBrowse} from "../Browse";
 
 const WORK_IN_PROGRESS = true;
 

@@ -148,8 +148,7 @@ class ProductService(
             create = { session ->
                 val (params, query) = queryProducts(actorAndProject, request, request.showAllVersions)
                 session.sendPreparedStatement(
-                    params
-                    ,
+                    params,
                     """
                         declare c cursor for 
                         $query
@@ -177,11 +176,11 @@ class ProductService(
                 setParameter("account_is_project", actorAndProject.project != null)
             },
             """
-                with my_wallets as(
-                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance, version
-                    from accounting.wallets wa join
+                with my_wallets as (
+                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                    from
+                        accounting.wallets wa join
                         accounting.wallet_owner wo on wo.id = wa.owned_by join
-                        accounting.products p2 on wa.category = p2.category join
                         accounting.product_categories pc on pc.id = wa.category left join
                         (
                             select sum(walloc.balance) balance, wa.id
@@ -189,7 +188,7 @@ class ProductService(
                                 accounting.wallets wa join
                                 accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
                             group by wa.id
-                        ) as balances on (:include_balance and balances.id = wa.id) 
+                        ) as balances on (:include_balance and balances.id = wa.id)
                     where
                         (
                             (not :account_is_project and wo.username = :accountId) or
@@ -206,46 +205,44 @@ class ProductService(
                         (
                             :product_filter::accounting.product_type is null or
                             pc.product_type = :product_filter
-                        ) and
-                        (
-                            :name_filter::text is null or
-                            p2.name = :name_filter
                         )
                 )
                 select accounting.product_to_json(
                     p,
-                    pc2,
+                    pc,
                     (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
                 )
-                from accounting.products p join accounting.product_categories pc2 on pc2.id = p.category
-                    left outer join my_wallets mw
-                        on (pc2.id = mw.wallet_category and pc2.provider = mw.provider and p.version = mw.version)
+                from
+                    accounting.products p join
+                    accounting.product_categories pc on pc.id = p.category left outer join
+                    my_wallets mw on (pc.id = mw.wallet_category and pc.provider = mw.provider)
                 where
                     (
                         :category_filter::text is null or
-                        pc2.category = :category_filter
+                        pc.category = :category_filter
                     ) and
                     (
                         :provider_filter::text is null or
-                        pc2.provider = :provider_filter
+                        pc.provider = :provider_filter
                     ) and
 
                     (
                         :product_filter::accounting.product_type is null or
-                        pc2.product_type = :product_filter
+                        pc.product_type = :product_filter
                     ) and
                     (
                         :name_filter::text is null or
                         p.name = :name_filter
                     ) and
                     (
-                        :include_balance and (
+                        not :include_balance or
+                        (
                             (mw.balance is not null and mw.balance > 0) or
                             (p.free_to_use)
-                        ) or true
-                    ) and 
+                        )
+                    ) and
                     (
-                        :show_all_versions or 
+                        :show_all_versions or
                         p.version = (
                             select max(version) highest_version
                             from accounting.products p2
@@ -257,7 +254,7 @@ class ProductService(
                             )
                         )
                     )
-                order by pc2.provider, pc2.category
+                order by pc.provider, pc.category
             """
         )
     }

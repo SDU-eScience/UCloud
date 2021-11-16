@@ -9,6 +9,7 @@ const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"))
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const FilesRouter = React.lazy(() => import("@/Files/Files"));
+const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const FileCollectionsRouter = React.lazy(() => import("@/Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
@@ -44,7 +45,6 @@ const LagTest = React.lazy(() => import("@/Playground/LagTest"));
 const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("@/Admin/Providers/Create"));
 const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
-const ViewProvider = React.lazy(() => import("@/Admin/Providers/View"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
@@ -63,7 +63,7 @@ import {History} from "history";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import JobRouter from "@/Applications/Jobs/NewApi";
+import JobRouter from "@/Applications/Jobs/Browse";
 import {Debugger} from "@/Debug/Debugger";
 import Header from "@/Navigation/Header";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
@@ -134,10 +134,14 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
                     <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
+
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
                     <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
-                    <Route exact path="/admin/providers/view/:id" component={requireAuth(ViewProvider)} />
+
+                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
+                    <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />
