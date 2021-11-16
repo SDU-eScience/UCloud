@@ -79,6 +79,7 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
+    onSelectRestriction?: (resource: Res) => boolean;
 }
 
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
@@ -203,6 +204,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         },
         embedded: isEmbedded,
         onSelect,
+        onSelectRestriction: props.onSelectRestriction,
         dispatch,
         history,
         startRenaming(res: Res, value: string) {
@@ -402,7 +404,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     </>;
 
     if (isEmbedded) {
-        return <Box ref={scrollingContainerRef}>
+        return <Box minWidth="700px" ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 {inlineInspecting ?
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :

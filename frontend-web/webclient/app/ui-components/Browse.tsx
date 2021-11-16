@@ -230,6 +230,7 @@ interface StandardListBrowse<T, CB> {
     titlePlural?: string;
     embedded?: boolean | "inline" | "dialog";
     onSelect?: (item: T) => void;
+    onSelectRestriction?: (item: T) => boolean;
     emptyPage?: JSX.Element;
     sidebarPage?: SidebarPages;
     extraCallbacks?: CB;
@@ -258,6 +259,7 @@ export function StandardList<T, CB = EmptyObject>(
         history,
         reload: () => reloadRef.current(),
         onSelect: props.onSelect,
+        onSelectRestriction: props.onSelectRestriction,
         embedded: !isMainContainer,
         commandLoading,
         invokeCommand,
