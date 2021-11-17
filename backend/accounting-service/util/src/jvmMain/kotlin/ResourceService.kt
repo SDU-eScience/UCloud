@@ -1159,7 +1159,13 @@ abstract class ResourceService<
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
-        val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        if (sortBy == "created_by") {
+            sortBy = "(resc.r).created_by"
+        } else if (sortBy == "created_at") {
+            sortBy = "(resc.r).created_at"
+        }
+
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
@@ -1194,6 +1200,7 @@ abstract class ResourceService<
                         order by
                             resc.category, resc.name, $sortBy $sortDirection
                     """,
+                    debug = true,
                 )
             },
             mapper = { _, rows ->
