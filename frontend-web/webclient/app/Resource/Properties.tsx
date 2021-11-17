@@ -173,6 +173,7 @@ interface PropertiesProps<Res extends Resource> {
     showMessages?: boolean;
     showPermissions?: boolean;
     showProperties?: boolean;
+    noPermissionsWarning?: string;
 
     flagsForRetrieve?: Record<string, any>;
 }
@@ -328,7 +329,9 @@ export function ResourceProperties<Res extends Resource>(
                 <ContentWrapper>
                     {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
-                            <ResourcePermissionEditor reload={reload} entity={resource} api={api} />
+                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}
+                                                      noPermissionsWarning={props.noPermissionsWarning}/>
+                            <Box mb={16} />
                         </HighlightedCard>
                     }
                     {childrenResolved}

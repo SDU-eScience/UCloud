@@ -1,56 +1,53 @@
 import * as React from "react";
 import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
-import {useCallback, useState} from "react";
-import {Box, Button, Label, Select} from "@/ui-components";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Box, Button, Grid, Label, Select} from "@/ui-components";
 import {inDevEnvironment, onDevSite, PropType} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {addStandardDialog} from "@/UtilityComponents";
 import {auth, BulkResponse} from "@/UCloud";
 import {bulkRequestOf} from "@/DefaultObjects";
 import AccessToken = auth.AccessToken;
-import ResourceForm from "@/Products/CreateProduct";
+import ResourceForm, {DataType} from "@/Products/CreateProduct";
 import * as Types from "@/Accounting";
 import {Provider} from "@/UCloud/ProvidersApi";
+import {
+    explainAllocation,
+    productTypes as allProductTypes,
+    ProductType,
+    productTypeToTitle,
+    productTypeToJsonType, normalizeBalanceForBackend
+} from "@/Accounting";
 
-const productTypes: {value: PropType<Types.Product, "type">, title: string}[] = [
-    {value: "compute", title: "Compute"},
-    {value: "network_ip", title: "Public IP"},
-    {value: "ingress", title: "Public link"},
-    {value: "license", title: "Software license"},
-    {value: "storage", title: "Storage"},
-];
+const productTypes: { value: ProductType, title: string }[] =
+    allProductTypes.map(value => ({value, title: productTypeToTitle(value)}));
 
-function unitNameFromType(type: PropType<Types.Product, "type">): string {
-    let unitName = "";
-    switch (type) {
-        case "compute":
-            unitName = "minute";
-            break;
-        case "storage":
-            unitName = "GB/day";
-            break;
-        case "network_ip":
-        case "license":
-        case "ingress":
-            unitName = "activation";
-            break;
-    }
-    return unitName;
-}
-
-export const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
-    const [type, setType] = useState<PropType<Types.Product, "type">>("compute");
-    const onTypeChange = useCallback(e => setType(e.target.value as PropType<Types.Product, "type">), [setType]);
+export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onComplete: () => void }> = props => {
+    const [type, setType] = useState<ProductType>("COMPUTE");
+    const typeHolder = useRef<ProductType>(type);
+    const onTypeChange = useCallback(e => setType(e.target.value as ProductType), [setType]);
     const [licenseTagCount, setTagCount] = useState(1);
     const [, invokeCommand] = useCloudCommand();
+    useEffect(() => {
+        typeHolder.current = type
+    }, [type]);
 
-    const unitName = unitNameFromType(type);
+    const priceDependencies = useMemo(() => ["unitOfPrice", "chargeType", "type"], []);
+    const unitEvaluator = useCallback((t: DataType) => {
+        const productType = typeHolder.current;
+        const unitOfPrice = t.fields["unitOfPrice"];
+        const chargeType = t.fields["chargeType"];
+
+        if (!unitOfPrice || !chargeType) return "DKK";
+        const res = explainAllocation(productType, chargeType, unitOfPrice);
+        return res;
+    }, [type]);
 
     return <Box maxWidth={"800px"} margin={"0 auto"}>
         <Label>
             Type
-            <Select value={type} onChange={onTypeChange}>
+            <Select id={"type"} value={type} onChange={onTypeChange}>
                 {productTypes.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
             </Select>
         </Label>
@@ -65,14 +62,14 @@ export const ProductCreationForm: React.FunctionComponent<{provider: Provider, o
                 const accessToken = tokens?.responses[0]?.accessToken;
                 let product: Types.Product;
 
-                const shared: Omit<Types.ProductBase, "productType"> = {
-                    type,
-                    category: {name: data.fields.name, provider: props.provider.id},
-                    pricePerUnit: data.fields.pricePerUnit * 10_000,
+                const shared: Types.ProductBase = {
+                    type: productTypeToJsonType(type),
+                    productType: type,
+                    category: {name: data.fields.category, provider: props.provider.specification.id},
+                    pricePerUnit: normalizeBalanceForBackend(data.fields.pricePerUnit, type, data.fields.chargeType, data.fields.unitOfPrice),
                     name: data.fields.name,
                     description: data.fields.description,
                     priority: data.fields.priority,
-                    version: data.fields.version,
                     freeToUse: data.fields.freeToUse,
                     unitOfPrice: data.fields.unitOfPrice,
                     chargeType: data.fields.chargeType,
@@ -86,83 +83,101 @@ export const ProductCreationForm: React.FunctionComponent<{provider: Provider, o
                 }
 
                 switch (type) {
-                    case "storage":
+                    case "STORAGE":
                         product = {
                             ...shared,
-                            productType: "STORAGE"
                         } as Types.ProductStorage;
                         break;
-                    case "compute":
+                    case "COMPUTE":
                         product = {
                             ...shared,
-                            productType: "COMPUTE",
                             cpu: data.fields.cpu,
                             memoryInGigs: data.fields.memory,
                             gpu: data.fields.gpu
                         } as Types.ProductCompute;
                         break;
-                    case "ingress":
+                    case "INGRESS":
                         product = {
                             ...shared,
-                            productType: "INGRESS",
                         } as Types.ProductIngress;
                         break;
-                    case "network_ip":
+                    case "NETWORK_IP":
                         product = {
                             ...shared,
-                            productType: "NETWORK_IP"
                         } as Types.ProductNetworkIP;
                         break;
-                    case "license":
+                    case "LICENSE":
                         product = {
                             ...shared,
-                            productType: "LICENSE",
                             tags
                         } as Types.ProductLicense;
                         break;
                 }
 
-                return {...UCloud.accounting.products.createProduct(bulkRequestOf(product as any)), accessTokenOverride: accessToken};
+                return {
+                    ...UCloud.accounting.products.createProduct(bulkRequestOf(product as any)),
+                    accessTokenOverride: accessToken
+                };
             }}
         >
-            <ResourceForm.Text required id="name" placeholder="Name..." label="Name (e.g. u1-standard-1)" styling={{}} />
-            <ResourceForm.Number required id="pricePerUnit" placeholder="Price..." rightLabel="DKK" label={`Price per ${unitName}`} step="0.01" min={0} styling={{}} />
-            <ResourceForm.TextArea required id="description" placeholder="Description..." label="Description" rows={10} styling={{}} />
-            <ResourceForm.Number required id="priority" placeholder="Priority..." label="Priority" styling={{}} />
-            <ResourceForm.Number required id="version" placeholder="Version..." label="Version" min={0} styling={{}} />
-            <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}} />
-            <ResourceForm.Select id="unitOfPrice" label="Unit of Price" required options={[
-                {value: "PER_UNIT", text: "Per Unit"},
-                {value: "CREDITS_PER_MINUTE", text: "Credits Per Minute"},
-                {value: "CREDITS_PER_HOUR", text: "Credits Per Hour"},
-                {value: "CREDITS_PER_DAY", text: "Credits Per Day"},
-                {value: "UNITS_PER_MINUTE", text: "Units Per Minute"},
-                {value: "UNITS_PER_HOUR", text: "Units Per Hour"},
-                {value: "UNITS_PER_DAY", text: "Units Per Day"}
-            ]} styling={{}} />
-            <ResourceForm.Select id="chargeType" label="Chargetype" required options={[
-                {value: "ABSOLUTE", text: "Absolute"},
-                {value: "DIFFERENTIAL_QUOTA", text: "Differential Quota"}
-            ]} styling={{}} />
-            <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications" defaultChecked={false} styling={{}} />
+            <Grid gridTemplateColumns={"1fr"} gridGap={"32px"}>
+                <div>
+                    <ResourceForm.Text required id="name" placeholder="Name..." label="Name (e.g. u1-standard-1)"
+                                       styling={{}}/>
+                    <ResourceForm.Text required id="category" placeholder="Name..." label="Category (e.g. u1-standard)"
+                                       styling={{}}/>
+                    <ResourceForm.Text required id="description" placeholder="Description..." label="Description"
+                                       styling={{}}/>
+                    <ResourceForm.Number required id="priority" placeholder="Priority..." label="Priority"
+                                         styling={{}}/>
+                    <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications"
+                                           defaultChecked={false} styling={{}}/>
+                </div>
+                <div>
+                    <ResourceForm.Select id="chargeType" label="Payment Model" required options={[
+                        {value: "ABSOLUTE", text: "Absolute"},
+                        {value: "DIFFERENTIAL_QUOTA", text: "Differential (Quota)"}
+                    ]} styling={{}}/>
 
-            {type !== "compute" ? null : (
-                <>
-                    <ResourceForm.Number id="cpu" placeholder="vCPU..." label="vCPU" required styling={{}} />
-                    <ResourceForm.Number id="memory" placeholder="Memory..." label="Memory in GB" required styling={{}} />
-                    <ResourceForm.Number id="gpus" placeholder="GPUs..." label="Number of GPUs" required styling={{}} />
-                </>
-            )}
-            {type !== "license" ? null : (
-                <>
-                    {[...Array(licenseTagCount).keys()].map(id =>
-                        <ResourceForm.Text key={id} id={`tag-${id}`} label={`Tag ${id + 1}`} styling={{}} />
-                    )}
+                    <ResourceForm.Select id="unitOfPrice" label="Unit of Price" required options={[
+                        {value: "CREDITS_PER_MINUTE", text: "Credits Per Minute"},
+                        {value: "CREDITS_PER_HOUR", text: "Credits Per Hour"},
+                        {value: "CREDITS_PER_DAY", text: "Credits Per Day"},
+                        {value: "PER_UNIT", text: "Per Unit"},
+                        {value: "UNITS_PER_MINUTE", text: "Units Per Minute"},
+                        {value: "UNITS_PER_HOUR", text: "Units Per Hour"},
+                        {value: "UNITS_PER_DAY", text: "Units Per Day"}
+                    ]} styling={{}}/>
+
+                    <ResourceForm.Number required id="pricePerUnit" placeholder="Price..." rightLabel={unitEvaluator}
+                                         label={`Price`} step="0.01" min={0} styling={{}}
+                                         dependencies={priceDependencies}/>
+
+                    <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}}/>
+
+                </div>
+
+                {type !== "COMPUTE" ? null : (
                     <div>
-                        <Button fullWidth type="button" onClick={() => setTagCount(t => t + 1)} mt="6px">Add tag</Button>
+                        <ResourceForm.Number id="cpu" placeholder="vCPU..." label="vCPU" required styling={{}}/>
+                        <ResourceForm.Number id="memory" placeholder="Memory..." label="Memory in GB" required
+                                             styling={{}}/>
+                        <ResourceForm.Number id="gpus" placeholder="GPUs..." label="Number of GPUs" required
+                                             styling={{}}/>
                     </div>
-                </>
-            )}
+                )}
+                {type !== "LICENSE" ? null : (
+                    <div>
+                        {[...Array(licenseTagCount).keys()].map(id =>
+                            <ResourceForm.Text key={id} id={`tag-${id}`} label={`Tag ${id + 1}`} styling={{}}/>
+                        )}
+                        <div>
+                            <Button fullWidth type="button" onClick={() => setTagCount(t => t + 1)} mt="6px">Add
+                                tag</Button>
+                        </div>
+                    </div>
+                )}
+            </Grid>
         </ResourceForm>
     </Box>;
 };

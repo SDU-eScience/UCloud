@@ -8,7 +8,7 @@ import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/Clickab
 import {doNothing, preventDefault} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
 
 type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
@@ -120,6 +120,7 @@ const OperationComponent: React.FunctionComponent<{
 };
 
 interface OperationProps<EntityType, Extras = undefined> {
+    topbarIcon?: IconName;
     location: OperationLocation;
     operations: Operation<EntityType, Extras>[];
     selected: EntityType[];
@@ -217,7 +218,7 @@ export const Operations: OperationsType = props => {
         openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
-            props.selected.length === 0 ?
+            props.selected.length === 0 || props.location === "TOPBAR" ?
                 <Icon
                     onClick={preventDefault}
                     ml={"5px"}
@@ -263,6 +264,16 @@ export const Operations: OperationsType = props => {
                     <Flex alignItems={"center"}>
                         {props.displayTitle === false ? null :
                             <Heading.h3 flexGrow={1}>
+                                {props.topbarIcon ?
+                                    <Icon
+                                        name={props.topbarIcon}
+                                        m={8}
+                                        ml={0}
+                                        size="20"
+                                        color={theme.colors.darkGray}
+                                    /> :
+                                    null
+                                }
                                 {entityNamePlural}
                                 {" "}
                                 {props.selected.length === 0 ? null :

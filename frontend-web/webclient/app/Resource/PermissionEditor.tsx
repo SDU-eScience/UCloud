@@ -23,6 +23,7 @@ interface ResourcePermissionEditorProps<T extends Resource> {
     entity: T;
     api: ResourceApi<T, never>;
     showMissingPermissionHelp?: boolean;
+    noPermissionsWarning?: string;
 }
 
 export function ResourcePermissionEditor<T extends Resource>(
@@ -93,6 +94,7 @@ export function ResourcePermissionEditor<T extends Resource>(
     }, [acl, projectId, commandLoading, api, entity]);
 
     const anyGroupHasPermission = acl.some(it => it.permissions.length !== 0);
+    const warning = props.noPermissionsWarning ?? `This ${api.title.toLowerCase()} can only be used by project admins!`;
 
     return <Pagination.List
         loading={projectGroups.loading}
@@ -106,8 +108,7 @@ export function ResourcePermissionEditor<T extends Resource>(
                   flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}
-                    <TextSpan bold>As a result, this {api.title.toLowerCase()} can only be used by project
-                        admins!</TextSpan>
+                    <TextSpan bold>{warning}</TextSpan>
                 </ShakingBox>
 
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
@@ -117,7 +118,7 @@ export function ResourcePermissionEditor<T extends Resource>(
             <>
                 {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
                     <ShakingBox shaking mb={16}>
-                        <Text bold>This {api.title.toLowerCase()} can only be used by project admins</Text>
+                        <Text bold>{warning}</Text>
                         <Text>
                             You must assign permissions to one or more group, if your collaborators need to use this
                             {" "}{api.title.toLowerCase()}.
