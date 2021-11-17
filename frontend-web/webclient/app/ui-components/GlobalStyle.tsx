@@ -154,6 +154,7 @@ html {
     --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
+    --activeSpreadsheet: #dcebf6;
     
     /* TODO This is not currently enforced in the header */
     --headerHeight: 48px;
@@ -175,7 +176,8 @@ html.light {
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
-    --appStoreFavBg: #e8f1fc
+    --appStoreFavBg: #e8f1fc;
+    --activeSpreadsheet: #dcebf6;
 }
 
 html.dark {
@@ -192,7 +194,8 @@ html.dark {
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
-    --appStoreFavBg: #00204d
+    --appStoreFavBg: #00204d;
+    --activeSpreadsheet: #000;
 }
 
 ${device("xxl")} {

@@ -1110,7 +1110,7 @@ const StyledSheet = styled.table`
   }
 
   td.active, th.active {
-    background: #dcebf6;
+    background: var(--activeSpreadsheet);
   }
 
   th {
