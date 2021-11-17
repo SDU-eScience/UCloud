@@ -104,6 +104,7 @@ const Resources: React.FunctionComponent = () => {
     const filterByAllocation = useCallback((allocationId: string) => {
         setFilters(prev => ({...prev, "filterAllocation": allocationId}))
     }, [setFilters]);
+
     const filterByWorkspace = useCallback((workspaceId: string, workspaceIsProject: boolean) => {
         setFilters(prev => ({
             ...prev,
@@ -119,7 +120,7 @@ const Resources: React.FunctionComponent = () => {
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
-    useEffect(reloadPage, []);
+    useEffect(reloadPage, [reloadPage]);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     return (
@@ -136,7 +137,6 @@ const Resources: React.FunctionComponent = () => {
                     setProperties={setFilters}
                     sortDirection={"ascending"}
                     onSortUpdated={doNothing}
-                    onApplyFilters={reloadPage}
                 />
             </>}
             main={<ResourcesGrid>

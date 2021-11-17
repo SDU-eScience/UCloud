@@ -417,7 +417,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             pills={api.filterPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
             </StickyBox>
@@ -438,7 +438,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} browseType={props.browseType}
+                            browseType={props.browseType}
                             readOnlyProperties={props.additionalFilters} />
                     </>
             }
