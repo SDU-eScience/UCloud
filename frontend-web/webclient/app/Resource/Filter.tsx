@@ -3,7 +3,6 @@ import {useCallback, useMemo, useState} from "react";
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import * as Text from "@/ui-components/Text";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Cursor} from "@/ui-components/Types";
 import styled from "styled-components";
@@ -61,20 +60,14 @@ export const ResourceFilter: React.FunctionComponent<{
     sortDirection: "ascending" | "descending";
     sortColumn?: string;
     onSortUpdated: (direction: "ascending" | "descending", column: string) => void;
-    onApplyFilters: () => void;
 }> = props => {
     const {properties, setProperties} = props;
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
-    const [isDirty, setIsDirty] = useState(false);
     const combinedProperties = useMemo(
         () => ({...(props.readOnlyProperties ?? {}), ...properties}),
         [props.readOnlyProperties, properties]
     );
-
-    useEffectSkipMount(() => {
-        setIsDirty(true)
-    }, [properties, setIsDirty]);
 
     const onSortDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(sortProperties)};
@@ -83,8 +76,7 @@ export const ResourceFilter: React.FunctionComponent<{
         }
 
         setSortProperties(result);
-        setIsDirty(true);
-    }, [setSortProperties, sortProperties, setIsDirty]);
+    }, [setSortProperties, sortProperties]);
 
     const onPillDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(properties)};
@@ -94,19 +86,16 @@ export const ResourceFilter: React.FunctionComponent<{
 
         setProperties(result);
         setExpanded(null);
-        setIsDirty(true);
-    }, [setProperties, setExpanded, properties, setIsDirty]);
+    }, [setProperties, setExpanded, properties]);
 
     const onPropertiesUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
         mergeProperties(properties, updatedProperties, setProperties);
-        setIsDirty(true);
-    }, [setProperties, properties, setIsDirty]);
+    }, [setProperties, properties]);
 
     const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
         const newProps = mergeProperties(sortProperties, updatedProperties, setSortProperties);
         props.onSortUpdated(newProps["direction"] as "ascending" | "descending", newProps["column"]);
-        setIsDirty(true);
-    }, [setSortProperties, sortProperties, setIsDirty, props.onSortUpdated]);
+    }, [setSortProperties, sortProperties, props.onSortUpdated]);
 
     const sortOptions = useMemo(() =>
         props.sortEntries.map(it => ({
@@ -126,11 +115,6 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
-    const applyFilters = useCallback(() => {
-        props.onApplyFilters();
-        setIsDirty(false);
-    }, [props.onApplyFilters, setIsDirty, sortProperties]);
-
     const onlyFilter = props.sortEntries.length === 0;
 
     const isEmbedded = props.browseType === BrowseType.Embedded;
@@ -146,12 +130,6 @@ export const ResourceFilter: React.FunctionComponent<{
             {props.pills.map((Pill, idx) =>
                 <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
             )}
-            {!isDirty ? null :
-                <Button color="green" size="small" onClick={applyFilters} mb={"10px"}>
-                    <Icon name="check" mr="8px" size="14px" />
-                    <Text.TextSpan fontSize="14px">Apply</Text.TextSpan>
-                </Button>
-            }
         </Grid>
         <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
