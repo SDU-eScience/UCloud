@@ -54,7 +54,7 @@ function readQuery(queryParams: string): SearchQuery {
     return {query, tags, showAllVersions, itemsPerPage, page};
 }
 
-export const SearchWidget: React.FunctionComponent<{ partOfResults?: boolean }> = ({partOfResults = false}) => {
+export const SearchWidget: React.FunctionComponent<{partOfResults?: boolean}> = ({partOfResults = false}) => {
     const history = useHistory();
     const queryParams = history.location.search;
     const tagRef = useRef<HTMLInputElement>(null);
@@ -137,7 +137,7 @@ export const SearchWidget: React.FunctionComponent<{ partOfResults?: boolean }> 
                 <form onSubmit={e => onSearch(e)}>
                     <Label>
                         <Heading.h5 pb="0.3em" pt="0.5em">Application name</Heading.h5>
-                        <Input ref={searchRef}/>
+                        <Input ref={searchRef} />
                     </Label>
 
                     <Label>
@@ -179,7 +179,7 @@ export const SearchWidget: React.FunctionComponent<{ partOfResults?: boolean }> 
     );
 };
 
-export const SearchResults: React.FunctionComponent<{ entriesPerPage: number }> = ({entriesPerPage}) => {
+export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = ({entriesPerPage}) => {
     const history = useHistory();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
@@ -188,14 +188,13 @@ export const SearchResults: React.FunctionComponent<{ entriesPerPage: number }> 
 
     const queryParams = history.location.search;
     const parsedQuery = readQuery(queryParams);
+
     useEffect(() => {
         fetchResults(
-            UCloud.compute.apps.advancedSearch({
-                showAllVersions: parsedQuery.showAllVersions,
-                itemsPerPage: entriesPerPage,
-                page: 0,
-                query: parsedQuery.query,
-                tags: parsedQuery.tags
+            UCloud.compute.apps.searchApps({
+                query: new URLSearchParams(queryParams).get("q") ?? "",
+                itemsPerPage: 100,
+                page: 0
             })
         );
     }, [queryParams, entriesPerPage]);

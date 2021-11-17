@@ -352,37 +352,6 @@ const _Search = (props: SearchProps): JSX.Element => {
                         <ui.Icon name="search" size="20" />
                     </ui.Label>
                 </ui.Absolute>
-                {/* <ClickableDropdown
-                    keepOpenOnOutsideClick
-                    overflow="visible"
-                    left={-425}
-                    top={15}
-                    width="425px"
-                    colorOnHover={false}
-                    keepOpenOnClick
-                    squareTop
-                    trigger={(
-                        <ui.Absolute hidden={!hasSearch} top={-12.5} right={12} bottom={0} left={-22}>
-                            <ui.Icon cursor="pointer" name="chevronDown" size="12px" />
-                        </ui.Absolute>
-                    )}
-                >
-                    <ui.SelectableTextWrapper>
-                        <ui.Box ml="auto" />
-                        {allowedSearchTypes.map(it => (
-                            <ui.SelectableText
-                                key={it}
-                                onClick={() => setSearchType(it)}
-                                mr="1em"
-                                selected={it === prioritizedSearch}
-                            >
-                                {prettierString(it)}
-                            </ui.SelectableText>
-                        ))}
-                        <ui.Box mr="auto" />
-                    </ui.SelectableTextWrapper>
-                    {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
-                </ClickableDropdown> */}
             </SearchInput>
         </ui.Relative>
     );
