@@ -18,6 +18,7 @@ import {useProjectStatus} from "@/Project/cache";
 import Wallet = accounting.Wallet;
 import {useProjectId} from "@/Project";
 import {TextSpan} from "@/ui-components/Text";
+import MainContainer from "@/MainContainer/MainContainer";
 
 const LeftAlignedTableHeader = styled(TableHeader)`
   text-align: left;
@@ -293,7 +294,9 @@ const LicenseServers: React.FunctionComponent = () => {
     const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
 
     if (!Client.userIsAdmin) return null;
-    return null;
+    return <MainContainer main={<>
+        <p>Temporarily out-of-service. In the mean time, someone from the backend team can help with maintenance.</p>
+    </>}/>;
 
 
     // return (
