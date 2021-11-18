@@ -14,8 +14,9 @@ import {BrowseType} from "@/Resource/BrowseType";
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     const location = useLocation();
     const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
     const filterRejected = getQueryParam(location.search, "filterRejected") !== "false";
@@ -40,7 +41,7 @@ export const ShareBrowse: React.FunctionComponent<{
     }, []);
 
     const navigateToEntry = React.useCallback((history: History, share: Share) => {
-        if (props.browseType === BrowseType.MainContent) {
+        if (browseType === BrowseType.MainContent) {
             history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
         } else {
             // Should we handle this differently for other browseTypes?
@@ -51,7 +52,7 @@ export const ShareBrowse: React.FunctionComponent<{
     return <ResourceBrowse
         api={SharesApi}
         onSelect={props.onSelect}
-        browseType={props.browseType}
+        browseType={browseType}
         isSearch={props.isSearch}
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}
