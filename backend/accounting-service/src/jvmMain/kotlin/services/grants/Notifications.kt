@@ -163,10 +163,12 @@ class GrantNotificationService(
                 )
             }
 
-            MailDescriptions.sendToUser.call(
-                bulkRequestOf(sendRequests),
-                serviceClient
-            )
+            if (sendRequests.isNotEmpty()) {
+                MailDescriptions.sendToUser.call(
+                    bulkRequestOf(sendRequests),
+                    serviceClient
+                )
+            }
         }
     }
 
