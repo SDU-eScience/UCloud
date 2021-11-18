@@ -26,10 +26,14 @@ export const ProductSelector: React.FunctionComponent<{
         throw "Bad input passed to ProductSelector";
     }
 
+    // TODO(Dan) This is not ideal. It should use fixed positioning (to not overflow the row) but still be anchored to
+    //  the 'parent'. If you remove `useMousePositioning` then the dropdown contents will immediately be hidden because
+    //  it overflows the row.
     return (
         <ClickableDropdown
             fullWidth
             colorOnHover={false}
+            useMousePositioning
             trigger={(
                 <ProductDropdown>
                     <ProductBox product={selected} />
@@ -83,6 +87,7 @@ const SmallText = styled.span`
 `;
 
 const Wrapper = styled.div`
+  width: 500px;
   & > table {
     margin-left: -9px;
   }
@@ -135,8 +140,7 @@ const ProductDropdown = styled(Box)`
   border-radius: 5px;
   border: ${theme.borderWidth} solid var(--midGray, #f00);
   height: 36px;
-  width: 100%;
-  min-width: 500px;
+  width: 500px;
 
   & p {
     margin: 0;

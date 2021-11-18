@@ -327,7 +327,7 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined ? null :
+                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                                       noPermissionsWarning={props.noPermissionsWarning}/>
