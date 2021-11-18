@@ -428,6 +428,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 })
                             );
 
+                            cb.reload();
+
                             dialogStore.success();
                         }} />,
                         doNothing,
@@ -465,6 +467,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     }))
                                 })
                             );
+
+                            cb.reload();
 
                             dialogStore.success();
                         }} />,
