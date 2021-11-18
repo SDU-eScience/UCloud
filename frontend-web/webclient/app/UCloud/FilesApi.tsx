@@ -412,7 +412,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -452,7 +452,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
