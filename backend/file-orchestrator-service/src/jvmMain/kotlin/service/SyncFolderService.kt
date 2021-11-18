@@ -13,9 +13,11 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.serializer
 
 typealias FolderSvcSuper = ResourceService<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
@@ -133,41 +135,18 @@ class SyncFolderService(
 
     private suspend fun removeSyncFolders(paths: List<String>) {
         db.withSession { session ->
-            val affectedFolders = session.sendPreparedStatement(
+            val affectedFolders: List<SyncFolder> = session.sendPreparedStatement(
                 {
                     setParameter("ids", paths)
                     setParameter("parentIds", paths.map { "$it/%" })
                 },
                 """
-                        select * from provider.resource r
-                        join file_orchestrator.sync_folders f on f.resource = r.id
-                        join accounting.product_categories c on r.product = c.id
-                        where type = 'sync_folder' and (
+                        select file_orchestrator.sync_folder_to_json(f) from file_orchestrator.sync_folders f 
+                        where 
                             f.path in (select unnest(:ids::text[])) or
                             f.path like any((select unnest(:parentIds::text[])))
-                        )
                     """
-            ).rows.map {
-                SyncFolder(
-                    (it.getLong("resource") ?: 0).toString(),
-                    SyncFolder.Spec(
-                        it.getString("path").orEmpty(),
-                        ProductReference(
-                            (it.getLong("product") ?: 0).toString(),
-                            it.getString("category").orEmpty(),
-                            it.getString("provider").orEmpty(),
-                        )
-                    ),
-                    0L,
-                    SyncFolder.Status(),
-                    emptyList(),
-                    ResourceOwner(
-                        it.getString("created_by").orEmpty(),
-                        null
-                    ),
-                    ResourcePermissions(emptyList(), emptyList())
-                )
-            }
+            ).rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
 
             if (affectedFolders.length > 0) {
                 proxy.bulkProxy(

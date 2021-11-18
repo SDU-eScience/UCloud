@@ -1,4 +1,4 @@
-package service
+package dk.sdu.cloud.service
 
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope

@@ -15,7 +15,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import service.TokenValidationChain
+import dk.sdu.cloud.service.TokenValidationChain
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow

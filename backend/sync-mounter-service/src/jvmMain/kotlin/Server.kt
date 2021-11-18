@@ -1,15 +1,10 @@
 package dk.sdu.cloud.sync.mounter 
 
 import com.github.jasync.sql.db.util.length
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.SyncFolderControl
-import dk.sdu.cloud.file.orchestrator.api.SyncFolderIncludeFlags
-import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowse
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseRequest
 import dk.sdu.cloud.file.ucloud.services.JwtRefresherSharedSecret
@@ -22,7 +17,7 @@ import dk.sdu.cloud.sync.mounter.api.*
 import dk.sdu.cloud.sync.mounter.http.MountController
 import dk.sdu.cloud.sync.mounter.services.MountService
 import kotlinx.coroutines.runBlocking
-import service.TokenValidationChain
+import dk.sdu.cloud.service.TokenValidationChain
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 

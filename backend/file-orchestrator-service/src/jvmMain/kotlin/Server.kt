@@ -13,7 +13,6 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
