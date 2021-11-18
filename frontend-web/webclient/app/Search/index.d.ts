@@ -11,7 +11,6 @@ export interface SimpleSearchOperations {
     clear: () => void;
     setSearch: (search: string) => void;
     setPrioritizedSearch: (st: HeaderSearchType) => void;
-    toggleAdvancedSearch: () => void;
     setActivePage: () => void;
     setRefresh: (refresh?: () => void) => void;
 }

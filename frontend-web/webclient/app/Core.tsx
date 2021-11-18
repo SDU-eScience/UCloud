@@ -106,6 +106,7 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
+                    <Route exact path="/applications/search" component={requireAuth(Search)} />
                     <Route
                         exact
                         path="/applications/details/:appName/:appVersion"
@@ -152,8 +153,6 @@ const Core = (): JSX.Element => (
                         component={requireAuth(UserSettings, {requireTwoFactor: false})}
                     />
                     <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
-
-                    <Route exact path="/search/:priority" component={requireAuth(Search)} />
 
                     <Route exact path="/skus" component={Products} />
 

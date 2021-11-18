@@ -28,6 +28,8 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useResourceSearch} from "@/Resource/Search";
+import {ApiLike} from "./Overview";
 
 const View: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
@@ -46,6 +48,7 @@ const View: React.FunctionComponent = () => {
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
 
+    useResourceSearch(ApiLike);
 
     useTitle(applicationResp.data == null ?
         `${appName}, ${appVersion}` :
