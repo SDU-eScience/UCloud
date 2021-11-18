@@ -62,12 +62,15 @@ suspend fun <R> DBContext.withSession(
         }
     } catch (ex: GenericDatabaseException) {
         if (remapExceptions) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
-            }
+            when (ex.errorCode) {
+                PostgresErrorCodes.EXCLUSION_VIOLATION,
+                PostgresErrorCodes.UNIQUE_VIOLATION -> {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+                }
 
-            if (ex.errorCode == PostgresErrorCodes.RAISE_EXCEPTION) {
-                throw RPCException(ex.errorMessage.message ?: "", HttpStatusCode.BadRequest)
+                PostgresErrorCodes.RAISE_EXCEPTION -> {
+                    throw RPCException(ex.errorMessage.message ?: "", HttpStatusCode.BadRequest)
+                }
             }
         }
 
