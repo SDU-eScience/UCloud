@@ -136,7 +136,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 if (isEnabled !== true) return isEnabled;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
                 if (!support) return false;
-                console.log(support, cb.supportByProvider);
                 if (support.collection.usersCanDelete !== true) {
                     return "The provider does not allow you to delete this drive";
                 }

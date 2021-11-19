@@ -396,8 +396,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }
 
     const main = !inlineInspecting ? <>
-        <StandardBrowse pageSizeRef={pageSize} generateCall={generateFetch} pageRenderer={pageRenderer}
-            reloadRef={reloadRef} setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
+        <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
+            generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
