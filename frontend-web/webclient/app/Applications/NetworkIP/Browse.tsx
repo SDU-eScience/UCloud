@@ -17,7 +17,8 @@ export const NetworkIPBrowse: React.FunctionComponent<{
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
         })}
         header={
-            <ResourceTab active={ResourceTabOptions.PUBLIC_IP} />
+            props.browseType === BrowseType.MainContent ? (
+                <ResourceTab active={ResourceTabOptions.PUBLIC_IP} />) : undefined
         }
         headerSize={48}
         inlineCreationMode={"NONE"}
