@@ -178,6 +178,7 @@ html.light {
     --projectHighlight: #dfffee;
     --appStoreFavBg: #e8f1fc;
     --activeSpreadsheet: #dcebf6;
+    --modalShadow: rgba(255, 255, 255, 0.75);
 }
 
 html.dark {
@@ -196,6 +197,7 @@ html.dark {
     --projectHighlight: #00c05a;
     --appStoreFavBg: #00204d;
     --activeSpreadsheet: #000;
+    --modalShadow: rgba(0, 0, 0, 0.75);
 }
 
 ${device("xxl")} {
