@@ -77,10 +77,6 @@ function Header(props: HeaderProps): JSX.Element | null {
     if (useFrameHidden()) return null;
     if (!Client.isLoggedIn) return null;
 
-    function toSearch(): void {
-        history.push("/search/files");
-    }
-
     const {refresh, spin} = props;
 
     return (
@@ -90,15 +86,6 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Box ml="auto" />
             <ui.Hide xs sm md lg>
                 <Search />
-            </ui.Hide>
-            <ui.Hide xxl xl>
-                <ui.Icon
-                    name="search"
-                    size="32"
-                    mr="3px"
-                    cursor="pointer"
-                    onClick={toSearch}
-                />
             </ui.Hide>
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
