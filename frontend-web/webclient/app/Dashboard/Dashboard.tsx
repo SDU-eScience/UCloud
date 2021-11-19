@@ -267,7 +267,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                 </Text>
             </NoResultsCardBody>
         }
-        <List childPadding="8px">
+        <List>
             {props.notifications.items.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
                     <NotificationEntry notification={n} onAction={props.onNotificationAction} />
