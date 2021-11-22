@@ -115,17 +115,17 @@ export const ResourceFilter: React.FunctionComponent<{
     const isEmbedded = props.browseType === BrowseType.Embedded;
 
     return <>
-        {isEmbedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
-            <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-            {onlyFilter ? "Filter" : "Sort and filter"}
-        </Heading.h4>}
-        <Grid gridGap={"8px"}>
-            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
-            {props.pills.map((Pill, idx) =>
-                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
-            )}
-        </Grid>
+        {isEmbedded ? null :
+            <Heading.h4 mt={"32px"} mb={"16px"}>
+                <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
+                {onlyFilter ? "Filter" : "Sort and filter"}
+            </Heading.h4>
+        }
+        <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+            icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+        {props.pills.map((Pill, idx) =>
+            <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
+        )}
         <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
@@ -147,7 +147,7 @@ function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolea
         </ClickableDropdown>
     ) : (<>
         {props.children}
-    </>)
+    </>);
 }
 
 export const FilterPill: React.FunctionComponent<{
@@ -155,7 +155,7 @@ export const FilterPill: React.FunctionComponent<{
     onRemove: () => void;
     canRemove?: boolean;
 }> = ({icon, onRemove, canRemove, children}) => {
-    return <Stamp fullWidth onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+    return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
         {children}
     </Stamp>;
 };
@@ -166,9 +166,9 @@ interface BaseFilterWidgetProps {
 }
 
 const FilterWidgetWrapper = styled(Box)`
-  display: flex;
-  align-items: center;
-  user-select: none;
+    display: flex;
+    align-items: center;
+    user-select: none;
 `;
 
 export const FilterWidget: React.FunctionComponent<{
