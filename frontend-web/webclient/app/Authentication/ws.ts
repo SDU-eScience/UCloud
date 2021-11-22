@@ -86,22 +86,21 @@ export class WebSocketConnection {
 
     public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>): Promise<void> {
         const streamId = (this.nextStreamId++).toString();
-        this.handlers.set(streamId, message => {
-            handler(message);
-            if (message.type === "response") {
-                this.handlers.delete(streamId);
-            }
-        });
+        const bearer = this.settings.includeAuthentication !== false ?
+            await this.client.receiveAccessTokenOrRefreshIt() : undefined;
 
-        const project = this.client.projectId;
+        return new Promise((resolve) => {
+            this.handlers.set(streamId, message => {
+                handler(message);
+                if (message.type === "response") {
+                    this.handlers.delete(streamId);
+                    resolve();
+                }
+            });
 
-        this.sendMessage({
-            call,
-            streamId,
-            payload,
-            project,
-            bearer: this.settings.includeAuthentication !== false ?
-                await this.client.receiveAccessTokenOrRefreshIt() : undefined
+            const project = this.client.projectId;
+
+            this.sendMessage({call, streamId, payload, project, bearer});
         });
     }
 
