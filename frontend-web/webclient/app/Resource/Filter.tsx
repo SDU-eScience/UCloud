@@ -92,11 +92,6 @@ export const ResourceFilter: React.FunctionComponent<{
         mergeProperties(properties, updatedProperties, setProperties);
     }, [setProperties, properties]);
 
-    const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        const newProps = mergeProperties(sortProperties, updatedProperties, setSortProperties);
-        props.onSortUpdated(newProps["direction"] as "ascending" | "descending", newProps["column"]);
-    }, [setSortProperties, sortProperties, props.onSortUpdated]);
-
     const sortOptions = useMemo(() =>
         props.sortEntries.map(it => ({
             icon: it.icon,
@@ -134,14 +129,6 @@ export const ResourceFilter: React.FunctionComponent<{
         <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
-                {onlyFilter ? null : <>
-                    <EnumFilterWidget
-                        propertyName="column" icon="properties" title="Sort by" expanded={false} options={sortOptions}
-                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                        browseType={props.browseType}
-                    />
-                    {isEmbedded ? null : <Divider />}
-                </>}
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
@@ -224,7 +211,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         <FilterWidget browseType={props.browseType} icon={props.icon} title={props.title} cursor={"pointer"}
             onClick={props.expanded ? props.onExpand : undefined}>
             <Box flexGrow={1} />
-            <Icon name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
+            <Icon ml="6px" name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
                 color={"iconColor"} />
         </FilterWidget>
     );
@@ -237,7 +224,6 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         </>;
     }
 
-    // TODO(Jonas) This is unreachable at this point, isn't it?
     return <div>
         {!props.expanded ?
             <ClickableDropdown
