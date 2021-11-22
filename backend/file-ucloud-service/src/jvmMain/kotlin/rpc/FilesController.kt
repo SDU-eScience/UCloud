@@ -4,18 +4,9 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.WSCall
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
-import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.FilesCreateUploadResponseItem
-import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
-import dk.sdu.cloud.file.orchestrator.api.UploadProtocol
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.services.*
@@ -23,6 +14,8 @@ import dk.sdu.cloud.file.ucloud.services.tasks.EmptyTrashRequestItem
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.Time
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -71,6 +64,23 @@ class FilesController(
                     request.browse.normalize(),
                     FilesSortBy.valueOf(request.browse.sortBy ?: "PATH"),
                     request.browse.sortDirection
+                )
+            )
+        }
+
+        implement(UCloudFiles.search) {
+            // TODO(Dan): Obviously needs to be replaced by an actual implementation
+            ok(
+                PageV2(
+                    50,
+                    (0 until 50).map {
+                        PartialUFile(
+                            "/19/${request.query}_$it",
+                            UFileStatus(),
+                            Time.now()
+                        )
+                    },
+                    "fie"
                 )
             )
         }
@@ -164,7 +174,7 @@ class FilesController(
 
         implement(UCloudFiles.emptyTrash) {
             val username = ucloudUsername ?: throw  RPCException("No username supplied", HttpStatusCode.BadRequest)
-            ok (
+            ok(
                 BulkResponse(
                     request.items.map { requestItem ->
                         taskSystem.submitTask(
