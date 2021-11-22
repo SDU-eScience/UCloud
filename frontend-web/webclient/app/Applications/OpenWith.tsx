@@ -17,6 +17,7 @@ import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
 import {Product} from "@/Accounting";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 function findApplicationsByExtension(
     request: { files: string[] } & PaginationRequestV2
@@ -115,6 +116,9 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                 })),
                 {defaultErrorHandler: false}
             );
+
+            dialogStore.success();
+
             const ids = response?.responses;
             if (!ids || ids.length === 0) {
                 snackbarStore.addFailure("UCloud failed to submit the job", false);

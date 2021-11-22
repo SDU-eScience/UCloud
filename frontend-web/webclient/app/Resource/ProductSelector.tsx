@@ -13,7 +13,8 @@ export const ProductSelector: React.FunctionComponent<{
     initialSelection?: Product;
     products: Product[];
     onProductSelected: (product: Product) => void;
-}> = ({initialSelection, products, onProductSelected}) => {
+    slim?: boolean;
+}> = ({initialSelection, products, onProductSelected, slim}) => {
     const [selected, setSelected] = useState<Product | null>(initialSelection ?? null);
     useEffect(() => {
         if (initialSelection) setSelected(initialSelection);
@@ -39,7 +40,7 @@ export const ProductSelector: React.FunctionComponent<{
             colorOnHover={false}
             useMousePositioning
             trigger={(
-                <ProductDropdown>
+                <ProductDropdown height={slim === true ? "36px" : undefined}>
                     <ProductBox product={selected} />
 
                     <Icon name="chevronDown" />
@@ -143,8 +144,8 @@ const ProductDropdown = styled(Box)`
   cursor: pointer;
   border-radius: 5px;
   border: ${theme.borderWidth} solid var(--midGray, #f00);
-  height: 36px;
-  width: 500px;
+  width: 100%;
+  min-width: 500px;
 
   & p {
     margin: 0;
