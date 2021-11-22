@@ -7,14 +7,10 @@ import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
-import dk.sdu.cloud.provider.api.ResourceUpdate
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
-
-// ---
 
 @Serializable
 @UCloudApiDoc("A partial UFile returned by providers and made complete by UCloud/Core")
@@ -69,27 +65,12 @@ data class FilesProviderCopyRequestItem(
 typealias FilesProviderCopyResponse = FilesCopyResponse
 
 @Serializable
-data class FilesProviderDeleteRequestItem(
-    val resolvedCollection: FileCollection,
-    override val id: String
-) : WithPath
-typealias FilesProviderDeleteResponse = FilesDeleteResponse
-
-@Serializable
 data class FilesProviderCreateFolderRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
 typealias FilesProviderCreateFolderResponse = FilesCreateFolderResponse
-
-@Serializable
-data class FilesProviderUpdateAclRequestItem(
-    val resolvedCollection: FileCollection,
-    override val id: String,
-    val newAcl: List<ResourceAclEntry>
-) : WithPath
-typealias FilesProviderUpdateAclResponse = FilesUpdateAclResponse
 
 @Serializable
 data class FilesProviderTrashRequestItem(
@@ -122,7 +103,16 @@ data class FilesProviderCreateUploadRequestItem(
 ) : WithPath
 typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
-// ---
+@Serializable
+data class FilesProviderSearchRequest(
+    val query: String,
+    val owner: ResourceOwner,
+    val flags: UFileIncludeFlags,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
 
 open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
@@ -181,6 +171,10 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
     val createDownload = call<BulkRequest<FilesProviderCreateDownloadRequestItem>, FilesProviderCreateDownloadResponse,
         CommonErrorMessage>("createDownload") {
         httpCreate(baseContext, "download", roles = Roles.SERVICE)
+    }
+
+    val search = call<FilesProviderSearchRequest, PageV2<PartialUFile>, CommonErrorMessage>("search") {
+        httpSearch(baseContext, roles = Roles.SERVICE)
     }
 
     override val delete get() = super.delete!!

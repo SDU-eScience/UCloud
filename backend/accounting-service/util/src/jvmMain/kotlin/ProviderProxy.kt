@@ -9,10 +9,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.subscribe
-import dk.sdu.cloud.calls.client.throwError
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import io.ktor.http.*
@@ -307,6 +304,49 @@ class ProviderProxy<
         }
     }
 
+    suspend fun <R : Any, S : Any, E : Any> invokeCall(
+        actorAndProject: ActorAndProject,
+        isUserRequest: Boolean,
+        requestForProvider: R,
+        provider: String,
+        call: (comms: Comms) -> CallDescription<R, S, E>,
+    ): S {
+        val comms = providers.prepareCommunication(provider)
+        val im = IntegrationProvider(provider)
+        val actualCall = call(comms)
+
+        for (attempt in 0 until 5) {
+            val response = actualCall.call(
+                requestForProvider,
+                if (isUserRequest) {
+                    comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
+                } else {
+                    comms.client
+                }
+            )
+
+            if (response.statusCode == HttpStatusCode.RetryWith ||
+                response.statusCode == HttpStatusCode.ServiceUnavailable
+            ) {
+                if (isUserRequest) {
+                    im.init.call(
+                        IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
+                        comms.client
+                    ).orThrow()
+
+                    delay(200L + (attempt * 500))
+                    continue
+                } else {
+                    response.throwError()
+                }
+            }
+
+            return response.orThrow()
+        }
+
+        throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+    }
+
     suspend fun <R : Any, S : Any, R2 : Any> proxy(
         actorAndProject: ActorAndProject,
         request: R,
@@ -322,44 +362,17 @@ class ProviderProxy<
             try {
                 val comms = providers.prepareCommunication(provider)
                 val providerCall = retrieveCall(comms)
-                val im = IntegrationProvider(provider)
                 val requestForProvider = beforeCall(provider, reqWithResource)
                 mappedRequest = requestForProvider
 
-                for (attempt in 0 until 5) {
-                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
-                        afterCall(provider, reqWithResource, null)
-                        break
+                if (provider == Provider.UCLOUD_CORE_PROVIDER) {
+                    afterCall(provider, reqWithResource, null)
+                } else {
+                    val resp = invokeCall(actorAndProject, isUserRequest, requestForProvider, provider) {
+                        retrieveCall(it)
                     }
-
-                    val response = providerCall.call(
-                        requestForProvider,
-                        if (isUserRequest) {
-                            comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
-                        } else {
-                            comms.client
-                        }
-                    )
-
-                    if (response.statusCode == HttpStatusCode.RetryWith ||
-                        response.statusCode == HttpStatusCode.ServiceUnavailable
-                    ) {
-                        if (isUserRequest) {
-                            im.init.call(
-                                IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
-                                comms.client
-                            ).orThrow()
-
-                            delay(200L + (attempt * 500))
-                            continue
-                        } else {
-                            response.throwError()
-                        }
-                    }
-
-                    val capturedResponse = response.orThrow()
-                    afterCall(provider, reqWithResource, capturedResponse)
-                    return capturedResponse
+                    afterCall(provider, reqWithResource, resp)
+                    return resp
                 }
             } catch (ex: Throwable) {
                 onFailure(provider, reqWithResource, ex, mappedRequest)
