@@ -245,6 +245,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
                 trigger={trigger}
                 width={props.contentWidth}
                 useMousePositioning
+                colorOnHover={false}
                 paddingControlledByContent
             >
                 {props.dropdownContent}
