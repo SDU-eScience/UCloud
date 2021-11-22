@@ -166,6 +166,7 @@ export const ImportParameters: React.FunctionComponent<{
                                     fetchAndImportParameters(res);
                                     dialogStore.success();
                                 }}
+                                pathRef={{current: ""}}
                                 onSelectRestriction={res => res.status.type === "FILE"}
                             />,
                             () => undefined,

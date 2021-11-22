@@ -181,7 +181,7 @@ export const FilesBrowse: React.FunctionComponent<{
         onInlineCreation={onInlineCreation}
         onRename={onRename}
         emptyPage={
-            <>No files found folder. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
+            <>No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
