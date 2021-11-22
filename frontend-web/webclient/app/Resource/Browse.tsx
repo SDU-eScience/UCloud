@@ -336,7 +336,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 <Box width="170px">
                     <EnumFilterWidget
                         expanded={false}
-                        browseType={BrowseType.Embedded}
+                        browseType={BrowseType.Card}
                         propertyName="direction"
                         title="Sort direction"
                         facedownChevron
