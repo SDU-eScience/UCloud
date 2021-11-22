@@ -22,6 +22,7 @@ import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
+import {SmallScreenSearchField} from "@/Navigation/Header";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -29,6 +30,8 @@ interface BrowseProps<T> {
     pageRenderer: PageRenderer<T>;
     onLoad?: (newItems: T[]) => void;
 
+    isSearch?: boolean;
+    browseType?: BrowseType;
     loadingRef?: React.MutableRefObject<boolean>;
     reloadRef?: React.MutableRefObject<() => void>;
     onReload?: () => void;
@@ -83,9 +86,12 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 
     if (props.hide === true) return null;
 
-    return <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-        onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={remoteResources.error?.why}
-        infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />;
+    return <>
+        {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
+        <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={remoteResources.error?.why}
+            infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
+    </>
 }
 
 export interface ItemRenderer<T, CB = any> {

@@ -12,6 +12,7 @@ import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ApplicationCard} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
+import {SmallScreenSearchField} from "@/Navigation/Header";
 
 interface SearchQuery {
     tags: string[];
@@ -199,30 +200,32 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
         );
     }, [queryParams, entriesPerPage]);
 
-    return <Pagination.List
-        loading={results.loading}
-        page={results.data}
-        pageRenderer={page => (
-            <GridCardGroup>
-                {page.items.map(app => (
-                    <ApplicationCard
-                        key={`${app.metadata.name}${app.metadata.version}`}
-                        app={app}
-                        isFavorite={app.favorite}
-                        tags={app.tags}
-                    />))
-                }
-            </GridCardGroup>
-        )}
-        onPageChanged={newPage => {
-            history.push(searchPage("applications", {
-                query: parsedQuery.query,
-                tags: joinToString(parsedQuery.tags),
-                showAllVersions: parsedQuery.showAllVersions.toString(),
-                page: newPage.toString(),
-                itemsPerPage: parsedQuery.itemsPerPage.toString()
-            }));
-        }}
-    />;
+    return <>
+        <SmallScreenSearchField />
+        <Pagination.List
+            loading={results.loading}
+            page={results.data}
+            pageRenderer={page => (
+                <GridCardGroup>
+                    {page.items.map(app => (
+                        <ApplicationCard
+                            key={`${app.metadata.name}${app.metadata.version}`}
+                            app={app}
+                            isFavorite={app.favorite}
+                            tags={app.tags}
+                        />))
+                    }
+                </GridCardGroup>
+            )}
+            onPageChanged={newPage => {
+                history.push(searchPage("applications", {
+                    query: parsedQuery.query,
+                    tags: joinToString(parsedQuery.tags),
+                    showAllVersions: parsedQuery.showAllVersions.toString(),
+                    page: newPage.toString(),
+                    itemsPerPage: parsedQuery.itemsPerPage.toString()
+                }));
+            }}
+        />
+    </>;
 };
-

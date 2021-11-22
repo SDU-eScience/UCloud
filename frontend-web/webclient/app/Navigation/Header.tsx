@@ -77,10 +77,6 @@ function Header(props: HeaderProps): JSX.Element | null {
     if (useFrameHidden()) return null;
     if (!Client.isLoggedIn) return null;
 
-    function toSearch(): void {
-        history.push("/search/files");
-    }
-
     const {refresh, spin} = props;
 
     return (
@@ -88,18 +84,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <Logo />
             <ContextSwitcher />
             <ui.Box ml="auto" />
-            <ui.Hide xs sm md lg>
-                <Search />
-            </ui.Hide>
-            <ui.Hide xxl xl>
-                <ui.Icon
-                    name="search"
-                    size="32"
-                    mr="3px"
-                    cursor="pointer"
-                    onClick={toSearch}
-                />
-            </ui.Hide>
+            <Search />
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
                 <Link to={`/news/detailed/${upcomingDowntime}`}>
@@ -313,53 +298,77 @@ const _Search = (props: SearchProps): JSX.Element => {
     React.useEffect(() => {
         props.setSearch(getQueryParamOrElse({history, location}, "query", ""));
     }, []);
-    const {prioritizedSearch, setSearchType} = props;
-    const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
     const [onSearch] = useGlobal("onSearch", doNothing);
     const hasSearch = onSearch !== doNothing;
 
-    return (
-        <ui.Relative>
-            <SearchInput>
-                <ui.Input
-                    pl="30px"
-                    pr="28px"
-                    pt="6px"
-                    pb="6px"
-                    id="search_input"
-                    type="text"
-                    overrideDisabledColor={ui.theme.colors.darkBlue}
-                    value={props.search}
-                    disabled={!hasSearch}
-                    placeholder={searchPlaceholder}
-                    noBorder
-                    onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER) {
-                            if (hasSearch) {
-                                onSearch(props.search);
-                            } else {
-                                if (props.search) {
-                                    fetchAll();
+    return (<>
+        <ui.Hide xs sm md lg>
+            <ui.Relative>
+                <SearchInput>
+                    <ui.Input
+                        pl="30px"
+                        pr="28px"
+                        pt="6px"
+                        pb="6px"
+                        id="search_input"
+                        type="text"
+                        overrideDisabledColor={ui.theme.colors.darkBlue}
+                        value={props.search}
+                        disabled={!hasSearch}
+                        placeholder={searchPlaceholder}
+                        noBorder
+                        onKeyDown={e => {
+                            if (e.keyCode === KeyCode.ENTER) {
+                                if (hasSearch) {
+                                    onSearch(props.search);
                                 }
                             }
-                        }
-                    }}
-                    onChange={e => props.setSearch(e.target.value)}
-                />
-                <ui.Absolute left="6px" top="7px">
-                    <ui.Label htmlFor="search_input">
-                        <ui.Icon name="search" size="20" />
-                    </ui.Label>
-                </ui.Absolute>
-            </SearchInput>
-        </ui.Relative>
+                        }}
+                        onChange={e => props.setSearch(e.target.value)}
+                    />
+                    <ui.Absolute left="6px" top="7px">
+                        <ui.Label htmlFor="search_input">
+                            <ui.Icon name="search" size="20" />
+                        </ui.Label>
+                    </ui.Absolute>
+                </SearchInput>
+            </ui.Relative>
+        </ui.Hide>
+        <ui.Hide xxl xl>
+            <ui.Icon
+                name="search"
+                size="32"
+                mr="3px"
+                color={hasSearch ? "#FFF" : "gray"}
+                cursor={hasSearch ? "pointer" : undefined}
+                /* HACK(Jonas): To circumvent the `q === ""` check */
+                onClick={() => onSearch(undefined as unknown as string)}
+            />
+        </ui.Hide>
+    </>
     );
-
-    function fetchAll(): void {
-        history.push(searchPage(prioritizedSearch, props.search));
-    }
 };
+
+export function SmallScreenSearchField(): JSX.Element {
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
+    const [onSearch] = useGlobal("onSearch", doNothing);
+    const ref = React.useRef<HTMLInputElement>(null);
+
+    return <ui.Hide lg xl xxl>
+        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? ""))}>
+            <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
+            <ui.Input
+                required
+                mt="3px"
+                width={"100%"}
+                placeholder={searchPlaceholder}
+                ref={ref}
+            />
+            <ui.Button mt="3px" width={"100%"}>Search</ui.Button>
+        </form>
+    </ui.Hide>;
+}
 
 const mapSearchStateToProps = ({
     header,
