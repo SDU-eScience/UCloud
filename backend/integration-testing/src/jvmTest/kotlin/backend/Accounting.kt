@@ -1200,7 +1200,7 @@ class AccountingTest : IntegrationTest() {
                 val walletBelongsToProject: Boolean,
                 val initialBalance: Long,
                 val units: Long,
-                val numberOfProducts: Long = 1,
+                val periods: Long = 1,
                 val product: Product = sampleCompute,
                 val expectedChargeResults: List<Boolean>? = emptyList()
             )
@@ -1265,7 +1265,7 @@ class AccountingTest : IntegrationTest() {
                             ChargeWalletRequestItem(
                                 owner,
                                 input.units,
-                                input.numberOfProducts,
+                                input.periods,
                                 input.product.toReference(),
                                 createdUser.username,
                                 "Test charge",
@@ -1291,7 +1291,7 @@ class AccountingTest : IntegrationTest() {
 
                     fun balanceWasDeducted(input: In, output: Out) {
                         assertEquals(
-                            input.initialBalance - (input.product.pricePerUnit * input.units * input.numberOfProducts),
+                            input.initialBalance - (input.product.pricePerUnit * input.units * input.periods),
                             output.newBalance
                         )
                     }
@@ -1332,7 +1332,7 @@ class AccountingTest : IntegrationTest() {
                 val rootBalance: Long,
                 val chainFromRoot: List<Allocation>,
                 val units: Long,
-                val numberOfProducts: Long = 1,
+                val periods: Long = 1,
                 val product: Product = sampleCompute,
                 val skipCreationOfLeaf: Boolean = false,
                 val expectedChargeResults: List<Boolean>? = emptyList()
@@ -1363,7 +1363,7 @@ class AccountingTest : IntegrationTest() {
                             ChargeWalletRequestItem(
                                 leaves.last().owner,
                                 input.units,
-                                input.numberOfProducts,
+                                input.periods,
                                 input.product.toReference(),
                                 leaves.last().username,
                                 "Test charge",
@@ -1391,7 +1391,7 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 fun balanceWasDeducted(input: In, output: ChargeOutput) {
-                    val paymentRequired = input.product.pricePerUnit * input.units * input.numberOfProducts
+                    val paymentRequired = input.product.pricePerUnit * input.units * input.periods
 
                     println("Payment required: $paymentRequired")
 
@@ -1442,9 +1442,9 @@ class AccountingTest : IntegrationTest() {
                         assertThatPropertyEquals(charge, { it.units }, input.units, "units[$index]")
                         assertThatPropertyEquals(
                             charge,
-                            { it.numberOfProducts },
-                            input.numberOfProducts,
-                            "numberOfProducts[$index]"
+                            { it.periods },
+                            input.periods,
+                            "periods[$index]"
                         )
                         assertThatPropertyEquals(charge, { it.productId }, input.product.name, "productId[$index]")
                         assertThatPropertyEquals(
@@ -1503,13 +1503,13 @@ class AccountingTest : IntegrationTest() {
                     expectStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                case("negative numberOfProducts") {
+                case("negative periods") {
                     input(
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
                             units = 1L,
-                            numberOfProducts = -1L
+                            periods = -1L
                         )
                     )
 
@@ -1566,7 +1566,7 @@ class AccountingTest : IntegrationTest() {
                                 ChargeWalletRequestItem(
                                     leaves.last().owner,
                                     input.units,
-                                    input.numberOfProducts,
+                                    input.periods,
                                     input.product.toReference(),
                                     leaves.last().username,
                                     "Test charge",
@@ -1624,13 +1624,13 @@ class AccountingTest : IntegrationTest() {
                     expectStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                case("negative numberOfProducts") {
+                case("negative periods") {
                     input(
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
                             units = 1L,
-                            numberOfProducts = -1L
+                            periods = -1L
                         )
                     )
 
@@ -1712,7 +1712,7 @@ class AccountingTest : IntegrationTest() {
                                 ChargeWalletRequestItem(
                                     payer = leaf.owner,
                                     units = charge.amount,
-                                    numberOfProducts = 1L,
+                                    periods = 1L,
                                     product = input.product.toReference(),
                                     performedBy = leaf.username,
                                     description = "Charge",

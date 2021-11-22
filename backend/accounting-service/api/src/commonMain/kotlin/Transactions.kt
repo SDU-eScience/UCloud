@@ -61,12 +61,12 @@ sealed class Transaction {
         """)
         val productId: String,
         @UCloudApiDoc("""
-            The number of products involved in this transaction
+            The number of periods for this transaction.
             
-            For example, for a compute type product, this could be the the number of nodes. The `numberOfProducts`
+            For example, for a compute type product, this could be the the number of nodes. The `periods`
             property is combined with the `units` property to calculate the final price.
         """)
-        val numberOfProducts: Long,
+        val periods: Long,
         @UCloudApiDoc("""
             The number of units which this charge pays for
             
@@ -78,7 +78,7 @@ sealed class Transaction {
         override val affectedAllocationId: String,
         @UCloudApiDoc(inherit = true, documentation = """
             NOTE: The change for a charge is calculated by combining the
-            `pricePerUnit` property of the product (see `productId`) along with the `numberOfProducts` and `units`.
+            `pricePerUnit` property of the product (see `productId`) along with the `periods` and `units`.
             However, if the target allocation does not have enough credits to cover the full charge, then the `change`
             property will be set to the remaining balance.
         """)

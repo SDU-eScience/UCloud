@@ -29,7 +29,7 @@ data class ResourceChargeCredits(
     @UCloudApiDoc("Amount of units to charge the user")
     val units: Long,
 
-    val numberOfProducts: Long = 1L,
+    val periods: Long = 1L,
 
     val performedBy: String? = null,
 

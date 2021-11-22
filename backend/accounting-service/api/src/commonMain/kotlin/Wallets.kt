@@ -402,7 +402,7 @@ data class ChargeWalletRequestItem(
     )
     val units: Long,
     @UCloudApiDoc("The number of products involved in this charge, for example the number of nodes")
-    val numberOfProducts: Long,
+    val periods: Long,
     @UCloudApiDoc("A reference to the product which the service is charging for")
     val product: ProductReference,
     @UCloudApiDoc("The username of the user who generated this request")
@@ -413,7 +413,7 @@ data class ChargeWalletRequestItem(
     var transactionId: String = Random.nextLong().toString() + Time.now()
 ) {
     init {
-        checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
+        checkMinimumValue(this::periods, periods, 1)
         checkMinimumValue(this::units, units, 0)
     }
 }
