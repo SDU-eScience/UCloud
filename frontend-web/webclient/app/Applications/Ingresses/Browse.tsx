@@ -9,7 +9,7 @@ const Browse: React.FunctionComponent<{
     computeProvider?: string;
     onSelect?: (selection: Ingress) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
     return <ResourceBrowse
         api={IngressApi}
@@ -25,7 +25,7 @@ const Browse: React.FunctionComponent<{
         inlinePrefix={p => (p.support as IngressSupport).domainPrefix}
         inlineSuffix={p => (p.support as IngressSupport).domainSuffix}
         isSearch={props.isSearch}
-        browseType={props.browseType}
+        browseType={props.browseType ?? BrowseType.MainContent}
     />;
 };
 export default Browse;
