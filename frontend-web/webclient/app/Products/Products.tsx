@@ -81,6 +81,9 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
 
     const machineCount = machines.data.items.length;
     if (machineCount === 0) return null;
+    const unitOfPrice = machines.data.items[0].unitOfPrice;
+    const hasPrice = unitOfPrice === "CREDITS_PER_DAY" || unitOfPrice === "CREDITS_PER_HOUR" ||
+        unitOfPrice === "CREDITS_PER_MINUTE";
 
     return (<>
         <Card
@@ -111,7 +114,7 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                                             {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
                                             {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
                                             {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
-                                            <TableHeaderCell>Price</TableHeaderCell>
+                                            {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
                                             <TableHeaderCell>Description</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
@@ -126,7 +129,7 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                <TableCell>{priceExplainer(machine)}</TableCell>
+                                                {!hasPrice ? null : <TableCell>{priceExplainer(machine)}</TableCell>}
                                                 <TruncatedTableCell>{machine.description}</TruncatedTableCell>
                                             </TableRow>;
                                         })}
