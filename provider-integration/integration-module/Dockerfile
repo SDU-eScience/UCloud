@@ -1,7 +1,12 @@
-FROM ubuntu:20.04 AS BASE
+FROM ubuntu:20.04 AS base
 
 # Dependencies
 RUN apt-get update
+RUN apt-get -y install locales
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_TYPE en_US.UTF-8
+ENV LC_MESSAGES en_US.UTF-8
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN apt-get -qq -y install curl wget unzip zip sudo libjansson-dev libcurl4 libtinfo5 libssl-dev libuv1-dev libcurl4-openssl-dev
 RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
@@ -20,7 +25,7 @@ RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin
 
 
 
-FROM BASE AS DEVELOPMENT
+FROM base AS development
 
 RUN useradd --user-group testuser 
 RUN apt-get update && apt-get install -y vim
@@ -31,14 +36,10 @@ RUN chmod +x /opt/ucloud-default-config/config_installer.sh
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 WORKDIR /opt/ucloud
 
-
-
-FROM DEVELOPMENT AS ucloud-im
+FROM development AS ucloud-im
 
 RUN apt-get -qq -y install munge slurm-client 
 WORKDIR /opt/ucloud
-
-
 
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
 RUN useradd --user-group testuser

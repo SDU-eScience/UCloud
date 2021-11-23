@@ -4,7 +4,9 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class ElasticIndexedFile(
     val path: String, //Also is ID in elastic
     val size: Long,

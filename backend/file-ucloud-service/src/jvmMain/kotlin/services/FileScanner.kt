@@ -17,10 +17,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import io.ktor.util.*
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.elasticsearch.ElasticsearchException
@@ -68,7 +65,7 @@ class FileScanner(
         }
 
         return FileCollectionsControl.browse.call(
-            ResourceBrowseRequest(includeFlags, itemsPerPage = 200, next = next),
+            ResourceBrowseRequest(includeFlags, next = next),
             authenticatedService
         ).orThrow()
 
@@ -93,15 +90,18 @@ class FileScanner(
                 ?.getDate(0)
                 ?: LocalDateTime().withDate(1970,1,1)
 
-
-            println(lastScan)
-
-            collections.chunked(100).forEach { chunk ->
+            collections.chunked(50).forEach { chunk ->
                 var resolvedCollections =
                     retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
+                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
+                if (collectionsList.size != chunk.size) {
+                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
+                    println(collectionsList)
+                    println(chunk)
+                }
                 while (true) {
-                    println(resolvedCollections)
-                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                    collectionsList.zip(chunk).forEach { (coll, path) ->
+                        println(path)
                         withContext(pool) {
                             launch {
                                 val file =
@@ -110,7 +110,7 @@ class FileScanner(
                             }.join()
                         }
                     }
-                    println(resolvedCollections.next)
+
                     if (resolvedCollections.next == null) {
                         return@forEach
                     }
@@ -123,27 +123,32 @@ class FileScanner(
                 }
             }
 
-
-            home.chunked(100).forEach { chunk ->
+/*
+            home.chunked(50).forEach { chunk ->
+                println("Chunk: $chunk")
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
                     includeOthers = true,
                     chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it },
                     next = null
                 )
+                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
+                if (collectionsList.size != chunk.size) {
+                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
+                }
                 while (true) {
-                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                    collectionsList.zip(chunk.sortedBy { it }).forEach { (coll, path) ->
+                        println(coll)
+                        println(path)
                         withContext(pool) {
                             launch {
-                                chunk.map { it }.forEach {
-                                    val file =
-                                        pathConverter.relativeToInternal(RelativeInternalFile("/home/$path"))
-                                    submitScan(file, coll)
-                                }
+                                val file =
+                                    pathConverter.relativeToInternal(RelativeInternalFile("/home/$path"))
+                                submitScan(file, coll)
                             }.join()
                         }
                     }
-                    println("in home " + resolvedCollections.next)
+
                     if (resolvedCollections.next == null) {
                         return@forEach
                     }
@@ -157,15 +162,20 @@ class FileScanner(
             }
 
 
-            project.chunked(100).forEach { chunk ->
+            project.chunked(50).forEach { chunk ->
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
                     includeOthers = true,
                     chunk.map { PathConverter.COLLECTION_PROJECT_PREFIX + it },
                     next = null
                 )
+                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
+
+                if (collectionsList.size != chunk.size) {
+                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
+                }
                 while (true) {
-                    resolvedCollections.items.zip(chunk).forEach { (coll, path) ->
+                    collectionsList.zip(chunk).forEach { (coll, path) ->
                         withContext(pool) {
                             launch {
                                 val file =
@@ -174,7 +184,6 @@ class FileScanner(
                             }.join()
                         }
                     }
-                    println("in project " + resolvedCollections.next)
 
                     if (resolvedCollections.next == null) {
                         return@forEach
@@ -187,11 +196,10 @@ class FileScanner(
                     )
                 }
             }
-
-
+*/
             if (session.sendPreparedStatement(
                 """
-                    UPDATE file_ucloud.storage_scan
+                    UPDATE file_ucloud.storage_scan set
                     last_system_scan = now()
                     where true
                 """
@@ -203,22 +211,27 @@ class FileScanner(
                     """.trimIndent()
                 )
             }
+            println("DONE SCANNING")
         }
     }
 
     //Loses microseconds from timestamp
     private fun rctimeToApproxLocalDateTime(rctime: String): LocalDateTime {
-        return LocalDateTime(Date(rctime.split(".").first().toLong()))
+        return LocalDateTime(Date(rctime.split(".").first().toLong()*1000))
     }
 
     private suspend fun submitScan(file: InternalFile, collection: FileCollection, upperLimitOfEntries: Long = Long.MAX_VALUE) {
         println("SUBMITTED SCAN FOR: ${file.path}")
         val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
+        println("FILELIST: $fileList")
         if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
             log.info("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
             return
         }
-        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan ) {
+        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) > lastScan ) {
+            println("rcTime is newer than lastscan")
+            println(rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)))
+            println(lastScan)
             return
         }
 
@@ -266,7 +279,7 @@ class FileScanner(
                 queryDeleteRequest.setConflicts("proceed")
                 queryDeleteRequest.setQuery(
                     QueryBuilders.wildcardQuery(
-                        "_id",
+                        ElasticIndexedFileConstants.PATH_FIELD,
                         "${it.path}/*"
                     )
                 )
@@ -287,7 +300,7 @@ class FileScanner(
             .filter { it.path !in filesInIndex }
             .forEach {
                 bulk.add(
-                    UpdateRequest().apply {
+                    UpdateRequest(FILES_INDEX, it.path).apply {
                         val writeValueAsBytes = defaultMapper.encodeToString(it).encodeToByteArray()
                         doc(writeValueAsBytes, XContentType.JSON)
                         docAsUpsert(true)
@@ -296,7 +309,7 @@ class FileScanner(
             }
 
         if (thisFileInIndex == null) {
-            val update = UpdateRequest().apply {
+            val update = UpdateRequest(FILES_INDEX, file.path).apply {
                 val writeValueAsBytes =
                     defaultMapper.encodeToString(fs.stat(file).toElasticIndexedFile(file, collection))
                         .encodeToByteArray()
@@ -312,9 +325,10 @@ class FileScanner(
             val stat = fs.stat(f)
             withContext(pool) {
                 if (stat.fileType == FileType.DIRECTORY) {
+                    println("SUBMITING DEEPER")
                     launch {
                         submitScan(
-                            pathConverter.relativeToInternal(RelativeInternalFile(f.path)),
+                            InternalFile(f.path),
                             collection,
                             newUpperLimitOfEntries
                         )

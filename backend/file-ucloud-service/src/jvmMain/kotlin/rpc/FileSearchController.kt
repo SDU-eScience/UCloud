@@ -15,7 +15,6 @@ class FileSearchController (
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileSearchDescriptions.advancedSearch) {
-
             ok(
                 fileSearchService.search(
                     request,

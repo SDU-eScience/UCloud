@@ -1,13 +1,10 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.Page
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.search.ClearScrollRequest
 import org.elasticsearch.action.search.SearchRequest
@@ -25,7 +22,6 @@ import org.elasticsearch.search.aggregations.metrics.*
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 import services.FileScanner
-import services.FileScanner.Companion.FILES_INDEX
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
@@ -198,6 +194,9 @@ class ElasticQueryService(
                 addNumericAggregations(builder, it, ElasticIndexedFileConstants.FILE_DEPTH_FIELD)
             }
         }
+
+        searchRequest.source(source)
+
         val result = elasticClient.search(searchRequest, RequestOptions.DEFAULT)
 
         val size = statisticsRequest.size?.let {
