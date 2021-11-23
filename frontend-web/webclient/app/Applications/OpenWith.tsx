@@ -71,11 +71,15 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
         }
     }, [productsWithSupport.data, collection]);
 
-    const generateCall = useCallback(next => findApplicationsByExtension({
-        files: [file.id],
-        itemsPerPage: 50,
-        next: next
-    }), [file.id]);
+    const generateCall = useCallback(next => {
+        const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
+
+        return findApplicationsByExtension({
+            files: [normalizedFileId],
+            itemsPerPage: 50,
+            next: next
+        });
+    }, [file.id]);
 
     const callbacks: ExtraCallbacks = useMemo(() => ({
         setSelectedApplication
