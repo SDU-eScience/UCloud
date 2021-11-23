@@ -96,7 +96,8 @@ class NetworkIPService(
 
     private suspend fun account(
         networks: BulkRequest<NetworkIP>,
-        session: AsyncDBConnection
+        session: AsyncDBConnection,
+        allowFailures: Boolean = false
     ) {
         val ownersAndResources = HashMap<String, String>()
         for (network in networks.items) {
@@ -110,11 +111,15 @@ class NetworkIPService(
                 "select count(*)::bigint from app_kubernetes.network_ips where owner = :owner"
             ).rows.singleOrNull()?.getLong(0) ?: 1L
 
-            // Immediately charge the user before we do any IP allocation
-            NetworkIPControl.chargeCredits.call(
-                bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage)),
-                k8.serviceClient
-            ).orThrow()
+            try {
+                // Immediately charge the user before we do any IP allocation
+                NetworkIPControl.chargeCredits.call(
+                    bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage)),
+                    k8.serviceClient
+                ).orThrow()
+            } catch (ex: Throwable) {
+                if (!allowFailures) throw ex
+            }
         }
     }
 
@@ -131,7 +136,7 @@ class NetworkIPService(
                     "delete from app_kubernetes.network_ips where id = :id"
                 )
 
-                account(networks, session)
+                account(networks, session, allowFailures = true)
             }
         }
     }
