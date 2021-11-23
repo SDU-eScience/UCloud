@@ -103,10 +103,18 @@ export const ImportParameters: React.FunctionComponent<{
         if (content.ok) importParameters(new File([await content.blob()], "params"));
     }, []);
 
+    const previousRunsValid: Job[] = [];
+    for (const run of previousRuns.data.items) {
+        if (previousRunsValid.length >= 10) break;
+        if (run.status.jobParametersJson != null && run.status.jobParametersJson["siteVersion"] != null) {
+            previousRunsValid.push(run);
+        }
+    }
+
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            {previousRuns.data.items.slice(0, 5).map((run, idx) => (
+            {previousRunsValid.map((run, idx) => (
                 <Box cursor="pointer" onClick={() => readParsedJSON(run.status.jobParametersJson)} mr="0.8em" key={idx}>
                     {run.specification.name ?? run.id}
                 </Box>
