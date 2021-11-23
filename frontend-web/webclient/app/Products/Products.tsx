@@ -8,7 +8,7 @@ import {
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {List} from "@/Pagination";
+import {List, ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";
 import {capitalized} from "@/UtilityFunctions";
@@ -20,42 +20,43 @@ import styled from "styled-components";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
+import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
 
 function Products(): JSX.Element {
     const main = (
         <ContainerForText>
             <Heading.h2>UCloud SKUs</Heading.h2>
-            <Description/>
+            <Description />
 
-            <Box my="16px"/>
-            <MachineView provider={UCLOUD_PROVIDER} key={"STORAGE"} area={"STORAGE"}/>
-            <Box my="16px"/>
-            <MachineView provider={"aau"} key={"STORAGE"} area={"STORAGE"}/>
-            <Box my="16px"/>
-            <MachineView provider={UCLOUD_PROVIDER} key={"COMPUTE"} area={"COMPUTE"}/>
-            <Box my="16px"/>
-            <MachineView provider={"aau"} key={"COMPUTE"} area={"COMPUTE"}/>
-            <Box my="16px"/>
-            <MachineView provider={UCLOUD_PROVIDER} key={"INGRESS"} area={"INGRESS"}/>
-            <Box my="16px"/>
-            <MachineView provider={"aau"} key={"INGRESS"} area={"INGRESS"}/>
-            <Box my="16px"/>
-            <MachineView provider={UCLOUD_PROVIDER} key={"LICENSE"} area={"LICENSE"}/>
-            <Box my="16px"/>
-            <MachineView provider={"aau"} key={"LICENSE"} area={"LICENSE"}/>
+            <Box my="16px" />
+            <MachineView provider={UCLOUD_PROVIDER} key={"STORAGE"} area={"STORAGE"} />
+            <Box my="16px" />
+            <MachineView provider={"aau"} key={"STORAGE"} area={"STORAGE"} />
+            <Box my="16px" />
+            <MachineView provider={UCLOUD_PROVIDER} key={"COMPUTE"} area={"COMPUTE"} />
+            <Box my="16px" />
+            <MachineView provider={"aau"} key={"COMPUTE"} area={"COMPUTE"} />
+            <Box my="16px" />
+            <MachineView provider={UCLOUD_PROVIDER} key={"INGRESS"} area={"INGRESS"} />
+            <Box my="16px" />
+            <MachineView provider={"aau"} key={"INGRESS"} area={"INGRESS"} />
+            <Box my="16px" />
+            <MachineView provider={UCLOUD_PROVIDER} key={"LICENSE"} area={"LICENSE"} />
+            <Box my="16px" />
+            <MachineView provider={"aau"} key={"LICENSE"} area={"LICENSE"} />
         </ContainerForText>
     );
 
     if (!Client.isLoggedIn) return (<>
-        <NonAuthenticatedHeader/>
-        <Box mb="72px"/>
+        <NonAuthenticatedHeader />
+        <Box mb="72px" />
         <Box m={[0, 0, "15px"]}>
             {main}
         </Box>
     </>);
 
-    return (<MainContainer main={main}/>);
+    return (<MainContainer main={main} />);
 }
 
 const DetailedView = styled(Table)`
@@ -69,19 +70,20 @@ const DetailedView = styled(Table)`
     }
 `;
 
-const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string }> = ({area, provider}) => {
-    const [machines, refetch] = useCloudAPI<Page<Product>>(
-        listByProductArea({itemsPerPage: 100, page: 0, provider: provider, area, showHidden: false}),
+const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}> = ({area, provider}) => {
+    const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
+        UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}),
         emptyPage
     );
 
     const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
-    const isStorage = "STORAGE" === area;
     const isCompute = "COMPUTE" === area;
-    const isIngressOrLicense = ["LICENSE", "INGRESS"].includes(area);
 
     const machineCount = machines.data.items.length;
     if (machineCount === 0) return null;
+    const unitOfPrice = machines.data.items[0].unitOfPrice;
+    const hasPrice = unitOfPrice === "CREDITS_PER_DAY" || unitOfPrice === "CREDITS_PER_HOUR" ||
+        unitOfPrice === "CREDITS_PER_MINUTE";
 
     return (<>
         <Card
@@ -92,20 +94,16 @@ const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string
             borderWidth={0}
             borderRadius={6}
         >
-            <Box style={{borderTop: `5px solid var(--blue, #f00)`}}/>
+            <Box style={{borderTop: `5px solid var(--blue, #f00)`}} />
             <Box px={3} py={3} height={"100%"}>
                 <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
 
                 <Flex alignItems="center">
-                    <List
+                    <ListV2
                         page={machines.data}
                         loading={machines.loading}
-                        onPageChanged={(newPage) => refetch(listByProductArea({
-                            itemsPerPage: machines.data.itemsPerPage,
-                            page: newPage,
-                            provider: provider,
-                            area,
-                            showHidden: false
+                        onLoadMore={() => refetch(UCloud.accounting.products.browse({
+                            filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
                         }))}
                         pageRenderer={() => (
                             <MachineTypesWrapper>
@@ -116,25 +114,25 @@ const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string
                                             {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
                                             {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
                                             {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
-                                            <TableHeaderCell>Price</TableHeaderCell>
+                                            {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
                                             <TableHeaderCell>Description</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
                                     <tbody>
-                                    {machines.data.items.map(machine => {
-                                        if (machine === null) return null;
-                                        const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
-                                        return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
-                                            <TableCell>{machine.name}</TableCell>
-                                            {!computeProduct ? null :
-                                                <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
-                                            {!computeProduct ? null :
-                                                <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
-                                            {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                            <TableCell>{priceExplainer(machine)}</TableCell>
-                                            <TruncatedTableCell>{machine.description}</TruncatedTableCell>
-                                        </TableRow>;
-                                    })}
+                                        {machines.data.items.map(machine => {
+                                            if (machine === null) return null;
+                                            const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
+                                            return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
+                                                <TableCell>{machine.name}</TableCell>
+                                                {!computeProduct ? null :
+                                                    <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
+                                                {!computeProduct ? null :
+                                                    <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
+                                                {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
+                                                {!hasPrice ? null : <TableCell>{priceExplainer(machine)}</TableCell>}
+                                                <TruncatedTableCell>{machine.description}</TruncatedTableCell>
+                                            </TableRow>;
+                                        })}
                                     </tbody>
                                 </Table>
                             </MachineTypesWrapper>
@@ -153,46 +151,46 @@ const MachineView: React.FunctionComponent<{ area: ProductArea, provider: string
         >
             <Spacer
                 left={null}
-                right={<Icon name="close" cursor="pointer" onClick={() => setActiveMachine(undefined)}/>}
+                right={<Icon name="close" cursor="pointer" onClick={() => setActiveMachine(undefined)} />}
             />
             <Box maxWidth="650px">
                 {activeMachine === undefined ? null :
                     <DetailedView>
                         <tbody>
-                        <TableRow>
-                            <TableHeaderCell>Name</TableHeaderCell>
-                            <TableCell>{activeMachine.name}</TableCell>
-                        </TableRow>
-                        {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
-                            <>
-                                <TableRow>
-                                    <th>vCPU</th>
-                                    <TableCell>{activeMachine.cpu}</TableCell>
-                                </TableRow>
-
-                                <TableRow>
-                                    <th>RAM (GB)</th>
-                                    <TableCell>{activeMachine.memoryInGigs ?? "Unspecified"}</TableCell>
-                                </TableRow>
-
-                                {!activeMachine.gpu ? null :
+                            <TableRow>
+                                <TableHeaderCell>Name</TableHeaderCell>
+                                <TableCell>{activeMachine.name}</TableCell>
+                            </TableRow>
+                            {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
+                                <>
                                     <TableRow>
-                                        <th>GPU</th>
-                                        <TableCell>{activeMachine.gpu}</TableCell>
+                                        <th>vCPU</th>
+                                        <TableCell>{activeMachine.cpu}</TableCell>
                                     </TableRow>
-                                }
-                            </>
-                        }
-                        <TableRow>
-                            <th>Price</th>
-                            <TableCell>
-                                {priceExplainer(activeMachine)}
-                            </TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <th>Description</th>
-                            <TableCell><Text>{activeMachine.description}</Text></TableCell>
-                        </TableRow>
+
+                                    <TableRow>
+                                        <th>RAM (GB)</th>
+                                        <TableCell>{activeMachine.memoryInGigs ?? "Unspecified"}</TableCell>
+                                    </TableRow>
+
+                                    {!activeMachine.gpu ? null :
+                                        <TableRow>
+                                            <th>GPU</th>
+                                            <TableCell>{activeMachine.gpu}</TableCell>
+                                        </TableRow>
+                                    }
+                                </>
+                            }
+                            <TableRow>
+                                <th>Price</th>
+                                <TableCell>
+                                    {priceExplainer(activeMachine)}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <th>Description</th>
+                                <TableCell><Text>{activeMachine.description}</Text></TableCell>
+                            </TableRow>
                         </tbody>
                     </DetailedView>
                 }

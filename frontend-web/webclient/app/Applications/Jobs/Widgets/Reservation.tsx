@@ -195,11 +195,15 @@ export function validateReservation(): ValidationAnswer {
         const parsedHours = parseInt(hours.value, 10);
         const parsedMinutes = parseInt(minutes.value, 10);
 
-        values["timeAllocation"] = {
-            hours: parsedHours,
-            minutes: parsedMinutes,
-            seconds: 0
-        };
+        if (parsedMinutes < 0 || parsedMinutes > 59) {
+            errors["timeAllocation"] = "Minutes must be between 0 and 59"
+        } else {
+            values["timeAllocation"] = {
+                hours: parsedHours,
+                minutes: parsedMinutes,
+                seconds: 0
+            };
+        }
     }
 
     values["name"] = name.value === "" ? undefined : name.value;

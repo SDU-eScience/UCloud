@@ -173,6 +173,7 @@ interface PropertiesProps<Res extends Resource> {
     showMessages?: boolean;
     showPermissions?: boolean;
     showProperties?: boolean;
+    noPermissionsWarning?: string;
 
     flagsForRetrieve?: Record<string, any>;
 }
@@ -233,12 +234,7 @@ export function ResourceProperties<Res extends Resource>(
     const supportByProvider: SupportByProvider = useMemo(() => {
         const result: SupportByProvider = {productsByProvider: {}};
         if (resource != null && resource.status.resolvedSupport != null) {
-            result.productsByProvider[resource.specification.product.provider] = [
-                {
-                    product: resource.status.resolvedProduct as any as Product,
-                    support: resource.status.resolvedSupport
-                }
-            ];
+            result.productsByProvider[resource.specification.product.provider] = [resource.status.resolvedSupport];
         }
         return result;
     }, [resource]);
@@ -331,9 +327,11 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined ? null :
+                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
-                            <ResourcePermissionEditor reload={reload} entity={resource} api={api} />
+                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}
+                                                      noPermissionsWarning={props.noPermissionsWarning}/>
+                            <Box mb={16} />
                         </HighlightedCard>
                     }
                     {childrenResolved}

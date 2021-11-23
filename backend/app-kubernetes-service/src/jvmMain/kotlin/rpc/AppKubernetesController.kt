@@ -115,7 +115,7 @@ class AppKubernetesController(
                         ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     } catch (ex: Throwable) {
                         streamsMutex.withLock { streams.remove(streamId) }
-                        okContentAlreadyDelivered()
+                        ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     }
                 }
 

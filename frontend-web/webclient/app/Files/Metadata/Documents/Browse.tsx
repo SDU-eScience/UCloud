@@ -16,7 +16,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 
-export const entityName = "Metadata";
+export const entityName = "Metadata (BETA)";
 
 export const MetadataBrowse: React.FunctionComponent<{
     file: UFile;

@@ -8,8 +8,9 @@ export const NetworkIPBrowse: React.FunctionComponent<{
     provider?: string;
     onSelect?: (selection: NetworkIP) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
         api={NetworkIPApi}
         onSelect={props.onSelect}
@@ -17,11 +18,12 @@ export const NetworkIPBrowse: React.FunctionComponent<{
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
         })}
         header={
-            <ResourceTab active={ResourceTabOptions.PUBLIC_IP} />
+            browseType === BrowseType.MainContent ? (
+                <ResourceTab active={ResourceTabOptions.PUBLIC_IP} />) : undefined
         }
         headerSize={48}
         inlineCreationMode={"NONE"}
-        browseType={props.browseType}
+        browseType={browseType}
         isSearch={props.isSearch}
     />;
 };

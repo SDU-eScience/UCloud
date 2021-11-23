@@ -79,7 +79,8 @@ export interface DepositToWalletRequestItem {
     amount: number;
     description: string;
     startDate: number;
-    endDate: number;
+    endDate?: number;
+    dry?: boolean;
 }
 
 export interface TransferToWalletRequestItem {
@@ -97,6 +98,7 @@ export interface UpdateAllocationRequestItem {
     startDate: number;
     endDate?: number | null;
     reason: string;
+    dry?: boolean;
 }
 
 export function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
@@ -109,6 +111,20 @@ export function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICa
 
 export function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
     return apiUpdate(request, "/api/accounting", "transfer");
+}
+
+interface RootDepositRequestItem {
+    categoryId: ProductCategoryId;
+    recipient: WalletOwner;
+    amount: number;
+    description: string;
+    startDate?: number | null;
+    endDate?: number | null;
+    transactionId?: string;
+}
+
+export function rootDeposit(request: BulkRequest<RootDepositRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "rootDeposit");
 }
 
 export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
@@ -212,6 +228,17 @@ export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWO
 export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
 export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
 
+export function productTypeToJsonType(type: ProductType): Type {
+    switch (type) {
+        case "COMPUTE": return "compute";
+        case "INGRESS": return "ingress";
+        case "LICENSE": return "license";
+        case "NETWORK_IP": return "network_ip";
+        case "STORAGE": return "storage";
+        default: return (type as any).toString().tolowerCase();
+    }
+}
+
 export interface ProductMetadata {
     category: ProductCategoryId;
     freeToUse: boolean;
@@ -227,7 +254,7 @@ export interface ProductBase extends ProductMetadata {
     name: string;
     description: string;
     priority: number;
-    version: number;
+    version?: number;
     balance?: number | null;
 }
 

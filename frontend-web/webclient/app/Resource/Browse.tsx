@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Icon, List} from "@/ui-components";
+import {Box, Flex, Icon, List} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -79,6 +79,7 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
+    onSelectRestriction?: (resource: Res) => boolean;
 }
 
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
@@ -125,12 +126,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         [props.onRename]
     );
 
-    const sortDirections: EnumOption[] = sortDirection === "descending" ? [{
+    const sortDirections: EnumOption[] = [{
         icon: "sortAscending",
         title: "Ascending",
         value: "ascending",
         helpText: "Increasing in value, e.g. 1, 2, 3..."
-    }] : [{
+    }, {
         icon: "sortDescending",
         title: "Descending",
         value: "descending",
@@ -203,6 +204,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         },
         embedded: isEmbedded,
         onSelect,
+        onSelectRestriction: props.onSelectRestriction,
         dispatch,
         history,
         startRenaming(res: Res, value: string) {
@@ -326,19 +328,50 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
         props.showProduct]);
 
+    const sortOptions = useMemo(() =>
+        api.sortEntries.map(it => ({
+            icon: it.icon,
+            title: it.title,
+            value: it.column,
+            helpText: it.helpText
+        })),
+        [api.sortEntries]
+    );
+
     const pageSize = useRef(0);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <>
             <Spacer left={null} right={pageSize.current > 0 ?
-                <Box width="170px">
+                <Flex width="275px">
+                    {api.sortEntries.length === 0 ? null : <EnumFilterWidget
+                        expanded={false}
+                        browseType={BrowseType.Card}
+                        propertyName="column"
+                        title="Sort by"
+                        facedownChevron
+                        id={0}
+                        onExpand={doNothing}
+                        properties={filters}
+                        options={sortOptions}
+                        onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
+                        icon="properties"
+                    />}
+                    <Box mx="auto" />
                     <EnumFilterWidget
-                        expanded={false} browseType={props.browseType} propertyName="direction" title="Sort direction" facedownChevron
-                        id={0} onExpand={doNothing} properties={filters} options={sortDirections}
+                        expanded={false}
+                        browseType={BrowseType.Card}
+                        propertyName="direction"
+                        title="Sort direction"
+                        facedownChevron
+                        id={0}
+                        onExpand={doNothing}
+                        properties={filters}
+                        options={sortDirections}
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
                     />
-                </Box> : <Box height="27px" />
+                </Flex> : <Box height="27px" />
             } />
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
@@ -387,15 +420,16 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }
 
     const main = !inlineInspecting ? <>
-        <StandardBrowse pageSizeRef={pageSize} generateCall={generateFetch} pageRenderer={pageRenderer}
-            reloadRef={reloadRef} setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
+        <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
+            generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     if (isEmbedded) {
-        return <Box ref={scrollingContainerRef}>
+        return <Box minWidth="700px" ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 {inlineInspecting ?
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
@@ -408,7 +442,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             pills={api.filterPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
             </StickyBox>
@@ -429,7 +463,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} browseType={props.browseType}
+                            browseType={props.browseType}
                             readOnlyProperties={props.additionalFilters} />
                     </>
             }

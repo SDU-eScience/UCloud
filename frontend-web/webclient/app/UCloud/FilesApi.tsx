@@ -412,7 +412,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -427,6 +427,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     }))
                                 })
                             );
+
+                            cb.reload();
 
                             dialogStore.success();
                         }} />,
@@ -450,7 +452,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -465,6 +467,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     }))
                                 })
                             );
+
+                            cb.reload();
 
                             dialogStore.success();
                         }} />,
@@ -732,7 +736,7 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
         }
     }, []);
 
-    return (<form onSubmit={onUpdate} style={{width: "600px", height: "260px"}}>
+    return (<form onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
         <Select my="8px" selectRef={selection} defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
             {Object.keys(SensitivityLevelMap).map(it =>

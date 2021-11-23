@@ -98,9 +98,6 @@ class JobOrchestrator(
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
-        "application" to SqlObject.Column(table, "application_name"),
-        "name" to SqlObject.Column(table, "name"),
-        "state" to SqlObject.Column(table, "current_state")
     )
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
@@ -390,44 +387,50 @@ class JobOrchestrator(
             coroutineScope {
                 val logJob = if (!logsSupported) null else launch {
                     while (isActive) {
-                        if (currentState.get() == JobState.RUNNING.ordinal) {
-                            proxy.proxySubscription(
-                                actorAndProject,
-                                Unit,
-                                object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
-                                    Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
-                                    override val isUserRequest: Boolean = true
-                                    override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
+                        try {
+                            if (currentState.get() == JobState.RUNNING.ordinal) {
+                                proxy.proxySubscription(
+                                    actorAndProject,
+                                    Unit,
+                                    object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                                        Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                        override val isUserRequest: Boolean = true
+                                        override fun retrieveCall(comms: ComputeCommunication) =
+                                            providerApi(comms).follow
 
-                                    override suspend fun verifyAndFetchResources(
-                                        actorAndProject: ActorAndProject,
-                                        request: Unit
-                                    ): RequestWithRefOrResource<Unit, Job> {
-                                        return Unit to ProductRefOrResource.SomeResource(initialJob)
-                                    }
+                                        override suspend fun verifyAndFetchResources(
+                                            actorAndProject: ActorAndProject,
+                                            request: Unit
+                                        ): RequestWithRefOrResource<Unit, Job> {
+                                            return Unit to ProductRefOrResource.SomeResource(initialJob)
+                                        }
 
-                                    override suspend fun beforeCall(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>
-                                    ): JobsProviderFollowRequest {
-                                        return JobsProviderFollowRequest.Init(initialJob)
-                                    }
+                                        override suspend fun beforeCall(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>
+                                        ): JobsProviderFollowRequest {
+                                            return JobsProviderFollowRequest.Init(initialJob)
+                                        }
 
-                                    override suspend fun onMessage(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>,
-                                        message: JobsProviderFollowResponse
-                                    ) {
-                                        if (streamId == null) streamId = message.streamId
-                                        sendWSMessage(
-                                            JobsFollowResponse(
-                                                emptyList(),
-                                                listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                        override suspend fun onMessage(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>,
+                                            message: JobsProviderFollowResponse
+                                        ) {
+                                            if (streamId == null) streamId = message.streamId
+                                            sendWSMessage(
+                                                JobsFollowResponse(
+                                                    emptyList(),
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                )
                                             )
-                                        )
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
+                        } catch (ex: Throwable) {
+                            log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
+                            break
                         }
 
                         delay(100)

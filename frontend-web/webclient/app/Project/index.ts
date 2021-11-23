@@ -1,4 +1,4 @@
-import {useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiSearch, useGlobalCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {IconName} from "@/ui-components/Icon";
@@ -12,7 +12,9 @@ import {useCallback, useEffect} from "react";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {PaginationRequestV2} from "@/UCloud";
+import {accounting, PaginationRequestV2} from "@/UCloud";
+import {ChargeType, ProductPriceUnit, ProductType} from "@/Accounting";
+import ProductCategoryId = accounting.ProductCategoryId;
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -686,4 +688,30 @@ export function useProjectManagementStatus(args: {
         projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
         reload
     };
+}
+
+export interface SubAllocation {
+    id: string;
+    path: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+
+    remaining: number;
+}
+
+export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+export function searchSubAllocations(request: { query: string } & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
 }

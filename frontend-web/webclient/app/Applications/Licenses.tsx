@@ -9,12 +9,12 @@ export const LicenseBrowse: React.FunctionComponent<{
     tagged?: string[];
     onSelect?: (selection: License) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
     return <ResourceBrowse
         api={LicenseApi}
         onSelect={props.onSelect}
-        browseType={props.browseType}
+        browseType={props.browseType ?? BrowseType.MainContent}
         header={
             <ResourceTab active={ResourceTabOptions.LICENSES} />
         }

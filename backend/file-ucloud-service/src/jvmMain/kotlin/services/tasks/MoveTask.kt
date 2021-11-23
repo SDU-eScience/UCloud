@@ -1,9 +1,11 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Loggable
+import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -30,13 +32,13 @@ class MoveTask : TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         for (reqItem in realRequest.items) {
-            /*
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.WRITE)
-            aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
-             */
-        }
+            val oldId = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.oldId)).path
+            val newId = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.newId)).path
 
-        // TODO It might be beneficial to go into the background if the policy is MERGE and the destination exists
+            if (newId.startsWith("$oldId/")) {
+                throw RPCException("Refusing to move a file to a sub-directory of itself.", HttpStatusCode.BadRequest)
+            }
+        }
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))
         else TaskRequirements(false, JsonObject(emptyMap()))

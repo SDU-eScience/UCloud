@@ -19,6 +19,12 @@ import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
+
+export const ApiLike: ReducedApiInterface = {
+    routingNamespace: "applications",
+    titlePlural: "Applications"
+};
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
@@ -50,10 +56,14 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Natural Science",
         "Development",
         "Virtual Machines",
+        "Digital Humanities",
+        "Health Science",
         "Bioinformatics"
     ];
 
     const [refreshId, setRefreshId] = useState<number>(0);
+
+    useResourceSearch(ApiLike);
 
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
@@ -248,7 +258,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     }
 
     filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
-    if (filteredItems.length === 0 ) return (null);
+    if (filteredItems.length === 0) return (null);
 
     return (
         <>
@@ -270,7 +280,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     pt="20px"
                     gridGap="15px"
                     gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
-                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)" }
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app => (

@@ -6,6 +6,7 @@ import {Icon} from "@/ui-components/index";
 import {ThemeColor} from "./theme";
 import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
+import {deviceBreakpoint} from "@/ui-components/Hide";
 
 type StringOrNumber = string | number;
 
@@ -138,7 +139,8 @@ const ListStyle = styled.div<{fontSize?: string;}>`
 
     .row-left {
         flex-grow: 1;
-        overflow: visible;
+        overflow: hidden;
+        max-width: calc(100vw - 555px);
     }
 
     &[data-navigate="true"] .row-left-content {
@@ -148,10 +150,23 @@ const ListStyle = styled.div<{fontSize?: string;}>`
     .row-left-content {
         margin-bottom: -4px;
         font-size: ${p => p.fontSize ?? "20px"};
-        /* overflow: hidden; */
+        overflow: hidden;
+        width: 100%;
         white-space: nowrap;
         text-overflow: ellipsis;
     }
+  
+    ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
+      .row-left{
+        max-width: calc(100vw - 435px);
+      }
+    }
+
+  ${deviceBreakpoint({maxWidth: "767px"})} {
+    .row-left{
+      max-width: calc(100vw - 210px);
+    }
+  }
 
     .row-left-wrapper {
         display: flex;

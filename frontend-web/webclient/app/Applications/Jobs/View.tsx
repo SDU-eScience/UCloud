@@ -192,8 +192,8 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-            init: conn => {
-                conn.subscribe({
+            init: async conn => {
+                await conn.subscribe({
                     call: "jobs.follow",
                     payload: {id: job.id},
                     handler: message => {
@@ -201,7 +201,8 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
                         callback(streamEntry);
                     }
                 });
-            }
+                conn.close();
+            },
         });
 
         return () => {
@@ -309,7 +310,8 @@ export function View(): JSX.Element {
                 if (jobState) {
                     setStatus({
                         state: jobState,
-                        startedAt: timestampUnixMs()
+                        startedAt: timestampUnixMs(),
+                        jobParametersJson: {}
                     });
                 }
             }, 100);

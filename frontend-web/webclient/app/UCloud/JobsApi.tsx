@@ -77,6 +77,7 @@ export interface JobStatus extends ResourceStatus {
     startedAt?: number;
     expiresAt?: number;
     resolvedApplication?: Application;
+    jobParametersJson: any;
 }
 
 export interface Job extends Resource<JobUpdate, JobStatus, JobSpecification> {
@@ -223,9 +224,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             )
         },
         ImportantStats({resource, browseType}) {
+            if (browseType === BrowseType.Embedded) {
+                return null;
+            }
+
             if (browseType === BrowseType.Card) {
                 return <Text mr="-40px" fontSize="14px" color="gray">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
             }
+
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
             return <Flex width={"120px"} height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
@@ -251,20 +257,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
             ]
         ));
-
-        this.sortEntries.push({
-            icon: "apps",
-            title: "Application",
-            column: "application",
-            helpText: "The name of the application, e.g. 'Terminal'"
-        });
-
-        this.sortEntries.push({
-            icon: "radioEmpty",
-            title: "Status",
-            column: "state",
-            helpText: "The current status of the job, e.g. 'Running'"
-        });
     }
 
     retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job>>[] {

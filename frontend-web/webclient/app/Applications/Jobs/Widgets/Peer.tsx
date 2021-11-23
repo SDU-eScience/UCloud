@@ -14,7 +14,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {JobBrowse} from "@/Applications/Jobs/NewApi";
+import {JobBrowse} from "@/Applications/Jobs/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 
 interface PeerProps extends WidgetProps {

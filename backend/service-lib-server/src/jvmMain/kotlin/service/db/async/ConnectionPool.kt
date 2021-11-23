@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -46,32 +47,48 @@ sealed class DBContext
 suspend fun <R> DBContext.withSession(
     remapExceptions: Boolean = false,
     transactionMode: TransactionMode? = null,
+    restartTransactionsOnSerializationFailure: Boolean = true,
     block: suspend (session: AsyncDBConnection) -> R
 ): R {
-    try {
-        return when (this) {
-            is AsyncDBSessionFactory -> {
-                withTransaction<R, AsyncDBConnection>(transactionMode = transactionMode) { session ->
-                    block(session)
+    var attempts = 0
+    while (true) {
+        try {
+            return when (this) {
+                is AsyncDBSessionFactory -> {
+                    withTransaction<R, AsyncDBConnection>(transactionMode = transactionMode) { session ->
+                        block(session)
+                    }
+                }
+
+                is AsyncDBConnection -> {
+                    block(this)
+                }
+            }
+        } catch (ex: GenericDatabaseException) {
+            if (remapExceptions) {
+                when (ex.errorCode) {
+                    PostgresErrorCodes.EXCLUSION_VIOLATION,
+                    PostgresErrorCodes.UNIQUE_VIOLATION -> {
+                        throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+                    }
+
+                    PostgresErrorCodes.RAISE_EXCEPTION -> {
+                        throw RPCException(ex.errorMessage.message ?: "", HttpStatusCode.BadRequest)
+                    }
+
+                    PostgresErrorCodes.SERIALIZATION_FAILURE -> {
+                        attempts++
+                        if (restartTransactionsOnSerializationFailure && attempts < 10) {
+                            delay(100)
+                            continue
+                        }
+                        throw ex
+                    }
                 }
             }
 
-            is AsyncDBConnection -> {
-                block(this)
-            }
+            throw ex
         }
-    } catch (ex: GenericDatabaseException) {
-        if (remapExceptions) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
-            }
-
-            if (ex.errorCode == PostgresErrorCodes.RAISE_EXCEPTION) {
-                throw RPCException(ex.errorMessage.message ?: "", HttpStatusCode.BadRequest)
-            }
-        }
-
-        throw ex
     }
 }
 

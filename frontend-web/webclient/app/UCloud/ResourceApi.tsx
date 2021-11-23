@@ -105,6 +105,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     viewProperties?: (res: Res) => void;
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
+    onSelectRestriction?: (resource: Res) => boolean;
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
@@ -203,7 +204,7 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Use",
                 primary: true,
-                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined,
+                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) ?? true),
                 canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);
