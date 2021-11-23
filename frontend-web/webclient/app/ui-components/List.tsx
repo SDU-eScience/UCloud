@@ -151,7 +151,6 @@ const ListStyle = styled.div<{fontSize?: string;}>`
         margin-bottom: -4px;
         font-size: ${p => p.fontSize ?? "20px"};
         overflow: hidden;
-        width: 100%;
         white-space: nowrap;
         text-overflow: ellipsis;
     }
