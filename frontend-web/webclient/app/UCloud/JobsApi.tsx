@@ -257,20 +257,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
             ]
         ));
-
-        this.sortEntries.push({
-            icon: "apps",
-            title: "Application",
-            column: "application",
-            helpText: "The name of the application, e.g. 'Terminal'"
-        });
-
-        this.sortEntries.push({
-            icon: "radioEmpty",
-            title: "Status",
-            column: "state",
-            helpText: "The current status of the job, e.g. 'Running'"
-        });
     }
 
     retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job>>[] {

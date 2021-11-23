@@ -1198,7 +1198,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            resc.category, resc.name, $sortBy $sortDirection
+                            $sortBy $sortDirection, resc.category, resc.name 
                     """,
                     debug = true,
                 )
