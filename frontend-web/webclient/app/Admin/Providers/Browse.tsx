@@ -11,7 +11,7 @@ function Browse(): JSX.Element | null {
         browseType={BrowseType.MainContent}
         extraCallbacks={{
             startCreation() {
-                history.push("/applications/overview")
+                history.push("/providers/create")
             }
         }}
     />;

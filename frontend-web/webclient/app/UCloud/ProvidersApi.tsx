@@ -14,18 +14,15 @@ import {Box, Button, Icon, List, TextArea} from "@/ui-components";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import * as Types from "@/Accounting";
 import {
-    deposit,
     explainPrice,
     normalizeBalanceForFrontend,
-    priceExplainer,
     Product,
-    productTypeToIcon, rootDeposit, TransferRecipient, WalletOwner
+    productTypeToIcon, rootDeposit, WalletOwner
 } from "@/Accounting";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {doNothing} from "@/UtilityFunctions";
-import * as Heading from "@/ui-components/Heading";
 import {ListV2} from "@/Pagination";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";

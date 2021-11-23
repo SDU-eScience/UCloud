@@ -25,6 +25,13 @@ export const LicenseBrowse: React.FunctionComponent<{
         })}
         inlineCreationMode={"NONE"}
         isSearch={props.isSearch}
+        emptyPage={
+            <>
+                You have not activated any licenses yet. If you have already applied or received a license, then you
+                must first activate it, before you can use it. Click the &quot;Activate license&quot; button to
+                continue.
+            </>
+        }
     />;
 };
 

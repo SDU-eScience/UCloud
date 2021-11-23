@@ -1,11 +1,8 @@
 import * as React from "react";
-import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box, Button, Grid, Label, Select} from "@/ui-components";
-import {inDevEnvironment, onDevSite, PropType} from "@/UtilityFunctions";
-import {Operation} from "@/ui-components/Operation";
-import {addStandardDialog} from "@/UtilityComponents";
 import {auth, BulkResponse} from "@/UCloud";
 import {bulkRequestOf} from "@/DefaultObjects";
 import AccessToken = auth.AccessToken;
@@ -181,63 +178,3 @@ export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, 
         </ResourceForm>
     </Box>;
 };
-
-interface OpCallbacks {
-    provider: string;
-    invokeCommand: InvokeCommand;
-    reload: () => void;
-    startProductCreation: () => void;
-    stopProductCreation: () => void;
-    isCreatingProduct: boolean;
-}
-
-const operations: Operation<UCloud.provider.Provider, OpCallbacks>[] = [
-    {
-        enabled: (_, cb) => !cb.isCreatingProduct,
-        onClick: (_, cb) => {
-            cb.startProductCreation();
-        },
-        text: "Create product",
-        operationType: () => Button,
-    },
-    {
-        enabled: selected => selected.length > 0,
-        onClick: (selected, cb) =>
-            addStandardDialog({
-                title: "WARNING!",
-                message: <>
-                    <p>Are you sure you want to renew the provider token?</p>
-                    <p>
-                        This will invalidate every current security token. Your provider <i>must</i> be reconfigured
-                        to use the new tokens.
-                    </p>
-                </>,
-                confirmText: "Confirm",
-                cancelButtonColor: "blue",
-                confirmButtonColor: "red",
-                cancelText: "Cancel",
-                onConfirm: async () => {
-                    await cb.invokeCommand(UCloud.provider.providers.renewToken(
-                        {type: "bulk", items: selected.map(it => ({id: it.id}))}
-                    ));
-
-                    cb.reload();
-                }
-            }),
-        text: "Renew token",
-        color: "red",
-        icon: "trash",
-        operationType: () => Button,
-    },
-    {
-        enabled: selected => selected.length === 1 && (inDevEnvironment() || onDevSite()),
-        onClick: async (selected, cb) => {
-            await cb.invokeCommand(
-                UCloud.accounting.wallets.grantProviderCredits({provider: cb.provider})
-            );
-            cb.reload();
-        },
-        text: "Grant credits",
-        operationType: () => Button
-    }
-];
