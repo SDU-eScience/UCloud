@@ -121,11 +121,13 @@ export const ResourceFilter: React.FunctionComponent<{
                 {onlyFilter ? "Filter" : "Sort and filter"}
             </Heading.h4>
         }
-        <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-            icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
-        {props.pills.map((Pill, idx) =>
-            <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
-        )}
+        <MainContentGrid browseType={props.browseType}>
+            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+            {props.pills.map((Pill, idx) =>
+                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
+            )}
+        </MainContentGrid>
         <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
@@ -137,6 +139,16 @@ export const ResourceFilter: React.FunctionComponent<{
         </Grid>
     </>;
 };
+
+function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): JSX.Element {
+    return props.browseType !== BrowseType.MainContent ? (
+        <>{props.children}</>
+    ) : (
+        <Grid gridGap={"8px"}>
+            {props.children}
+        </Grid>
+    );
+}
 
 function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
     return props.embedded ? (
