@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, FindById, PERMISSIONS_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -47,6 +47,8 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {InvokeCommand} from "@/Authentication/DataHook";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
+import {useHistory} from "react-router";
+import {responsiveStoreEnhancer} from "redux-responsive/types";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -497,7 +499,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         width: "100%"
                     });
 
-                    await cb.invokeCommand(
+                    await cb.invokeCommand<BulkResponse<FindById>>(
                         SharesApi.create(
                             bulkRequestOf(
                                 ...selected.map(file => ({
@@ -508,7 +510,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }))
                             )
                         )
-                    );
+                    ).then(it => {
+                        if (it?.responses) {
+                            cb.history.push(`/shares/outgoing`);
+                        }
+                    });
                 }
             },
             {
