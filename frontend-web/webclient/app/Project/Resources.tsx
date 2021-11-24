@@ -60,23 +60,23 @@ registerFilter(EnumFilter("cubeSolid", "filterType", "Product type", productType
 
 filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterWorkspace"} secondaryProperties={["filterWorkspaceProject"]}
-        showValue={true} icon={"projects"} title={"Workspace"} />);
+               showValue={true} icon={"projects"} title={"Workspace"}/>);
 
 filterPills.push(props =>
-    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
+    <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"}/>);
 
 const ResourcesGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-gap: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-gap: 16px;
 `;
 
 const Resources: React.FunctionComponent = () => {
-    useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
-    const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
-    const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
+    const [usage, fetchUsage] = useCloudAPI<{ charts: UsageChart[] }>({noop: true}, {charts: []});
+    const [breakdowns, fetchBreakdowns] = useCloudAPI<{ charts: BreakdownChart[] }>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
@@ -125,7 +125,7 @@ const Resources: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
+            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]}/>}
             headerSize={60}
             sidebar={<>
                 <ResourceFilter
@@ -143,30 +143,32 @@ const Resources: React.FunctionComponent = () => {
                 <Grid gridGap={"16px"}>
                     {maximizedUsage == null ? null : <>
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
+                                          onMaximizeToggle={() => onUsageMaximize(maximizedUsage)}/>
                     </>}
                     {maximizedUsage != null ? null :
                         <>
                             <VisualizationSection>
                                 {usage.data.charts.map((it, idx) =>
-                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
+                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)}/>
                                 )}
                             </VisualizationSection>
                             <VisualizationSection>
                                 {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it} />
+                                    <WalletViewer key={idx} wallet={it}/>
                                 )}
                             </VisualizationSection>
                             <VisualizationSection>
                                 {breakdowns.data.charts.map((it, idx) =>
-                                    <DonutChart key={idx} chart={it} />
+                                    <DonutChart key={idx} chart={it}/>
                                 )}
                             </VisualizationSection>
 
-                            <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
-                                filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                onQuery={onSubAllocationQuery} />
+                            {managementStatus.allowManagement ?
+                                <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                                     loadMore={loadMoreAllocations}
+                                                     filterByAllocation={filterByAllocation}
+                                                     filterByWorkspace={filterByWorkspace} wallets={wallets}
+                                                     onQuery={onSubAllocationQuery}/> : null}
                         </>
                     }
                 </Grid>
@@ -176,9 +178,9 @@ const Resources: React.FunctionComponent = () => {
 };
 
 
-const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
+const WalletViewer: React.FunctionComponent<{ wallet: Wallet }> = ({wallet}) => {
     return <>
-        {wallet.allocations.map((it, idx) => <AllocationViewer key={idx} wallet={wallet} allocation={it} />)}
+        {wallet.allocations.map((it, idx) => <AllocationViewer key={idx} wallet={wallet} allocation={it}/>)}
     </>
 }
 
@@ -190,16 +192,16 @@ const AllocationViewer: React.FunctionComponent<{
     return <HighlightedCard color={"red"} width={"400px"}>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
-                size={"54px"} mr={"16px"} />
+                  size={"54px"} mr={"16px"}/>
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
                 <Flex alignItems={"center"} mr={"-16px"}>
                     <div><b>[{allocation.id}] {wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                 </Flex>
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
-                <Box flexGrow={1} mt={"8px"} />
-                <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
+                <Box flexGrow={1} mt={"8px"}/>
+                <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate}/></div>
                 <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : <> Unknown
                     Grant </>}  </div>
             </Flex>
@@ -207,7 +209,7 @@ const AllocationViewer: React.FunctionComponent<{
     </HighlightedCard>;
 };
 
-const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | null;}> = ({startDate, endDate}) => {
+const ExpiresIn: React.FunctionComponent<{ startDate: number, endDate?: number | null; }> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
     if (endDate == null) {
         return <>No expiration</>;
@@ -276,16 +278,16 @@ const UsageChartViewer: React.FunctionComponent<{
     }, [c.type, c.chargeType, c.unit])
 
     return <HighlightedCard color={"blue"} width={maximized ? "100%" : "400px"}
-        height={maximized ? "900px" : undefined}>
+                            height={maximized ? "900px" : undefined}>
         <UsageChartStyle>
             <Flex alignItems={"center"}>
                 <div>
                     <Text color="gray">{productTypeToTitle(c.type)}</Text>
                     <Text bold my="-6px"
-                        fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
+                          fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
-                <Box flexGrow={1} />
-                <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle} />
+                <Box flexGrow={1}/>
+                <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle}/>
             </Flex>
 
             <ResponsiveContainer className={"usage-chart"} height={maximized ? 800 : 170}>
@@ -298,8 +300,8 @@ const UsageChartViewer: React.FunctionComponent<{
                     }}
                     data={flattenedLines}
                 >
-                    <XAxis dataKey={"timestamp"} />
-                    <Tooltip labelFormatter={dateFormatter} formatter={formatter} />
+                    <XAxis dataKey={"timestamp"}/>
+                    <Tooltip labelFormatter={dateFormatter} formatter={formatter}/>
                     {names.map((it, index) =>
                         <Area
                             key={it}
@@ -323,14 +325,14 @@ interface BreakdownChart {
     type: ProductType;
     chargeType: ChargeType;
     unit: ProductPriceUnit;
-    chart: {points: {name: string, value: number}[]}
+    chart: { points: { name: string, value: number }[] }
 }
 
 function toPercentageString(value: number) {
     return `${Math.round(value * 10_000) / 100} %`
 }
 
-const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
+const DonutChart: React.FunctionComponent<{ chart: BreakdownChart }> = props => {
     const totalUsage = props.chart.chart.points.reduce((prev, current) => prev + current.value, 0);
     return (
         <HighlightedCard
@@ -351,7 +353,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                         innerRadius={55}
                     >
                         {props.chart.chart.points.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
+                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])}/>
                         ))}
                     </Pie>
                 </PieChart>
@@ -360,7 +362,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
             <Flex pb="12px" style={{overflowX: "auto"}} justifyContent={"center"}>
                 {props.chart.chart.points.map((it, index) =>
                     <Box mx="4px" width="auto" style={{whiteSpace: "nowrap"}} key={it.name}>
-                        <ChartPointName name={it.name} />
+                        <ChartPointName name={it.name}/>
                         <Text
                             textAlign="center"
                             color={getCssVar(COLORS[index % COLORS.length])}
@@ -374,7 +376,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
     )
 }
 
-function ChartPointName({name}: {name: string}): JSX.Element {
+function ChartPointName({name}: { name: string }): JSX.Element {
     const [first, second, third] = name.split(" / ");
     return (
         <div>
@@ -385,9 +387,9 @@ function ChartPointName({name}: {name: string}): JSX.Element {
 }
 
 const SubText = styled.div`
-    color: var(--gray);
-    text-decoration: none;
-    font-size: 10px;
+  color: var(--gray);
+  text-decoration: none;
+  font-size: 10px;
 `;
 
 export default Resources;
