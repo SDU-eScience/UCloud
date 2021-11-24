@@ -357,7 +357,7 @@ class ProjectService(
                     )
                 }),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 

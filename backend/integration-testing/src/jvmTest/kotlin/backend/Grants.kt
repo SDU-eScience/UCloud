@@ -15,18 +15,7 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.assertUserError
-import dk.sdu.cloud.project.api.AcceptInviteRequest
-import dk.sdu.cloud.project.api.ChangeUserRoleRequest
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.InviteRequest
-import dk.sdu.cloud.project.api.LeaveProjectRequest
-import dk.sdu.cloud.project.api.ListProjectsRequest
-import dk.sdu.cloud.project.api.ListSubProjectsRequest
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.TransferPiRoleRequest
-import dk.sdu.cloud.project.api.UserProjectSummary
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.test.UCloudTestCaseBuilder
@@ -242,7 +231,7 @@ class GrantTest : IntegrationTest() {
                 val grantApplication: ApplicationWithComments,
                 val projectsOfUser: List<UserProjectSummary>,
                 val walletsOfUser: List<Wallet>,
-                val childProjectsOfGrantGiver: List<Project>,
+                val childProjectsOfGrantGiver: List<MemberInProject>,
                 val walletsOfGrantGiver: List<Wallet>,
             )
 

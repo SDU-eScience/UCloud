@@ -336,7 +336,7 @@ object UCloudLauncher : Loggable {
             val serviceRefreshToken = UUID.randomUUID().toString()
             refreshToken = serviceRefreshToken
             val reg = ServiceRegistry(
-                *buildList<String> {
+                buildList<String> {
                     add("--dev")
                     add("--no-implicit-config")
                     add("--config-dir")

@@ -366,7 +366,7 @@ class AccountingTest : IntegrationTest() {
                         assertTrue(firstCharge!!)
                         val secondCharge = output.secondChargeResults.firstOrNull()
                         assertNotNull(secondCharge)
-                        assertFalse(secondCharge!!)
+                        assertTrue(secondCharge!!)
                     }
                 }
             }
@@ -1553,7 +1553,7 @@ class AccountingTest : IntegrationTest() {
                         )
                     )
 
-                    expectStatusCode(HttpStatusCode.BadRequest)
+                    expectStatusCode(HttpStatusCode.PaymentRequired)
                 }
             }
 
