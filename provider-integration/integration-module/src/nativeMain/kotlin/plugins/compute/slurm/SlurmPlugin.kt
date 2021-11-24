@@ -136,7 +136,12 @@ class SlurmPlugin : ComputePlugin {
             rpcClient
         ).orThrow()
 
-        sleep(5)
+
+        var currentStatus = getStatus(resource.id)
+        while (currentStatus.state != JobState.RUNNING && !currentStatus.isFinal ) {
+            delay(5000)
+        }
+
 
         JobsControl.update.call(
             bulkRequestOf(
