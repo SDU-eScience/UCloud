@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Flex, Icon, List} from "@/ui-components";
+import {Box, Flex, Icon, List, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -475,9 +475,9 @@ function UserBox(props: {username: string}) {
     const avatars = useAvatars();
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
-        <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />
+        <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} /></div>
         <div className="centered" style={{display: "flex", justifyContent: "center"}}>
-            <h1>{props.username}</h1>
+            <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
         {/* <div style={{justifyContent: "left", textAlign: "left"}}>
