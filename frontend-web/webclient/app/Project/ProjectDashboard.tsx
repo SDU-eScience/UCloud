@@ -171,7 +171,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </HighlightedCard>
                         )}
-                        {isPersonalProjectActive(projectId) ? null :
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow/>}
                                 onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
