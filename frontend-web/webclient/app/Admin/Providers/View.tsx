@@ -59,11 +59,14 @@ export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, 
                 const accessToken = tokens?.responses[0]?.accessToken;
                 let product: Types.Product;
 
+                const normalizedPricePerUnit = normalizeBalanceForBackend(data.fields.pricePerUnit, type, data.fields.chargeType, data.fields.unitOfPrice);
+                const pricePerUnit = normalizedPricePerUnit === 0 ? 1 : normalizedPricePerUnit;
+
                 const shared: Types.ProductBase = {
                     type: productTypeToJsonType(type),
                     productType: type,
                     category: {name: data.fields.category, provider: props.provider.specification.id},
-                    pricePerUnit: normalizeBalanceForBackend(data.fields.pricePerUnit, type, data.fields.chargeType, data.fields.unitOfPrice),
+                    pricePerUnit,
                     name: data.fields.name,
                     description: data.fields.description,
                     priority: data.fields.priority,
