@@ -284,18 +284,6 @@ class SlurmPlugin : ComputePlugin {
             println("RunMonitoringLoop")
             sleep(5)
 
-            val terminalStates = listOf(
-                "COMPLETED",
-                "CANCELLED",
-                "FAILED",
-                "OUT_OF_MEMORY",
-                "BOOT_FAIL",
-                "NODE_FAIL",
-                "PREEMPTED",
-                "REVOKED",
-                "DEADLINE",
-                "TIMEOUT"
-            )
             val jobs: MutableList<SlurmJob> = mutableListOf()
 
             //Get all db active jobs
@@ -323,47 +311,46 @@ class SlurmPlugin : ComputePlugin {
 
             if (jobs.isEmpty()) continue
 
-            //println(ids)
+            // println(jobs)
             val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
                 addArg("--jobs", jobs.joinToString(",") { it.slurmId })
-                addArg("--allusers")
+                addArg("--allusers") // Displays all users' jobs when run by user root or if PrivateData is not configured to jobs. Otherwise display the current user's jobs
                 addArg("--format", "jobid,state,exitcode,start,end")
-                addArg("--noheader")
+                addArg("--allocations") // Only show statistics relevant to the job allocation itself, not taking steps into consideration.
                 addArg("--parsable2")
                 addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
             }
 
-            val acctStdLines = stdout.lines().filter { !it.isEmpty() && !it.split("|")[0].contains(".") }
-                .mapNotNull { line -> line.split("|") }
+            val acctStdLines = stdout.lines().mapNotNull { line -> line.split("|") }
             // create map then list of objects
             val header = acctStdLines[0]
             val acctJobs =
                 acctStdLines
-                    .mapIndexedNotNull { idx, line ->    //[{Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=33}, {Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=34}]
+                    .mapIndexedNotNull { idx, line ->   // [{Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=33}, {Start=2021-11-03T12:16:36, State=TIMEOUT, ExitCode=0:0, End=2021-11-03T12:21:46, JobID=34}]
                         val map: MutableMap<String, String> = HashMap()
                         line.forEachIndexed { idx, word ->
                             map[header[idx]] = word
                         }
                         if (idx > 0) map else null
                     }
-                    .mapNotNull { map ->                                        // // [acctEntry(jobId=33, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46), acctEntry(jobId=34, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46)]
-                        AcctEntry(map["JobID"], map["State"], map["ExitCode"], map["Start"], map["End"])
+                    .mapNotNull { map ->                // [acctEntry(jobId=33, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46), acctEntry(jobId=34, state=TIMEOUT, exitCode=0:0, start=2021-11-03T12:16:36, end=2021-11-03T12:21:46)]
+                        AcctEntry(map["JobID"], map["State"]!!.split(" ")!!.getOrElse(0){""}, map["ExitCode"], map["Start"], map["End"])
                     }
 
             acctJobs.forEach { job ->
                 val dbState = jobs.first { it.slurmId == job.jobId }.lastKnown
-                if (job.state !in terminalStates && !job.state.equals(dbState)) {
+                val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
+                val uState = Mapping.uCloudStates.get(job.state) //{ throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest) }
 
-                    println("updating " + job)
+                if (  uState!!.isFinal && !uState.providerState.equals(dbState)  ) {
 
-                    val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
-                    val mState: SlurmStatus = retrieveSlurmStatus(ucloudId)
+                    //println("updating " + job)
 
                     JobsControl.update.call(
                         bulkRequestOf(
                             ResourceUpdateAndId(
-                                mState.id,
-                                JobUpdate(mState.ucloudState, status = mState.message)
+                                ucloudId,
+                                JobUpdate(uState.state, status = uState.message)
                             )
                         ),
                         rpcClient,
@@ -379,16 +366,18 @@ class SlurmPlugin : ComputePlugin {
                             """
                         ).useAndInvokeAndDiscard {
                             bindString("local_id", job.jobId!!)
-                            bindString("lastknown", mState.ucloudState.toString())
+                            bindString("lastknown", uState.state.toString())
                         }
                     }
                 }
             }
 
             val finishedJobs = acctJobs.mapNotNull { job ->
-                if (job.state in terminalStates) {
 
-                    val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
+                val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
+                val uState = Mapping.uCloudStates.get(job.state) //{ throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest) }
+
+                if (uState!!.isFinal) {
 
                     val start = Instant.parse(job.start.plus("Z"))
                     val end = Instant.parse(job.end.plus("Z"))
@@ -411,21 +400,23 @@ class SlurmPlugin : ComputePlugin {
                 } else null
             }
 
-            println("finishedjobs " + finishedJobs)
-
             if (finishedJobs.isEmpty()) continue
-            //update all finished jobs to status 0
+
+            //TODO: replace with sqlite3_carray_bind
             dbConnection.withTransaction { connection ->
                 connection.prepareStatement(
                     """
-                        update job_mapping 
+                        update job_mapping
                         set status = 0
-                        where local_id in ( :list )
+                        where local_id in ( ${finishedJobs.mapIndexed { idx, _ -> ":job_id_${idx}" }.joinToString(",")} )
                     """
                 ).useAndInvokeAndDiscard {
-                    bindString("list", finishedJobs.joinToString(separator = ","))
+                    finishedJobs.forEachIndexed { index, s -> 
+                        bindString("job_id_${index}", s)
+                    }
                 }
             }
+
         }
     }
 
@@ -435,52 +426,41 @@ class SlurmPlugin : ComputePlugin {
         var stderr: NativeFile? = null
         try {
             // NOTE(Dan): Don't open the files until the job looks like it is running
-            var currentStatus = retrieveSlurmStatus(job.id)
-            while (currentStatus.ucloudState != JobState.RUNNING && !currentStatus.ucloudState.isFinal()) {
+            var currentStatus = getStatus(job.id)
+
+            while (currentStatus.state != JobState.RUNNING && !currentStatus.isFinal ) {
                 delay(5000)
             }
 
             // NOTE(Dan): If the job is done, then don't attempt to read the logs
-            if (currentStatus.ucloudState.isFinal()) return
+            if (currentStatus.isFinal) return
 
             stdout = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.out", readOnly = true)
             stderr = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.err", readOnly = true)
 
-            thisLoop@ while (isActive()) {
-                val mState: SlurmStatus = retrieveSlurmStatus(job.id)
-                when (mState.ucloudState) {
-                    JobState.RUNNING -> {
-                        val line = stdout.readText(autoClose = false)
-                        if (line.isNotEmpty()) emitStdout(0, line)
+            while (isActive()) {
+                val check: UcloudStateInfo = getStatus(job.id)
 
-                        val err = stderr.readText(autoClose = false)
-                        if (err.isNotEmpty()) emitStderr(0, err)
-                    }
+                if ( check.state == JobState.RUNNING ) {
 
-                    else -> {
-                        JobsControl.update.call(
-                            bulkRequestOf(
-                                ResourceUpdateAndId(
-                                    mState.id,
-                                    JobUpdate(mState.ucloudState, status = mState.message)
-                                )
-                            ),
-                            rpcClient
-                        ).orThrow()
+                    val line = stdout.readText(autoClose = false)
+                    if (line.isNotEmpty()) emitStdout(0, line)
 
-                        break@thisLoop
-                    }
-                }
+                    val err = stderr.readText(autoClose = false)
+                    if (err.isNotEmpty()) emitStderr(0, err)
+
+                } else break
 
                 sleep(5)
             }
+
         } finally {
             stdout?.close()
             stderr?.close()
         }
     }
 
-    private fun PluginContext.retrieveSlurmStatus(id: String): SlurmStatus {
+    private fun PluginContext.getStatus(id: String): UcloudStateInfo {
         val slurmJob: SlurmJob = ipcClient.sendRequestBlocking(
             JsonRpcRequest(
                 "slurm.jobs.retrieve",
@@ -504,7 +484,7 @@ class SlurmPlugin : ComputePlugin {
                 addArg("--allusers")
                 addArg("--format", "jobid,state,exitcode")
                 addArg("--noheader")
-                addArg("--completion")
+                addArg("--allocations")
                 addArg("--parsable2")
                 addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
             }
@@ -512,35 +492,9 @@ class SlurmPlugin : ComputePlugin {
             ProcessResultText(1, "", "")
         }
 
-        val slurmStatus = if (code == 0) stdout.trim() else sacct.stdout.lines().get(0).split("|").get(1)
-
-        val imStatus = when (slurmStatus) {
-            "PENDING", "CONFIGURING", "RESV_DEL_HOLD", "REQUEUE_FED", "SUSPENDED" -> SlurmStatus(
-                id,
-                JobState.IN_QUEUE,
-                slurmStatus,
-                "Job is queued"
-            )
-            "REQUEUE_HOLD" -> SlurmStatus(id, JobState.IN_QUEUE, slurmStatus, "Job is held for requeue")
-            "REQUEUED" -> SlurmStatus(id, JobState.IN_QUEUE, slurmStatus, "Job is requeued")
-            "RESIZING" -> SlurmStatus(id, JobState.IN_QUEUE, slurmStatus, "Job is resizing")
-            "RUNNING", "COMPLETING", "SIGNALING", "SPECIAL_EXIT", "STAGE_OUT" -> SlurmStatus(
-                id,
-                JobState.RUNNING,
-                slurmStatus,
-                "Job is running"
-            )
-            "STOPPED" -> SlurmStatus(id, JobState.RUNNING, slurmStatus, "Job is stopped")
-            "COMPLETED", "CANCELLED", "FAILED" -> SlurmStatus(id, JobState.SUCCESS, slurmStatus, "Job is success")
-            "OUT_OF_MEMORY" -> SlurmStatus(id, JobState.SUCCESS, slurmStatus, "Out of memory")
-            "BOOT_FAIL", "NODE_FAIL" -> SlurmStatus(id, JobState.FAILURE, slurmStatus, "Job is failed")
-            "REVOKED" -> SlurmStatus(id, JobState.FAILURE, slurmStatus, "Job is revoked")
-            "PREEMPTED" -> SlurmStatus(id, JobState.FAILURE, slurmStatus, "Preempted")
-            "DEADLINE", "TIMEOUT" -> SlurmStatus(id, JobState.EXPIRED, slurmStatus, "Job is expired")
-            else -> throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest)
-        }
-
-        return imStatus
+        val slurmStatus:String = if (code == 0) stdout.trim() else sacct.stdout.lines().get(0).split("|").get(1).trim().split(" ").get(0)
+        val ucloudStateInfo = Mapping.uCloudStates.getOrElse(slurmStatus) { throw RPCException("Unknown Slurm Job Status", HttpStatusCode.BadRequest) }
+        return ucloudStateInfo
     }
 
     override suspend fun PluginContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {

@@ -33,7 +33,6 @@ suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
         job.specification.parameters!!.mapNotNull { (paramName, value) ->
             app.parameters.find { it.name == paramName }!! to value
         }.toMap()
-
     val cliInvocation = app.invocation.flatMap { parameter ->
         parameter.buildInvocationList(givenParameters)
     }.joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
