@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
+import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
@@ -92,6 +93,10 @@ class AppKubernetesController(
 
         implement(KubernetesCompute.retrieveProducts) {
             ok(jobManagement.retrieveProductsTemporary())
+        }
+
+        implement(KubernetesCompute.updateAcl) {
+            ok(BulkResponse(request.items.map {  }))
         }
 
         implement(KubernetesCompute.follow) {
