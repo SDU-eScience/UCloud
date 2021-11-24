@@ -96,13 +96,11 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
                     <Route exact path={"/debugger"} component={Debugger} />
 
-                    <Route path={"/drives"}><FileCollectionsRouter /></Route>
+                    <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
                     <Route path={"/files"} component={requireAuth(FilesRouter)} />
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
-                    <Route path={"/shares"}>
-                        <ShareRouter />
-                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
-                    </Route>
+                    <Route path={"/shares"} component={requireAuth(ShareRouter)} />
+                    <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
