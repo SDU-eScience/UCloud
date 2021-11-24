@@ -170,7 +170,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
     const history = useHistory();
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite)//.slice(0, 7);
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
 
     return (
         <HighlightedCard
@@ -208,7 +208,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
+                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
                             history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
