@@ -365,7 +365,7 @@ function DashboardRuns({runs}: {
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
-        title="Recent Runs"
+        title={<Link to={"/jobs"}><Heading.h3>Recent Runs</Heading.h3></Link>}
         icon="results"
         isLoading={runs.loading}
         error={runs.error?.why}
@@ -380,7 +380,8 @@ function DashboardRuns({runs}: {
             </NoResultsCardBody>
         ) :
             <List>
-                {runs.data.items.map(job =>
+                {runs.data.items.map((job, idx) =>
+                    idx >= 7 ? null :
                     <ItemRow
                         key={job.id}
                         item={job}
