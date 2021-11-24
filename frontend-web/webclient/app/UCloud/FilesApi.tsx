@@ -493,6 +493,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         help: <>The username of the user you wish to share this file with</>,
                         addToFront: true,
                         confirmText: "Share",
+                        width: "100%"
                     });
 
                     await cb.invokeCommand(
