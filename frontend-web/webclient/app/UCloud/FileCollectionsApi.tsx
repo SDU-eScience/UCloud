@@ -101,7 +101,9 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     browse(
         req: PaginationRequestV2 & FileCollectionFlags & SortFlags
     ): APICallParameters<PaginationRequestV2 & FileCollectionFlags, PageV2<FileCollection>> {
-        if (req["filterMemberFiles"] === "true") {
+        if (req["filterMemberFiles"] == "all") {
+            // Do nothing
+        } else if (req["filterMemberFiles"] === "true") {
             req.filterProductId = "project-home";
             req.filterProductCategory = "u1-cephfs";
         } else {
