@@ -16,7 +16,7 @@ data class Project(
 @Serializable
 @UCloudApiOwnedBy(Projects::class)
 data class MemberInProject(
-    val role: ProjectRole?,
+    val role: ProjectRole? = null,
     val project: Project
 )
 
