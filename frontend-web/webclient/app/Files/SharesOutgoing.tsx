@@ -61,7 +61,8 @@ function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
 export const SharesOutgoing: React.FunctionComponent = () => {
     useTitle("Shares (Outgoing)");
     useSidebarPage(SidebarPages.Shares);
-    useResourceSearch(SharesApi);
+    // HACK(Jonas): DISABLE UNTIL ALL SHARES CAN BE SEARCHED
+    // useResourceSearch(SharesApi);
 
     const history = useHistory();
     const dispatch = useDispatch();

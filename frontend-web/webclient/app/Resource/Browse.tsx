@@ -84,7 +84,7 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
 
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
-}: PropsWithChildren<ResourceBrowseProps<Res, CB>>): ReactElement | null {
+}: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
 
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
         {noop: true},
@@ -416,7 +416,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         useTitle(api.titlePlural);
         useLoading(commandLoading);
         useSidebarPage(api.page);
-        useResourceSearch(api);
+        if (!props.disableSearch) useResourceSearch(api);
     }
 
     const main = !inlineInspecting ? <>
