@@ -377,42 +377,12 @@ class ProductTest : IntegrationTest() {
                         )
                     )
                     check {
-                        assertEquals(sampleProducts.size, output.page.items.size)
+                        assertEquals(1, output.page.items.size)
 
                         val first = output.page.items.first()
                         assertNotNull(first.balance)
                         assertEquals(1000000, first.balance)
                         assertEquals(sampleStorage, first)
-
-                        val last = output.page.items.last()
-                        assertNotNull(last.balance)
-                        assertEquals(0, last.balance)
-                        assertEquals(sampleProducts.last(), last)
-                    }
-                }
-
-                case("include balance but no wallet") {
-                    input(
-                        In(
-                            createMultipleProducts = true,
-                            request = ProductsBrowseRequest(
-                                includeBalance = true
-                            ),
-                            createWallet = false
-                        )
-                    )
-                    check {
-                        assertEquals(sampleProducts.size, output.page.items.size)
-
-                        val first = output.page.items.first()
-                        assertNotNull(first.balance)
-                        assertEquals(0, first.balance)
-                        assertEquals(sampleStorage, first)
-
-                        val last = output.page.items.last()
-                        assertNotNull(last.balance)
-                        assertEquals(0, last.balance)
-                        assertEquals(sampleProducts.last(), last)
                     }
                 }
 
@@ -726,24 +696,6 @@ class ProductTest : IntegrationTest() {
                     )
                     check {
                         assertEquals(1000000, output.product.balance)
-                    }
-                }
-
-                case("retrieve with filter (productType) and include balance but no wallet") {
-                    input(
-                        In(
-                            ProductsRetrieveRequest(
-                                filterName = sampleStorage.name,
-                                filterCategory = sampleStorage.category.name,
-                                filterProvider = sampleStorage.category.provider,
-                                filterArea = ProductType.STORAGE,
-                                includeBalance = true
-                            ),
-                            createWallet = false
-                        )
-                    )
-                    check {
-                        assertEquals(0, output.product.balance)
                     }
                 }
 
