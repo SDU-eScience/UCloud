@@ -18,7 +18,4 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-
-    withAdHocJob(deployment, "instant-check-wallets", { listOf("--low-funds-check")}) {}
-    withCronJob(deployment, "0 */12 * * *", listOf("--low-funds-check"), name="check-wallets") {}
 }

@@ -48,8 +48,6 @@ bundle { ctx ->
         */
     }
 
-    withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}
-
     withSecret("auth-wayf", version = "0") {
         println("auth-wayf must be configured! (Enter to continue)")
         Scanner(System.`in`).nextLine()

@@ -1,6 +1,5 @@
-package calls.server
+package dk.sdu.cloud.calls.server
 
-import dk.sdu.cloud.calls.server.IngoingCall
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 

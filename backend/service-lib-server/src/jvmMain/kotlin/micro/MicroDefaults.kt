@@ -2,6 +2,7 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.service.ScriptManager
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 
 fun Micro.installDefaultFeatures() {
@@ -20,6 +21,7 @@ fun Micro.installDefaultFeatures() {
     install(DatabaseConfigurationFeature)
     install(FlywayFeature)
     install(DebugSystem)
+    install(ScriptManager)
 }
 
 fun Micro.initWithDefaultFeatures(

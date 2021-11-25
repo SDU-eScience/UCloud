@@ -12,7 +12,9 @@ bundle { ctx ->
         "elasticsearch-credentials"
     )
 
-    withAmbassador {}
+    withAmbassador(null) {
+        addSimpleMapping("/api/scripts")
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
