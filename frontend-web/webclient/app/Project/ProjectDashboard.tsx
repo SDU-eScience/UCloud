@@ -93,7 +93,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             sidebar={null}
             main={(
                 <>
-                    <ProjectDashboardGrid minmax={300}>
+                    <ProjectDashboardGrid minmax={330}>
                         {projectId !== undefined && projectId !== "" ? (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
