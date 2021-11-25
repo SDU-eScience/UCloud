@@ -51,6 +51,7 @@ export const ShareBrowse: React.FunctionComponent<{
 
     return <ResourceBrowse
         api={SharesApi}
+        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES 
         onSelect={props.onSelect}
         browseType={browseType}
         isSearch={props.isSearch}
