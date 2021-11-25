@@ -43,7 +43,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
 
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
-        FileCollectionsApi.browse({itemsPerPage: 250}),
+        FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any),
         emptyPageV2
     );
 
@@ -114,8 +114,9 @@ export const FilesBrowse: React.FunctionComponent<{
                     loading={drives.loading}
                     onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
                         itemsPerPage: drives.data.itemsPerPage,
-                        next: drives.data.next
-                    }))}
+                        next: drives.data.next,
+                        filterMemberFiles: "all"
+                    } as any))}
                     page={drives.data}
                     pageRenderer={items => (
                         <>

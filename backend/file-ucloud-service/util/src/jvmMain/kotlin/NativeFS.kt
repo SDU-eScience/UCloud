@@ -423,7 +423,7 @@ class NativeFS(
         }
     }
 
-    fun delete(file: InternalFile) {
+    fun delete(file: InternalFile, allowRecursion: Boolean = true) {
         if (Platform.isLinux()) {
             val fd = openFile(file.parent())
             if (fd < 0) throw FSException.NotFound()
@@ -433,14 +433,13 @@ class NativeFS(
                         if (Native.getLastError() == ENOTEMPTY) {
                             throw FSException.BadRequest()
                         }
-                        if (Native.getLastError() == EISDIR) {
+                        if (Native.getLastError() == EISDIR && allowRecursion) {
                             log.debug("Is directory - should traverse")
                             listFiles(file).forEach { path ->
                                 delete(InternalFile(file.path+"/"+path))
                             }
                             delete(file)
-                        }
-                        else {
+                        } else {
                             throw FSException.NotFound()
                         }
                     }

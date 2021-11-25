@@ -92,11 +92,6 @@ export const ResourceFilter: React.FunctionComponent<{
         mergeProperties(properties, updatedProperties, setProperties);
     }, [setProperties, properties]);
 
-    const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        const newProps = mergeProperties(sortProperties, updatedProperties, setSortProperties);
-        props.onSortUpdated(newProps["direction"] as "ascending" | "descending", newProps["column"]);
-    }, [setSortProperties, sortProperties, props.onSortUpdated]);
-
     const sortOptions = useMemo(() =>
         props.sortEntries.map(it => ({
             icon: it.icon,
@@ -120,28 +115,22 @@ export const ResourceFilter: React.FunctionComponent<{
     const isEmbedded = props.browseType === BrowseType.Embedded;
 
     return <>
-        {isEmbedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
-            <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-            {onlyFilter ? "Filter" : "Sort and filter"}
-        </Heading.h4>}
-        <Grid gridGap={"8px"}>
+        {isEmbedded ? null :
+            <Heading.h4 mt={"32px"} mb={"16px"}>
+                <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
+                {onlyFilter ? "Filter" : "Sort and filter"}
+            </Heading.h4>
+        }
+        <MainContentGrid browseType={props.browseType}>
             <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                 icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
             {props.pills.map((Pill, idx) =>
                 <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
             )}
-        </Grid>
+        </MainContentGrid>
         <Grid gridGap={"20px"}
             mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
-                {onlyFilter ? null : <>
-                    <EnumFilterWidget
-                        propertyName="column" icon="properties" title="Sort by" expanded={false} options={sortOptions}
-                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                        browseType={props.browseType}
-                    />
-                    {isEmbedded ? null : <Divider />}
-                </>}
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
@@ -150,6 +139,16 @@ export const ResourceFilter: React.FunctionComponent<{
         </Grid>
     </>;
 };
+
+function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): JSX.Element {
+    return props.browseType !== BrowseType.MainContent ? (
+        <>{props.children}</>
+    ) : (
+        <Grid gridGap={"8px"}>
+            {props.children}
+        </Grid>
+    );
+}
 
 function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
     return props.embedded ? (
@@ -160,7 +159,7 @@ function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolea
         </ClickableDropdown>
     ) : (<>
         {props.children}
-    </>)
+    </>);
 }
 
 export const FilterPill: React.FunctionComponent<{
@@ -168,7 +167,7 @@ export const FilterPill: React.FunctionComponent<{
     onRemove: () => void;
     canRemove?: boolean;
 }> = ({icon, onRemove, canRemove, children}) => {
-    return <Stamp fullWidth onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+    return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
         {children}
     </Stamp>;
 };
@@ -179,9 +178,9 @@ interface BaseFilterWidgetProps {
 }
 
 const FilterWidgetWrapper = styled(Box)`
-  display: flex;
-  align-items: center;
-  user-select: none;
+    display: flex;
+    align-items: center;
+    user-select: none;
 `;
 
 export const FilterWidget: React.FunctionComponent<{
@@ -224,7 +223,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         <FilterWidget browseType={props.browseType} icon={props.icon} title={props.title} cursor={"pointer"}
             onClick={props.expanded ? props.onExpand : undefined}>
             <Box flexGrow={1} />
-            <Icon name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
+            <Icon ml="6px" name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
                 color={"iconColor"} />
         </FilterWidget>
     );
@@ -237,7 +236,6 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         </>;
     }
 
-    // TODO(Jonas) This is unreachable at this point, isn't it?
     return <div>
         {!props.expanded ?
             <ClickableDropdown

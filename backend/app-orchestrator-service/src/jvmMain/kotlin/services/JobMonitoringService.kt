@@ -38,7 +38,7 @@ class JobMonitoringService(
     private val ingressService: IngressService,
     private val networkIPService: NetworkIPService,
     private val licenseService: LicenseService
-    ) {
+) {
     suspend fun initialize() {
         scope.launch {
             val lock = distributedLocks.create("app-orchestrator-watcher", duration = 60_000)

@@ -29,7 +29,7 @@ function Create(): JSX.Element | null {
                 }
                 onSubmitSucceded={(res, data) => {
                     if (res) {
-                        history.push(`/admin/providers/view/${encodeURI(data.fields.ID)}`);
+                        history.push(`/providers`);
                     }
                 }}
             >

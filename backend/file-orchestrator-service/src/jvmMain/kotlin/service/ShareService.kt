@@ -196,8 +196,9 @@ class ShareService(
                 where id in (select unnest(:username::text[]))
             """
         ).rows
+
         if (idWithSpec.size != returnedUsers.size) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            throw RPCException("Unknown user. Did you write the correct user ID?", HttpStatusCode.BadRequest)
         }
 
         val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()

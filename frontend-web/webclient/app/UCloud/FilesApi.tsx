@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, FindById, PERMISSIONS_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -47,6 +47,8 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {InvokeCommand} from "@/Authentication/DataHook";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
+import {useHistory} from "react-router";
+import {responsiveStoreEnhancer} from "redux-responsive/types";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -380,7 +382,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 1;
+                    return selected.length === 1 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
@@ -493,9 +496,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         help: <>The username of the user you wish to share this file with</>,
                         addToFront: true,
                         confirmText: "Share",
+                        width: "100%"
                     });
 
-                    await cb.invokeCommand(
+                    await cb.invokeCommand<BulkResponse<FindById>>(
                         SharesApi.create(
                             bulkRequestOf(
                                 ...selected.map(file => ({
@@ -506,7 +510,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }))
                             )
                         )
-                    );
+                    ).then(it => {
+                        if (it?.responses) {
+                            cb.history.push(`/shares/outgoing`);
+                        }
+                    });
                 }
             },
             {
@@ -539,7 +547,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
-                    return selected.length === 1 && selected.every(it => it.status.icon == null)
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return false;
+                    }
+                    return selected.length === 1;
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
@@ -753,6 +764,10 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
 }
 
 function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {
+    if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+        return;
+    }
+
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
 }
 

@@ -19,7 +19,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -346,8 +345,119 @@ class FilesService(
         request: ResourceSearchRequest<UFileIncludeFlags>,
         ctx: DBContext?
     ): PageV2<UFile> {
-        // TODO This one is a bit harder since we have to contact every provider that a user might have files on
-        TODO("Not yet implemented")
+        return (ctx ?: db).withSession { session ->
+            val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+
+            val isMemberOfProject = if (actorAndProject.project == null) {
+                true
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                    },
+                    """
+                        select true
+                        from project.project_members pm
+                        where pm.username = :username and pm.project_id = :project
+                    """
+                ).rows.isNotEmpty()
+            }
+
+            if (!isMemberOfProject) {
+                throw RPCException("Bad project supplied", HttpStatusCode.Forbidden)
+            }
+
+            val relevantProviders = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                },
+                """
+                    select distinct pc.provider
+                    from
+                        accounting.product_categories pc join
+                        accounting.wallets w on pc.id = w.category join
+                        accounting.wallet_owner wo on w.owned_by = wo.id join
+                        accounting.wallet_allocations wa on w.id = wa.associated_wallet
+                    where
+                        pc.product_type = 'STORAGE' and
+                        (:project::text is not null or wo.username = :username) and
+                        (:project::text is null or wo.project_id = :project)
+                """
+            ).rows.map { it.getString(0)!! }
+
+            val collectionIds = HashSet<String>()
+            val partialsByParent = HashMap<String, List<PartialUFile>>()
+
+            val nextByProvider: Map<String, String> = (request.next ?: "")
+                .split(HACKY_SEARCH_SEPARATOR)
+                .asSequence()
+                .windowed(2)
+                .filter { it.size == 2 }
+                .map { it[0] to it[1] }
+                .toMap()
+
+            val newNextByProvider = HashMap<String, String>()
+
+            // TODO(Dan): We should probably not combine data in this way
+            // TODO(Dan): We need a better way of detecting support for search
+            val allResults = relevantProviders.flatMap { provider ->
+                runCatching {
+                    val resp = proxy.invokeCall(
+                        actorAndProject,
+                        true,
+                        FilesProviderSearchRequest(
+                            request.query,
+                            owner,
+                            request.flags,
+                            request.itemsPerPage,
+                            nextByProvider[provider],
+                            request.consistency,
+                            request.itemsToSkip
+                        ),
+                        provider,
+                        call = { it.filesApi.search }
+                    )
+
+                    val next = resp.next
+                    if (next != null) newNextByProvider[provider] = next
+
+                    resp.items
+                }.getOrDefault(emptyList())
+            }
+
+            for (result in allResults) {
+                val normalizedPath = result.id.normalize()
+                val components = normalizedPath.components()
+                if (components.size < 2) continue
+
+                collectionIds.add(components[0])
+                val parent = normalizedPath.parent()
+                partialsByParent[parent] = (partialsByParent[parent] ?: emptyList()) + result
+            }
+
+            // Verify that users are allowed to read results produced by provider
+            val collections = fileCollections.retrieveBulk(actorAndProject, collectionIds, listOf(Permission.READ), ctx = session)
+
+            val results = partialsByParent.flatMap { (parent, files) ->
+                val collection = collections.find { it.id == parent.components()[0] } ?: error("No collection!")
+                val metadata = if (request.flags.includeMetadata == true) {
+                    metadataCache.get(Pair(actorAndProject, parent))
+                } else {
+                    null
+                }
+
+                files.map { it.toUFile(collection, metadata) }
+            }
+
+            PageV2(
+                request.normalize().itemsPerPage,
+                results,
+                newNextByProvider.map { it.key + HACKY_SEARCH_SEPARATOR + it.value }
+                    .joinToString(HACKY_SEARCH_SEPARATOR)
+            )
+        }
     }
 
     suspend fun move(
@@ -883,5 +993,7 @@ class FilesService(
 
     companion object : Loggable {
         override val log = logger()
+
+        const val HACKY_SEARCH_SEPARATOR = "@uc@"
     }
 }

@@ -34,7 +34,8 @@ class FileQueries(
         val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
         val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
             .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
-        return convertNativeStatToUFile(internalFile, nativeStat, sensitivity = sensitivity)
+        val forcedPrefix = file.parent()
+        return convertNativeStatToUFile(internalFile, nativeStat, forcedPrefix.path, sensitivity)
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {

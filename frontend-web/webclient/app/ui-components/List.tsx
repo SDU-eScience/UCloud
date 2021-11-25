@@ -63,7 +63,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     }, [props.navigate, props.select, stopPropagation]);
 
     const doSelect = useCallback((e: React.SyntheticEvent) => {
-        (props.select)?.();
+        props.select?.();
         if (stopPropagation) e.stopPropagation();
     }, [props.select, stopPropagation]);
 
@@ -153,6 +153,10 @@ const ListStyle = styled.div<{fontSize?: string;}>`
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+    }
+
+    .row-left-content:has(> form) {
+        width: 100%;
     }
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {

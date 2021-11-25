@@ -98,9 +98,6 @@ class JobOrchestrator(
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
-        "application" to SqlObject.Column(table, "application_name"),
-        "name" to SqlObject.Column(table, "name"),
-        "state" to SqlObject.Column(table, "current_state")
     )
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")

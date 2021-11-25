@@ -302,7 +302,7 @@ class ProjectTests : IntegrationTest() {
         ).orThrow()
 
         assertThatInstance(subprojects, "has a single subproject") {
-            it.items.single().title == title
+            it.items.single().project.title == title
         }
     }
 

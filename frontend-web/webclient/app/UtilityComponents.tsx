@@ -93,34 +93,35 @@ export async function addStandardInputDialog({
     width = "300px",
 }: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
-        <div>
+        <form onSubmit={
+            e => {
+                stopPropagationAndPreventDefault(e);
+                const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                if (validator(elem.value)) {
+                    dialogStore.success();
+                    return resolve({result: elem.value});
+                } else snackbarStore.addFailure(validationFailureMessage, false);
+            }
+        }>
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                {help ? help : null}
+                {help ?? null}
                 <Input
                     id={"dialog-input"}
                     as={type}
                     width={width}
                     placeholder={placeholder}
+                    autoFocus
                 />
             </div>
             <Flex mt="20px">
-                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
-                <Button
-                    onClick={() => {
-                        const elem = document.querySelector("#dialog-input") as HTMLInputElement;
-                        if (validator(elem.value)) {
-                            dialogStore.success();
-                            resolve({result: elem.value});
-                        } else snackbarStore.addFailure(validationFailureMessage, false);
-                    }}
-                    color="green"
-                >
+                <Button type={"button"} onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
+                <Button type={"submit"} color="green">
                     {confirmText}
                 </Button>
             </Flex>
-        </div>, () => reject({cancelled: true}), addToFront));
+        </form>, () => reject({cancelled: true}), addToFront));
 }
 
 interface ConfirmCancelButtonsProps {

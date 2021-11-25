@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Icon, List} from "@/ui-components";
+import {Box, Flex, Icon, List, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -328,12 +328,36 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
         props.showProduct]);
 
+    const sortOptions = useMemo(() =>
+        api.sortEntries.map(it => ({
+            icon: it.icon,
+            title: it.title,
+            value: it.column,
+            helpText: it.helpText
+        })),
+        [api.sortEntries]
+    );
+
     const pageSize = useRef(0);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         return <>
             <Spacer left={null} right={pageSize.current > 0 ?
-                <Box width="170px">
+                <Flex width="275px">
+                    {api.sortEntries.length === 0 ? null : <EnumFilterWidget
+                        expanded={false}
+                        browseType={BrowseType.Card}
+                        propertyName="column"
+                        title="Sort by"
+                        facedownChevron
+                        id={0}
+                        onExpand={doNothing}
+                        properties={filters}
+                        options={sortOptions}
+                        onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
+                        icon="properties"
+                    />}
+                    <Box mx="auto" />
                     <EnumFilterWidget
                         expanded={false}
                         browseType={BrowseType.Card}
@@ -347,7 +371,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
                         icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
                     />
-                </Box> : <Box height="27px" />
+                </Flex> : <Box height="27px" />
             } />
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
@@ -451,9 +475,9 @@ function UserBox(props: {username: string}) {
     const avatars = useAvatars();
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
-        <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />
+        <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} /></div>
         <div className="centered" style={{display: "flex", justifyContent: "center"}}>
-            <h1>{props.username}</h1>
+            <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
         {/* <div style={{justifyContent: "left", textAlign: "left"}}>

@@ -7,13 +7,14 @@ import {Button, Link, theme} from "@/ui-components";
 import styled from "styled-components";
 import Box from "../ui-components/Box";
 import {useEffect, useState} from "react";
-import {priceExplainer, Product} from "@/Accounting";
+import {priceExplainer, Product, ProductPriceUnit} from "@/Accounting";
 
 export const ProductSelector: React.FunctionComponent<{
     initialSelection?: Product;
     products: Product[];
     onProductSelected: (product: Product) => void;
-}> = ({initialSelection, products, onProductSelected}) => {
+    slim?: boolean;
+}> = ({initialSelection, products, onProductSelected, slim}) => {
     const [selected, setSelected] = useState<Product | null>(initialSelection ?? null);
     useEffect(() => {
         if (initialSelection) setSelected(initialSelection);
@@ -26,6 +27,10 @@ export const ProductSelector: React.FunctionComponent<{
         throw "Bad input passed to ProductSelector";
     }
 
+    const unitOfPrice: ProductPriceUnit = products.length === 0 ? "PER_UNIT" : products[0].unitOfPrice;
+    const hasPrice = unitOfPrice === "CREDITS_PER_DAY" || unitOfPrice === "CREDITS_PER_HOUR" ||
+        unitOfPrice === "CREDITS_PER_MINUTE";
+
     // TODO(Dan) This is not ideal. It should use fixed positioning (to not overflow the row) but still be anchored to
     //  the 'parent'. If you remove `useMousePositioning` then the dropdown contents will immediately be hidden because
     //  it overflows the row.
@@ -35,7 +40,7 @@ export const ProductSelector: React.FunctionComponent<{
             colorOnHover={false}
             useMousePositioning
             trigger={(
-                <ProductDropdown>
+                <ProductDropdown height={slim === true ? "36px" : undefined}>
                     <ProductBox product={selected} />
 
                     <Icon name="chevronDown" />
@@ -48,7 +53,7 @@ export const ProductSelector: React.FunctionComponent<{
                         <TableHeader>
                             <TableRow>
                                 <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                                <TableHeaderCell>Price</TableHeaderCell>
+                                {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
                             </TableRow>
                         </TableHeader>
                         <tbody>
@@ -56,7 +61,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 if (machine === null) return null;
                                 return <TableRow key={machine.name} onClick={() => setSelected(machine)}>
                                     <TableCell>{machine.name}</TableCell>
-                                    <TableCell>{priceExplainer(machine)}</TableCell>
+                                    {!hasPrice ? null : <TableCell>{priceExplainer(machine)}</TableCell>}
                                 </TableRow>;
                             })}
                         </tbody>
@@ -139,8 +144,8 @@ const ProductDropdown = styled(Box)`
   cursor: pointer;
   border-radius: 5px;
   border: ${theme.borderWidth} solid var(--midGray, #f00);
-  height: 36px;
-  width: 500px;
+  width: 100%;
+  min-width: 500px;
 
   & p {
     margin: 0;

@@ -1,20 +1,12 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
@@ -68,7 +60,7 @@ class GrantApplicationService(
         if (recipient is GrantRecipient.PersonalProject && recipient.username != actorAndProject.actor.safeUsername()) {
             throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
         }
-        return db.withSession(remapExceptions = true) { session ->
+        val (appId, notification) = db.withSession(remapExceptions = true) { session ->
             val applicationId = session.sendPreparedStatement(
                 {
                     setParameter("source", request.resourcesOwnedBy)
@@ -101,104 +93,120 @@ class GrantApplicationService(
             ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException(
                     "It looks like you are unable to submit a request to this affiliation. " +
-                            "Contact support if this problem persists.",
+                        "Contact support if this problem persists.",
                     HttpStatusCode.Forbidden
                 )
 
             insertResources(session, applicationId, request.requestedResources)
 
-            if (autoApproveApplicationCheck(session, request.requestedResources, request.resourcesOwnedBy, actorAndProject.actor.safeUsername() )) {
-                //Get pi of approving project
-                val piOfProject = session.sendPreparedStatement(
-                    {
-                        setParameter("projectId", request.resourcesOwnedBy)
-                    },
-                    """
+            val responseNotification =
+                autoApprove(session, actorAndProject, request, applicationId) ?: GrantNotification(
+                    applicationId,
+                    adminMessage = AdminGrantNotificationMessage(
+                        { "New grant application to $projectTitle" },
+                        "NEW_GRANT_APPLICATION",
+                        { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), projectTitle) },
+                        meta = {
+                            JsonObject(
+                                mapOf(
+                                    "grantRecipient" to defaultMapper.encodeToJsonElement(request.grantRecipient),
+                                    "appId" to JsonPrimitive(applicationId),
+                                )
+                            )
+                        }
+                    ),
+                    userMessage = null
+                )
+
+            applicationId to responseNotification
+        }
+
+        runCatching { notifications.notify(actorAndProject.actor.safeUsername(), notification) }
+        return appId
+    }
+
+    private suspend fun autoApprove(
+        session: AsyncDBConnection,
+        actorAndProject: ActorAndProject,
+        request: CreateApplication,
+        applicationId: Long,
+    ): GrantNotification? {
+        if (autoApproveApplicationCheck(
+                session,
+                request.requestedResources,
+                request.resourcesOwnedBy,
+                actorAndProject.actor.safeUsername()
+            )
+        ) {
+            //Get pi of approving project
+            val piOfProject = session.sendPreparedStatement(
+                {
+                    setParameter("projectId", request.resourcesOwnedBy)
+                },
+                """
                         select username
                         from project.project_members 
                         where role = 'PI' and project_id = :projectId
                     """
-                ).rows
-                    .firstOrNull()
-                    ?.getString(0)
-                    ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "More than one PI found")
+            ).rows
+                .firstOrNull()
+                ?.getString(0)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "More than one PI found")
 
-                //update status of the application to APPROVED
-                session.sendPreparedStatement(
-                    {
-                        setParameter("status", ApplicationStatus.APPROVED.name)
-                        setParameter("username", piOfProject)
-                        setParameter("appId", applicationId)
-                    },
-                    """
+            //update status of the application to APPROVED
+            session.sendPreparedStatement(
+                {
+                    setParameter("status", ApplicationStatus.APPROVED.name)
+                    setParameter("username", piOfProject)
+                    setParameter("appId", applicationId)
+                },
+                """
                         update "grant".applications app
                         set
                             status = :status,
                             status_changed_by = :username
                         where app.id = :appId
                     """
-                )
+            )
 
-                //grant resource
-                onApplicationApprove(session, piOfProject, applicationId)
+            //grant resource
+            onApplicationApprove(session, piOfProject, applicationId)
 
-                val statusTitle = "Approved"
-
-                notifications.notify(
-                    actorAndProject.actor.safeUsername(),
-                    GrantNotification(
-                        applicationId,
-                        adminMessage =
-                        AdminGrantNotificationMessage(
-                            { "Grant application updated ($statusTitle)" },
-                            GRANT_APP_RESPONSE,
-                            { Mail.GrantApplicationStatusChangedToAdmin(
-                                ApplicationStatus.APPROVED.name,
-                                projectTitle,
-                                requestedBy,
-                                grantRecipientTitle
-                            ) }
-                        ),
-                        userMessage =
-                        UserGrantNotificationMessage(
-                            { "Grant application updated ($statusTitle)" },
-                            GRANT_APP_RESPONSE,
-                            {
-                                Mail.GrantApplicationApproveMail(projectTitle)
-                            },
-                            meta = {
-                                JsonObject(mapOf(
-                                    "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
-                                    "appId" to JsonPrimitive(applicationId),
-                                ))
-                            }
+            val statusTitle = "Approved"
+            return GrantNotification(
+                applicationId,
+                adminMessage =
+                AdminGrantNotificationMessage(
+                    { "Grant application updated ($statusTitle)" },
+                    GRANT_APP_RESPONSE,
+                    {
+                        Mail.GrantApplicationStatusChangedToAdmin(
+                            ApplicationStatus.APPROVED.name,
+                            projectTitle,
+                            requestedBy,
+                            grantRecipientTitle
                         )
-                    )
+                    }
+                ),
+                userMessage =
+                UserGrantNotificationMessage(
+                    { "Grant application updated ($statusTitle)" },
+                    GRANT_APP_RESPONSE,
+                    {
+                        Mail.GrantApplicationApproveMail(projectTitle)
+                    },
+                    meta = {
+                        JsonObject(
+                            mapOf(
+                                "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                "appId" to JsonPrimitive(applicationId),
+                            )
+                        )
+                    }
                 )
-            } else {
-                notifications.notify(
-                    actorAndProject.actor.safeUsername(),
-                    GrantNotification(
-                        applicationId,
-                        adminMessage = AdminGrantNotificationMessage(
-                            { "New grant application to $projectTitle" },
-                            "NEW_GRANT_APPLICATION",
-                            { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), projectTitle) },
-                            meta = {
-                                JsonObject(
-                                    mapOf(
-                                        "grantRecipient" to defaultMapper.encodeToJsonElement(request.grantRecipient),
-                                        "appId" to JsonPrimitive(applicationId),
-                                    )
-                                )
-                            }
-                        ),
-                        userMessage = null
-                    )
-                )
-            }
-            applicationId
+            )
         }
+        return null
     }
 
     private suspend fun autoApproveApplicationCheck(
@@ -297,7 +305,7 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         request: EditReferenceIdRequest
     ) {
-        if(request.newReferenceId == null) {
+        if (request.newReferenceId == null) {
             return
         }
         db.withSession(remapExceptions = true) { session ->
@@ -485,12 +493,14 @@ class GrantApplicationService(
                         AdminGrantNotificationMessage(
                             { "Grant application updated ($statusTitle)" },
                             GRANT_APP_RESPONSE,
-                            { Mail.GrantApplicationStatusChangedToAdmin(
-                                newStatus.name,
-                                projectTitle,
-                                requestedBy,
-                                grantRecipientTitle
-                            ) }
+                            {
+                                Mail.GrantApplicationStatusChangedToAdmin(
+                                    newStatus.name,
+                                    projectTitle,
+                                    requestedBy,
+                                    grantRecipientTitle
+                                )
+                            }
                         ),
                         userMessage =
                         UserGrantNotificationMessage(
@@ -508,15 +518,17 @@ class GrantApplicationService(
                                 }
                             },
                             meta = {
-                                JsonObject(mapOf(
-                                    "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
-                                    "appId" to JsonPrimitive(id),
-                                ))
+                                JsonObject(
+                                    mapOf(
+                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                        "appId" to JsonPrimitive(id),
+                                    )
+                                )
                             }
                         )
                     ),
 
-                )
+                    )
             }
         }
     }
