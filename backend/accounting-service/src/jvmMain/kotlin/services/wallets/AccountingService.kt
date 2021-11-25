@@ -77,7 +77,7 @@ class AccountingService(
                                 unnest(:payer_ids::text[]),
                                 unnest(:payer_is_project::boolean[]),
                                 unnest(:units::bigint[]),
-                                unnest(:number_of_products::bigint[]),
+                                unnest(:periods::bigint[]),
                                 unnest(:product_ids::text[]),
                                 unnest(:product_categories::text[]),
                                 unnest(:product_provider::text[]),
@@ -127,7 +127,7 @@ class AccountingService(
                                 unnest(:payer_ids::text[]),
                                 unnest(:payer_is_project::boolean[]),
                                 unnest(:units::bigint[]),
-                                unnest(:number_of_products::bigint[]),
+                                unnest(:periods::bigint[]),
                                 unnest(:product_ids::text[]),
                                 unnest(:product_categories::text[]),
                                 unnest(:product_provider::text[]),
@@ -151,7 +151,7 @@ class AccountingService(
             val payerIds by parameterList<String>()
             val payerIsProject by parameterList<Boolean>()
             val units by parameterList<Long>()
-            val numberOfProducts by parameterList<Long>()
+            val periods by parameterList<Long>()
             val productIds by parameterList<String>()
             val productCategories by parameterList<String>()
             val productProvider by parameterList<String>()
@@ -170,7 +170,7 @@ class AccountingService(
                     }
                 }
                 units.add(req.units)
-                numberOfProducts.add(req.numberOfProducts)
+                periods.add(req.periods)
                 productIds.add(req.product.id)
                 productCategories.add(req.product.category)
                 productProvider.add(req.product.provider)

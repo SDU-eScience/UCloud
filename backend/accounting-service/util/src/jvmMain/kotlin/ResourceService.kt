@@ -937,7 +937,7 @@ abstract class ResourceService<
 
             Payment(
                 reqItem.chargeId,
-                reqItem.numberOfProducts,
+                reqItem.periods,
                 reqItem.units,
                 resource.status.resolvedSupport!!.product.pricePerUnit,
                 reqItem.id,
