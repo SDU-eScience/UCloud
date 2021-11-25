@@ -337,10 +337,6 @@ begin
         charge_result c on u.local_id = c.local_id
     where u.new_balance < 0 and free_to_use != true;
 
-    insert into failed_charges (request_index)
-    select local_request_id
-    from duplicate_transactions;
-
     with
         combined_local_balance_subtractions as (
             select local_id, sum(case when leaf_id = local_id then local_subtraction else 0 end) local_subtraction

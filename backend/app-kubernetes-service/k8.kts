@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "2021.3.0-alpha25"
+    version = "2021.3.0-alpha27"
 
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
