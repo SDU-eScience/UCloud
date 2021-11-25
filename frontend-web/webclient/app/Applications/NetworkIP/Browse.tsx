@@ -9,11 +9,14 @@ export const NetworkIPBrowse: React.FunctionComponent<{
     onSelect?: (selection: NetworkIP) => void;
     isSearch?: boolean;
     browseType?: BrowseType;
+    additionalFilters?: any;
+    onSelectRestriction?: (res: NetworkIP) => boolean;
 }> = props => {
     const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
         api={NetworkIPApi}
         onSelect={props.onSelect}
+        additionalFilters={props.additionalFilters}
         onInlineCreation={(text, product, cb) => ({
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
         })}

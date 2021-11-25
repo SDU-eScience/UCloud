@@ -7,7 +7,7 @@ import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
-import {errorMessageOrDefault, useEffectSkipMount} from "@/UtilityFunctions";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {compute, PageV2} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
@@ -175,7 +175,7 @@ export const ImportParameters: React.FunctionComponent<{
                                     dialogStore.success();
                                 }}
                                 pathRef={{current: ""}}
-                                onSelectRestriction={res => res.status.type === "FILE"}
+                                onSelectRestriction={res => res.status.type === "FILE" && res.id.endsWith(".json")}
                             />,
                             () => undefined,
                             true
@@ -192,6 +192,7 @@ export const ImportParameters: React.FunctionComponent<{
                                     readParsedJSON(res.status.jobParametersJson);
                                     dialogStore.success();
                                 }}
+                                additionalFilters={{filterApplication: application.metadata.name}}
                                 onSelectRestriction={res =>
                                     res.specification.application.name === application.metadata.name
                                 }

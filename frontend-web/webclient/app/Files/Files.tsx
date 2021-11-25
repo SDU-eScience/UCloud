@@ -1,5 +1,5 @@
 import * as React from "react";
-import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
@@ -23,6 +23,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
+    additionalFilters?: UFileIncludeFlags;
     onSelectRestriction?: (res: UFile) => boolean;
     isSearch?: boolean;
     browseType?: BrowseType;
@@ -37,7 +38,19 @@ export const FilesBrowse: React.FunctionComponent<{
         browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
     );
     const path = browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
-    const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
+    const additionalFilters = useMemo((() => {
+        const base = {
+            path, includeMetadata: "true",
+        };
+
+        if (props.additionalFilters != null) {
+            Object.keys(props.additionalFilters).forEach(it => {
+                base[it] = props.additionalFilters![it].toString();
+            });
+        }
+
+        return base;
+    }), [path, props.additionalFilters]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
