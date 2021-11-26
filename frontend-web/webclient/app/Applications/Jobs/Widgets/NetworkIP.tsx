@@ -62,7 +62,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
     }, []);
 
     const filters: NetworkIPFlags = React.useMemo(() => ({
-        filterState: "UNAVAILABLE"
+        filterState: "READY"
     }), []);
 
     return (<Flex>
