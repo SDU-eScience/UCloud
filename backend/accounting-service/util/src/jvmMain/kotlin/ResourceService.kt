@@ -204,6 +204,7 @@ abstract class ResourceService<
 
         @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
+            println(actorAndProject.actor)
             val result = session
                 .sendPreparedStatement(
                     {
@@ -222,6 +223,7 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
+                    debug = true,
                 )
                 .rows
                 .asSequence()
