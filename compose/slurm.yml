@@ -20,7 +20,7 @@ services:
     build: 
       context: ./provider-integration/integration-module
       target: slurm-base-ssh
-    command: ["/bin/sh", "-c", "slurmdbd; /usr/sbin/sshd -D"]
+    command: ["slurmdbd", "sshd"]
     hostname: slurmdbd
     volumes:
       - etc_munge:/etc/munge
@@ -39,7 +39,7 @@ services:
     build: 
       context: ./provider-integration/integration-module
       target: slurm-base-ssh
-    command: ["/bin/sh", "-c", "slurmctld; /usr/sbin/sshd -D"]
+    command: ["slurmctld", "sshd"]
     hostname: slurmctld
     volumes:
       - etc_munge:/etc/munge
@@ -59,7 +59,7 @@ services:
     build: 
       context: ./provider-integration/integration-module
       target: slurm-base-ssh
-    command: ["/bin/sh", "-c", "slurmd; /usr/sbin/sshd -D"]
+    command: ["slurmd", "sshd"]
     hostname: c1
     volumes:
       - etc_munge:/etc/munge
@@ -79,7 +79,7 @@ services:
     build: 
       context: ./provider-integration/integration-module
       target: slurm-base-ssh
-    command: ["/bin/sh", "-c", "slurmd; /usr/sbin/sshd -D"]
+    command: ["slurmd", "sshd"]
     hostname: c2
     volumes:
       - etc_munge:/etc/munge
