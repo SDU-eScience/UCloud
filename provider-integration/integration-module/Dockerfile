@@ -42,15 +42,22 @@ RUN useradd --user-group testuser
 
 
 FROM SLURM-BASE as slurm-base-ssh
+#install sshd server
 RUN yum -y install openssh-server
-
-RUN mkdir --parents -m 700 /home/testuser/.ssh && 
-    touch /home/testuser/.ssh/authorized_keys && 
-    chmod 600 /home/testuser/.ssh/authorized_keys && 
-    chown testuser:testuser /home/testuser/.ssh/authorized_keys
+#appends public keys
+RUN mkdir --parents -m 700 /home/testuser/.ssh \ 
+    && touch /home/testuser/.ssh/authorized_keys \
+    && chmod 600 /home/testuser/.ssh/authorized_keys \ 
+    && chown testuser:testuser /home/testuser/.ssh/authorized_keys
 COPY --from=ucloud-im  /home/testuser/.ssh/id_ed25519.pub /home/testuser/.ssh/id_ed25519.pub
 RUN cat /home/testuser/.ssh/id_ed25519.pub >> /home/testuser/.ssh/authorized_keys
 RUN chown -R testuser:testuser /home/testuser
 
+#generate host keys
 RUN cd /etc/ssh && ssh-keygen -A
 
+#appends sshd line to /usr/local/bin/docker-entrypoint.sh 
+#https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-entrypoint.sh
+COPY default_config/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chown  root:root /usr/local/bin/docker-entrypoint.sh
+RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
