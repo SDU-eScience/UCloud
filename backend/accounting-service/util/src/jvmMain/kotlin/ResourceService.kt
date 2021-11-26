@@ -811,7 +811,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession { session ->
+        return BulkResponse(db.withSession(remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {

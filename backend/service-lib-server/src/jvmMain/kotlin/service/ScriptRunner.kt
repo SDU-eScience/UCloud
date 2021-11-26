@@ -145,7 +145,6 @@ class ScriptManager : MicroFeature {
                 try {
                     stream.subscribe(startStream) { event ->
                         try {
-                            println("looking for $event")
                             val myScript = localScripts.find { it.metadata.id == event.scriptId }
                                 ?: return@subscribe
 

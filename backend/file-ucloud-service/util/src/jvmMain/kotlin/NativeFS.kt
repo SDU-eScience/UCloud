@@ -58,7 +58,7 @@ class NativeFS(
                 for (i in 1 until fileDescriptors.size) {
                     val previousFd = fileDescriptors[i - 1]
                     if (previousFd < 0) {
-                        throw FSException.NotFound()
+                        throw FSException.NotFound(pathConverter.internalToUCloud(file).path)
                     }
 
                     val opts =
