@@ -186,6 +186,7 @@ class NetworkIPService(
         return PartialQuery(
             {
                 setParameter("query", query)
+                setParameter("filter_state", flags?.filterState?.name)
             },
             """
                 select i.* 
@@ -193,7 +194,8 @@ class NetworkIPService(
                     accessible_resources resc join
                     app_orchestrator.network_ips i on (resc.r).id = resource
                 where
-                    (:query::text is null or ip_address ilike '%' || :query || '%')
+                    (:query::text is null or ip_address ilike '%' || :query || '%') and
+                    (:filter_state::text is null or current_state = :filter_state)
             """
         )
     }

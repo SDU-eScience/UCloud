@@ -160,6 +160,7 @@ data class NetworkIPUpdate(
 
 @Serializable
 data class NetworkIPFlags(
+    val filterState: NetworkIPState? = null,
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,

@@ -278,6 +278,7 @@ class JobOrchestrator(
             {
                 setParameter("query", query)
                 setParameter("filter_state", flags?.filterState?.name)
+                setParameter("filter_application", flags?.filterApplication)
             },
             """
                 select
@@ -297,6 +298,7 @@ class JobOrchestrator(
 
                 where
                     (:filter_state::text is null or current_state = :filter_state::text) and
+                    (:filter_application::text is null or application_name = :filter_application) and
                     (
                         :query::text is null or
                         job.name ilike '%' || :query || '%' or
