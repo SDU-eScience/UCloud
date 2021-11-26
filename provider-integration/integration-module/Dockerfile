@@ -19,7 +19,6 @@ RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
 
-
 FROM BASE AS DEVELOPMENT
 
 RUN useradd --user-group testuser 
@@ -32,13 +31,26 @@ COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 WORKDIR /opt/ucloud
 
 
-
 FROM DEVELOPMENT AS ucloud-im
-
-RUN apt-get -qq -y install munge slurm-client 
+RUN apt-get -qq -y install munge slurm-client ssh
+RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
 WORKDIR /opt/ucloud
-
 
 
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
 RUN useradd --user-group testuser
+
+
+FROM SLURM-BASE as slurm-base-ssh
+RUN yum -y install openssh-server
+
+RUN mkdir --parents -m 700 /home/testuser/.ssh && 
+    touch /home/testuser/.ssh/authorized_keys && 
+    chmod 600 /home/testuser/.ssh/authorized_keys && 
+    chown testuser:testuser /home/testuser/.ssh/authorized_keys
+COPY --from=ucloud-im  /home/testuser/.ssh/id_ed25519.pub /home/testuser/.ssh/id_ed25519.pub
+RUN cat /home/testuser/.ssh/id_ed25519.pub >> /home/testuser/.ssh/authorized_keys
+RUN chown -R testuser:testuser /home/testuser
+
+RUN cd /etc/ssh && ssh-keygen -A
+
