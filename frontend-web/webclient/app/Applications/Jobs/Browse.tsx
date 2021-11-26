@@ -6,9 +6,9 @@ import Create from "@/Applications/Jobs/Create";
 import {useHistory} from "react-router";
 import {BrowseType} from "@/Resource/BrowseType";
 
-export const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job>> = props => {
+export const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job> & {additionalFilters?: Record<string, string>}> = props => {
     const history = useHistory();
-    return <ResourceBrowse api={JobApi} {...props} browseType={props.browseType ?? BrowseType.MainContent}
+    return <ResourceBrowse api={JobApi} additionalFilters={props.additionalFilters} {...props} browseType={props.browseType ?? BrowseType.MainContent}
         extraCallbacks={{
             startCreation() {history.push("/applications/overview")}
         }}

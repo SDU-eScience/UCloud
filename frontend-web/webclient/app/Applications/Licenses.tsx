@@ -10,6 +10,8 @@ export const LicenseBrowse: React.FunctionComponent<{
     onSelect?: (selection: License) => void;
     isSearch?: boolean;
     browseType?: BrowseType;
+    additionalFilters?: Record<string, string>;
+    onSelectRestriction?: (res: License) => boolean;
 }> = props => {
     return <ResourceBrowse
         api={LicenseApi}
@@ -19,6 +21,8 @@ export const LicenseBrowse: React.FunctionComponent<{
             <ResourceTab active={ResourceTabOptions.LICENSES} />
         }
         headerSize={48}
+        onSelectRestriction={props.onSelectRestriction}
+        additionalFilters={props.additionalFilters}
         onInlineCreation={(text, product) => ({
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
             domain: text
