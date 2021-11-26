@@ -56,7 +56,7 @@ class PathConverter(
     private val rootDirectory: InternalFile,
     private val serviceClient: AuthenticatedClient,
 ) {
-    private val collectionCache = SimpleCache<String, FileCollection>(
+    val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,
         lookup = { collectionId ->
             FileCollectionsControl.retrieve.call(

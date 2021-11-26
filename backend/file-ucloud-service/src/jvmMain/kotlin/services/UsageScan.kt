@@ -40,12 +40,6 @@ class UsageScan(
     }
 
     suspend fun startScan() {
-        /*
-        val scanId = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(Time.now()),
-            Time.javaTimeZone
-        ).format(DateTimeFormatter.ofPattern("YYYY.MM.dd.HH.mm"))
-         */
         val scanId = Time.now().toString()
 
         val chunkSize = 50
@@ -172,8 +166,9 @@ class UsageScan(
                 """
                     delete from file_ucloud.quota_locked
                     where scan_id != :scan_id
-                """
-            )
+                """,
+                debug = true
+            ).also { println("Rows affected from deletion: ${it.rowsAffected}") }
         }
     }
 
@@ -313,15 +308,19 @@ class UsageScan(
             session.sendPreparedStatement(
                 {
                     setParameter("scan_id", scanId)
-                    setParameter("paths", lockedIdxs.flatMap { idx ->
-                        chunk[idx].internalCollections.map { it.id.toLongOrNull() ?: -1L }
-                    })
+                    lockedIdxs.split {
+                        into<String>("categories") { i -> chunk[i].key.category.name }
+                        into<String?>("usernames") { i -> (chunk[i].key.owner as? WalletOwner.User)?.username }
+                        into<String?>("project_ids") { i -> (chunk[i].key.owner as? WalletOwner.Project)?.projectId }
+                    }
                 },
                 """
-                    insert into file_ucloud.quota_locked (collection, scan_id) 
-                    select unnest(:paths::bigint[]), :scan_id
+                    insert into file_ucloud.quota_locked (scan_id, category, username, project_id) 
+                    select :scan_id, unnest(:categories::text[]), unnest(:usernames::text[]), 
+                           unnest(:project_ids::text[]) 
                     on conflict do nothing
-                """
+                """,
+                debug = true
             )
         }
     }

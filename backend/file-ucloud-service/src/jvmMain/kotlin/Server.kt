@@ -63,7 +63,7 @@ class Server(
         val nativeFs = NativeFS(pathConverter, micro)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
 
-        val limitChecker = LimitChecker(db)
+        val limitChecker = LimitChecker(db, pathConverter)
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
 
         val scriptManager = micro.feature(ScriptManager)
