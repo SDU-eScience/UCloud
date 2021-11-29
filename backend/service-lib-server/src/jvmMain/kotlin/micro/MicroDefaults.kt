@@ -20,8 +20,6 @@ fun Micro.installDefaultFeatures() {
     install(ServerFeature)
     install(DatabaseConfigurationFeature)
     install(FlywayFeature)
-    install(DebugSystem)
-    install(ScriptManager)
 }
 
 fun Micro.initWithDefaultFeatures(
