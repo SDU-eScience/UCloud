@@ -13,6 +13,7 @@ const Browse: React.FunctionComponent<{
     onSelectRestriction?: (res: Ingress) => boolean;
     additionalFilters: Record<string, string>;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
         api={IngressApi}
         onSelect={props.onSelect}
@@ -21,7 +22,8 @@ const Browse: React.FunctionComponent<{
             domain: text
         })}
         header={
-            <ResourceTab active={ResourceTabOptions.PUBLIC_LINKS} />
+            browseType === BrowseType.MainContent ? (
+                <ResourceTab active={ResourceTabOptions.PUBLIC_LINKS} />) : undefined
         }
         headerSize={48}
         additionalFilters={props.additionalFilters}

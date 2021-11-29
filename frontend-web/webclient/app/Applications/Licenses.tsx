@@ -13,12 +13,14 @@ export const LicenseBrowse: React.FunctionComponent<{
     additionalFilters?: Record<string, string>;
     onSelectRestriction?: (res: License) => boolean;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
         api={LicenseApi}
         onSelect={props.onSelect}
         browseType={props.browseType ?? BrowseType.MainContent}
         header={
-            <ResourceTab active={ResourceTabOptions.LICENSES} />
+            browseType === BrowseType.MainContent ? (
+                <ResourceTab active={ResourceTabOptions.LICENSES} />) : undefined
         }
         headerSize={48}
         onSelectRestriction={props.onSelectRestriction}
