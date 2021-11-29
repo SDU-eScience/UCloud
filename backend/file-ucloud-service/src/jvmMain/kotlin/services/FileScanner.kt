@@ -484,7 +484,6 @@ class FileScanner(
             if (bulkCount > 0) {
                 val response = elastic.bulk(bulk, RequestOptions.DEFAULT)
                 println(response.hasFailures())
-                println(response.)
                 bulkCount = 0
                 bulk = BulkRequest()
             }
