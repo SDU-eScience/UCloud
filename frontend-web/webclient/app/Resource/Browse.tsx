@@ -477,7 +477,7 @@ function UserBox(props: {username: string}) {
     return <div className="user-box" style={{display: "relative"}}>
         <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} /></div>
         <div className="centered" style={{display: "flex", justifyContent: "center"}}>
-            <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}{props.username}</Truncate>
+            <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
         {/* <div style={{justifyContent: "left", textAlign: "left"}}>
