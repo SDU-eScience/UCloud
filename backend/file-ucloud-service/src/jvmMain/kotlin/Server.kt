@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.file.ucloud.services.useTestingSizes
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
@@ -17,7 +16,6 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.file.ucloud.rpc.FileSearchController
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
@@ -112,11 +110,8 @@ class Server(
 
         val elasticQueryService = ElasticQueryService(
             micro.elasticHighLevelClient,
-            cephStats,
-            fsRootFile.path
+            nativeFs
         )
-
-        val fileSearchService = FileSearchService(elasticQueryService, db)
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
@@ -145,9 +140,8 @@ class Server(
 //        useTestingSizes = micro.developmentModeEnabled
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService),
             FileCollectionsController(fileCollectionService),
-            FileSearchController(fileSearchService, pathConverter, fileQueries),
             ShareController(shareService),
             object : Controller {
                 override fun configure(rpcServer: RpcServer) {

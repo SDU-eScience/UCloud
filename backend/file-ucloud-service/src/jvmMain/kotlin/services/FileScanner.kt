@@ -90,17 +90,30 @@ class FileScanner(
                 ?.getDate(0)
                 ?: LocalDateTime().withDate(1970,1,1)
 
+            println("COLLECTIONS")
             collections.chunked(50).forEach { chunk ->
                 var resolvedCollections =
                     retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
                 val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                if (collectionsList.size != chunk.size) {
+                //might only be neccesary on Dev
+                val filteredChunk = if (collectionsList.size != chunk.size) {
                     log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-                    println(collectionsList)
-                    println(chunk)
-                }
+                    val ids = collectionsList.map { it.id.toLong() }
+                    chunk.mapNotNull { collectionID ->
+                        if (ids.contains(collectionID)) {
+                            collectionID
+                        } else {
+                            log.warn("Skipping $collectionID")
+                            null
+                        }
+                    }
+                } else chunk
+
+                println(filteredChunk.size)
+                println(collectionsList.size)
+
                 while (true) {
-                    collectionsList.zip(chunk).forEach { (coll, path) ->
+                    collectionsList.zip(filteredChunk).forEach { (coll, path) ->
                         println(path)
                         withContext(pool) {
                             launch {
@@ -123,9 +136,8 @@ class FileScanner(
                 }
             }
 
-/*
+            println("HOMEFOLDERS")
             home.chunked(50).forEach { chunk ->
-                println("Chunk: $chunk")
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
                     includeOthers = true,
@@ -133,13 +145,25 @@ class FileScanner(
                     next = null
                 )
                 val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                if (collectionsList.size != chunk.size) {
+                val filteredChunk = if (collectionsList.size != chunk.size) {
                     log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-                }
+                    val usersFolders = collectionsList.map { it.owner.createdBy }
+                    chunk.mapNotNull { username ->
+                        if (usersFolders.contains(username)) {
+                            username
+                        }
+                        else {
+                            log.warn("Skipping $username")
+                            null
+                        }
+                    }
+                } else chunk
+
+                println(filteredChunk.size)
+                println(collectionsList.size)
+
                 while (true) {
-                    collectionsList.zip(chunk.sortedBy { it }).forEach { (coll, path) ->
-                        println(coll)
-                        println(path)
+                    collectionsList.zip(filteredChunk.sortedBy { it }).forEach { (coll, path) ->
                         withContext(pool) {
                             launch {
                                 val file =
@@ -161,7 +185,7 @@ class FileScanner(
                 }
             }
 
-
+            println("PROJECTS")
             project.chunked(50).forEach { chunk ->
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
@@ -170,12 +194,25 @@ class FileScanner(
                     next = null
                 )
                 val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-
-                if (collectionsList.size != chunk.size) {
+                val filteredChunk = if (collectionsList.size != chunk.size) {
                     log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-                }
+
+                    val projectIds = collectionsList.map{ it.owner.project }
+                    chunk.mapNotNull { projectFolder ->
+                        if (projectIds.contains(projectFolder)) {
+                            projectFolder
+                        } else {
+                            log.warn("Skipping $projectFolder")
+                            null
+                        }
+                    }
+
+                } else chunk
+
+                println(filteredChunk.size)
+                println(collectionsList.size)
                 while (true) {
-                    collectionsList.zip(chunk).forEach { (coll, path) ->
+                    collectionsList.zip(filteredChunk).forEach { (coll, path) ->
                         withContext(pool) {
                             launch {
                                 val file =
@@ -196,7 +233,7 @@ class FileScanner(
                     )
                 }
             }
-*/
+
             if (session.sendPreparedStatement(
                 """
                     UPDATE file_ucloud.storage_scan set
@@ -228,8 +265,8 @@ class FileScanner(
             log.info("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
             return
         }
-        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) > lastScan ) {
-            println("rcTime is newer than lastscan")
+        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan ) {
+            println("rcTime is older than lastscan = no change")
             println(rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)))
             println(lastScan)
             return
@@ -268,6 +305,7 @@ class FileScanner(
             )
         ).associateBy { it.path }
 
+        println("FIELS IN INDEX: $filesInIndex")
         val bulk = BulkRequestBuilder()
 
         //Delete files not in folder anymore and their sub files/directories
@@ -303,22 +341,26 @@ class FileScanner(
                     UpdateRequest(FILES_INDEX, it.path).apply {
                         val writeValueAsBytes = defaultMapper.encodeToString(it).encodeToByteArray()
                         doc(writeValueAsBytes, XContentType.JSON)
+                        println("upserting ${it.path}")
                         docAsUpsert(true)
                     }
                 )
             }
 
+        println(thisFileInIndex)
         if (thisFileInIndex == null) {
             val update = UpdateRequest(FILES_INDEX, file.path).apply {
                 val writeValueAsBytes =
                     defaultMapper.encodeToString(fs.stat(file).toElasticIndexedFile(file, collection))
                         .encodeToByteArray()
                 doc(writeValueAsBytes, XContentType.JSON)
+                println("upserting ${file.path}")
                 docAsUpsert(true)
             }
             bulk.add(update)
         }
 
+        println("Flussing bulk")
         bulk.flush()
 
         fileList.mapNotNull { f ->
@@ -428,7 +470,9 @@ class FileScanner(
                 fastDirectoryStats.getRecursiveTime(file)
             }.getOrNull(),
             permission = collection.permissions?.others?.first()?.permissions ?: emptyList(),
-            collection.owner.createdBy
+            createdAt = modifiedAt,
+            collectionId = collection.id,
+            owner = collection.owner
         )
     }
 
@@ -438,7 +482,9 @@ class FileScanner(
 
         fun flush() {
             if (bulkCount > 0) {
-                elastic.bulk(bulk, RequestOptions.DEFAULT)
+                val response = elastic.bulk(bulk, RequestOptions.DEFAULT)
+                println(response.hasFailures())
+                println(response.)
                 bulkCount = 0
                 bulk = BulkRequest()
             }

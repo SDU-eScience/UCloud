@@ -1,11 +1,19 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
+import dk.sdu.cloud.file.orchestrator.api.PartialUFile
 import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
+import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
+import org.elasticsearch.action.bulk.BulkRequest
+import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.search.ClearScrollRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchScrollRequest
@@ -25,8 +33,7 @@ import services.FileScanner
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
-    private val fastDirectoryStats: CephFsFastDirectoryStats?,
-    private val cephFsRoot: String
+    private val nativeFS: NativeFS
 ) {
     private val mapper = defaultMapper
 
@@ -70,7 +77,7 @@ class ElasticQueryService(
 
         val elasticFiles = mutableListOf<ElasticIndexedFile>()
 
-        while (hits != null && hits.size > 0) {
+        while (hits != null && hits.isNotEmpty()) {
             hits.map {
                 elasticFiles.add(mapper.decodeFromString(it.sourceAsString))
             }
@@ -89,55 +96,126 @@ class ElasticQueryService(
         return elasticFiles
     }
 
+    private fun verifyAndUpdateIndex(hits: List<PartialUFile>): List<PartialUFile> {
+        val illegalIndices = mutableListOf<PartialUFile>()
+
+        val existingHits = hits.mapNotNull { partialUFile ->
+            try {
+                nativeFS.stat(InternalFile(partialUFile.id))
+                partialUFile
+            } catch (ex: Exception) {
+                println(partialUFile)
+                if (ex is FSException.NotFound) {
+                    log.warn("Path not found")
+                    illegalIndices.add(partialUFile)
+                    null
+                }
+                else {
+                    throw ex
+                }
+            }
+        }
+
+        val bulk = BulkRequest()
+        illegalIndices.forEach {
+            bulk.add(DeleteRequest(FILES_INDEX, it.id))
+        }
+        elasticClient.bulk(bulk, RequestOptions.DEFAULT)
+        return existingHits
+    }
+
     fun query(
-        query: FileQuery,
-        paging: NormalizedPaginationRequestV2,
-        sorting: SortRequest? = null
-    ): PageV2<ElasticIndexedFile> {
-        if (paging.next != null ) {
-            val searchScrollRequest = SearchScrollRequest(paging.next)
+        searchRequest: FilesProviderSearchRequest,
+        actorAndProject: ActorAndProject
+    ): PageV2<PartialUFile> {
+        if (searchRequest.query.isBlank()) {
+            return PageV2(searchRequest.itemsPerPage ?: 50 , emptyList(), null)
+        }
+        if (searchRequest.next != null ) {
+            val searchScrollRequest = SearchScrollRequest(searchRequest.next)
             searchScrollRequest.scroll(TimeValue.timeValueMinutes(1))
             val response = elasticClient.scroll(searchScrollRequest, RequestOptions.DEFAULT)
             var scrollId = response.scrollId
             val hits = response.hits.hits.map {
-                mapper.decodeFromString<ElasticIndexedFile>(it.sourceAsString)
+                mapper.decodeFromString<ElasticIndexedFile>(it.sourceAsString).toPartialUFile()
             }
 
             if (hits.isEmpty()) {
                 scrollId = null
             }
-            return PageV2(paging.itemsPerPage, hits, scrollId)
+
+            val existingHits = verifyAndUpdateIndex(hits)
+
+            return PageV2(searchRequest.itemsPerPage ?: 50, existingHits, scrollId)
         }
 
         val request = SearchRequest()
         val source = SearchSourceBuilder()
-        source.query(searchBasedOnQuery(query))
 
-        if (sorting != null) {
-            val field = when (sorting.field) {
-                SortableField.FILE_NAME -> ElasticIndexedFileConstants.FILE_NAME_KEYWORD
-                SortableField.FILE_TYPE -> ElasticIndexedFileConstants.FILE_TYPE_FIELD
-                SortableField.SIZE -> ElasticIndexedFileConstants.SIZE_FIELD
-            }
+        source.query(searchBasedOnQuery(searchRequest, actorAndProject))
 
-            val direction = when (sorting.direction) {
-                SortDirection.ASCENDING -> SortOrder.ASC
-                SortDirection.DESCENDING -> SortOrder.DESC
-            }
+        source.sort(ElasticIndexedFileConstants.FILE_NAME_KEYWORD, SortOrder.ASC)
 
-            source.sort(field, direction)
-        }
-
-        source.size(paging.itemsPerPage)
+        source.size(searchRequest.itemsPerPage ?: 50)
         request.scroll(TimeValue.timeValueMinutes(1))
 
         val response = elasticClient.search(request, RequestOptions.DEFAULT)
         val scrollId = response.scrollId
         val hits = response.hits.hits.map {
-            mapper.decodeFromString<ElasticIndexedFile>(it.sourceAsString)
+            mapper.decodeFromString<ElasticIndexedFile>(it.sourceAsString).toPartialUFile()
         }
 
-        return PageV2(paging.itemsPerPage, hits , scrollId)
+        val existingHits = verifyAndUpdateIndex(hits)
+
+        return PageV2(searchRequest.itemsPerPage ?: 50, existingHits , scrollId)
+    }
+
+    private fun searchBasedOnQuery(searchRequest: FilesProviderSearchRequest, actorAndProject: ActorAndProject): QueryBuilder {
+        return with(searchRequest) {
+            QueryBuilders.boolQuery().apply {
+                should().apply {
+                    add(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            ElasticIndexedFileConstants.FILE_NAME_FIELD,
+                            query
+                        ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
+                    )
+                    add(
+                        QueryBuilders.wildcardQuery(
+                            ElasticIndexedFileConstants.CREATED_AT_FIELD,
+                            "$query*"
+                        )
+                    )
+                    add(
+                        QueryBuilders.wildcardQuery(
+                            ElasticIndexedFileConstants.PATH_FIELD,
+                            "$query*"
+                        )
+                    )
+                    add(
+                        QueryBuilders.wildcardQuery(
+                            ElasticIndexedFileConstants.SIZE_FIELD,
+                            "$query*"
+                        )
+                    )
+                }
+                filter().apply {
+                    add(TermsQueryBuilder(ElasticIndexedFileConstants.OWNER_FIELD, actorAndProject.actor))
+
+                    if (flags.filterByFileExtension != null) {
+                        add(
+                            TermsQueryBuilder(
+                                ElasticIndexedFileConstants.FILE_NAME_EXTENSION,
+                                flags.filterByFileExtension
+                            )
+                        )
+                    }
+                }
+                if (should().isNotEmpty()) {
+                    minimumShouldMatch(1)
+                }
+            }
+        }
     }
 
     private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {

@@ -99,7 +99,13 @@ object FilesIndex {
                         "permission": {
                             "type": "keyword"
                         },
-                        "createdBy" : {
+                        "createdAt" : {
+                            "type": "long"
+                        },
+                        "collectionId" : {
+                            "type": "text"
+                        },
+                        "owner" : {
                             "type": "text"
                         }
                     }
