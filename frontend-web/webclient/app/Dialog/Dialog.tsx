@@ -2,6 +2,7 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import {default as ReactModal} from "react-modal";
 import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 
 export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
     const [dialogs, setDialogs] = useState<IDialog[]>([]);
@@ -21,18 +22,7 @@ export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
             ariaHideApp={false}
             onRequestClose={() => dialogStore.failure()}
             onAfterOpen={() => undefined}
-            style={current?.style ?? {
-                content: {
-                    top: "50%",
-                    left: "50%",
-                    right: "auto",
-                    bottom: "auto",
-                    marginRight: "-50%",
-                    transform: "translate(-50%, -50%)",
-                    background: "",
-                    overflow: "visible"
-                }
-            }}
+            style={current?.style ?? defaultModalStyle}
         >
             {current?.element ?? null}
         </ReactModal>

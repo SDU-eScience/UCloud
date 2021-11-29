@@ -30,11 +30,7 @@ import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecificat
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {
-    priceExplainer,
-    ProductCompute,
-    usageExplainer
-} from "@/Accounting";
+import {priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 
@@ -70,113 +66,113 @@ const zoomInAnim = keyframes`
 `;
 
 const Container = styled.div`
-  --logoScale: 1;
-  --logoBaseSize: 200px;
-  --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
+    --logoScale: 1;
+    --logoBaseSize: 200px;
+    --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
 
-  margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
-  max-width: 2200px;
+    margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
+    max-width: 2200px;
 
-  ${device("xs")} {
-    margin-left: 0;
-    margin-right: 0;
-  }
+    ${device("xs")} {
+        margin-left: 0;
+        margin-right: 0;
+    }
 
-  & {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  .logo-wrapper {
-    position: absolute;
-    left: 0;
-    top: 0;
-    animation: 800ms ${zoomInAnim};
-  }
-
-  .logo-wrapper.active {
-    transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-  }
-
-  .logo-wrapper.active .logo-scale {
-    transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: scale(var(--logoScale));
-    transform-origin: top left;
-  }
-
-  .fake-logo {
-    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
-       this basically fixes our document flow */
-    display: block;
-    width: var(--logoSize);
-    height: var(--logoSize);
-    content: '';
-  }
-
-  .data.data-enter-done {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .data.data-enter-active {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-  }
-
-  .data.data-exit {
-    opacity: 1;
-  }
-
-  .data-exit-active {
-    display: none;
-  }
-
-  .data {
-    width: 100%; /* fix info card width */
-    opacity: 0;
-    transform: translate3d(0, 50vh, 0);
-  }
-
-  .header-text {
-    margin-left: 32px;
-    margin-top: calc(var(--logoScale) * 16px);
-    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
-  }
-
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    .fake-logo {
-      width: 100%; /* force the header to wrap */
+    & {
+        display: flex;
+        flex-direction: column;
+        position: relative;
     }
 
     .logo-wrapper {
-      left: calc(50% - var(--logoSize) / 2);
+        position: absolute;
+        left: 0;
+        top: 0;
+        animation: 800ms ${zoomInAnim};
     }
 
-    .header {
-      text-align: center;
+    .logo-wrapper.active {
+        transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+    }
+
+    .logo-wrapper.active .logo-scale {
+        transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+        transform: scale(var(--logoScale));
+        transform-origin: top left;
+    }
+
+    .fake-logo {
+        /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+        this basically fixes our document flow */
+        display: block;
+        width: var(--logoSize);
+        height: var(--logoSize);
+        content: '';
+    }
+
+    .data.data-enter-done {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+
+    .data.data-enter-active {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+        transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+    }
+
+    .data.data-exit {
+        opacity: 1;
+    }
+
+    .data-exit-active {
+        display: none;
+    }
+
+    .data {
+        width: 100%; /* fix info card width */
+        opacity: 0;
+        transform: translate3d(0, 50vh, 0);
     }
 
     .header-text {
-      margin-left: 0;
-      margin-top: 0;
-      width: 100%;
+        margin-left: 32px;
+        margin-top: calc(var(--logoScale) * 16px);
+        width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
     }
-  }
 
-  &.IN_QUEUE .logo {
-    animation: 2s ${enterAnimation} infinite;
-  }
+    ${deviceBreakpoint({maxWidth: "1000px"})} {
+        .fake-logo {
+            width: 100%; /* force the header to wrap */
+        }
 
-  &.RUNNING {
-    --logoScale: 0.5;
-  }
+        .logo-wrapper {
+            left: calc(50% - var(--logoSize) / 2);
+        }
 
-  .top-buttons {
-    display: flex;
-    gap: 8px;
-  }
+        .header {
+            text-align: center;
+        }
+
+        .header-text {
+            margin-left: 0;
+            margin-top: 0;
+            width: 100%;
+        }
+    }
+
+    &.IN_QUEUE .logo {
+        animation: 2s ${enterAnimation} infinite;
+    }
+
+    &.RUNNING {
+        --logoScale: 0.5;
+    }
+
+    .top-buttons {
+        display: flex;
+        gap: 8px;
+    }
 `;
 
 // NOTE(Dan): WS calls don't currently have their types generated
@@ -215,8 +211,8 @@ interface JobUpdateListener {
     handler: (e: JobsFollowResponse) => void;
 }
 
-export function View(): JSX.Element {
-    const {id} = useParams<{id: string}>();
+export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
+const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
     const history = useHistory();
 
     // Note: This might not match the real app name
@@ -233,8 +229,11 @@ export function View(): JSX.Element {
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
-    useSidebarPage(SidebarPages.Runs);
-    useTitle(`Job ${shortUUID(id)}`);
+    if (!props.embedded) {
+        useSidebarPage(SidebarPages.Runs);
+        useTitle(`Job ${shortUUID(id)}`);
+    }
+
     useEffect(() => {
         fetchJob(compute.jobs.retrieve({
             id,
@@ -327,6 +326,7 @@ export function View(): JSX.Element {
     }, [status]);
 
     useEffect(() => {
+
         let t1: number | undefined;
         let t2: number | undefined;
         if (job) {
@@ -334,19 +334,23 @@ export function View(): JSX.Element {
                 setDataAnimationAllowed(true);
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
-                history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
+                if (!props.embedded) {
+                    history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
+                }
             }, delayInitialAnim ? 3000 : 400);
 
-            t2 = window.setTimeout(() => {
-                setLogoAnimationAllowed(true);
-            }, delayInitialAnim ? 2200 : 0);
+            if (!props.embedded) {
+                t2 = window.setTimeout(() => {
+                    setLogoAnimationAllowed(true);
+                }, delayInitialAnim ? 2200 : 0);
+            }
         }
 
         return () => {
             if (t1 != undefined) clearTimeout(t1);
             if (t2 != undefined) clearTimeout(t2);
         };
-    }, [job]);
+    }, [job, props.embedded]);
 
     /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
     useEffect(() => {
@@ -399,100 +403,105 @@ export function View(): JSX.Element {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
-    return <MainContainer
-        main={
-            <Container className={status?.state ?? "state-loading"}>
-                <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                    <div className="logo-scale">
-                        <div className={"logo"}>
-                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                                type={"APPLICATION"}
-                                size={"200px"} />
-                        </div>
+    const main = (
+        <Container className={status?.state ?? "state-loading"}>
+            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
+                <div className="logo-scale">
+                    <div className={"logo"}>
+                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                            type={"APPLICATION"}
+                            size={"200px"} />
                     </div>
                 </div>
+            </div>
 
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={status?.state === "IN_QUEUE" && dataAnimationAllowed}
-                        timeout={{
-                            enter: 1000,
-                            exit: 0,
-                        }}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <InQueueText job={job!} />
-                                </div>
-                            </Flex>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={status?.state === "IN_QUEUE" && dataAnimationAllowed}
+                    timeout={{
+                        enter: 1000,
+                        exit: 0,
+                    }}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <InQueueText job={job!} />
+                            </div>
+                        </Flex>
 
-                            <Content>
-                                <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                    <HighlightedCard color={"purple"}>
-                                        <Box py={"16px"}>
-                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
-                                        </Box>
-                                    </HighlightedCard>
-                                </Box>
-                                <InfoCards job={job} status={status} />
-                            </Content>
-                        </div>
-                    </CSSTransition>
-                )}
+                        <Content>
+                            <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
+                                <HighlightedCard color={"purple"}>
+                                    <Box py={"16px"}>
+                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                                    </Box>
+                                </HighlightedCard>
+                            </Box>
+                            <InfoCards job={job} status={status} />
+                        </Content>
+                    </div>
+                </CSSTransition>
+            )}
 
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={status?.state === "RUNNING" && dataAnimationAllowed}
-                        timeout={{enter: 1000, exit: 0}}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <RunningText job={job} />
-                                </div>
-                            </Flex>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={status?.state === "RUNNING" && dataAnimationAllowed}
+                    timeout={{enter: 1000, exit: 0}}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <RunningText job={job} />
+                            </div>
+                        </Flex>
 
-                            <RunningContent
-                                job={job}
-                                updateListeners={jobUpdateCallbackHandlers}
-                                status={status}
-                                confirmExtendAllocation={confirmExtendAllocation}
-                            />
-                        </div>
-                    </CSSTransition>
-                )}
+                        <RunningContent
+                            job={job}
+                            updateListeners={jobUpdateCallbackHandlers}
+                            status={status}
+                            confirmExtendAllocation={confirmExtendAllocation}
+                        />
+                    </div>
+                </CSSTransition>
+            )}
 
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={isJobStateTerminal(status.state) && dataAnimationAllowed}
-                        timeout={{enter: 1000, exit: 0}}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <CompletedText job={job} state={status.state} />
-                                </div>
-                            </Flex>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={isJobStateTerminal(status.state) && dataAnimationAllowed}
+                    timeout={{enter: 1000, exit: 0}}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <CompletedText job={job} state={status.state} />
+                            </div>
+                        </Flex>
 
-                            <Content>
-                                <OutputFiles job={job} />
-                                <InfoCards job={job} status={status} />
-                            </Content>
-                        </div>
-                    </CSSTransition>
-                )}
-            </Container>
-        }
+                        <Content>
+                            <OutputFiles job={job} />
+                            <InfoCards job={job} status={status} />
+                        </Content>
+                    </div>
+                </CSSTransition>
+            )}
+        </Container>
+    );
+
+    if (props.embedded) {
+        return main;
+    }
+    return <MainContainer
+        main={main}
     />;
 }
 

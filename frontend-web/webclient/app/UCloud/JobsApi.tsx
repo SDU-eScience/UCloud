@@ -242,7 +242,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         }
     };
 
-    Properties = View;
+    Properties = props => <View embedded={props.embedded} id={props?.resource?.id} />;
 
     constructor() {
         super("jobs");

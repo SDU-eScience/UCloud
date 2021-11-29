@@ -9,6 +9,7 @@ export const defaultModalStyle = {
         transform: "translate(-50%, -50%)",
         background: "",
         minWidth: "500px",
+        minHeight: "400px",
         maxHeight: "80vh",
         border: "solid 1px var(--black)"
     },
@@ -30,6 +31,7 @@ export const largeModalStyle = {
         width: "900px",
         minHeight: "400px",
         height: "80vh",
+        maxHeight: "80vh",
         border: "solid 1px var(--black)"
     },
     overlay: {
