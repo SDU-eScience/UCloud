@@ -186,6 +186,14 @@ class GrantApplicationService(
                             requestedBy,
                             grantRecipientTitle
                         )
+                    },
+                    meta = {
+                        JsonObject(
+                            mapOf(
+                                "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                "appId" to JsonPrimitive(applicationId),
+                            )
+                        )
                     }
                 ),
                 userMessage =
@@ -401,7 +409,15 @@ class GrantApplicationService(
                     AdminGrantNotificationMessage(
                         { "Grant application updated" },
                         "GRANT_APPLICATION_UPDATED",
-                        { Mail.GrantApplicationUpdatedMailToAdmins(projectTitle, requestedBy, grantRecipientTitle) }
+                        { Mail.GrantApplicationUpdatedMailToAdmins(projectTitle, requestedBy, grantRecipientTitle) },
+                        meta = {
+                            JsonObject(
+                                mapOf(
+                                    "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                    "appId" to JsonPrimitive(request.id),
+                                )
+                            )
+                        }
                     ),
                     userMessage =
                     UserGrantNotificationMessage(
@@ -499,6 +515,14 @@ class GrantApplicationService(
                                     projectTitle,
                                     requestedBy,
                                     grantRecipientTitle
+                                )
+                            },
+                            meta = {
+                                JsonObject(
+                                    mapOf(
+                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                        "appId" to JsonPrimitive(id),
+                                    )
                                 )
                             }
                         ),
