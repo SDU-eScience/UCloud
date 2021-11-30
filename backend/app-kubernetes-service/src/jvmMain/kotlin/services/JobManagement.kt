@@ -205,7 +205,7 @@ class JobManagement(
                         verifiedJob.id,
                         JobUpdate(
                             JobState.FAILURE,
-                            "An internal error occurred in UCloud/Compute. " +
+                            status = "An internal error occurred in UCloud/Compute. " +
                                 "Job cancellation was requested but the job was not known to us."
                         )
                     )

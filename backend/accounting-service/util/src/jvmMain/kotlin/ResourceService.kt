@@ -204,7 +204,6 @@ abstract class ResourceService<
 
         @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
-            println(actorAndProject.actor)
             val result = session
                 .sendPreparedStatement(
                     {
@@ -229,7 +228,7 @@ abstract class ResourceService<
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER) {
+                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
                         // Admin isn't enough if we are looking for Provider
                         if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
