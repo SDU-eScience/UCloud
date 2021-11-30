@@ -97,7 +97,7 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        val browseQuery = browseQuery(request.flags)
+        val browseQuery = browseQuery(actorAndProject, request.flags)
         return paginatedQuery(
             browseQuery,
             actorAndProject,
@@ -110,7 +110,11 @@ abstract class ResourceService<
         )
     }
 
-    protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
+    protected open suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: Flags?,
+        query: String? = null
+    ): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery(
             {},
@@ -131,7 +135,7 @@ abstract class ResourceService<
         asProvider: Boolean,
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -190,7 +194,7 @@ abstract class ResourceService<
     ): List<Res> {
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -973,7 +977,7 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(request.flags, request.query)
+        val search = browseQuery(actorAndProject, request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx

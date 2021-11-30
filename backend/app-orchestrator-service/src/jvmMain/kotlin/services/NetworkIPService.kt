@@ -182,7 +182,7 @@ class NetworkIPService(
             )
     }
 
-    override suspend fun browseQuery(flags: NetworkIPFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: NetworkIPFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

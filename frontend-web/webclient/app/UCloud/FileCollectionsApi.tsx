@@ -103,13 +103,16 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     ): APICallParameters<PaginationRequestV2 & FileCollectionFlags, PageV2<FileCollection>> {
         if (req["filterMemberFiles"] == "all") {
             // Do nothing
+            req["filterMemberFiles"] = "DONT_FILTER_COLLECTIONS";
         } else if (req["filterMemberFiles"] === "true") {
-            req.filterProductId = "project-home";
-            req.filterProductCategory = "u1-cephfs";
+            req["filterMemberFiles"] = "SHOW_ONLY_MEMBER_FILES";
+            // req.filterProductId = "project-home";
+            // req.filterProductCategory = "u1-cephfs";
         } else {
-            req.hideProductId = "project-home";
+            req["filterMemberFiles"] = "SHOW_ONLY_MINE";
+            // req.hideProductId = "project-home";
         }
-        delete req["filterMemberFiles"];
+        // delete req["filterMemberFiles"];
         return super.browse(req);
     }
 

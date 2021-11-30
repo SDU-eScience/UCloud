@@ -584,7 +584,7 @@ class ShareService(
         )
     }
 
-    override suspend fun browseQuery(flags: ShareFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ShareFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())
