@@ -193,7 +193,7 @@ class FilesService(
             // the highest priority is listed first, which means we shouldn't override if an existing entry is present.
             for (inherited in inheritedMetadata) {
                 inherited.forEach { (template, document) ->
-                    if (template !in history) {
+                    if (template !in history && metadata.templates.getValue(template).inheritable) {
                         history[template] = listOf(document)
                     }
                 }
