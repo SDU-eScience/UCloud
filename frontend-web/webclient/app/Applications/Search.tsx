@@ -1,18 +1,19 @@
 import * as React from "react";
-import {Box, Button, Checkbox, Flex, Input, Label, Stamp} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Input, Label, SelectableText, SelectableTextWrapper, Stamp} from "@/ui-components";
 import {emptyPage, KeyCode} from "@/DefaultObjects";
 import {joinToString, stopPropagation} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {searchPage} from "@/Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ApplicationCard} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {SmallScreenSearchField} from "@/Navigation/Header";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface SearchQuery {
     tags: string[];
@@ -190,6 +191,18 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     const queryParams = history.location.search;
     const parsedQuery = readQuery(queryParams);
 
+    const shouldShowTabs = getQueryParamOrElse(queryParams, "showTabs", "false") === "true";
+
+    const onFilesSearch = useCallback(() => {
+        history.push(
+            buildQueryString(
+                "/files/search",
+                {q: getQueryParamOrElse(queryParams, "q", ""), showTabs: "true"}
+            )
+        );
+    }, [queryParams]);
+
+
     useEffect(() => {
         fetchResults(
             UCloud.compute.apps.searchApps({
@@ -201,6 +214,12 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     }, [queryParams, entriesPerPage]);
 
     return <>
+        {!shouldShowTabs ? null :
+            <SelectableTextWrapper>
+                <SelectableText selected={false} onClick={onFilesSearch}>Files</SelectableText>
+                <SelectableText selected={true}>Applications</SelectableText>
+            </SelectableTextWrapper>
+        }
         <SmallScreenSearchField />
         <Pagination.List
             loading={results.loading}
@@ -223,7 +242,8 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                     tags: joinToString(parsedQuery.tags),
                     showAllVersions: parsedQuery.showAllVersions.toString(),
                     page: newPage.toString(),
-                    itemsPerPage: parsedQuery.itemsPerPage.toString()
+                    itemsPerPage: parsedQuery.itemsPerPage.toString(),
+                    showTabs: shouldShowTabs ? "true" : "false"
                 }));
             }}
         />

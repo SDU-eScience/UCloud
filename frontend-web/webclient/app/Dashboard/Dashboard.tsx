@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@/DefaultObjects";
 import {History} from "history";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -58,6 +58,8 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
+    const history = useHistory();
+    useSearch(defaultSearch);
     const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({

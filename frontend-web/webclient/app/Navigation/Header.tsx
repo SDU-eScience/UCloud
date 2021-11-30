@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
+import {defaultSearch, defaultSearchPlaceholder, HeaderSearchType, KeyCode} from "@/DefaultObjects";
 import {HeaderStateToProps} from "@/Navigation";
 import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
 import Notification from "@/Notifications";
@@ -57,7 +57,6 @@ export function NonAuthenticatedHeader(): JSX.Element {
 function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
     const [intervalId, setIntervalId] = React.useState(-1);
-    const history = useHistory();
     const promises = usePromiseKeeper();
 
     React.useEffect(() => {
@@ -289,13 +288,15 @@ type SearchProps = SearchOperations & SearchStateProps;
 // eslint-disable-next-line no-underscore-dangle
 const _Search = (props: SearchProps): JSX.Element => {
     const searchRef = useRef<HTMLInputElement>(null);
-    const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
-    const [onSearch] = useGlobal("onSearch", doNothing);
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
+    const [onSearch] = useGlobal("onSearch", defaultSearch);
     const hasSearch = onSearch !== doNothing;
+    const history = useHistory();
 
     useEffect(() => {
         const search = searchRef.current;
-        if (search) search.value = "";
+        const query = getQueryParamOrElse(history.location.search, "q", "");
+        if (search) search.value = query;
     }, [onSearch]);
 
     return (<>
@@ -317,7 +318,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                         onKeyDown={e => {
                             if (e.keyCode === KeyCode.ENTER) {
                                 if (hasSearch) {
-                                    onSearch(searchRef.current!.value);
+                                    onSearch(searchRef.current!.value, history);
                                 }
                             }
                         }}
@@ -338,7 +339,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                 color={hasSearch ? "#FFF" : "gray"}
                 cursor={hasSearch ? "pointer" : undefined}
                 /* HACK(Jonas): To circumvent the `q === ""` check */
-                onClick={() => onSearch(undefined as unknown as string)}
+                onClick={() => onSearch(undefined as unknown as string, history)}
             />
         </ui.Hide>
     </>
@@ -346,12 +347,13 @@ const _Search = (props: SearchProps): JSX.Element => {
 };
 
 export function SmallScreenSearchField(): JSX.Element {
-    const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
-    const [onSearch] = useGlobal("onSearch", doNothing);
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
+    const [onSearch] = useGlobal("onSearch", defaultSearch);
     const ref = React.useRef<HTMLInputElement>(null);
+    const history = useHistory();
 
     return <ui.Hide lg xl xxl>
-        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? ""))}>
+        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", history))}>
             <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
             <ui.Input
                 required
