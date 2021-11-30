@@ -43,6 +43,7 @@ import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {EnumFilterWidget} from "@/Resource/Filter";
 import {BrowseType} from "./BrowseType";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -244,8 +245,15 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         if (inlineInputRef.current && props.onInlineCreation) {
             const prefix = props?.inlinePrefix?.(selectedProductWithSupport!) ?? "";
             const suffix = props?.inlineSuffix?.(selectedProductWithSupport!) ?? "";
+
+            const trimmedValue = inlineInputRef.current.value.trim();
+            if (!trimmedValue) {
+                snackbarStore.addFailure("Title can't be blank or empty", false);
+                return;
+            }
+
             const spec = props.onInlineCreation(
-                prefix + inlineInputRef.current.value + suffix,
+                prefix + trimmedValue + suffix,
                 selectedProduct!,
                 callbacks
             );
