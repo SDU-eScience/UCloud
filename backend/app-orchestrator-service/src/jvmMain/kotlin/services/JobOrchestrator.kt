@@ -272,7 +272,7 @@ class JobOrchestrator(
         }
     }
 
-    override suspend fun browseQuery(flags: JobIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: JobIncludeFlags?, query: String?): PartialQuery {
         @Suppress("SqlResolve")
         return PartialQuery(
             {

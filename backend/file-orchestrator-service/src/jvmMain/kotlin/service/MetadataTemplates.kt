@@ -71,7 +71,11 @@ class MetadataTemplateNamespaces(
         )
     }
 
-    override suspend fun browseQuery(flags: FileMetadataTemplateNamespaceFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: FileMetadataTemplateNamespaceFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

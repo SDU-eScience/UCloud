@@ -73,7 +73,7 @@ class ProviderService(
         }
     }
 
-    override suspend fun browseQuery(flags: ProviderIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ProviderIncludeFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

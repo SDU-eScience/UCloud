@@ -62,7 +62,7 @@ class IngressService(
                 )
         }
     }
-    override suspend fun browseQuery(flags: IngressIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: IngressIncludeFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)
