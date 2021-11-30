@@ -270,6 +270,7 @@ data class JobUpdate(
     override val status: String? = null,
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,
+    val newTimeAllocation: Long? = null,
     override val timestamp: Long = 0L
 ) : ResourceUpdate
 

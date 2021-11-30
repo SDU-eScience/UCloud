@@ -237,8 +237,9 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
 
-                if ((newState != null || update.outputFolder != null) && !currentState.isFinal()) {
+                if (didChange && !currentState.isFinal()) {
                     if (newState != null && newState.isFinal()) {
                         listeners.forEach { it.onTermination(session, job) }
                     }
@@ -247,6 +248,7 @@ class JobOrchestrator(
                         {
                             setParameter("new_state", newState?.name)
                             setParameter("output_folder", update.outputFolder)
+                            setParameter("new_time_allocation", update.newTimeAllocation)
                             setParameter("job_id", jobId)
                         },
                         """
@@ -257,7 +259,8 @@ class JobOrchestrator(
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
                                 end,
-                                output_folder = coalesce(:output_folder::text, output_folder)
+                                output_folder = coalesce(:output_folder::text, output_folder),
+                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id
                         """
                     )
