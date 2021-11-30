@@ -118,7 +118,7 @@ export const ResourceFilter: React.FunctionComponent<{
         {isEmbedded ? null :
             <Heading.h4 mt={"32px"} mb={"16px"}>
                 <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-                {onlyFilter ? "Filter" : "Sort and filter"}
+                Filter
             </Heading.h4>
         }
         <MainContentGrid browseType={props.browseType}>
