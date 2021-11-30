@@ -161,6 +161,11 @@ export const NamingField: React.FunctionComponent<{
 }> = props => {
     const submit = React.useCallback((e) => {
         e.preventDefault();
+        const value = props.inputRef.current?.value ?? "";
+        if (!value.trim()) {
+            snackbarStore.addFailure("Title can't be empty or blank", false);
+            return;
+        }
         props.onSubmit(e);
     }, [props.onSubmit]);
 
