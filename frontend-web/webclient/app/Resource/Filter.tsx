@@ -110,8 +110,6 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
-    const onlyFilter = props.sortEntries.length === 0;
-
     const isEmbedded = props.browseType === BrowseType.Embedded;
 
     return <>
