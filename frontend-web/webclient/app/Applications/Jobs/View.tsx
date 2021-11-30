@@ -8,7 +8,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {doNothing, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
 import {Box, Button, Flex, Icon, Link} from "@/ui-components";
@@ -22,8 +22,6 @@ import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "@/Project/cache";
-import {ProjectName} from "@/Project";
-import {getProjectNames} from "@/Utilities/ProjectUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
@@ -33,6 +31,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
+import {prettyFilePath} from "@/Files/FilePath";
 
 const enterAnimation = keyframes`
     from {
@@ -247,57 +246,7 @@ const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
-    const [showInsufficientFundsWarning, setShowInsufficientFundsWarning] = useState<boolean>(true);
     const [status, setStatus] = useState<JobStatus | null>(null);
-
-    async function confirmExtendAllocation(duration: number): Promise<boolean> {
-        if (showInsufficientFundsWarning) {
-            // fetchBalance({...balanceParams, reloadId: Math.random()});
-            // const balance = balanceFetcher.data;
-            // if (!balance || !status?.expiresAt || !job) {
-            //     return true;
-            // }
-            //
-            // const expires = status.expiresAt + (3600 * 1000 * duration);
-            // const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
-            // const wallet = balance.wallets.find(it => it.wallet.paysFor.name === job.status.resolvedProduct?.category.name);
-            //
-            // if (!wallet) {
-            //     return true;
-            // }
-
-            /*
-            if (wallet.balance < needed) {
-                const extend = await new Promise(resolve => addStandardDialog({
-                    title: "Extend job beyond balance?",
-                    message: <>
-                        <Box mb="20px">You are trying to extend the allocation of the job beyond your current
-                            funds.</Box>
-                        <Box><b>Current balance:</b> {currencyFormatter(wallet.balance)}</Box>
-                        <Box><b>New estimated cost for finishing the job:</b> {currencyFormatter(needed)}</Box>
-                        <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when
-                            your balance reaches 0 DKK.</Box>
-                    </>,
-                    confirmText: "Extend allocation",
-                    cancelText: "Cancel",
-                    onConfirm: () => {
-                        resolve(true)
-                    },
-                    onCancel: () => {
-                        resolve(false)
-                    }
-                }));
-
-                setShowInsufficientFundsWarning(false);
-
-                if (!extend) {
-                    return false
-                }
-            }
-             */
-        }
-        return true;
-    }
 
     useEffect(() => {
         if (useFakeState) {
@@ -466,7 +415,6 @@ const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
                             job={job}
                             updateListeners={jobUpdateCallbackHandlers}
                             status={status}
-                            confirmExtendAllocation={confirmExtendAllocation}
                         />
                     </div>
                 </CSSTransition>
@@ -604,6 +552,7 @@ const InfoCardsContainer = styled.div`
 `;
 
 const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
+    const fileInfo = useJobFiles(job.specification);
     let time = job.specification.timeAllocation;
     if (status.expiresAt && status.startedAt) {
         const msTime = status.expiresAt - status.startedAt;
@@ -613,8 +562,6 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             seconds: Math.floor((msTime % (1000 * 60)) / (1000))
         };
     }
-
-    const projectNames = getProjectNames(useProjectStatus());
 
     let prettyTime = "No job deadline";
     if (time) {
@@ -683,7 +630,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
             icon={"ftFolder"}
         >
-            {jobInputString(job.specification, projectNames)}
+            {fileInfo}
         </InfoCard>
         <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
             <b>Launched by:</b> {job.owner.createdBy}
@@ -790,19 +737,37 @@ function jobFiles(parameters: JobSpecification): Record<string, AppParameterValu
     return result;
 }
 
-function jobInputString(parameters: JobSpecification, projects: ProjectName[]): string {
-    const allFiles = Object.values(jobFiles(parameters)).map(it => it.path);
+function useJobFiles(spec: JobSpecification): string {
+    const [fileInfo, setFileInfo] = useState("No files");
+    useEffect(() => {
+        let cancelled = false;
 
-    if (allFiles.length === 0) return "No files";
-    return joinToString(allFiles, ", ");
+        (async () => {
+            const files = Object.values(jobFiles(spec));
+            if (files.length === 0) {
+                setFileInfo("No files");
+                return;
+            }
+
+            const result = await Promise.all(files.map(it => prettyFilePath(it.path)));
+            if (cancelled) return;
+            setFileInfo(result.join(", "));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [spec]);
+
+    return fileInfo;
 }
 
 const RunningContent: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
     status: JobStatus;
-    confirmExtendAllocation: (duration: number) => Promise<boolean>;
-}> = ({job, updateListeners, status, confirmExtendAllocation}) => {
+}> = ({job, updateListeners, status}) => {
+    const fileInfo = useJobFiles(job.specification);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const projects = useProjectStatus();
@@ -810,16 +775,14 @@ const RunningContent: React.FunctionComponent<{
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {
-            if (await confirmExtendAllocation(duration)) {
-                setExpiresAt(expiresAt + (3600 * 1000 * duration));
-                try {
-                    await invokeCommand(compute.jobs.extend(bulkRequestOf({
-                        jobId: job.id,
-                        requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                    })));
-                } catch (e) {
-                    setExpiresAt(expiresAt);
-                }
+            setExpiresAt(expiresAt + (3600 * 1000 * duration));
+            try {
+                await invokeCommand(compute.jobs.extend(bulkRequestOf({
+                    jobId: job.id,
+                    requestedTime: {hours: duration, minutes: 0, seconds: 0}
+                })));
+            } catch (e) {
+                setExpiresAt(expiresAt);
             }
         }
     }, [job.id, commandLoading, expiresAt]);
@@ -827,8 +790,6 @@ const RunningContent: React.FunctionComponent<{
     useEffectSkipMount(() => {
         setExpiresAt(status.expiresAt);
     }, [status.expiresAt]);
-
-    const projectNames = getProjectNames(useProjectStatus());
 
     const calculateTimeLeft = (expiresAt: number | undefined) => {
         if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
@@ -870,7 +831,7 @@ const RunningContent: React.FunctionComponent<{
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box><b>Reservation:</b> {job.specification.product.provider} / {job.specification.product.id} (x{job.specification.replicas})</Box>
-                    <Box><b>Input:</b> {jobInputString(job.specification, projectNames)}</Box>
+                    <Box><b>Input:</b> {fileInfo}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
                     <Box flexGrow={1} />
                     <Box mt={"16px"}>
@@ -1062,7 +1023,7 @@ const RunningJobRank: React.FunctionComponent<{
 
                 {job.specification.replicas === 1 ? null : (
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-                        toggleExpand={toggleExpand}></RunningButtonGroup>
+    toggleExpand={toggleExpand}/>
                 )}
             </RunningJobRankWrapper>
         </HighlightedCard>
