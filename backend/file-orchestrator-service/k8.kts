@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-orchestrator"
-    version = "2021.3.0-alpha11"
+    version = "2021.3.0-alpha12"
     
     withAmbassador(null) {
         addSimpleMapping("/api/files")
