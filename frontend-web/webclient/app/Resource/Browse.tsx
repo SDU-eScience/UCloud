@@ -171,12 +171,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const generateFetch = useCallback((next?: string): APICallParameters => {
         if (props.isSearch) {
             return api.search({
-                itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
                 next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
             });
         } else {
             return api.browse({
-                next, itemsPerPage: 50, includeOthers,
+                next, itemsPerPage: 100, includeOthers,
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }

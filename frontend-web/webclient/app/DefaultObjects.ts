@@ -47,7 +47,7 @@ export const emptyPage: Readonly<Page<any>> =
     {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0};
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
-    {items: [], itemsPerPage: 25};
+    {items: [], itemsPerPage: 100};
 
 export function pageV2Of<T>(...items: T[]): PageV2<T> {
     return {items, itemsPerPage: items.length, next: undefined};
