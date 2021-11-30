@@ -310,7 +310,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </> : <>
                 {props.showCreatedAt === false ? null :
                     <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
-                {props.showCreatedBy === false ? null :
+                {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
                     <div className="tooltip">
                         <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
                         <div className="tooltip-content centered">
