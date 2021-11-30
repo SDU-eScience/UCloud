@@ -14,6 +14,7 @@ import {ApplicationCard} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {SmallScreenSearchField} from "@/Navigation/Header";
 import {BrowseType} from "@/Resource/BrowseType";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
 interface SearchQuery {
     tags: string[];
@@ -191,18 +192,6 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     const queryParams = history.location.search;
     const parsedQuery = readQuery(queryParams);
 
-    const shouldShowTabs = getQueryParamOrElse(queryParams, "showTabs", "false") === "true";
-
-    const onFilesSearch = useCallback(() => {
-        history.push(
-            buildQueryString(
-                "/files/search",
-                {q: getQueryParamOrElse(queryParams, "q", ""), showTabs: "true"}
-            )
-        );
-    }, [queryParams]);
-
-
     useEffect(() => {
         fetchResults(
             UCloud.compute.apps.searchApps({
@@ -214,12 +203,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     }, [queryParams, entriesPerPage]);
 
     return <>
-        {!shouldShowTabs ? null :
-            <SelectableTextWrapper>
-                <SelectableText selected={false} onClick={onFilesSearch}>Files</SelectableText>
-                <SelectableText selected={true}>Applications</SelectableText>
-            </SelectableTextWrapper>
-        }
+        <FilesSearchTabs active={"APPLICATIONS"} />
         <SmallScreenSearchField />
         <Pagination.List
             loading={results.loading}
@@ -243,7 +227,6 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                     showAllVersions: parsedQuery.showAllVersions.toString(),
                     page: newPage.toString(),
                     itemsPerPage: parsedQuery.itemsPerPage.toString(),
-                    showTabs: shouldShowTabs ? "true" : "false"
                 }));
             }}
         />

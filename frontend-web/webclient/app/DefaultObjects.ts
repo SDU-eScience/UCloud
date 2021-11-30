@@ -210,7 +210,7 @@ export const initSidebar = (): SidebarReduxObject => ({
 export const defaultSearchPlaceholder = "Search files and applications..."
 
 export function defaultSearch(query: string, history: History) {
-    history.push(buildQueryString("/files/search", {q: query, showTabs: "true"}));
+    history.push(buildQueryString("/files/search", {q: query}));
 }
 
 export function useSearch(onSearch: (query: string, history: History) => void): void {

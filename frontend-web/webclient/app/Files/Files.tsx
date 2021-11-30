@@ -1,12 +1,12 @@
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import {useCallback, useEffect, useMemo, useState} from "react";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
@@ -15,12 +15,13 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {Box, Flex, Icon, List, SelectableText, SelectableTextWrapper} from "@/ui-components";
+import {Box, Flex, Icon, List} from "@/ui-components";
 import {PageV2} from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -34,8 +35,6 @@ export const FilesBrowse: React.FunctionComponent<{
     const browseType = props.browseType ?? BrowseType.MainContent;
     const [, setUploadPath] = useGlobal("uploadPath", "/");
     const location = useLocation();
-    const shouldShowTabs = getQueryParamOrElse(location.search, "showTabs", "false") === "true" &&
-        browseType == BrowseType.MainContent;
     const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
     const [pathFromState, setPathFromState] = useState(
         browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
@@ -110,15 +109,6 @@ export const FilesBrowse: React.FunctionComponent<{
         fetchDirectory(FilesApi.retrieve({id: path}))
     }, [path]);
 
-    const onApplicationSearch = useCallback(() => {
-        history.push(
-            buildQueryString(
-                "/applications/search",
-                {q: getQueryParamOrElse(location.search, "q", ""), showTabs: "true"}
-            )
-        );
-    }, [location]);
-
     const headerComponent = useMemo((): JSX.Element => {
         const components = pathComponents(path);
         let breadcrumbs: string[] = [];
@@ -134,12 +124,7 @@ export const FilesBrowse: React.FunctionComponent<{
         }
 
         return <Box backgroundColor={getCssVar("white")}>
-            {!shouldShowTabs ? null :
-                <SelectableTextWrapper>
-                    <SelectableText selected={true}>Files</SelectableText>
-                    <SelectableText selected={false} onClick={onApplicationSearch}>Applications</SelectableText>
-                </SelectableTextWrapper>
-            }
+            {props.isSearch !== true || browseType != BrowseType.MainContent ? null : <FilesSearchTabs active={"FILES"} />}
             <Flex>
                 <DriveDropdown>
                     <ListV2
@@ -184,7 +169,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.data, shouldShowTabs, onApplicationSearch]);
+    }, [path, browseType, collection.data, drives.data]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
