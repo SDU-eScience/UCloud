@@ -1,8 +1,6 @@
 import {DashboardStateProps} from "@/Dashboard";
 import {Notification} from "@/Notifications";
 import * as ProjectRedux from "@/Project/Redux";
-import {Reducer} from "redux";
-import {SimpleSearchStateProps} from "@/Search";
 import {SidebarOption} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Upload} from "@/Files/Upload";
@@ -151,7 +149,6 @@ interface LegacyReduxObject {
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
-    simpleSearch: SimpleSearchStateProps;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
@@ -192,7 +189,6 @@ export function initObject(): ReduxObject {
         header: initHeader(),
         notifications: initNotifications(),
         sidebar: initSidebar(),
-        simpleSearch: initSimpleSearch(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
@@ -201,11 +197,6 @@ export function initObject(): ReduxObject {
 
 export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
-
-export const initSimpleSearch = (): SimpleSearchStateProps => ({
-    errors: [],
-    search: "",
-});
 
 export const initSidebar = (): SidebarReduxObject => ({
     pp: false,

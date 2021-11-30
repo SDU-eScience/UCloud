@@ -8,7 +8,6 @@ import * as ProjectRedux from "@/Project/Redux";
 import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
 import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
-import simpleSearch from "@/Search/Redux/SearchReducer";
 import {responsiveBP} from "@/ui-components/theme";
 import avatar from "@/UserSettings/Redux/AvataaarReducer";
 import hookStore from "@/Utilities/ReduxHooks";
@@ -39,7 +38,6 @@ export const store = configureStore(initObject(), {
     status,
     sidebar,
     notifications,
-    simpleSearch,
     hookStore,
     avatar,
     loading,

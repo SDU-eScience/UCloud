@@ -10,7 +10,6 @@ import {SidebarPages} from "@/ui-components/Sidebar";
 import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
-import * as SSActions from "./Redux/SearchActions";
 import * as Applications from "@/Applications";
 import {useResourceSearch} from "@/Resource/Search";
 import {ApiLike} from "@/Applications/Overview";
@@ -20,10 +19,9 @@ function Search(props: SearchProps): JSX.Element {
     const history = useHistory();
     const location = useLocation();
 
+    const q = query({location, history});
 
     React.useEffect(() => {
-        const q = query({location, history});
-        props.setSearch(q);
         props.setRefresh(fetchAll);
         return () => {
             props.clear();
@@ -39,7 +37,7 @@ function Search(props: SearchProps): JSX.Element {
     useTitle("Search");
 
     function fetchAll(): void {
-        history.push(searchPage(match.params.priority, props.search));
+        history.push(searchPage(match.params.priority, q));
     }
 
     useResourceSearch(ApiLike);
@@ -51,16 +49,12 @@ function Search(props: SearchProps): JSX.Element {
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     clear: () => { },
-    setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({
-    simpleSearch,
-}: ReduxObject): SimpleSearchStateProps => ({
-    ...simpleSearch,
+const mapStateToProps = ({}: ReduxObject): SimpleSearchStateProps => ({
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Search);

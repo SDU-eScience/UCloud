@@ -9,7 +9,6 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import * as SearchActions from "@/Search/Redux/SearchActions";
 import styled from "styled-components";
 import * as ui from "@/ui-components";
 import {DevelopmentBadgeBase} from "@/ui-components/Badge";
@@ -19,13 +18,11 @@ import Link from "@/ui-components/Link";
 import {TextSpan} from "@/ui-components/Text";
 import {ThemeToggler} from "@/ui-components/ThemeToggle";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
-import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {
     displayErrorMessageOrDefault,
     inDevEnvironment,
     isLightThemeStored,
-    prettierString,
     useFrameHidden,
     stopPropagationAndPreventDefault, doNothing
 } from "@/UtilityFunctions";
@@ -34,9 +31,9 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
 import {VersionManager} from "@/VersionManager/VersionManager";
-import * as Applications from "@/Applications"
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
+import {useEffect, useRef} from "react";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -280,12 +277,10 @@ const SearchInput = styled(ui.Flex)`
 
 interface SearchStateProps {
     prioritizedSearch: HeaderSearchType;
-    search: string;
 }
 
 interface SearchOperations {
     setSearchType: (st: HeaderSearchType) => void;
-    setSearch: (search: string) => void;
 }
 
 type SearchProps = SearchOperations & SearchStateProps;
@@ -293,14 +288,15 @@ type SearchProps = SearchOperations & SearchStateProps;
 
 // eslint-disable-next-line no-underscore-dangle
 const _Search = (props: SearchProps): JSX.Element => {
-    const history = useHistory();
-    const location = useLocation();
-    React.useEffect(() => {
-        props.setSearch(getQueryParamOrElse({history, location}, "query", ""));
-    }, []);
+    const searchRef = useRef<HTMLInputElement>(null);
     const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
     const [onSearch] = useGlobal("onSearch", doNothing);
     const hasSearch = onSearch !== doNothing;
+
+    useEffect(() => {
+        const search = searchRef.current;
+        if (search) search.value = "";
+    }, [onSearch]);
 
     return (<>
         <ui.Hide xs sm md lg>
@@ -314,18 +310,17 @@ const _Search = (props: SearchProps): JSX.Element => {
                         id="search_input"
                         type="text"
                         overrideDisabledColor={ui.theme.colors.darkBlue}
-                        value={props.search}
                         disabled={!hasSearch}
                         placeholder={searchPlaceholder}
+                        ref={searchRef}
                         noBorder
                         onKeyDown={e => {
                             if (e.keyCode === KeyCode.ENTER) {
                                 if (hasSearch) {
-                                    onSearch(props.search);
+                                    onSearch(searchRef.current!.value);
                                 }
                             }
                         }}
-                        onChange={e => props.setSearch(e.target.value)}
                     />
                     <ui.Absolute left="6px" top="7px">
                         <ui.Label htmlFor="search_input">
@@ -372,15 +367,12 @@ export function SmallScreenSearchField(): JSX.Element {
 
 const mapSearchStateToProps = ({
     header,
-    simpleSearch
 }: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
-    search: simpleSearch.search,
 });
 
 const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
     setSearchType: (st: HeaderSearchType) => dispatch(setPrioritizedSearch(st)),
-    setSearch: search => dispatch(SearchActions.setSearch(search))
 });
 
 const Search = connect(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
