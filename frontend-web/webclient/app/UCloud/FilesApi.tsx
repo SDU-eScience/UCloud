@@ -560,6 +560,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Empty Trash",
                 icon: "trash",
                 color: "red",
+                confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
