@@ -153,13 +153,13 @@ const Resources: React.FunctionComponent = () => {
                                 )}
                             </VisualizationSection>
                             <VisualizationSection>
-                                {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it} />
+                                {breakdowns.data.charts.map((it, idx) =>
+                                    <DonutChart key={idx} chart={it} />
                                 )}
                             </VisualizationSection>
                             <VisualizationSection>
-                                {breakdowns.data.charts.map((it, idx) =>
-                                    <DonutChart key={idx} chart={it} />
+                                {wallets.data.items.map((it, idx) =>
+                                    <WalletViewer key={idx} wallet={it} />
                                 )}
                             </VisualizationSection>
 
