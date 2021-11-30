@@ -12,7 +12,7 @@ import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "@/ui-components/Toggle";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
@@ -365,10 +365,10 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
     const yesterdayEnd = todayMs - 1;
     const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
-    const lastWeekEnd = getStartOfWeek(new Date(todayMs)).getTime() - 1;
-    const lastWeekStart = getStartOfWeek(new Date(lastWeekEnd)).getTime();
-    const lastMonthEnd = getStartOfMonth(new Date()).getTime() - 1;
-    const lastMonthStart = getStartOfMonth(new Date(lastMonthEnd)).getTime();
+    const pastWeekEnd = new Date(timestampUnixMs()).getTime();
+    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7*1000*60*60*24))).getTime();
+    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
+    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30*1000*60*60*24))).getTime();
 
     return <ExpandableDropdownFilterWidget
         expanded={props.expanded}
@@ -391,17 +391,17 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last week"}
-                    range={`${dateToStringNoTime(lastWeekStart)} - ${dateToStringNoTime(lastWeekEnd)}`}
+                    title={"Past week"}
+                    range={`${dateToStringNoTime(pastWeekStart)} - ${dateToStringNoTime(pastWeekEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastWeekStart), new Date(lastWeekEnd)]);
+                        updateDates([new Date(pastWeekStart), new Date(pastWeekEnd)]);
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last month"}
-                    range={`${dateToStringNoTime(lastMonthStart)} - ${dateToStringNoTime(lastMonthEnd)}`}
+                    title={"Past month"}
+                    range={`${dateToStringNoTime(pastMonthStart)} - ${dateToStringNoTime(pastMonthEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastMonthStart), new Date(lastMonthEnd)]);
+                        updateDates([new Date(pastMonthStart), new Date(pastMonthEnd)]);
                     }}
                 />
                 <DateRangeEntry
