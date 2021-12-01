@@ -488,10 +488,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) {return false}
-                    return selected.length > 0 && selected.every(it => {
-                        return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
-                    });
+                    if (Client.hasActiveProject) { return false; }
+                    if (selected.length === 0) return false;
+                    const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
+                    const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
+
+                    if (isMissingPermissions) {
+                        return "You lack permissions to share this file. Only the owner of the file can share it!";
+                    }
+
+                    if (hasNonDirectories) {
+                        return "You can only share a directory. To share a file put it in a directory and share the " +
+                            "directory.";
+                    }
+
+                    return true;
                 },
                 onClick: async (selected, cb) => {
                     const username = await addStandardInputDialog({

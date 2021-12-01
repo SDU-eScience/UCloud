@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2021.3.0-alpha34",
+    "version": "2021.3.0-alpha36",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -18,7 +18,7 @@
     "dependencies": {
         "@ginkgo-bioworks/react-json-schema-form-builder": "2.6.3",
         "@novnc/novnc": "1.2.0",
-        "@rjsf/core": "3.1.0",
+        "@rjsf/core": "^3.2.1",
         "@svgr/cli": "5.5.0",
         "assert": "2.0.0",
         "date-fns": "2.26.0",

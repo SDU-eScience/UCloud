@@ -102,7 +102,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
                 <Heading.h3 textAlign={"center"}>
                     No shares
                     <br />
-                    <small>You can create a new share by clicking 'Share' on one of your files.</small>
+                    <small>You can create a new share by clicking 'Share' on one of your directories.</small>
                 </Heading.h3> :
                 null
             }
