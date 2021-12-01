@@ -40,7 +40,7 @@ export const FirewallEditor: React.FunctionComponent<{
         }
 
         if (firstPort > lastPort) {
-            snackbarStore.addFailure("The last port is larger than the first port", false);
+            snackbarStore.addFailure("The first port is larger than the last port", false);
             return;
         }
 
