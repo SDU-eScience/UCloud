@@ -1110,7 +1110,7 @@ abstract class ResourceService<
                                 (gm.username is not null) or
                                 (r.public_read = true)
                           ) and
-                          (:filter_created_by::text is null or :filter_created_by = r.created_by) and
+                          (:filter_created_by::text is null or r.created_by like '%' || :filter_created_by || '%') and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
