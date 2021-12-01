@@ -7,9 +7,13 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
 import dk.sdu.cloud.file.ucloud.api.*
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.bulk.BulkRequest
@@ -33,7 +37,8 @@ import services.FileScanner
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
-    private val nativeFS: NativeFS
+    private val nativeFS: NativeFS,
+    private val pathConverter: PathConverter
 ) {
     private val mapper = defaultMapper
 
@@ -58,6 +63,11 @@ class ElasticQueryService(
                             }
                         }
                         filter().apply {
+                            val filteredRoots =
+                                roots.asSequence().filter { it != "/" }.map { it.removeSuffix("/") }.toList()
+                            if (filteredRoots.isNotEmpty()) {
+                                add(TermsQueryBuilder(ElasticIndexedFileConstants.PATH_FIELD, filteredRoots))
+                            }
                             fileDepth.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_DEPTH_FIELD)
                         }
                         if (should().isNotEmpty()) {
@@ -96,15 +106,14 @@ class ElasticQueryService(
         return elasticFiles
     }
 
-    private fun verifyAndUpdateIndex(hits: List<PartialUFile>): List<PartialUFile> {
+    private suspend fun verifyAndUpdateIndex(hits: List<PartialUFile>): List<PartialUFile> {
         val illegalIndices = mutableListOf<PartialUFile>()
 
         val existingHits = hits.mapNotNull { partialUFile ->
             try {
-                nativeFS.stat(InternalFile(partialUFile.id))
+                nativeFS.stat(pathConverter.ucloudToInternal(UCloudFile.createFromPreNormalizedString(partialUFile.id)))
                 partialUFile
             } catch (ex: Exception) {
-                println(partialUFile)
                 if (ex is FSException.NotFound) {
                     log.warn("Path not found")
                     illegalIndices.add(partialUFile)
@@ -120,13 +129,14 @@ class ElasticQueryService(
         illegalIndices.forEach {
             bulk.add(DeleteRequest(FILES_INDEX, it.id))
         }
-        elasticClient.bulk(bulk, RequestOptions.DEFAULT)
+        if (illegalIndices.isNotEmpty()) {
+            elasticClient.bulk(bulk, RequestOptions.DEFAULT)
+        }
         return existingHits
     }
 
-    fun query(
-        searchRequest: FilesProviderSearchRequest,
-        actorAndProject: ActorAndProject
+    suspend fun query(
+        searchRequest: FilesProviderSearchRequest
     ): PageV2<PartialUFile> {
         if (searchRequest.query.isBlank()) {
             return PageV2(searchRequest.itemsPerPage ?: 50 , emptyList(), null)
@@ -149,17 +159,22 @@ class ElasticQueryService(
             return PageV2(searchRequest.itemsPerPage ?: 50, existingHits, scrollId)
         }
 
-        val request = SearchRequest()
+        val request = SearchRequest(FILES_INDEX)
         val source = SearchSourceBuilder()
 
-        source.query(searchBasedOnQuery(searchRequest, actorAndProject))
+        source.query(searchBasedOnQuery(searchRequest) )
 
         source.sort(ElasticIndexedFileConstants.FILE_NAME_KEYWORD, SortOrder.ASC)
 
         source.size(searchRequest.itemsPerPage ?: 50)
+        request.source(source)
         request.scroll(TimeValue.timeValueMinutes(1))
 
-        val response = elasticClient.search(request, RequestOptions.DEFAULT)
+        val response = try {
+            elasticClient.search(request, RequestOptions.DEFAULT)
+        } catch (ex: Exception) {
+            throw ex
+        }
         val scrollId = response.scrollId
         val hits = response.hits.hits.map {
             mapper.decodeFromString<ElasticIndexedFile>(it.sourceAsString).toPartialUFile()
@@ -170,7 +185,14 @@ class ElasticQueryService(
         return PageV2(searchRequest.itemsPerPage ?: 50, existingHits , scrollId)
     }
 
-    private fun searchBasedOnQuery(searchRequest: FilesProviderSearchRequest, actorAndProject: ActorAndProject): QueryBuilder {
+    private fun searchBasedOnQuery(searchRequest: FilesProviderSearchRequest): QueryBuilder {
+        val isNumber = try {
+            searchRequest.query.toLong()
+            true
+        } catch (ex: NumberFormatException) {
+            false
+        }
+
         return with(searchRequest) {
             QueryBuilders.boolQuery().apply {
                 should().apply {
@@ -180,28 +202,33 @@ class ElasticQueryService(
                             query
                         ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
                     )
-                    add(
-                        QueryBuilders.wildcardQuery(
-                            ElasticIndexedFileConstants.CREATED_AT_FIELD,
-                            "$query*"
+                    if (isNumber) {
+                        add(
+                            QueryBuilders.matchQuery(
+                                ElasticIndexedFileConstants.CREATED_AT_FIELD,
+                                query
+                            )
                         )
-                    )
-                    add(
-                        QueryBuilders.wildcardQuery(
-                            ElasticIndexedFileConstants.PATH_FIELD,
-                            "$query*"
+                        add(
+                            QueryBuilders.matchQuery(
+                                ElasticIndexedFileConstants.SIZE_FIELD,
+                                query
+                            )
                         )
-                    )
-                    add(
-                        QueryBuilders.wildcardQuery(
-                            ElasticIndexedFileConstants.SIZE_FIELD,
-                            "$query*"
-                        )
-                    )
+                    }
                 }
                 filter().apply {
-                    add(TermsQueryBuilder(ElasticIndexedFileConstants.OWNER_FIELD, actorAndProject.actor))
-
+                    if (searchRequest.owner.project == null) {
+                        add(
+                            TermsQueryBuilder(
+                                ElasticIndexedFileConstants.OWNER_FIELD,
+                                searchRequest.owner.createdBy
+                            )
+                        )
+                    }
+                    else {
+                        add(TermsQueryBuilder(ElasticIndexedFileConstants.PROJECT_ID, searchRequest.owner.project))
+                    }
                     if (flags.filterByFileExtension != null) {
                         add(
                             TermsQueryBuilder(
@@ -218,7 +245,7 @@ class ElasticQueryService(
         }
     }
 
-    private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
+    private fun  searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
         return with(fileQuery) {
             QueryBuilders.boolQuery().apply {
                 should().apply {

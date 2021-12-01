@@ -22,7 +22,8 @@ data class ElasticIndexedFile(
     val permission: List<Permission>,
     val createdAt: Long,
     val collectionId: String,
-    val owner: ResourceOwner
+    val owner: String,
+    val projectId: String? = null
 )
 
 fun ElasticIndexedFile(
@@ -33,8 +34,21 @@ fun ElasticIndexedFile(
     permission: List<Permission>,
     createdAt: Long,
     collectionId: String,
-    owner: ResourceOwner
-) = ElasticIndexedFile(path, size, fileType, rctime, path.normalize().fileName(), path.normalize().depth(), permission, createdAt, collectionId, owner)
+    owner: String,
+    projectId: String? = null
+) = ElasticIndexedFile(
+    path = path,
+    size = size,
+    fileType = fileType,
+    rctime = rctime,
+    fileName = path.normalize().fileName(),
+    fileDepth = path.normalize().depth(),
+    permission = permission,
+    createdAt = createdAt,
+    collectionId = collectionId,
+    owner = owner,
+    projectId = projectId
+)
 
 object ElasticIndexedFileConstants {
     // Refactoring safe without most of the performance penalty
@@ -50,6 +64,7 @@ object ElasticIndexedFileConstants {
     const val PERMISSION_FIELD = "permission"
     const val PERMISSION_KEYWORD = "permission" + ".keyword"
     const val OWNER_FIELD = "owner"
+    const val PROJECT_ID = "projectId"
     const val COLLECTION_ID_FIELD = "collectionId"
     const val CREATED_AT_FIELD = "createdAt"
 }
@@ -58,9 +73,10 @@ fun ElasticIndexedFile.toPartialUFile(): PartialUFile {
     return PartialUFile(
         path,
         UFileStatus(
-            sizeInBytes = size
+            sizeInBytes = size,
+            type = fileType
         ),
-        0L,
-        owner
+        createdAt,
+        ResourceOwner(owner, projectId)
     )
 }

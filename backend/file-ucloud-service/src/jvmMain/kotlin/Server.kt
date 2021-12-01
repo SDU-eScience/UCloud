@@ -110,32 +110,55 @@ class Server(
 
         val elasticQueryService = ElasticQueryService(
             micro.elasticHighLevelClient,
-            nativeFs
+            nativeFs,
+            pathConverter
         )
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
-        GlobalScope.launch {
-            while (true) {
-                if (File("/tmp/test.txt").exists()) {
-                    try {
-                        FileScanner(
-                            micro.elasticHighLevelClient,
-                            authenticatedClient,
-                            db,
-                            nativeFs,
-                            pathConverter,
-                            cephStats,
-                            elasticQueryService
-                        ).runScan()
-                    } catch (ex: Exception) {
-                        println(ex.stackTraceToString())
-                    }
-                    File("/tmp/test.txt").delete()
+        if (micro.commandLineArguments.contains("--scan-file-system")) {
+            runBlocking {
+                try {
+                    FileScanner(
+                        micro.elasticHighLevelClient,
+                        authenticatedClient,
+                        db,
+                        nativeFs,
+                        pathConverter,
+                        cephStats,
+                        elasticQueryService
+                    ).runScan()
+                    exitProcess(0)
+                } catch (ex: Exception) {
+                    println(ex.stackTraceToString())
+                    exitProcess(1)
                 }
-                delay(5000)
             }
         }
+
+        /*
+        //Dev testing
+        GlobalScope.launch {
+                while (true) {
+                    if (File("/tmp/test.txt").exists()) {
+                        try {
+                            FileScanner(
+                                micro.elasticHighLevelClient,
+                                authenticatedClient,
+                                db,
+                                nativeFs,
+                                pathConverter,
+                                cephStats,
+                                elasticQueryService
+                            ).runScan()
+                        } catch (ex: Exception) {
+                            println(ex.stackTraceToString())
+                        }
+                        File("/tmp/test.txt").delete()
+                    }
+                    delay(5000)
+                }
+            }*/
 
 //        useTestingSizes = micro.developmentModeEnabled
 

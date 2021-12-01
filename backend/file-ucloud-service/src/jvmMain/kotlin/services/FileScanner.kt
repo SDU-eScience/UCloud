@@ -90,12 +90,12 @@ class FileScanner(
                 ?.getDate(0)
                 ?: LocalDateTime().withDate(1970,1,1)
 
-            println("COLLECTIONS")
+            println("Scanning Collections")
             collections.chunked(50).forEach { chunk ->
                 var resolvedCollections =
                     retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
                 val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                //might only be neccesary on Dev
+                //Filtering might only be necessary on Dev (inconsistent DB vs file system (multiple users of dev))
                 val filteredChunk = if (collectionsList.size != chunk.size) {
                     log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
                     val ids = collectionsList.map { it.id.toLong() }
@@ -109,12 +109,8 @@ class FileScanner(
                     }
                 } else chunk
 
-                println(filteredChunk.size)
-                println(collectionsList.size)
-
                 while (true) {
                     collectionsList.zip(filteredChunk).forEach { (coll, path) ->
-                        println(path)
                         withContext(pool) {
                             launch {
                                 val file =
@@ -136,7 +132,7 @@ class FileScanner(
                 }
             }
 
-            println("HOMEFOLDERS")
+            println("Scanning home folders")
             home.chunked(50).forEach { chunk ->
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
@@ -158,9 +154,6 @@ class FileScanner(
                         }
                     }
                 } else chunk
-
-                println(filteredChunk.size)
-                println(collectionsList.size)
 
                 while (true) {
                     collectionsList.zip(filteredChunk.sortedBy { it }).forEach { (coll, path) ->
@@ -185,7 +178,7 @@ class FileScanner(
                 }
             }
 
-            println("PROJECTS")
+            println("Scanning Project folders")
             project.chunked(50).forEach { chunk ->
                 var resolvedCollections = retrieveCollections(
                     providerGenerated = true,
@@ -209,8 +202,6 @@ class FileScanner(
 
                 } else chunk
 
-                println(filteredChunk.size)
-                println(collectionsList.size)
                 while (true) {
                     collectionsList.zip(filteredChunk).forEach { (coll, path) ->
                         withContext(pool) {
@@ -248,7 +239,7 @@ class FileScanner(
                     """.trimIndent()
                 )
             }
-            println("DONE SCANNING")
+            println("Scan done")
         }
     }
 
@@ -258,17 +249,13 @@ class FileScanner(
     }
 
     private suspend fun submitScan(file: InternalFile, collection: FileCollection, upperLimitOfEntries: Long = Long.MAX_VALUE) {
-        println("SUBMITTED SCAN FOR: ${file.path}")
         val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
-        println("FILELIST: $fileList")
         if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
-            log.info("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
+            log.debug("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
             return
         }
         if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan ) {
-            println("rcTime is older than lastscan = no change")
-            println(rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)))
-            println(lastScan)
+            log.debug("rcTime is older than lastscan = no change")
             return
         }
 
@@ -296,16 +283,17 @@ class FileScanner(
             fs.stat(it).toElasticIndexedFile(it,collection)
         }.associateBy { it.path }
 
+        val relativeFilePath = pathConverter.internalToUCloud(InternalFile(file.path)).path
+
         val filesInIndex = query.queryForScan(
             FileQuery(
-                listOf(file.path),
+                listOf(relativeFilePath),
                 fileDepth = AnyOf.with(
-                    Comparison(file.path.depth() + 1, ComparisonOperator.EQUALS)
+                    Comparison(relativeFilePath.depth() + 1, ComparisonOperator.EQUALS)
                 )
             )
         ).associateBy { it.path }
 
-        println("FIELS IN INDEX: $filesInIndex")
         val bulk = BulkRequestBuilder()
 
         //Delete files not in folder anymore and their sub files/directories
@@ -341,33 +329,28 @@ class FileScanner(
                     UpdateRequest(FILES_INDEX, it.path).apply {
                         val writeValueAsBytes = defaultMapper.encodeToString(it).encodeToByteArray()
                         doc(writeValueAsBytes, XContentType.JSON)
-                        println("upserting ${it.path}")
                         docAsUpsert(true)
                     }
                 )
             }
 
-        println(thisFileInIndex)
         if (thisFileInIndex == null) {
-            val update = UpdateRequest(FILES_INDEX, file.path).apply {
+            val update = UpdateRequest(FILES_INDEX, relativeFilePath).apply {
                 val writeValueAsBytes =
                     defaultMapper.encodeToString(fs.stat(file).toElasticIndexedFile(file, collection))
                         .encodeToByteArray()
                 doc(writeValueAsBytes, XContentType.JSON)
-                println("upserting ${file.path}")
                 docAsUpsert(true)
             }
             bulk.add(update)
         }
 
-        println("Flussing bulk")
         bulk.flush()
 
         fileList.mapNotNull { f ->
             val stat = fs.stat(f)
             withContext(pool) {
                 if (stat.fileType == FileType.DIRECTORY) {
-                    println("SUBMITING DEEPER")
                     launch {
                         submitScan(
                             InternalFile(f.path),
@@ -421,7 +404,7 @@ class FileScanner(
         val recursiveSubDirs = dirCount.count
 
         if (recursiveEntryCount != recursiveFiles + recursiveSubDirs) {
-            log.info("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs)")
+            log.debug("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs)")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
@@ -440,39 +423,40 @@ class FileScanner(
             }
 
             if (percentage >= abs(0.05)) {
-                log.info("Size is different $actualRecursiveSize != $sum")
+                log.debug("Size is different $actualRecursiveSize != $sum")
                 return ShouldContinue(true, recursiveEntryCount)
             }
         }
         val actualRecursiveFiles = fastDirectoryStats.getRecursiveDirectoryCount(internalFile)
         val actualRecursiveSubDirs = fastDirectoryStats.getRecursiveDirectoryCount(internalFile)
         if (recursiveSubDirs != actualRecursiveSubDirs) {
-            log.info("Sub dirs is different ${recursiveSubDirs} ${actualRecursiveSubDirs}")
+            log.debug("Sub dirs is different ${recursiveSubDirs} ${actualRecursiveSubDirs}")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
         if (recursiveFiles != actualRecursiveFiles) {
-            log.info("Recursive files is different $recursiveFiles $actualRecursiveFiles")
+            log.debug("Recursive files is different $recursiveFiles $actualRecursiveFiles")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
-        log.info("Skipping ${internalFile.path} ($recursiveEntryCount entries has been skipped)")
+        log.debug("Skipping ${internalFile.path} ($recursiveEntryCount entries has been skipped)")
 
         return ShouldContinue(false, recursiveEntryCount)
     }
 
     private fun NativeStat.toElasticIndexedFile(file: InternalFile, collection: FileCollection): ElasticIndexedFile {
         return ElasticIndexedFile(
-            path = file.path,
+            path = pathConverter.internalToUCloud(file).path,
             size = size,
-            fileType = FileType.FILE,
+            fileType = fs.stat(file).fileType,
             rctime = runCatching {
                 fastDirectoryStats.getRecursiveTime(file)
             }.getOrNull(),
             permission = collection.permissions?.others?.first()?.permissions ?: emptyList(),
             createdAt = modifiedAt,
             collectionId = collection.id,
-            owner = collection.owner
+            owner = collection.owner.createdBy,
+            projectId = collection.owner.project
         )
     }
 
@@ -483,7 +467,12 @@ class FileScanner(
         fun flush() {
             if (bulkCount > 0) {
                 val response = elastic.bulk(bulk, RequestOptions.DEFAULT)
-                println(response.hasFailures())
+                if (response.hasFailures()) {
+                    response.items.forEach {
+                        if (it.isFailed)
+                            log.warn(it.failure.toString())
+                    }
+                }
                 bulkCount = 0
                 bulk = BulkRequest()
             }

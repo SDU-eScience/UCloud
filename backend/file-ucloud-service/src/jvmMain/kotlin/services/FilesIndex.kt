@@ -107,6 +107,9 @@ object FilesIndex {
                         },
                         "owner" : {
                             "type": "text"
+                        },
+                        "projectId" : {
+                            "type": "text"
                         }
                     }
                 }

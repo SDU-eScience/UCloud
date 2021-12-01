@@ -71,21 +71,8 @@ class FilesController(
         }
 
         implement(UCloudFiles.search) {
-            // TODO(Dan): Obviously needs to be replaced by an actual implementation
-            val result = elasticQueryService.query(request, actorAndProject)
-
             ok(
-                PageV2(
-                    50,
-                    (0 until 50).map {
-                        PartialUFile(
-                            "/19/${request.query}_$it",
-                            UFileStatus(),
-                            Time.now()
-                        )
-                    },
-                    "fie"
-                )
+                elasticQueryService.query(request)
             )
         }
 
