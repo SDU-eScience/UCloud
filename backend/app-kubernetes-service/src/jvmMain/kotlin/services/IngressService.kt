@@ -63,9 +63,9 @@ class IngressService(
                         }
                     }
 
-                    if (!id.toLowerCase().matches(regex) || id.toLowerCase().matches(uuidRegex)) {
+                    if (!id.lowercase().matches(regex) || id.lowercase().matches(uuidRegex)) {
                         throw RPCException(
-                            "Invalid ingress requested. Must only contain letters a-z, and numbers 0-9.",
+                            "Invalid public link requested. Must only contain letters a-z, numbers (0-9), dashes and underscores.",
                             HttpStatusCode.BadRequest
                         )
                     }
