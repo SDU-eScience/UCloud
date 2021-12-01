@@ -54,6 +54,12 @@ import platform.posix.mkdir
 import platform.posix.sleep
 import kotlin.native.concurrent.AtomicReference
 
+import dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem
+import dk.sdu.cloud.app.orchestrator.api.OpenSession
+import dk.sdu.cloud.app.orchestrator.api.JobsOpenInteractiveSessionRequestItem
+import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
+import dk.sdu.cloud.utils.secureToken
+
 @Serializable
 data class SlurmConfiguration(
     val partition: String,
@@ -288,6 +294,7 @@ class SlurmPlugin : ComputePlugin {
         while (true) {
             println("RunMonitoringLoop")
             sleep(5)
+            continue
 
             val jobs: MutableList<SlurmJob> = mutableListOf()
 
@@ -342,6 +349,7 @@ class SlurmPlugin : ComputePlugin {
                         AcctEntry(map["JobID"], map["State"]!!.split(" ")!!.getOrElse(0){""}, map["ExitCode"], map["Start"], map["End"])
                     }
 
+
             acctJobs.forEach { job ->
                 val dbState = jobs.first { it.slurmId == job.jobId }.lastKnown
                 val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
@@ -350,7 +358,6 @@ class SlurmPlugin : ComputePlugin {
                 if (  uState!!.isFinal && !uState.providerState.equals(dbState)  ) {
 
                     //println("updating " + job)
-
                     JobsControl.update.call(
                         bulkRequestOf(
                             ResourceUpdateAndId(
@@ -516,6 +523,39 @@ class SlurmPlugin : ComputePlugin {
             )
         })
     }
+
+    override suspend fun PluginContext.openInteractiveSession(jobRequest: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
+
+        val job = jobRequest.job as Job
+        val dbJob: SlurmJob = ipcClient.sendRequestBlocking( JsonRpcRequest( "slurm.jobs.retrieve", SlurmJob(job.id, "").toJson())).orThrow()
+        val sessionId = secureToken(8)
+
+        println("sessionId $sessionId")
+
+
+        //request received      
+        // JobsProviderOpenInteractiveSessionRequestItem(
+
+        // job=Job(id=16, owner=ResourceOwner(createdBy=user, project=null), updates=[], specification=JobSpecification(application=alpine@3, product=ProductReference(id=im1-1, category=im1, provider=development), name=qkhjhfggdsfsdfs, replicas=1, allowDuplicateJob=false, parameters={}, resources=[], timeAllocation=00:15:00), status=JobStatus(state=RUNNING, jobParametersJson=ExportedParameters(siteVersion=3, request=ExportedParametersRequest(application=alpine@3, product=ProductReference(id=im1-1, category=im1, provider=development), name=qkhjhfggdsfsdfs, replicas=1, parameters={}, resources=[], timeAllocation=00:15:00, resolvedProduct=null, resolvedApplication=null, resolvedSupport=null, allowDuplicateJob=true), machineType={"cpu":1,"memoryInGigs":1}), startedAt=1638348131822, expiresAt=1638349031822, resolvedApplication=Application(metadata=ApplicationMetadata(name=alpine, version=3, authors=[Dan], title=Alpine, description=Alpine!
+        // , website=null, public=false), invocation=ApplicationInvocationDescription(tool=ToolReference(name=alpine, version=3, tool=Tool(owner=admin@dev, createdAt=1638179646070, modifiedAt=1638179646070, description=NormalizedToolDescription(info=alpine@1, container='alpine:3'))), invocation=[WordInvocationParameter(word=sh), WordInvocationParameter(word=-c), WordInvocationParameter(word=echo "Hello, World!"; sleep 2; echo "How are you doing?"; sleep 1; echo "This is just me writing some stuff for testing purposes!"; sleep 1; seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
+        // )], parameters=[], outputFileGlobs=[*, stdout.txt, stderr.txt], applicationType=BATCH, vnc=null, web=null, container=ContainerDescription(changeWorkingDirectory=true, runAsRoot=true, runAsRealUser=false), environment=null, allowAdditionalMounts=null, allowAdditionalPeers=null, allowMultiNode=true, fileExtensions=[], licenseServers=[])), resolvedSupport=null, resolvedProduct=null), createdAt=1638348129605, output=JobOutput(outputFolder=null), permissions=ResourcePermissions(myself=[ADMIN], others=null))
+
+        // , rank=0, sessionType=SHELL)
+
+//create interactive ssh process and get pid
+
+
+
+
+
+        return OpenSession.Shell(job.id, 0, sessionId )
+
+    }
+
+
+
+
+
 
     companion object {
         const val SBATCH_EXE = "/usr/bin/sbatch"
