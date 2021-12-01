@@ -25,9 +25,9 @@ class FileCollectionService(
     serviceClient: AuthenticatedClient,
 ) : Super(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.file_collections")
-    override val defaultSortColumn = SqlObject.Column(table, "resource")
+    override val defaultSortColumn = SqlObject.Column(table, "title")
     override val sortColumns = mapOf(
-        "resource" to SqlObject.Column(table, "resource")
+        "title" to SqlObject.Column(table, "title")
     )
 
     override val serializer = serializer<FileCollection>()
