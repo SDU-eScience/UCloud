@@ -219,11 +219,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -290,11 +290,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -430,7 +430,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -512,7 +512,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -650,7 +650,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
@@ -719,7 +719,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
@@ -861,11 +861,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for storage usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -932,11 +932,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for storage usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -1075,7 +1075,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 100,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -1157,7 +1157,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 50,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -1298,7 +1298,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 100,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -1367,7 +1367,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 50,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -1557,11 +1557,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -1799,7 +1799,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -2037,7 +2037,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
@@ -2272,11 +2272,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -2393,11 +2393,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "root-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -2633,7 +2633,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 100,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -2774,7 +2774,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "root-project"
                 },
                 "units": 50,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -3010,7 +3010,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 100,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -3127,7 +3127,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "root-project"
             },
             "units": 50,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -3404,11 +3404,11 @@ this state by applying a 400 core hour charge on the node and another 50 core ho
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -3735,7 +3735,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 100,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -4061,7 +4061,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 100,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
@@ -4378,11 +4378,11 @@ this state by applying a 400 GB charge on the node and another 50 GB on the leaf
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -4538,11 +4538,11 @@ for 0 units (GB). */
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -4863,7 +4863,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 110,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -5051,7 +5051,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 0,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -5370,7 +5370,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 110,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -5526,7 +5526,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 0,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -5788,13 +5788,14 @@ Accounting.deposit.call(
     bulkRequestOf(DepositToWalletRequestItem(
         amount = 100, 
         description = "Create sub-allocation", 
+        dry = false, 
         endDate = null, 
         recipient = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "-52830561993866994411635257471698", 
+        transactionId = "-36645552794302851731638363217707", 
     )),
     piRoot
 ).orThrow()
@@ -6011,7 +6012,8 @@ await callAPI(AccountingApi.deposit(
                 "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-52830561993866994411635257471698"
+                "transactionId": "-36645552794302851731638363217707",
+                "dry": false
             }
         ]
     }
@@ -6225,7 +6227,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "-52830561993866994411635257471698"
+            "transactionId": "-36645552794302851731638363217707",
+            "dry": false
         }
     ]
 }'
@@ -6442,6 +6445,7 @@ Accounting.transfer.call(
             name = "example-slim", 
             provider = "example", 
         ), 
+        dry = false, 
         endDate = null, 
         source = WalletOwner.Project(
             projectId = "root-project", 
@@ -6450,7 +6454,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "68788707639379114071635257471698", 
+        transactionId = "7420453800457635291638363217708", 
     )),
     piRoot
 ).orThrow()
@@ -6673,7 +6677,8 @@ await callAPI(AccountingApi.transfer(
                 "amount": 100,
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "68788707639379114071635257471698"
+                "transactionId": "7420453800457635291638363217708",
+                "dry": false
             }
         ]
     }
@@ -6892,7 +6897,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "68788707639379114071635257471698"
+            "transactionId": "7420453800457635291638363217708",
+            "dry": false
         }
     ]
 }'
@@ -7184,7 +7190,7 @@ values. This means that the new start and end dates _must_ overlap with the valu
 data class ChargeWalletRequestItem(
     val payer: WalletOwner,
     val units: Long,
-    val numberOfProducts: Long,
+    val periods: Long,
     val product: ProductReference,
     val performedBy: String,
     val description: String,
@@ -7223,7 +7229,7 @@ number of minutes/hours/days.
 
 <details>
 <summary>
-<code>numberOfProducts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The number of products involved in this charge, for example the number of nodes
+<code>periods</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The number of products involved in this charge, for example the number of nodes
 </summary>
 
 
@@ -7299,6 +7305,7 @@ data class DepositToWalletRequestItem(
     val startDate: Long?,
     val endDate: Long?,
     val transactionId: String?,
+    val dry: Boolean?,
 )
 ```
 
@@ -7380,6 +7387,17 @@ expire.
 <details>
 <summary>
 <code>transactionId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>dry</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -7520,6 +7538,7 @@ data class TransferToWalletRequestItem(
     val startDate: Long?,
     val endDate: Long?,
     val transactionId: String?,
+    val dry: Boolean?,
 )
 ```
 
@@ -7601,6 +7620,17 @@ expire.
 <details>
 <summary>
 <code>transactionId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>dry</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

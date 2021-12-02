@@ -23,6 +23,9 @@ data class ProviderIncludeFlags(
     val filterProviderIds: String?,
     val filterIds: String?,
     val filterName: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -166,6 +169,39 @@ data class ProviderIncludeFlags(
 <details>
 <summary>
 <code>filterName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

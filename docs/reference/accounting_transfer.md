@@ -114,6 +114,7 @@ Accounting.transfer.call(
             name = "example-slim", 
             provider = "example", 
         ), 
+        dry = false, 
         endDate = null, 
         source = WalletOwner.Project(
             projectId = "root-project", 
@@ -122,7 +123,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "68788707639379114071635257471698", 
+        transactionId = "7420453800457635291638363217708", 
     )),
     piRoot
 ).orThrow()
@@ -345,7 +346,8 @@ await callAPI(AccountingApi.transfer(
                 "amount": 100,
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "68788707639379114071635257471698"
+                "transactionId": "7420453800457635291638363217708",
+                "dry": false
             }
         ]
     }
@@ -564,7 +566,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "68788707639379114071635257471698"
+            "transactionId": "7420453800457635291638363217708",
+            "dry": false
         }
     ]
 }'

@@ -9,7 +9,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#listsubprojectsrequest'>ListSubProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#project'>Project</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#listsubprojectsrequest'>ListSubProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#memberinproject'>MemberInProject</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

@@ -26,6 +26,10 @@
 <td>Retrieve product support for this providers</td>
 </tr>
 <tr>
+<td><a href='#search'><code>search</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#browse'><code>browse</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -101,6 +105,19 @@ This endpoint responds with the [`Product`](/docs/reference/dk.sdu.cloud.account
 this provider along with details for how [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  is
 supported. The [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s must be registered with
 UCloud/Core already.
+
+
+### `search`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest.md'>FilesProviderSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.PartialUFile.md'>PartialUFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
 
 
 ### `browse`

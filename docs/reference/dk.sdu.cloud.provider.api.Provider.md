@@ -19,8 +19,6 @@ data class Provider(
     val updates: List<ProviderUpdate>,
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -130,28 +128,6 @@ resource.
 
 
 A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='#resourcebilling.free'>ResourceBilling.Free</a></code></code>
-</summary>
-
-
-
 
 
 </details>

@@ -6,16 +6,7 @@ import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderSuspendRequestItem
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
-import dk.sdu.cloud.app.orchestrator.api.QueueStatus
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -44,10 +35,9 @@ import dk.sdu.cloud.utils.readText
 import dk.sdu.cloud.utils.writeText
 import io.ktor.http.*
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+//import kotlinx.datetime.Clock
+//import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import platform.posix.ceil
 import platform.posix.mkdir
@@ -68,7 +58,7 @@ class SlurmPlugin : ComputePlugin {
         val globalConfig = pluginConfig.value ?: error("Configuration not yet ready!")
         val ref = ProductReferenceWithoutProvider(product.id, product.category)
         val relevantConfig = globalConfig.plugins.find { config -> config.activeFor.any { it.matches(ref) } }
-            ?.configuration ?: error("No configuration found for product: $ref")
+            ?.configuration ?: error("No configuration found for product: $ref ($globalConfig)")
 
         return try {
             defaultMapper.decodeFromJsonElement(relevantConfig)
@@ -104,7 +94,7 @@ class SlurmPlugin : ComputePlugin {
         }
 
         if (code != 0) throw RPCException(
-            "Unhandled exception when creating job: $stderr",
+            "Unhandled exception when creating job: $code $stdout $stderr",
             HttpStatusCode.BadRequest
         )
 
@@ -390,10 +380,12 @@ class SlurmPlugin : ComputePlugin {
 
                     val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
 
-                    val start = Instant.parse(job.start.plus("Z"))
-                    val end = Instant.parse(job.end.plus("Z"))
-                    val lastTs = Clock.System.now().toString()
-                    val uDuration = run { end - start }.let { SimpleDuration.fromMillis(it.inWholeMilliseconds) }
+//                    val start = Instant.parse(job.start.plus("Z"))
+//                    val end = Instant.parse(job.end.plus("Z"))
+//                    val lastTs = Clock.System.now().toString()
+//                    val uDuration = run { end - start }.let { SimpleDuration.fromMillis(it.inWholeMilliseconds) }
+                    val lastTs = "asdqwe"
+                    val uDuration = SimpleDuration.fromMillis(0)
 
                     JobsControl.chargeCredits.call(
                         bulkRequestOf(
@@ -556,6 +548,47 @@ class SlurmPlugin : ComputePlugin {
                 )
             )
         })
+    }
+
+    override suspend fun PluginContext.openInteractiveSession(
+        job: JobsProviderOpenInteractiveSessionRequestItem
+    ): OpenSession {
+        return OpenSession.Shell(job.job.id, job.rank, "testing")
+    }
+
+    override suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
+        return request.sessionIdentifier == "testing"
+    }
+
+    override suspend fun ComputePlugin.ShellContext.handleShellSession(cols: Int, rows: Int) {
+        // TODO Start SSH session
+
+        while (isActive()) {
+            val userInput = receiveChannel.poll()
+            when (userInput) {
+                is ShellRequest.Input -> {
+                    // Forward input to SSH session
+                }
+
+                is ShellRequest.Resize -> {
+                    // Send resize event to SSH session
+                }
+
+                else -> {
+                    // Nothing to do right now
+                }
+            }
+
+            // NOTE(Dan): Function doesn't exist yet
+            /*
+            val sshData = ssh.pollData()
+            if (sshData != null) {
+                emitData(sshData)
+            }
+             */
+
+            delay(15)
+        }
     }
 
     companion object {

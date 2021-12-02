@@ -148,10 +148,6 @@ only be responsible for facilitating direct communication. A common example of t
 <td>Updates regarding a Provider, not currently in use</td>
 </tr>
 <tr>
-<td><a href='#resourcebilling.free'><code>ResourceBilling.Free</code></a></td>
-<td>Contains information related to the accounting/billing of a `Resource`</td>
-</tr>
-<tr>
 <td><a href='#resourceowner'><code>ResourceOwner</code></a></td>
 <td>The owner of a `Resource`</td>
 </tr>
@@ -444,6 +440,9 @@ Providers.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -456,8 +455,6 @@ Providers.retrieve.call(
 
 /*
 Provider(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633329776235, 
     id = "51231", 
     owner = ResourceOwner(
@@ -606,7 +603,10 @@ await callAPI(ProvidersApi.retrieve(
             "filterProductCategory": null,
             "filterProviderIds": null,
             "filterIds": null,
-            "filterName": null
+            "filterName": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "51231"
     }
@@ -639,10 +639,7 @@ await callAPI(ProvidersApi.retrieve(
         "createdBy": "sysadmin",
         "project": null
     },
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -769,10 +766,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 #         "createdBy": "sysadmin",
 #         "project": null
 #     },
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```
@@ -1086,8 +1080,6 @@ data class Provider(
     val updates: List<ProviderUpdate>,
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -1203,28 +1195,6 @@ A null value indicates that permissions are not supported by this resource type.
 
 <details>
 <summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='#resourcebilling.free'>ResourceBilling.Free</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
@@ -1264,6 +1234,9 @@ data class ProviderIncludeFlags(
     val filterProviderIds: String?,
     val filterIds: String?,
     val filterName: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -1407,6 +1380,39 @@ data class ProviderIncludeFlags(
 <details>
 <summary>
 <code>filterName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -1627,58 +1633,6 @@ data class ProviderUpdate(
 <details>
 <summary>
 <code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ResourceBilling.Free`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Contains information related to the accounting/billing of a `Resource`_
-
-```kotlin
-data class Free(
-    val creditsCharged: Long,
-    val pricePerUnit: Long,
-)
-```
-Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
-the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-to be charged a different price than newly launched products.
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>creditsCharged</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

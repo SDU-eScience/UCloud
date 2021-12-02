@@ -69,11 +69,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -140,11 +140,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -280,7 +280,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -362,7 +362,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -500,7 +500,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
@@ -569,7 +569,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",

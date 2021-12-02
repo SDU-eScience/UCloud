@@ -6,11 +6,13 @@ plugins {
 repositories {
     jcenter()
     mavenCentral()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.4.0"
+    val ktorVersion = "1.6.2-native-mm-eap-196"
     val jasyncVersion = "1.1.3"
 
     jvm {
@@ -33,7 +35,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("stdlib-common"))
                 api("io.ktor:ktor-client-core:$ktorVersion")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
             }
         }
 

@@ -69,11 +69,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for storage usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -140,11 +140,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for storage usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "my-research", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -283,7 +283,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 100,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -365,7 +365,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "my-research"
                 },
                 "units": 50,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -506,7 +506,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 100,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -575,7 +575,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "my-research"
             },
             "units": 50,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",

@@ -2,11 +2,7 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.freeze
@@ -20,7 +16,11 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
+import kotlin.native.concurrent.TransferMode
+import kotlin.native.concurrent.Worker
 
 class ComputeController(
     controllerContext: ControllerContext,
@@ -30,6 +30,7 @@ class ComputeController(
 
     override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
         val serverMode = controllerContext.configuration.serverMode
+        val shells = Shells(controllerContext.configuration.core.providerId)
 
         implement(api.extend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -149,9 +150,90 @@ class ComputeController(
                 }
             )
         }
+
+        implement(shells.open) {
+            runBlocking {
+                if (serverMode == ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+                when (request) {
+                    is ShellRequest.Initialize -> {
+                        currentShellSessionValidForSocket = wsContext.internalId
+
+                        val pluginHandler = with(controllerContext.pluginContext) {
+                            plugins.plugins.values.find { plugin ->
+                                with(plugin) { canHandleShellSession(request) }
+                            }
+                        } ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
+
+                        val channel = Channel<ShellRequest>(Channel.BUFFERED).freeze()
+                        val ctx = ComputePlugin.ShellContext(
+                            controllerContext.pluginContext,
+                            wsContext.isOpen,
+                            channel,
+                            emitData = { data ->
+                                wsContext.sendMessage(ShellResponse.Data(data))
+                            }
+                        )
+
+                        data class WorkerCtx(
+                            val ctx: ComputePlugin.ShellContext,
+                            val plugin: ComputePlugin,
+                            val request: ShellRequest.Initialize
+                        )
+
+                        val workerCtx = WorkerCtx(ctx, pluginHandler, request).freeze()
+
+                        Worker.start(name = "Shell handler for ${wsContext.internalId}")
+                            .execute(
+                                TransferMode.UNSAFE,
+                                producer = { workerCtx },
+                                job = { workerCtx ->
+                                    runBlocking {
+                                        with(workerCtx.ctx) {
+                                            with(workerCtx.plugin) {
+                                                handleShellSession(workerCtx.request.cols, workerCtx.request.rows)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+
+                        currentShellSession = channel
+                    }
+
+                    is ShellRequest.Input, is ShellRequest.Resize -> {
+                        if (currentShellSessionValidForSocket != wsContext.internalId) {
+                            throw RPCException(
+                                "This session is not ready to accept such a request",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        val sendChannel = currentShellSession ?: run {
+                            throw RPCException(
+                                "This session is not ready to accept such a request",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        sendChannel.send(request)
+                    }
+                }
+
+                OutgoingCallResponse.Ok(ShellResponse.Acknowledged())
+            }
+        }
     }
 
     companion object : Loggable {
         override val log: Logger = logger()
     }
 }
+
+
+// NOTE(Dan): This is extremely volatile and only works because the websocket handler is running in the same thread
+@ThreadLocal
+var currentShellSession: SendChannel<ShellRequest>? = null
+
+@ThreadLocal
+var currentShellSessionValidForSocket: Int = -1

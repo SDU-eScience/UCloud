@@ -84,6 +84,7 @@ private fun closeWebSocketConnection(connPtr: CPointer<h2o_websocket_conn_t>) {
 }
 
 data class WebSocketContext<R : Any, S : Any, E : Any>(
+    val internalId: Int,
     val rawRequest: WSRequest<JsonObject>,
     val call: CallDescription<R, S, E>,
     val sendMessage: (S) -> Unit,
@@ -248,7 +249,7 @@ private fun onWebSocketMessage(
                         }
                     }
 
-                    val wsContext = WebSocketContext(request, foundCall.call, sendMessage, sendResponse, isOpen)
+                    val wsContext = WebSocketContext(wsId, request, foundCall.call, sendMessage, sendResponse, isOpen)
 
                     log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
                     val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)

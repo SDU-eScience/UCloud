@@ -9,6 +9,7 @@
 
 ```kotlin
 data class NetworkIPFlags(
+    val filterState: NetworkIPState?,
     val includeOthers: Boolean?,
     val includeUpdates: Boolean?,
     val includeSupport: Boolean?,
@@ -21,6 +22,9 @@ data class NetworkIPFlags(
     val filterProductCategory: String?,
     val filterProviderIds: String?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -28,6 +32,17 @@ data class NetworkIPFlags(
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>filterState</code>: <code><code><a href='#networkipstate'>NetworkIPState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>
@@ -153,6 +168,39 @@ data class NetworkIPFlags(
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

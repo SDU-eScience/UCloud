@@ -11,6 +11,7 @@ _A parent allocator's view of a `WalletAllocation`_
 ```kotlin
 data class SubAllocation(
     val id: String,
+    val path: String,
     val startDate: Long,
     val endDate: Long?,
     val productCategoryId: ProductCategoryId,
@@ -32,6 +33,17 @@ data class SubAllocation(
 <details>
 <summary>
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>path</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
