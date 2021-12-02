@@ -192,7 +192,7 @@ export const History: React.FunctionComponent<{
 
             {hasActivity ?
                 <div className={"activity"}>
-                    <div className="scroll-area">
+                    <div className="scroll-area" style={{paddingTop: "5px"}}>
                         <StandardList
                             generateCall={noopCall} renderer={entryRenderer} embedded={"inline"}
                             title={"Activity entry"} titlePlural={"Activity"} preloadedResources={activityRows}
