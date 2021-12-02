@@ -1,8 +1,7 @@
 {
     "compute": {
         "products": [
-            { "category": "dtu", "id": "dtu-small" },
-            { "category": "dtu", "id": "dtu-large" }
+            { "category": "im1", "id": "im1-1" }
         ],
         "plugins": [
             {
@@ -10,7 +9,8 @@
                 "name": "normal-configuration",
                 "configuration": {
                     "partition": "normal",
-                    "mountpoint": "/data"
+                    "mountpoint": "/data",
+                    "useFakeMemoryAllocations": true
                 } 
             }   
         ]
