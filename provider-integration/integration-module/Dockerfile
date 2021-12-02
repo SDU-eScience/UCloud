@@ -61,3 +61,8 @@ RUN cd /etc/ssh && ssh-keygen -A
 COPY default_config/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chown  root:root /usr/local/bin/docker-entrypoint.sh
 RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
+
+
+
+FROM SLURM-BASE-SSH as slurm-ssh-openmpi
+RUN yum -y install openmpi-devel Lmod
