@@ -265,7 +265,7 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
 const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & ActivityCallbacks>[] = [
     {
         icon: "close",
-        text: "Cancel new document",
+        text: "Close new document",
         primary: true,
         enabled: (selected, cb) => selected.length === 0 && cb.documentInspection === null,
         onClick: (selected, cb) => {
