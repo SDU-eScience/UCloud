@@ -71,6 +71,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
+    showGroups?: boolean;
 
     onResourcesLoaded?: (newItems: Res[]) => void;
 }
@@ -298,6 +299,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
             }
         };
+        console.log(props.showGroups)
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
@@ -328,13 +330,20 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         </div>
                     </div>
                 }
+                {
+                    resource.permissions.myself != "ADMIN" ? null :
+                        (props.showGroups === false ||
+                            resource.permissions.others == null ||
+                            resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
+                    <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
+                }
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
-        props.showProduct]);
+        props.showProduct, props.showGroups]);
 
     const sortOptions = useMemo(() =>
         api.sortEntries.map(it => ({
