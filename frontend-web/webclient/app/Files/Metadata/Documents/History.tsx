@@ -30,7 +30,7 @@ export const History: React.FunctionComponent<{
     close: () => void;
 }> = ({file, metadata, reload, close, template}) => {
     // Contains the new version currently being edited
-    const [editingDocument, setEditingDocument] = useState<Record<string, any>>({});
+    const [editingDocument, setEditingDocument] = useState<Record<string, any> | null>(null);
     // Contains the document we are currently inspecting
     // We will display on the left hand side `documentInspection` if it is not null otherwise `editingDocument`.
     const [documentInspection, setDocumentInspection] = useState<FileMetadataDocumentOrDeleted | null>(null);
@@ -42,7 +42,7 @@ export const History: React.FunctionComponent<{
 
     useEffect(() => {
         if (!hasActivity) {
-            setEditingDocument({});
+            setEditingDocument(null);
         }
     }, [hasActivity]);
 
@@ -57,8 +57,10 @@ export const History: React.FunctionComponent<{
 
     useEffect(() => {
         // NOTE(Dan): Automatically switch to the latest document which is valid.
-        if (activeDocument) setDocumentInspection(activeDocument);
-    }, []);
+        if (activeDocument && !editingDocument) {
+            setDocumentInspection(activeDocument);
+        }
+    }, [activeDocument, editingDocument]);
 
     const submitNewVersion = useCallback(async () => {
         if (commandLoading) return;
@@ -79,7 +81,8 @@ export const History: React.FunctionComponent<{
         if (change) change.value = "";
 
         reload();
-        setEditingDocument({});
+        setDocumentInspection(activeDocument ?? null);
+        setEditingDocument(null);
     }, [file, reload, commandLoading, editingDocument, template]);
 
     const activityRows = useMemo((): DocumentRow[] => {
@@ -211,7 +214,7 @@ interface ActivityCallbacks {
     file: UFile;
     documentInspection: FileMetadataDocumentOrDeleted | null;
     setDocumentInspection: (doc: FileMetadataDocumentOrDeleted | null) => void;
-    setEditingDocument: (doc: Record<string, any>) => void;
+    setEditingDocument: (doc: Record<string, any> | null) => void;
     reloadFile: () => void;
 }
 
@@ -261,18 +264,17 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
 
 const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & ActivityCallbacks>[] = [
     {
-        icon: "upload",
-        text: "New document",
+        icon: "close",
+        text: "Cancel new document",
         primary: true,
         enabled: (selected, cb) => selected.length === 0 && cb.documentInspection === null,
         onClick: (selected, cb) => {
-            cb.setDocumentInspection(null);
-            cb.setEditingDocument({});
+            cb.setEditingDocument(null);
         }
     },
     {
-        icon: "close",
-        text: "Close document",
+        icon: "upload",
+        text: "New document",
         primary: true,
         enabled: (selected, cb) => selected.length === 0 && cb.documentInspection !== null,
         onClick: (selected, cb) => {
