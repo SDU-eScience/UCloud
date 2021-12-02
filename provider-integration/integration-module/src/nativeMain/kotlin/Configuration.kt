@@ -29,6 +29,8 @@ data class PartialProductReferenceWithoutProvider(
     }
 
     fun matches(ref: ProductReferenceWithoutProvider): Boolean {
+        println(this)
+        println(ref)
         if (category == null) return true
         if (category == ref.category && id == null) return true
         if (category == ref.category && id == ref.id) return true
