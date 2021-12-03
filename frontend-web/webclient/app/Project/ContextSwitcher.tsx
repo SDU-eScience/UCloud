@@ -102,9 +102,11 @@ const BoxForPadding = styled.div`
         margin-left: 26px;
     }
 
+    & > ${Text} {
+        padding-left: 10px;
+    }
+
     margin-top: 12px;
-    margin-left: -10px;
-    margin-right: -10px;
     margin-bottom: 12px;
 `;
 
