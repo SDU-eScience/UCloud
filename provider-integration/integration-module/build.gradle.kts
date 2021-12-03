@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha12")
+            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha13")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             api("io.ktor:ktor-client-curl:1.6.2-test")
             api("io.ktor:ktor-client-websockets:1.6.2-test")
