@@ -29,12 +29,12 @@ export const FirewallEditor: React.FunctionComponent<{
         const firstPort = parseInt(first, 10);
         const lastPort = blankOrUndefined(last) ? firstPort : parseInt(last, 10);
 
-        if (isNaN(firstPort) || firstPort < 0) {
+        if (isNaN(firstPort) || firstPort < 1) {
             snackbarStore.addFailure("Port (First) is not a valid positive number", false);
             return;
         }
 
-        if (isNaN(lastPort) || lastPort < 0) {
+        if (isNaN(lastPort) || lastPort < 1) {
             snackbarStore.addFailure("Port (Last) is not a valid positive number", false);
             return;
         }

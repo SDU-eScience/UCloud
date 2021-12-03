@@ -70,6 +70,10 @@ data class PortRangeAndProto(
     val end: Int,
     val protocol: IPProtocol,
 ) : DocVisualizable {
+    init {
+        if (start < 1 || end < 1) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+    }
+
     override fun visualize(): DocVisualization =
         if (start != end) DocVisualization.Inline("$start-$end $protocol")
         else DocVisualization.Inline("$start $protocol")
