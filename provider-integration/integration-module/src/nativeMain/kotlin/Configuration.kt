@@ -29,8 +29,6 @@ data class PartialProductReferenceWithoutProvider(
     }
 
     fun matches(ref: ProductReferenceWithoutProvider): Boolean {
-        println(this)
-        println(ref)
         if (category == null) return true
         if (category == ref.category && id == null) return true
         if (category == ref.category && id == ref.id) return true
@@ -106,11 +104,20 @@ class IMConfiguration(
     }
 
     @Serializable
+    data class DevelopmentInstance(
+        val username: String,
+        val userId: Int,
+        val port: Int,
+    )
+
+    @Serializable
     data class Core(
         val providerId: String,
         val certificateFile: String? = null,
         val certificate: String? = null,
         val ipcDirectory: String? = null,
+        // NOTE(Dan): If this is specified, this instance will never be launched
+        val developmentInstance: DevelopmentInstance? = null,
     ) {
         fun normalize(): Core {
             if (providerId != PLACEHOLDER_ID) {

@@ -1,13 +1,12 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.freeze
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.receiveOrNull
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -15,8 +14,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlin.native.concurrent.TransferMode
-import kotlin.native.concurrent.Worker
 import kotlin.random.Random
 import kotlin.random.nextULong
 
@@ -41,13 +38,13 @@ class EnvoyConfigurationService(
         }
     }
 
-    fun start(port: Int?): Worker {
+    fun start(port: Int?) {
         writeConfigurationFile(port ?: 8889)
 
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         startProcess(
-            
+
             args = listOf(
                 "/usr/local/bin/getenvoy",
                 "run",
@@ -64,38 +61,33 @@ class EnvoyConfigurationService(
             }
         )
 
-        return Worker.start(name = "Envoy configuration worker")
-            .also {
-                it.execute(TransferMode.UNSAFE, { Pair(configDir, channel).freeze() }) { (configDir, channel) ->
-                    runBlocking {
-                        val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster>>()
-                        run {
-                            val id = "_UCloud"
-                            entries[id] = Pair(
-                                EnvoyRoute(null, id),
-                                EnvoyCluster.create(id, "127.0.0.1", UCLOUD_IM_PORT)
-                            )
+        ProcessingScope.launch(Dispatchers.Main) {
+            val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster>>()
+            run {
+                val id = "_UCloud"
+                entries[id] = Pair(
+                    EnvoyRoute(null, id),
+                    EnvoyCluster.create(id, "127.0.0.1", UCLOUD_IM_PORT)
+                )
 
-                            val routes = entries.values.map { it.first }
-                            val clusters = entries.values.map { it.second }
-                            configure(configDir, routes, clusters)
-                        }
+                val routes = entries.values.map { it.first }
+                val clusters = entries.values.map { it.second }
+                configure(configDir, routes, clusters)
+            }
 
-                        while (isActive) {
-                            val nextMessage = channel.receiveOrNull() ?: break
-                            when (nextMessage) {
-                                is ConfigurationMessage.NewCluster -> {
-                                    entries[nextMessage.route.cluster] = Pair(nextMessage.route, nextMessage.cluster)
-                                }
-                            }
-
-                            val routes = entries.values.map { it.first }
-                            val clusters = entries.values.map { it.second }
-                            configure(configDir, routes, clusters)
-                        }
+            while (isActive) {
+                val nextMessage = channel.receiveOrNull() ?: break
+                when (nextMessage) {
+                    is ConfigurationMessage.NewCluster -> {
+                        entries[nextMessage.route.cluster] = Pair(nextMessage.route, nextMessage.cluster)
                     }
                 }
+
+                val routes = entries.values.map { it.first }
+                val clusters = entries.values.map { it.second }
+                configure(configDir, routes, clusters)
             }
+        }
     }
 
     private fun writeConfigurationFile(port: Int) {
@@ -138,6 +130,7 @@ static_resources:
     }
 
     fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster) {
+        println("Requesting configuration $route $cluster")
         runBlocking {
             channel.send(ConfigurationMessage.NewCluster(route, cluster))
         }

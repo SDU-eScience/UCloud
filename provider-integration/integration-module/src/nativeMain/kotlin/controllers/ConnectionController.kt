@@ -115,7 +115,8 @@ class ConnectionController(
                 }
             }
 
-            val allocatedPort = portAllocator.getAndIncrement()
+            val devInstance = controllerContext.configuration.core.developmentInstance
+            val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
             envoyConfig.requestConfiguration(
                 EnvoyRoute(request.username, request.username),
                 EnvoyCluster.create(
@@ -125,22 +126,24 @@ class ConnectionController(
                 )
             )
 
-            startProcess(
-                listOf(
-                    "/usr/bin/sudo",
-                    "-u",
-                    "#${uid}",
-                    controllerContext.ownExecutable,
-                    "user",
-                    allocatedPort.toString()
-                ),
-                createStreams = {
-                    val devnull = NativeFile.open("/dev/null", readOnly = false)
-                    unlink("/tmp/ucloud_${uid}.log")
-                    val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
-                    ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
-                }
-            )
+            if (devInstance?.userId != uid) {
+                startProcess(
+                    listOf(
+                        "/usr/bin/sudo",
+                        "-u",
+                        "#${uid}",
+                        controllerContext.ownExecutable,
+                        "user",
+                        allocatedPort.toString()
+                    ),
+                    createStreams = {
+                        val devnull = NativeFile.open("/dev/null", readOnly = false)
+                        unlink("/tmp/ucloud_${uid}.log")
+                        val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                        ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
+                    }
+                )
+            }
 
             OutgoingCallResponse.Ok(Unit)
         }

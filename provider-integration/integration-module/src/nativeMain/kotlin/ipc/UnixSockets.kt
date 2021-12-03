@@ -91,7 +91,7 @@ class UnixSocketPipe(
             while (written < size) {
                 val writtenInIteration = sendmsg(socket, messageHeader.ptr, 0)
                 if (writtenInIteration == -1L) {
-                    throw IpcException("Error while sending IPC message")
+                    throw IpcException("Error while sending IPC message $errno")
                 }
 
                 written += writtenInIteration.toInt()

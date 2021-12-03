@@ -1,5 +1,6 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -18,9 +19,8 @@ import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlin.native.concurrent.TransferMode
-import kotlin.native.concurrent.Worker
 
 class ComputeController(
     controllerContext: ControllerContext,
@@ -52,7 +52,7 @@ class ComputeController(
                 is JobsProviderFollowRequest.Init -> {
                     val plugin = plugins.lookup(request.job.specification.product)
 
-                    val token = secureToken(64).freeze()
+                    val token = secureToken(64)
                     var streamId: Int? = null
                     for (i in 0 until maxStreams) {
                         if (streams[i].compareAndSet(null, token)) {
@@ -165,7 +165,7 @@ class ComputeController(
                             }
                         } ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
 
-                        val channel = Channel<ShellRequest>(Channel.BUFFERED).freeze()
+                        val channel = Channel<ShellRequest>(Channel.BUFFERED)
                         val ctx = ComputePlugin.ShellContext(
                             controllerContext.pluginContext,
                             wsContext.isOpen,
@@ -175,28 +175,13 @@ class ComputeController(
                             }
                         )
 
-                        data class WorkerCtx(
-                            val ctx: ComputePlugin.ShellContext,
-                            val plugin: ComputePlugin,
-                            val request: ShellRequest.Initialize
-                        )
-
-                        val workerCtx = WorkerCtx(ctx, pluginHandler, request).freeze()
-
-                        Worker.start(name = "Shell handler for ${wsContext.internalId}")
-                            .execute(
-                                TransferMode.UNSAFE,
-                                producer = { workerCtx },
-                                job = { workerCtx ->
-                                    runBlocking {
-                                        with(workerCtx.ctx) {
-                                            with(workerCtx.plugin) {
-                                                handleShellSession(workerCtx.request.cols, workerCtx.request.rows)
-                                            }
-                                        }
-                                    }
+                        ProcessingScope.launch {
+                            with(ctx) {
+                                with(pluginHandler) {
+                                    handleShellSession(request.cols, request.rows)
                                 }
-                            )
+                            }
+                        }
 
                         currentShellSession = channel
                     }

@@ -86,7 +86,7 @@ val <S : Any> CallHandler<*, S, *>.wsContext: WebSocketContext<*, S, *>
     get() = ctx.serverContext as WebSocketContext<*, S, *>
 
 @SharedImmutable
-val bearerKey = AttributeKey<String>("bearer").also { it.freeze() }
+val bearerKey = AttributeKey<String>("bearer")
 var IngoingCall<*>.bearerOrNull: String?
     get() = attributes.getOrNull(bearerKey)
     set(value) {
@@ -94,7 +94,7 @@ var IngoingCall<*>.bearerOrNull: String?
     }
 
 @SharedImmutable
-val securityPrincipalTokenKey = AttributeKey<SecurityPrincipalToken>("principalToken").also { it.freeze() }
+val securityPrincipalTokenKey = AttributeKey<SecurityPrincipalToken>("principalToken")
 var IngoingCall<*>.securityPrincipalTokenOrNull: SecurityPrincipalToken?
     get() = attributes.getOrNull(securityPrincipalTokenKey)
     set(value) {
