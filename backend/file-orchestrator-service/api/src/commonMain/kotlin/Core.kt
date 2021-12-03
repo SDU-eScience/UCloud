@@ -4,12 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -431,7 +426,7 @@ data class FileCollection(
         override val product: ProductReference,
     ) : ResourceSpecification {
         init {
-            require(title.isNotEmpty())
+            checkSingleLine(::title, title)
         }
     }
 
