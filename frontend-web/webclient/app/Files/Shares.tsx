@@ -62,7 +62,7 @@ export const ShareBrowse: React.FunctionComponent<{
         headerSize={55}
         emptyPage={
             <Heading.h3 textAlign={"center"}>
-                No shares
+                No shares match your search/filter criteria.
                 <br />
                 <small>You can create a new share by clicking 'Share' on one of your directories.</small>
             </Heading.h3>

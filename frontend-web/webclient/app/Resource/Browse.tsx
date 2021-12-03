@@ -413,8 +413,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 }
                 {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
                     <>
-                        No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
-                        to create a new one.
+                        No {api.titlePlural.toLowerCase()} matches your search/filter criteria.
+                        Click &quot;Create {api.title.toLowerCase()}&quot; to create a new one.
                     </>
                 }
                 {items.map(it =>
