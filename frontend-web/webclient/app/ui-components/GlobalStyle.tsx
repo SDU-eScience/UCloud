@@ -849,6 +849,10 @@ div.tooltip:hover {
     }
 }
 
+a {
+    color: var(--textHighlight);
+}
+
 `;
 
 export default UIGlobalStyle;

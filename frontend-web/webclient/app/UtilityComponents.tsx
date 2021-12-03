@@ -186,7 +186,7 @@ export const NamingField: React.FunctionComponent<{
                         onCancel={props.onCancel}
                     />
                 </div>
-                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
+                {props.prefix ? <Text pl="10px" mt="4px" color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -204,7 +204,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
+                {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );

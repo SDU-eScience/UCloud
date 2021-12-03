@@ -99,4 +99,10 @@ const FormWrapper = styled.div`
     padding: 7px 12px;
     width: 100%;
   }
+
+  input[type="checkbox"] {
+    display: inline;
+    width: auto;
+    margin-right: 10px;
+  }
 `;

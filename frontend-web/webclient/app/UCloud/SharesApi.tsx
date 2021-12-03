@@ -145,7 +145,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     <><Icon color={"red"} name={"close"} mr={8} /> Rejected</>
                 }
                 <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
-                    <RadioTilesContainer height={48} onClick={stopPropagation}>
+                    <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
                         {sharedByMe || !isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
                             label={"Read"}

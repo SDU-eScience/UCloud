@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, FtIcon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -45,10 +45,10 @@ import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {InvokeCommand} from "@/Authentication/DataHook";
-import metadataApi from "@/UCloud/MetadataDocumentApi";
+import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
-import {useHistory} from "react-router";
-import {responsiveStoreEnhancer} from "redux-responsive/types";
+import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -488,7 +488,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) { return false; }
+                    if (Client.hasActiveProject) {return false;}
                     if (selected.length === 0) return false;
                     const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
@@ -705,6 +705,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
+async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
+    const result = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(metadataNamespaceApi.browse({
+        itemsPerPage: 100,
+        next
+    }));
+
+    const id = result?.items.find(it => it.specification.name === name)?.id;
+    if (!id) {
+        if (!result?.next) return "";
+        return queryTemplateName(name, invokeCommand, result?.next ?? null);
+    }
+
+    return id;
+}
+
 function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
     // Note(Jonas): It should be initialized at this point, but let's make sure.
     if (!sensitivityTemplateId) {
@@ -728,9 +743,8 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     it => ["approved", "not_required"].includes(it.status.approval.type)
                 );
                 if (!entryToDelete) return;
-
                 await invokeCommand(
-                    metadataApi.delete(
+                    metadataDocumentApi.delete(
                         bulkRequestOf({
                             changeLog: reasonText,
                             id: entryToDelete.id
@@ -739,8 +753,16 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     {defaultErrorHandler: false}
                 );
             } else {
+                if (!sensitivityTemplateId) {
+                    sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);
+                    if (!sensitivityTemplateId) {
+                        snackbarStore.addFailure("Failed to change sensitivity.", false);
+                        return;
+                    }
+                }
+
                 await invokeCommand(
-                    metadataApi.create(bulkRequestOf({
+                    metadataDocumentApi.create(bulkRequestOf({
                         fileId: file.id,
                         metadata: {
                             changeLog: reasonText,

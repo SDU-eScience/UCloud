@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Flex, Icon, List, Truncate} from "@/ui-components";
+import {Box, Checkbox, Flex, Icon, Label, List, Truncate, Text} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -71,6 +71,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
+    showGroups?: boolean;
 
     onResourcesLoaded?: (newItems: Res[]) => void;
 }
@@ -270,7 +271,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const operations = useMemo(() => api.retrieveOperations(), [callbacks, api]);
 
-    const onSortUpdated = useCallback((dir, column) => {
+    const onSortUpdated = useCallback((dir: "ascending" | "descending", column?: string) => {
         setSortColumn(column);
         setSortDirection(dir)
     }, []);
@@ -328,13 +329,20 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         </div>
                     </div>
                 }
+                {
+                    !resource.permissions.myself.includes("ADMIN") ? null :
+                        (props.showGroups === false ||
+                            resource.permissions.others == null ||
+                            resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
+                    <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
+                }
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
-        props.showProduct]);
+        props.showProduct, props.showGroups]);
 
     const sortOptions = useMemo(() =>
         api.sortEntries.map(it => ({
@@ -349,38 +357,51 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const pageSize = useRef(0);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
+        /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
+        toggleSet.allItems.current = items;
+        const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
         return <>
-            <Spacer left={null} right={pageSize.current > 0 ?
-                <Flex width="275px">
-                    {api.sortEntries.length === 0 ? null : <EnumFilterWidget
-                        expanded={false}
-                        browseType={BrowseType.Card}
-                        propertyName="column"
-                        title="Sort by"
-                        facedownChevron
-                        id={0}
-                        onExpand={doNothing}
-                        properties={filters}
-                        options={sortOptions}
-                        onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
-                        icon="properties"
-                    />}
-                    <Box mx="auto" />
-                    <EnumFilterWidget
-                        expanded={false}
-                        browseType={BrowseType.Card}
-                        propertyName="direction"
-                        title="Sort direction"
-                        facedownChevron
-                        id={0}
-                        onExpand={doNothing}
-                        properties={filters}
-                        options={sortDirections}
-                        onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
-                        icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
-                    />
-                </Flex> : <Box height="27px" />
-            } />
+            {pageSize.current > 0 ? (
+                <Spacer left={
+                    <Label style={{cursor: "pointer"}} width={"102px"}>
+                        <Checkbox
+                            style={{marginTop: "-2px"}}
+                            onChange={() => allChecked ? toggleSet.uncheckAll() : toggleSet.checkAll()}
+                            checked={allChecked}
+                        />
+                        Select all
+                    </Label>
+                } right={
+                    <Flex width="325px">
+                        {api.sortEntries.length === 0 ? null : <EnumFilterWidget
+                            expanded={false}
+                            browseType={BrowseType.Card}
+                            propertyName="column"
+                            title="Sort by"
+                            facedownChevron
+                            id={0}
+                            onExpand={doNothing}
+                            properties={filters}
+                            options={sortOptions}
+                            onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
+                            icon="properties"
+                        />}
+                        <Box mx="auto" />
+                        <EnumFilterWidget
+                            expanded={false}
+                            browseType={BrowseType.Card}
+                            propertyName="direction"
+                            title="Sort direction"
+                            facedownChevron
+                            id={0}
+                            onExpand={doNothing}
+                            properties={filters}
+                            options={sortDirections}
+                            onPropertiesUpdated={updated => onSortUpdated(updated.direction as "ascending" | "descending", sortColumn)}
+                            icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
+                        />
+                    </Flex>
+                } />) : <Box height="27px" />}
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
                     <ItemRow
