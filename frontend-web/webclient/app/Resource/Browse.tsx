@@ -299,7 +299,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
             }
         };
-        console.log(props.showGroups)
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
@@ -331,7 +330,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </div>
                 }
                 {
-                    resource.permissions.myself != "ADMIN" ? null :
+                    !resource.permissions.myself.includes("ADMIN") ? null :
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
                             resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
