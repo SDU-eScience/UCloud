@@ -129,6 +129,14 @@ class FilesController(
                 limitChecker.checkLimit(reqItem.resolvedNewCollection)
             }
 
+            for (reqItem in request.items) {
+                if (reqItem.oldId.substringBeforeLast('/') == reqItem.newId.substringBeforeLast('/')) {
+                    if (fileQueries.fileExists(UCloudFile.create(reqItem.newId))) {
+                        throw RPCException("File or folder already exists", HttpStatusCode.Conflict)
+                    }
+                }
+            }
+
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
@@ -191,6 +199,12 @@ class FilesController(
         implement(UCloudFiles.createFolder) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedCollection)
+            }
+
+            for (reqItem in request.items) {
+                if (fileQueries.fileExists(UCloudFile.create(reqItem.id))) {
+                    throw RPCException("Folder already exists", HttpStatusCode.Conflict)
+                }
             }
 
             ok(
