@@ -328,7 +328,7 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         text: "Delete",
         color: "red",
         confirm: true,
-        enabled: (selected) => selected.length === 1 && selected[0].isActive,
+        enabled: (selected) => selected.length === 1 && selected[0].isActive && selected.every(it => it.doc.type !== "deleted"),
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.delete(bulkRequestOf({id: selected[0].doc.id, changeLog: "Deleting document"})));
             cb.reloadFile();
