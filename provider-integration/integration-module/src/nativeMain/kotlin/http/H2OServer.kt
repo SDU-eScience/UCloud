@@ -366,26 +366,28 @@ private fun handleHttpRequest(
 
         middlewares.value.forEach { it.beforeRequest(context) }
 
-        when (val outgoingResult = handler.invoke(context)) {
-            is OutgoingCallResponse.Ok -> {
-                req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
-                req.res.status = outgoingResult.statusCode.value
-                h2o_send_inline(reqPtr, defaultMapper.encodeToString(call.successType, outgoingResult.result))
-            }
+        runBlocking {
+            when (val outgoingResult = handler.invoke(context)) {
+                is OutgoingCallResponse.Ok -> {
+                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
+                    req.res.status = outgoingResult.statusCode.value
+                    h2o_send_inline(reqPtr, defaultMapper.encodeToString(call.successType, outgoingResult.result))
+                }
 
-            is OutgoingCallResponse.Error -> {
-                val error = outgoingResult.error
-                req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
-                req.res.status = outgoingResult.statusCode.value
-                h2o_send_inline(
-                    reqPtr,
-                    if (error != null) defaultMapper.encodeToString(call.errorType, outgoingResult.error)
-                    else ""
-                )
-            }
+                is OutgoingCallResponse.Error -> {
+                    val error = outgoingResult.error
+                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
+                    req.res.status = outgoingResult.statusCode.value
+                    h2o_send_inline(
+                        reqPtr,
+                        if (error != null) defaultMapper.encodeToString(call.errorType, outgoingResult.error)
+                        else ""
+                    )
+                }
 
-            is OutgoingCallResponse.AlreadyDelivered -> {
-                // Do nothing
+                is OutgoingCallResponse.AlreadyDelivered -> {
+                    // Do nothing
+                }
             }
         }
     } catch (ex: Throwable) {
@@ -426,7 +428,7 @@ class H2OServer(
 
     fun <R : Any, S : Any, E : Any> implement(
         call: CallDescription<R, S, E>,
-        handler: CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>,
+        handler: suspend CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>,
     ) {
         handlerBuilder.add(CallWithHandler(call, handler))
     }

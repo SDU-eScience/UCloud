@@ -19,61 +19,48 @@ import platform.posix.*
 data class IpcUser(val uid: UInt, val gid: UInt, val pid: Int)
 
 data class TypedIpcHandler<Req, Resp>(
+    val method: String,
     val requestSerializer: KSerializer<Req>,
     val responseSerializer: KSerializer<Resp>,
-    val handler: IpcHandler,
 )
 
+inline fun <reified Req, reified Resp >TypedIpcHandler<Req, Resp>.handler(
+    noinline handler: (user: IpcUser, request: Req) -> Resp
+): IpcHandler {
+    return IpcHandler(method) { user, request ->
+        val mappedRequest = runCatching {
+            defaultMapper.decodeFromJsonElement<Req>(request.params)
+        }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
+
+        defaultMapper.encodeToJsonElement(
+            handler(user, mappedRequest)
+        ) as JsonObject
+    }
+}
+
 abstract class IpcContainer(val namespace: String) {
-    val handlers = ArrayList<IpcHandler>()
-
-    inline fun <reified Request, reified Response> ipcHandler(
-        method: String,
-        noinline handler: (user: IpcUser, request: Request) -> Response
-    ): TypedIpcHandler<Request, Response> {
-        val handler = IpcHandler(method) { user, request ->
-            val mappedRequest = runCatching {
-                defaultMapper.decodeFromJsonElement<Request>(request.params)
-            }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
-
-            defaultMapper.encodeToJsonElement(
-                handler(user, mappedRequest)
-            ) as JsonObject
-        }
-
-        handlers.add(handler)
-        return TypedIpcHandler(serializer(), serializer(), handler)
+    inline fun <reified Request, reified Response> ipcHandler(method: String): TypedIpcHandler<Request, Response> {
+        return TypedIpcHandler(method, serializer(), serializer())
     }
 
-    inline fun <reified Request, reified Response> createHandler(
-        noinline handler: (user: IpcUser, request: Request) -> Response,
-    ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.delete", handler)
+    inline fun <reified Request, reified Response> createHandler(): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.delete")
     }
 
-    inline fun <reified Request, reified Response> deleteHandler(
-        noinline handler: (user: IpcUser, request: Request) -> Response,
-    ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.delete", handler)
+    inline fun <reified Request, reified Response> deleteHandler(): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.delete")
     }
 
-    inline fun <reified Request, reified Response> browseHandler(
-        noinline handler: (user: IpcUser, request: Request) -> Response,
-    ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.browse", handler)
+    inline fun <reified Request, reified Response> browseHandler(): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.browse")
     }
 
-    inline fun <reified Request, reified Response> updateHandler(
-        operation: String,
-        noinline handler: (user: IpcUser, request: Request) -> Response,
-    ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.$operation", handler)
+    inline fun <reified Request, reified Response> updateHandler(operation: String): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.$operation")
     }
 
-    inline fun <reified Request, reified Response> retrieveHandler(
-        noinline handler: (user: IpcUser, request: Request) -> Response,
-    ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.retrieve", handler)
+    inline fun <reified Request, reified Response> retrieveHandler(): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.retrieve")
     }
 }
 

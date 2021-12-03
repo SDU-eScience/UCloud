@@ -6,12 +6,13 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.freeze
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ProductBasedPlugins
+import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.secureToken
@@ -19,8 +20,12 @@ import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ComputeController(
     controllerContext: ControllerContext,
@@ -118,11 +123,20 @@ class ComputeController(
         implement(api.openInteractiveSession) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            OutgoingCallResponse.Ok(
-                dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
-                    with(plugin) { openInteractiveSessionBulk(request) }
+            val results = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                with(plugin) { openInteractiveSessionBulk(request) }
+            }
+
+            for (result in results.responses) {
+                if (result != null && result is OpenSession.Shell) {
+                    controllerContext.pluginContext.ipcClient.sendRequest(
+                        ConnectionIpc.registerSessionProxy,
+                        result
+                    )
                 }
-            )
+            }
+
+            OutgoingCallResponse.Ok(results)
         }
 
         implement(api.retrieveUtilization) {
@@ -153,12 +167,10 @@ class ComputeController(
 
         implement(shells.open) {
             runBlocking {
-                if (serverMode == ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
                 when (request) {
                     is ShellRequest.Initialize -> {
-                        currentShellSessionValidForSocket = wsContext.internalId
-
                         val pluginHandler = with(controllerContext.pluginContext) {
                             plugins.plugins.values.find { plugin ->
                                 with(plugin) { canHandleShellSession(request) }
@@ -171,6 +183,7 @@ class ComputeController(
                             wsContext.isOpen,
                             channel,
                             emitData = { data ->
+                                println("Sending data $data")
                                 wsContext.sendMessage(ShellResponse.Data(data))
                             }
                         )
@@ -183,23 +196,22 @@ class ComputeController(
                             }
                         }
 
-                        currentShellSession = channel
+                        sessionMapMutex.withLock {
+                            sessionMap[wsContext.internalId] = channel
+                        }
+
+                        while (isActive && wsContext.isOpen()) {
+                            delay(50)
+                        }
                     }
 
                     is ShellRequest.Input, is ShellRequest.Resize -> {
-                        if (currentShellSessionValidForSocket != wsContext.internalId) {
-                            throw RPCException(
-                                "This session is not ready to accept such a request",
-                                HttpStatusCode.BadRequest
-                            )
-                        }
-
-                        val sendChannel = currentShellSession ?: run {
-                            throw RPCException(
-                                "This session is not ready to accept such a request",
-                                HttpStatusCode.BadRequest
-                            )
-                        }
+                        val sendChannel = sessionMapMutex.withLock {
+                            sessionMap[wsContext.internalId]
+                        } ?: throw RPCException(
+                            "This session is not ready to accept such a request",
+                            HttpStatusCode.BadRequest
+                        )
 
                         sendChannel.send(request)
                     }
@@ -215,10 +227,6 @@ class ComputeController(
     }
 }
 
-
-// NOTE(Dan): This is extremely volatile and only works because the websocket handler is running in the same thread
-@ThreadLocal
-var currentShellSession: SendChannel<ShellRequest>? = null
-
-@ThreadLocal
-var currentShellSessionValidForSocket: Int = -1
+// TODO(Dan): Not a great idea, probably leaks memory.
+val sessionMap = HashMap<Int, SendChannel<ShellRequest>>()
+val sessionMapMutex = Mutex()

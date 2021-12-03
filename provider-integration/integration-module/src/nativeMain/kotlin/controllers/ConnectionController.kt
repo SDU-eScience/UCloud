@@ -1,13 +1,18 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.http.*
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcServer
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.ConnectionResponse
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
 import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
@@ -16,12 +21,48 @@ import h2o.H2O_TOKEN_CONTENT_TYPE
 import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import platform.posix.*
+
+object ConnectionIpc : IpcContainer("connections") {
+    val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
+}
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
 ) : Controller {
+    private val mapMutex = Mutex()
+    private val mappedUsersToPort = HashMap<String, Int>()
+
+    override fun configureIpc(server: IpcServer) {
+        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        val idMapper = controllerContext.plugins.identityMapper ?: return
+        val envoyConfig = envoyConfig ?: return
+
+        server.addHandler(ConnectionIpc.registerSessionProxy.handler { user, request ->
+            val ucloudIdentity = with(controllerContext.pluginContext) {
+                with(idMapper) {
+                    runCatching {
+                        lookupUCloudIdentifyFromLocalIdentity(
+                            mapUidToLocalIdentity(user.uid.toInt())
+                        )
+                    }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
+                }
+            }
+
+            envoyConfig.requestConfiguration(
+                EnvoyRoute.ShellSession(
+                    request.sessionIdentifier,
+                    controllerContext.configuration.core.providerId,
+                    ucloudIdentity
+                ),
+                null,
+            )
+        })
+    }
+
     override fun H2OServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
@@ -118,13 +159,17 @@ class ConnectionController(
             val devInstance = controllerContext.configuration.core.developmentInstance
             val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
             envoyConfig.requestConfiguration(
-                EnvoyRoute(request.username, request.username),
+                EnvoyRoute.Standard(request.username, request.username),
                 EnvoyCluster.create(
                     request.username,
                     "127.0.0.1",
                     allocatedPort
                 )
             )
+
+            mapMutex.withLock {
+                mappedUsersToPort[request.username] = allocatedPort
+            }
 
             if (devInstance?.userId != uid) {
                 startProcess(
@@ -147,6 +192,28 @@ class ConnectionController(
 
             OutgoingCallResponse.Ok(Unit)
         }
+    }
+
+    private fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
+        var result: String? = null
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                //language=SQLite
+                """
+                    select ucloud_id 
+                    from user_mapping 
+                    where local_identity = :local_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("local_id", localId)
+                },
+                readRow = { row ->
+                    result = row.getString(0)!!
+                }
+            )
+        }
+        return result
     }
 }
 

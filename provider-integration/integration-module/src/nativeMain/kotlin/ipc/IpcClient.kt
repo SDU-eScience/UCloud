@@ -178,7 +178,7 @@ suspend inline fun <reified Req, reified Resp> IpcClient.sendRequest(
 ): Resp {
     return sendRequest(
         JsonRpcRequest(
-            call.handler.method,
+            call.method,
             defaultMapper.encodeToJsonElement(request) as JsonObject
         )
     ).orThrow()

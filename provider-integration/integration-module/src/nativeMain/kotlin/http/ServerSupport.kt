@@ -40,7 +40,7 @@ data class IngoingCall<ServerCtx>(
 
 data class CallWithHandler<R : Any, S : Any, E : Any>(
     val call: CallDescription<R, S, E>,
-    val handler: CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>
+    val handler: suspend CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>
 ) {
     init {
         freeze()

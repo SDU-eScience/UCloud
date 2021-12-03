@@ -56,7 +56,7 @@ class SlurmPlugin : ComputePlugin {
         this@SlurmPlugin.pluginConfig.value = pluginConfig
 
         if (config.serverMode == ServerMode.Server) {
-            for (handler in SlurmJobsIpc.handlers) {
+            for (handler in SlurmJobsIpcServer.handlers) {
                 ipcServer.addHandler(handler)
             }
         }
@@ -321,6 +321,7 @@ class SlurmPlugin : ComputePlugin {
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
+                    emitData(userInput.data)
                 }
 
                 is ShellRequest.Resize -> {

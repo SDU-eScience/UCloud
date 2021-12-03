@@ -12,6 +12,7 @@ import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcHandler
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Log
@@ -27,16 +28,24 @@ import kotlinx.serialization.json.putJsonArray
 // TODO(Dan): We need to determine if this information should only be given to some users. Currently we don't since
 //  this information is public in the cluster.
 object SlurmJobsIpc : IpcContainer("slurm.jobs") {
-    val create = createHandler<SlurmJob, Unit> { user, req ->
-        SlurmJobMapper.registerJob(req)
-    }
+    val create = createHandler<SlurmJob, Unit>()
 
-    val retrieve = retrieveHandler<FindByStringId, SlurmJob> { user, request ->
-        SlurmJobMapper.retrieveByUCloudId(request.id) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-    }
+    val retrieve = retrieveHandler<FindByStringId, SlurmJob>()
 
     // NOTE(Dan): This is not paginated since Slurm does not paginate the results for us
-    val browse = browseHandler<SlurmBrowseFlags, List<SlurmJob>> { user, request ->
-        SlurmJobMapper.browse(request)
-    }
+    val browse = browseHandler<SlurmBrowseFlags, List<SlurmJob>>()
+}
+
+object SlurmJobsIpcServer {
+    val handlers = listOf(
+        SlurmJobsIpc.create.handler { user, request ->
+            SlurmJobMapper.registerJob(request)
+        },
+        SlurmJobsIpc.retrieve.handler { user, request ->
+            SlurmJobMapper.retrieveByUCloudId(request.id) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        },
+        SlurmJobsIpc.browse.handler { user, request ->
+            SlurmJobMapper.browse(request)
+        }
+    )
 }

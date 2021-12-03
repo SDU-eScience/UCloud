@@ -212,6 +212,7 @@ fun main(args: Array<String>) {
                     val server = H2OServer(rpcServerPort!!)
                     with(server) {
                         configureControllers(
+                            controllerContext,
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig)
                         )
@@ -231,8 +232,13 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun H2OServer.configureControllers(vararg controllers: Controller) {
+private fun H2OServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
     controllers.forEach { with(it) { configure() } }
+
+    val ipcServer = ctx.pluginContext.ipcServerOptional
+    if (ipcServer != null) {
+        controllers.forEach { it.configureIpc(ipcServer) }
+    }
 }
 
 const val ENVOY_CONFIG_PATH = "/var/run/ucloud/envoy"
