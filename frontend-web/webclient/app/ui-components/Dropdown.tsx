@@ -52,7 +52,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     border-top-right-radius: ${props => props.squareTop ? "0" : "5px"};
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
-    position: ${p => p.fixed ? "fixed": "absolute"};
+    position: ${p => p.fixed ? "fixed" : "absolute"};
     background-color: var(${p => p.backgroundColor}, #f00);
     color: var(--${p => p.color}, #f00);
     width: ${props => props.width};
@@ -70,14 +70,14 @@ export const DropdownContent = styled.div<DropdownContentProps>`
             background-color: var(--lightBlue);
         }` : null};
 
-  ${p => p.paddingControlledByContent ? null : `
-      padding: 12px 16px;
-      & > div {
-            margin-left: -17px;
-            margin-right: -17px;
-            padding-left: 17px;
-      }
-  `}
+    ${p => p.paddingControlledByContent ? null : `
+        padding: 12px 16px;
+        & > div {
+                margin-left: -17px;
+                margin-right: -17px;
+                padding-left: 17px;
+        }
+    `}
 
     ${top} ${left} ${right} ${bottom} ${height};
 `;
