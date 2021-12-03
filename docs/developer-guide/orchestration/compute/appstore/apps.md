@@ -210,6 +210,10 @@ changes are expected:
 <td>An ApplicationParameter describe a single input parameter to an Application.</td>
 </tr>
 <tr>
+<td><a href='#applicationparameter.textarea'><code>ApplicationParameter.TextArea</code></a></td>
+<td>An ApplicationParameter describe a single input parameter to an Application.</td>
+</tr>
+<tr>
 <td><a href='#applicationparameter.bool'><code>ApplicationParameter.Bool</code></a></td>
 <td>An input parameter which accepts any boolean value</td>
 </tr>
@@ -320,6 +324,10 @@ changes are expected:
 <tr>
 <td><a href='#accessentity'><code>AccessEntity</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appparametervalue.textarea'><code>AppParameterValue.TextArea</code></a></td>
+<td>A textual value</td>
 </tr>
 <tr>
 <td><a href='#applicationaccessright'><code>ApplicationAccessRight</code></a></td>
@@ -3461,6 +3469,7 @@ sealed class ApplicationParameter {
     class InputFile : ApplicationParameter()
     class InputDirectory : ApplicationParameter()
     class Text : ApplicationParameter()
+    class TextArea : ApplicationParameter()
     class Integer : ApplicationParameter()
     class FloatingPoint : ApplicationParameter()
     class Bool : ApplicationParameter()
@@ -3534,6 +3543,112 @@ associated with it. This type controls the set of valid [`AppParameterValue`](/d
 <code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationParameter.TextArea`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_An ApplicationParameter describe a single input parameter to an Application._
+
+```kotlin
+data class TextArea(
+    val name: String?,
+    val optional: Boolean?,
+    val defaultValue: Any?,
+    val title: String?,
+    val description: String?,
+    val type: String /* "textarea" */,
+)
+```
+All [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)s contain metadata used for the presentation in the frontend. This metadata 
+includes a title and help-text. This allows UCloud to create a rich user-interface with widgets which are easy to 
+use. 
+
+When the user requests the creation of a [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md), they supply a lot of 
+information. This includes a reference to the [`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)  and a set of [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s. 
+The user must supply a value for every mandatory [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md). Every parameter has a type 
+associated with it. This type controls the set of valid [`AppParameterValue`](/docs/reference/dk.sdu.cloud.app.store.api.AppParameterValue.md)s it can take.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>defaultValue</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/'>Any</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "textarea" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4811,6 +4926,7 @@ _An `AppParameterValue` is value which is supplied to a parameter of an `Applica
 sealed class AppParameterValue {
     class File : AppParameterValue()
     class Bool : AppParameterValue()
+    class TextArea : AppParameterValue()
     class Text : AppParameterValue()
     class Integer : AppParameterValue()
     class FloatingPoint : AppParameterValue()
@@ -5986,6 +6102,62 @@ data class AccessEntity(
 <code>group</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppParameterValue.TextArea`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_A textual value_
+
+```kotlin
+data class TextArea(
+    val value: String,
+    val type: String /* "textarea" */,
+)
+```
+- __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
+- __Mountable as a resource:__ ❌ No
+- __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+- __Side effects:__ None
+
+When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>value</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "textarea" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

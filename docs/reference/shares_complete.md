@@ -61,6 +61,9 @@ Shares.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterRejected = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -78,8 +81,6 @@ Shares.browse.call(
 /*
 PageV2(
     items = listOf(Share(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "6342", 
         owner = ResourceOwner(
@@ -144,6 +145,9 @@ Shares.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterRejected = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -161,8 +165,6 @@ Shares.browse.call(
 /*
 PageV2(
     items = listOf(Share(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "6342", 
         owner = ResourceOwner(
@@ -261,7 +263,10 @@ await callAPI(SharesApi.browse(
             "filterIngoing": true,
             "filterOriginalPath": null,
             "filterRejected": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -308,10 +313,7 @@ await callAPI(SharesApi.browse(
                     "READ"
                 ],
                 "others": null
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -354,7 +356,10 @@ await callAPI(SharesApi.browse(
             "filterIngoing": true,
             "filterOriginalPath": null,
             "filterRejected": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -401,10 +406,7 @@ await callAPI(SharesApi.browse(
                     "READ"
                 ],
                 "others": null
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -496,10 +498,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "READ"
 #                 ],
 #                 "others": null
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -558,10 +557,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "READ"
 #                 ],
 #                 "others": null
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null

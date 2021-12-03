@@ -121,6 +121,9 @@ Providers.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -133,8 +136,6 @@ Providers.retrieve.call(
 
 /*
 Provider(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633329776235, 
     id = "51231", 
     owner = ResourceOwner(
@@ -283,7 +284,10 @@ await callAPI(ProvidersApi.retrieve(
             "filterProductCategory": null,
             "filterProviderIds": null,
             "filterIds": null,
-            "filterName": null
+            "filterName": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "51231"
     }
@@ -316,10 +320,7 @@ await callAPI(ProvidersApi.retrieve(
         "createdBy": "sysadmin",
         "project": null
     },
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -446,10 +447,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 #         "createdBy": "sysadmin",
 #         "project": null
 #     },
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```

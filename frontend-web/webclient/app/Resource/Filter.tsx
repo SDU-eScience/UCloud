@@ -127,7 +127,7 @@ export const ResourceFilter: React.FunctionComponent<{
             )}
         </MainContentGrid>
         <Grid gridGap={"20px"}
-            mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
+            mt={Object.keys(props.filterWidgets).length === 0 && Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "10px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
@@ -279,8 +279,8 @@ export const TextFilterWidget: React.FunctionComponent<{
         properties[props.propertyName] = newValue === "" ? undefined : newValue;
         props.onPropertiesUpdated(properties);
     }, [props.onPropertiesUpdated, props.propertyName]);
-    return <ExpandableFilterWidget expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
-        <Input autoFocus value={currentValue} onChange={onChange} />
+    return <ExpandableFilterWidget browseType={props.browseType} expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
+        <Input autoFocus value={currentValue} onChange={onChange} width={props.browseType === BrowseType.Embedded ? "calc(100% - 16px)" : undefined} />
     </ExpandableFilterWidget>;
 };
 

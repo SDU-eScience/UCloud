@@ -160,7 +160,8 @@ if slurm:
 	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
 	print()
 	print()
-
+	print("register and restart cluster with below command")
+	code("sudo docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld ")
 	print()
 	print(header("Instructions:"))
 	print("Interact with " + code("docker-compose exec slurmctld bash") )

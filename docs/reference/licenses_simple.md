@@ -87,6 +87,9 @@ Licenses.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -99,8 +102,6 @@ Licenses.retrieve.call(
 
 /*
 License(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "5123", 
     owner = ResourceOwner(
@@ -218,7 +219,10 @@ await callAPI(LicensesApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "5123"
     }
@@ -248,10 +252,7 @@ await callAPI(LicensesApi.retrieve(
     },
     "updates": [
     ],
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -356,10 +357,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieve?
 #     },
 #     "updates": [
 #     ],
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```

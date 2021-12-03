@@ -67,8 +67,6 @@ In this example:
 
 JobsProvider.create.call(
     bulkRequestOf(Job(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1633329776235, 
         id = "54112", 
         output = null, 
@@ -299,6 +297,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.RUNNING, 
             status = "The job is now running!", 
@@ -323,6 +322,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
             status = "The job has finished processing!", 
@@ -619,10 +619,7 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                 },
                 "createdAt": 1633329776235,
                 "output": null,
-                "permissions": null,
-                "acl": null,
-                "billing": {
-                }
+                "permissions": null
             }
         ]
     }
@@ -658,6 +655,7 @@ await callAPI(JobsControlApi.update(
                     "status": "The job is now running!",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -686,6 +684,7 @@ await callAPI(JobsControlApi.update(
                     "status": "The job has finished processing!",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -983,10 +982,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "createdAt": 1633329776235,
             "output": null,
-            "permissions": null,
-            "acl": null,
-            "billing": {
-            }
+            "permissions": null
         }
     ]
 }'
@@ -1018,6 +1014,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "The job is now running!",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }
@@ -1042,6 +1039,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "The job has finished processing!",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }

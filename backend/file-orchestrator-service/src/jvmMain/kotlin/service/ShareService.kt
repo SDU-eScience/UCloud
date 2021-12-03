@@ -251,7 +251,7 @@ class ShareService(
                     it.second.sharedWith,
                     Notification(
                         NotificationType.SHARE_REQUEST.name,
-                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
                         meta = JsonObject(emptyMap())
                     )
                 ),

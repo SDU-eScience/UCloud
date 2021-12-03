@@ -12,7 +12,7 @@ data class ResourceChargeCredits(
     val id: String,
     val chargeId: String,
     val units: Long,
-    val numberOfProducts: Long?,
+    val periods: Long?,
     val performedBy: String?,
     val description: String?,
 )
@@ -59,7 +59,7 @@ This charge ID must be unique for the `Resource`, UCloud will reject charges whi
 
 <details>
 <summary>
-<code>numberOfProducts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+<code>periods</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 

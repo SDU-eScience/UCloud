@@ -142,9 +142,10 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
 
-                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
+                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
                     <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
+                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />
@@ -192,8 +193,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
                     <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
-
-                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
 
                     <Route
                         exact

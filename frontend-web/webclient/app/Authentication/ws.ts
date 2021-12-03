@@ -1,4 +1,5 @@
 import {HttpClient} from "./lib";
+import {inDevEnvironment} from "@/UtilityFunctions";
 
 export interface WebSocketOpenSettings {
     /**
@@ -22,9 +23,13 @@ export class WebSocketFactory {
         return new WebSocketConnection(this.client, async () => {
             await this.client.waitForCloudReady();
 
-            const url = this.client.computeURL("/api", path)
+            let url = this.client.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
+
+            if (inDevEnvironment() && url.indexOf("integration-module") !== -1) {
+                url = url.replace("integration-module", "localhost");
+            }
 
             return new WebSocket(url);
         }, settingsOrDefault);

@@ -115,11 +115,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -236,11 +236,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "root-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -476,7 +476,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 100,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -617,7 +617,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "root-project"
                 },
                 "units": 50,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -853,7 +853,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 100,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -970,7 +970,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "root-project"
             },
             "units": 50,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",

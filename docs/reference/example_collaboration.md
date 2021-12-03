@@ -60,6 +60,9 @@ Resources.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -111,6 +114,9 @@ Resources.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -123,8 +129,6 @@ Resources.retrieve.call(
 
 /*
 ExampleResource(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "1234", 
     owner = ResourceOwner(
@@ -227,7 +231,10 @@ await callAPI(ExampleApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "1234"
     }
@@ -291,7 +298,10 @@ await callAPI(ExampleApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "1234"
     }
@@ -340,10 +350,7 @@ await callAPI(ExampleApi.retrieve(
         ],
         "others": [
         ]
-    },
-    "billing": {
-    },
-    "acl": null
+    }
 }
 */
 ```
@@ -478,10 +485,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 #         ],
 #         "others": [
 #         ]
-#     },
-#     "billing": {
-#     },
-#     "acl": null
+#     }
 # }
 
 ```

@@ -1,6 +1,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Introduction to Resources](/docs/developer-guide/orchestration/resources.md)
 
-# `ResourceUpdate`
+# `UFileUpdate`
 
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -9,9 +9,9 @@
 _Describes an update to the `Resource`_
 
 ```kotlin
-data class ResourceUpdate(
-    val status: String?,
+data class UFileUpdate(
     val timestamp: Long,
+    val status: String?,
 )
 ```
 Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
@@ -31,7 +31,7 @@ An update will typically contain information similar to the `status` field, for 
 
 <details>
 <summary>
-<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
 </summary>
 
 
@@ -42,7 +42,7 @@ An update will typically contain information similar to the `status` field, for 
 
 <details>
 <summary>
-<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
 </summary>
 
 

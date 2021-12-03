@@ -299,7 +299,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
             }
         };
-        console.log(props.showGroups)
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
@@ -331,7 +330,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </div>
                 }
                 {
-                    resource.permissions.myself != "ADMIN" ? null :
+                    !resource.permissions.myself.includes("ADMIN") ? null :
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
                             resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
@@ -414,8 +413,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 }
                 {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
                     <>
-                        No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
-                        to create a new one.
+                        No {api.titlePlural.toLowerCase()} matches your search/filter criteria.
+                        Click &quot;Create {api.title.toLowerCase()}&quot; to create a new one.
                     </>
                 }
                 {items.map(it =>

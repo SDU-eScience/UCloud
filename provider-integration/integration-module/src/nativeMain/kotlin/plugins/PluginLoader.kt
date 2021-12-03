@@ -89,7 +89,7 @@ class PluginLoader(private val pluginContext: PluginContext) {
     }
 
     fun load(): LoadedPlugins {
-        val config = pluginContext.config.freeze()
+        val config = pluginContext.config
 
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }

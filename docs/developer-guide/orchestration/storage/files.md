@@ -96,6 +96,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Retrieve product support for all accessible providers</td>
 </tr>
 <tr>
+<td><a href='#search'><code>search</code></a></td>
+<td>Searches the catalog of available resources</td>
+</tr>
+<tr>
 <td><a href='#copy'><code>copy</code></a></td>
 <td>Copies a file from one path to another</td>
 </tr>
@@ -1153,6 +1157,9 @@ Files.browse.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeMetadata = null, 
             includeOthers = false, 
             includePermissions = null, 
@@ -1176,8 +1183,6 @@ Files.browse.call(
 /*
 PageV2(
     items = listOf(UFile(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1632903417165, 
         id = "/123/folder/file.txt", 
         owner = ResourceOwner(
@@ -1248,7 +1253,10 @@ await callAPI(FilesApi.browse(
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -1293,9 +1301,6 @@ await callAPI(FilesApi.browse(
                 "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
             },
             "permissions": null,
-            "billing": {
-            },
-            "acl": null,
             "updates": [
             ]
         }
@@ -1355,9 +1360,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #                 "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
 #             },
 #             "permissions": null,
-#             "billing": {
-#             },
-#             "acl": null,
 #             "updates": [
 #             ]
 #         }
@@ -1414,6 +1416,9 @@ Files.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeMetadata = null, 
             includeOthers = false, 
             includePermissions = null, 
@@ -1432,8 +1437,6 @@ Files.retrieve.call(
 
 /*
 UFile(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1632903417165, 
     id = "/123/folder", 
     owner = ResourceOwner(
@@ -1501,7 +1504,10 @@ await callAPI(FilesApi.retrieve(
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "/123/folder"
     }
@@ -1538,9 +1544,6 @@ await callAPI(FilesApi.retrieve(
         "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
     },
     "permissions": null,
-    "billing": {
-    },
-    "acl": null,
     "updates": [
     ]
 }
@@ -1594,9 +1597,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #         "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
 #     },
 #     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null,
 #     "updates": [
 #     ]
 # }
@@ -2028,6 +2028,20 @@ See also:
 - [Grants](/docs/developer-guide/accounting-and-projects/grants/grants.md)
 
 
+### `search`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Searches the catalog of available resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ufile'>UFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `copy`
 
 [![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2318,9 +2332,7 @@ data class UFile(
     val status: UFileStatus,
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
-    val updates: List<ResourceUpdate>,
+    val updates: List<UFileUpdate>,
     val providerGeneratedId: String?,
 )
 ```
@@ -2517,29 +2529,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 <details>
 <summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceUpdate.md'>ResourceUpdate</a>&gt;</code></code>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileUpdate.md'>UFileUpdate</a>&gt;</code></code>
 </summary>
 
 
@@ -3320,6 +3310,9 @@ data class UFileIncludeFlags(
     val allowUnsupportedInclude: Boolean?,
     val filterHiddenFiles: Boolean?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -3541,6 +3534,39 @@ This value is `true` by default
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

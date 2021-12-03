@@ -3,27 +3,11 @@ package dk.sdu.cloud
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.calls.CALL_REF
-import dk.sdu.cloud.calls.CALL_REF_LINK
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiDocC
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiInternal
-import dk.sdu.cloud.calls.UCloudApiMaturity
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
-import dk.sdu.cloud.calls.UCloudApiStable
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import java.lang.reflect.Field
-import java.lang.reflect.GenericArrayType
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
-import java.lang.reflect.TypeVariable
-import java.lang.reflect.WildcardType
+import java.lang.reflect.*
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.reflect.KClass
@@ -36,29 +20,89 @@ import kotlin.reflect.jvm.javaField
 
 sealed class GeneratedTypeReference {
     abstract var nullable: Boolean
+    abstract var originalHasDefault: Boolean
+    abstract var originalIsNullable: Boolean
+    abstract var fromConstructor: Boolean
 
-    data class Int8(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Int16(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Int32(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Int64(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Float32(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Float64(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Bool(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Text(override var nullable: Boolean = false) : GeneratedTypeReference()
+    data class Int8(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Int16(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Int32(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Int64(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Float32(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Float64(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Bool(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Text(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
     data class Structure(
         val name: String,
         val generics: List<GeneratedTypeReference> = emptyList(),
-        override var nullable: Boolean = false
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
     ) : GeneratedTypeReference()
 
     data class Dictionary(
         val valueType: GeneratedTypeReference,
-        override var nullable: Boolean = false
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
     ) : GeneratedTypeReference()
 
     data class Array(
         val valueType: GeneratedTypeReference,
-        override var nullable: Boolean = false
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
     ) : GeneratedTypeReference()
 
     data class ConstantString(val value: String) : GeneratedTypeReference() {
@@ -66,10 +110,24 @@ sealed class GeneratedTypeReference {
             set(value) {
                 field = false
             }
+        override var originalHasDefault: Boolean = false
+        override var originalIsNullable: Boolean = false
+        override var fromConstructor: Boolean = false
     }
 
-    data class Void(override var nullable: Boolean = false) : GeneratedTypeReference()
-    data class Any(override var nullable: Boolean = false) : GeneratedTypeReference()
+    data class Void(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
+
+    data class Any(
+        override var nullable: Boolean = false,
+        override var originalHasDefault: Boolean = false,
+        override var originalIsNullable: Boolean = false,
+        override var fromConstructor: Boolean = false,
+    ) : GeneratedTypeReference()
 }
 
 fun GeneratedTypeReference.packageNameOrNull(): String? {
@@ -294,7 +352,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     val parentGetterAnnotations = parentProp?.getter?.annotations ?: emptyList()
                     val annotations: Set<Annotation> =
                         (prop.annotations + javaFieldAnnotations + getterAnnotations + classPropAnnotations +
-                                parentPropAnnotations + parentJavaAnnotations + parentGetterAnnotations).toSet()
+                            parentPropAnnotations + parentJavaAnnotations + parentGetterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
 
                     val propType = traverseType(prop.type.javaType, visitedTypes)
@@ -332,7 +390,12 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                     properties.add(GeneratedType.Property(
                         propName,
                         Documentation(deprecated, maturity, synopsis, description, importance),
-                        propType.also { it.nullable = nullable }
+                        propType.also {
+                            it.nullable = nullable
+                            it.originalIsNullable = prop.type.isMarkedNullable
+                            it.originalHasDefault = prop.isOptional
+                            it.fromConstructor = true
+                        }
                     ))
                 }
 
