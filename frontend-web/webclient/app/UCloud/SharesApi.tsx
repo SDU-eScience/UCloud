@@ -136,13 +136,13 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
             return <Flex alignItems={"center"}>
                 {resource.status.state !== "APPROVED" ? null :
-                    <><Icon color={"green"} name={"check"} mr={8} /> Approved</>
+                    <><Icon color={"green"} name={"check"} mr={8} /> {sharedByMe ? "Approved" : null}</>
                 }
                 {resource.status.state !== "PENDING" ? null :
-                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> Pending</>
+                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> {sharedByMe ? "Pending" : null}</>
                 }
                 {resource.status.state !== "REJECTED" ? null :
-                    <><Icon color={"red"} name={"close"} mr={8} /> Rejected</>
+                    <><Icon color={"red"} name={"close"} mr={8} /> {sharedByMe ? "Rejected" : null}</>
                 }
                 <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
                     <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
