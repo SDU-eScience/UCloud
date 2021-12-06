@@ -120,6 +120,7 @@ function createResumeable(
         return new Promise(((resolve, reject) => {
             const progressStart = upload.progressInBytes;
             const request = new XMLHttpRequest();
+
             request.open("POST", strategy!.endpoint);
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
