@@ -131,7 +131,8 @@ class FilesController(
 
             for (reqItem in request.items) {
                 if (reqItem.oldId.substringBeforeLast('/') == reqItem.newId.substringBeforeLast('/')) {
-                    if (fileQueries.fileExists(UCloudFile.create(reqItem.newId))) {
+                    if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                        fileQueries.fileExists(UCloudFile.create(reqItem.newId))) {
                         throw RPCException("File or folder already exists", HttpStatusCode.Conflict)
                     }
                 }
@@ -202,7 +203,8 @@ class FilesController(
             }
 
             for (reqItem in request.items) {
-                if (fileQueries.fileExists(UCloudFile.create(reqItem.id))) {
+                if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                    fileQueries.fileExists(UCloudFile.create(reqItem.id))) {
                     throw RPCException("Folder already exists", HttpStatusCode.Conflict)
                 }
             }
