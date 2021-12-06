@@ -93,7 +93,7 @@ data class ShareFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
-    val filterIngoing: Boolean = false,
+    val filterIngoing: Boolean? = null,
     val filterOriginalPath: String? = null,
     val filterRejected: String? = null,
     override val filterIds: String? = null,
