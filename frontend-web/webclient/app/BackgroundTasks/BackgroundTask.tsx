@@ -16,6 +16,8 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPage} from "@/DefaultObjects";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {
@@ -31,6 +33,12 @@ const BackgroundTasks: React.FunctionComponent = () => {
     const [initialTasks, fetchInitialTasks] = useCloudAPI<Page<Task>>({noop: true}, emptyPage);
     const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
     const [tasks, setTasks] = useState<Record<string, TaskUpdate>>({});
+    const [uploads] = useGlobal("uploads", []);
+    const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
+
+    const openUploader = useCallback(() => {
+        setUploaderVisible(true);
+    }, [setUploaderVisible]);
 
     const handleTaskUpdate = useCallback((update: TaskUpdate) => {
         setTasks(oldTasks => {
@@ -114,8 +122,24 @@ const BackgroundTasks: React.FunctionComponent = () => {
         setTaskInFocus(null);
     }, []);
 
+    useEffect(() => {
+        if (uploads.length > 0) {
+            window.onbeforeunload = () => {
+                snackbarStore.addInformation(
+                    "You currently have uploads in progress. Are you sure you want to leave UCloud?",
+                    true
+                );
+                return false;
+            };
+        }
+
+        return () => {
+            window.onbeforeunload = null;
+        };
+    }, [uploads]);
+
     const hasTaskInFocus = taskInFocus && (tasks && tasks[taskInFocus]);
-    const numberOfTasks = Object.keys(tasks).length;
+    const numberOfTasks = Object.keys(tasks).length + uploads.length;
     if (numberOfTasks === 0) return null;
     return (
         <>
@@ -126,16 +150,21 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 trigger={<Flex justifyContent="center"><TasksIcon/></Flex>}
             >
                 {!tasks ? null :
-                    Object.values(tasks).map(update => (
-                        <TaskComponent
-                            key={update.jobId}
-                            jobId={update.jobId}
-                            onClick={setTaskInFocus}
-                            title={update.newTitle ?? ""}
-                            speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
-                            progress={update.progress ? update.progress : undefined}
-                        />
-                    ))
+                    <>
+                        {uploads.length === 0 ? null :
+                            <TaskComponent title={"File uploads"} jobId={"uploads"} onClick={openUploader}/>
+                        }
+                        {Object.values(tasks).map(update => (
+                            <TaskComponent
+                                key={update.jobId}
+                                jobId={update.jobId}
+                                onClick={setTaskInFocus}
+                                title={update.newTitle ?? ""}
+                                speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
+                                progress={update.progress ? update.progress : undefined}
+                            />
+                        ))}
+                    </>
                 }
             </ClickableDropdown>
 

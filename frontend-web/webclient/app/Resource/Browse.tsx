@@ -330,10 +330,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </div>
                 }
                 {
-                    !resource.permissions.myself.includes("ADMIN") ? null :
+                    !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
-                            resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
+                            resource.permissions.others.length <= 1) ? <ListRowStat>Only available to admins</ListRowStat> :
                     <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}
