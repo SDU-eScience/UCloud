@@ -30,10 +30,14 @@ FileCollections.retrieve.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -46,8 +50,6 @@ FileCollections.retrieve.call(
 
 /*
 FileCollection(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635151675465, 
     id = "54123", 
     owner = ResourceOwner(
@@ -95,6 +97,7 @@ FileCollection(
 await callAPI(FilesCollectionsApi.retrieve(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -106,7 +109,10 @@ await callAPI(FilesCollectionsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "54123"
     }
@@ -141,10 +147,7 @@ await callAPI(FilesCollectionsApi.retrieve(
         "others": [
         ]
     },
-    "providerGeneratedId": null,
-    "acl": null,
-    "billing": {
-    }
+    "providerGeneratedId": null
 }
 */
 ```
@@ -198,10 +201,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #         "others": [
 #         ]
 #     },
-#     "providerGeneratedId": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "providerGeneratedId": null
 # }
 
 ```

@@ -67,32 +67,41 @@ class AccountingService(
             result.add(true)
         }
 
-        db.withSession(remapExceptions = true, transactionMode) { session ->
-            session.sendPreparedStatement(
-                packChargeRequests(request),
-                """
-                    with requests as (
-                        select (
-                            unnest(:payer_ids::text[]),
-                            unnest(:payer_is_project::boolean[]),
-                            unnest(:units::bigint[]),
-                            unnest(:number_of_products::bigint[]),
-                            unnest(:product_ids::text[]),
-                            unnest(:product_categories::text[]),
-                            unnest(:product_provider::text[]),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]), 
-                            unnest(:transaction_ids::text[])
-                        )::accounting.charge_request req
-                    )
-                    select accounting.charge(array_agg(req))
-                    from requests;
-                """
-            ).rows.forEach {
-                val res = it[0] as? Int
-                if (res != null) {
-                    result[res] = false
+        try {
+            db.withSession(remapExceptions = true, transactionMode) { session ->
+                session.sendPreparedStatement(
+                    packChargeRequests(request),
+                    """
+                        with requests as (
+                            select (
+                                unnest(:payer_ids::text[]),
+                                unnest(:payer_is_project::boolean[]),
+                                unnest(:units::bigint[]),
+                                unnest(:periods::bigint[]),
+                                unnest(:product_ids::text[]),
+                                unnest(:product_categories::text[]),
+                                unnest(:product_provider::text[]),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]), 
+                                unnest(:transaction_ids::text[])
+                            )::accounting.charge_request req
+                        )
+                        select accounting.charge(array_agg(req))
+                        from requests;
+                    """
+                ).rows.forEach {
+                    val res = it[0] as? Int
+                    if (res != null) {
+                        result[res] = false
+                    }
                 }
+            }
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.BadRequest && ex.why.contains("Permission denied")) {
+                throw RPCException(
+                    "Unable to pay for this product. Make sure that you have enough resources to perform this action!",
+                    HttpStatusCode.PaymentRequired
+                )
             }
         }
 
@@ -118,7 +127,7 @@ class AccountingService(
                                 unnest(:payer_ids::text[]),
                                 unnest(:payer_is_project::boolean[]),
                                 unnest(:units::bigint[]),
-                                unnest(:number_of_products::bigint[]),
+                                unnest(:periods::bigint[]),
                                 unnest(:product_ids::text[]),
                                 unnest(:product_categories::text[]),
                                 unnest(:product_provider::text[]),
@@ -142,7 +151,7 @@ class AccountingService(
             val payerIds by parameterList<String>()
             val payerIsProject by parameterList<Boolean>()
             val units by parameterList<Long>()
-            val numberOfProducts by parameterList<Long>()
+            val periods by parameterList<Long>()
             val productIds by parameterList<String>()
             val productCategories by parameterList<String>()
             val productProvider by parameterList<String>()
@@ -161,7 +170,7 @@ class AccountingService(
                     }
                 }
                 units.add(req.units)
-                numberOfProducts.add(req.numberOfProducts)
+                periods.add(req.periods)
                 productIds.add(req.product.id)
                 productCategories.add(req.product.category)
                 productProvider.add(req.product.provider)

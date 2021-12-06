@@ -60,6 +60,10 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         }
     }, []);
 
+    const filters = React.useMemo(() => ({
+        filterState: "READY"
+    }), []);
+
     return (<Flex>
         <PointerInput
             id={widgetId(props.parameter) + "visual"}
@@ -67,7 +71,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             error={error}
             onClick={doOpen}
         />
-        <input type="hidden" id={widgetId(props.parameter)}/>
+        <input type="hidden" id={widgetId(props.parameter)} />
         <ReactModal
             isOpen={open}
             ariaHideApp={false}
@@ -76,7 +80,13 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <IngressBrowse computeProvider={props.provider} onSelect={onUse} browseType={BrowseType.Embedded}/>
+            <IngressBrowse
+                computeProvider={props.provider}
+                onSelect={onUse}
+                additionalFilters={filters}
+                onSelectRestriction={res => res.status.boundTo.length === 0}
+                browseType={BrowseType.Embedded}
+            />
         </ReactModal>
     </Flex>);
 }

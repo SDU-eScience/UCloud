@@ -68,9 +68,23 @@ class Server(
         val cephStats = CephFsFastDirectoryStats(nativeFs)
 
         elastic = micro.elasticHighLevelClient
-
-        val limitChecker = LimitChecker(db)
+        val limitChecker = LimitChecker(db, pathConverter)
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
+
+        val scriptManager = micro.feature(ScriptManager)
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-scan",
+                    "Accounting Scan (Storage)",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                ),
+                script = {
+                    usageScan.startScan()
+                }
+            )
+        )
+
         if (micro.commandLineArguments.contains("--scan-accounting")) {
             try {
                 runBlocking {

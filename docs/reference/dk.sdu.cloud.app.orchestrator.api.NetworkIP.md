@@ -18,8 +18,6 @@ data class NetworkIP(
     val updates: List<NetworkIPUpdate>?,
     val resolvedProduct: Product.NetworkIP?,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -115,30 +113,6 @@ The ID is unique across a provider for a single resource type.
 
 
 A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
 
 
 </details>

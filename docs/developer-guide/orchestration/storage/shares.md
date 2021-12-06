@@ -222,6 +222,9 @@ Shares.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterRejected = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -239,8 +242,6 @@ Shares.browse.call(
 /*
 PageV2(
     items = listOf(Share(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "6342", 
         owner = ResourceOwner(
@@ -305,6 +306,9 @@ Shares.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterRejected = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -322,8 +326,6 @@ Shares.browse.call(
 /*
 PageV2(
     items = listOf(Share(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "6342", 
         owner = ResourceOwner(
@@ -422,7 +424,10 @@ await callAPI(SharesApi.browse(
             "filterIngoing": true,
             "filterOriginalPath": null,
             "filterRejected": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -469,10 +474,7 @@ await callAPI(SharesApi.browse(
                     "READ"
                 ],
                 "others": null
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -515,7 +517,10 @@ await callAPI(SharesApi.browse(
             "filterIngoing": true,
             "filterOriginalPath": null,
             "filterRejected": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -562,10 +567,7 @@ await callAPI(SharesApi.browse(
                     "READ"
                 ],
                 "others": null
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -657,10 +659,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "READ"
 #                 ],
 #                 "others": null
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -719,10 +718,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "READ"
 #                 ],
 #                 "others": null
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -1055,8 +1051,6 @@ data class Share(
     val updates: List<Share.Update>,
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -1144,28 +1138,6 @@ resource.
 
 
 A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-
-
 
 
 </details>
@@ -1507,6 +1479,9 @@ data class ShareFlags(
     val filterOriginalPath: String?,
     val filterRejected: String?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -1672,6 +1647,39 @@ data class ShareFlags(
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

@@ -11,7 +11,7 @@
 data class ChargeWalletRequestItem(
     val payer: WalletOwner,
     val units: Long,
-    val numberOfProducts: Long,
+    val periods: Long,
     val product: ProductReference,
     val performedBy: String,
     val description: String,
@@ -50,7 +50,7 @@ number of minutes/hours/days.
 
 <details>
 <summary>
-<code>numberOfProducts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The number of products involved in this charge, for example the number of nodes
+<code>periods</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The number of products involved in this charge, for example the number of nodes
 </summary>
 
 

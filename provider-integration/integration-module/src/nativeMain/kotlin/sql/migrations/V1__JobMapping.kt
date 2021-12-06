@@ -8,8 +8,8 @@ fun V1__JobMapping(): MigrationScript = MigrationScript("V1__JobMapping") { conn
         //language=SQLite
         """
             create table job_mapping(
-                ucloud_id text not null ,
-                local_id text primary key,
+                ucloud_id text primary key,
+                local_id text not null,
                 partition text not null,
                 status integer default 1 not null,
                 lastknown text not null,

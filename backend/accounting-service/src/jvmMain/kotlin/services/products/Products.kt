@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import java.sql.ResultSet
 
 class ProductService(
     private val db: DBContext,

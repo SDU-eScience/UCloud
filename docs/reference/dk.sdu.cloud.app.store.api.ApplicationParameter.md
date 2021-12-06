@@ -19,6 +19,7 @@ sealed class ApplicationParameter {
     class InputFile : ApplicationParameter()
     class InputDirectory : ApplicationParameter()
     class Text : ApplicationParameter()
+    class TextArea : ApplicationParameter()
     class Integer : ApplicationParameter()
     class FloatingPoint : ApplicationParameter()
     class Bool : ApplicationParameter()

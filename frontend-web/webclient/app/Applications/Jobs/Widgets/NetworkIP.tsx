@@ -3,7 +3,7 @@ import {default as ReactModal} from "react-modal";
 import {Flex} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
-import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
+import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
@@ -61,6 +61,10 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         }
     }, []);
 
+    const filters: NetworkIPFlags = React.useMemo(() => ({
+        filterState: "READY"
+    }), []);
+
     return (<Flex>
         <PointerInput
             id={widgetId(props.parameter) + "visual"}
@@ -68,7 +72,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             error={error}
             onClick={doOpen}
         />
-        <input type="hidden" id={widgetId(props.parameter)}/>
+        <input type="hidden" id={widgetId(props.parameter)} />
         <ReactModal
             isOpen={open}
             ariaHideApp={false}
@@ -77,7 +81,13 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <NetworkIPBrowse provider={props.provider} onSelect={onUse} browseType={BrowseType.Embedded}/>
+            <NetworkIPBrowse
+                provider={props.provider}
+                additionalFilters={filters}
+                onSelect={onUse}
+                browseType={BrowseType.Embedded}
+                onSelectRestriction={res => res.status.boundTo.length === 0}
+            />
         </ReactModal>
     </Flex>);
 }

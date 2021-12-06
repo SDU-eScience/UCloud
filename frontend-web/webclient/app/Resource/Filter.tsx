@@ -12,7 +12,7 @@ import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "@/ui-components/Toggle";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
@@ -110,24 +110,24 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
-    const onlyFilter = props.sortEntries.length === 0;
-
     const isEmbedded = props.browseType === BrowseType.Embedded;
 
     return <>
         {isEmbedded ? null :
             <Heading.h4 mt={"32px"} mb={"16px"}>
                 <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-                {onlyFilter ? "Filter" : "Sort and filter"}
+                Filter
             </Heading.h4>
         }
-        <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-            icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
-        {props.pills.map((Pill, idx) =>
-            <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
-        )}
+        <MainContentGrid browseType={props.browseType}>
+            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+            {props.pills.map((Pill, idx) =>
+                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
+            )}
+        </MainContentGrid>
         <Grid gridGap={"20px"}
-            mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
+            mt={Object.keys(props.filterWidgets).length === 0 && Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "10px"}>
             <EmbeddedFilterDropdown embedded={isEmbedded}>
                 {props.filterWidgets.map((Widget, idx) =>
                     <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
@@ -137,6 +137,16 @@ export const ResourceFilter: React.FunctionComponent<{
         </Grid>
     </>;
 };
+
+function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): JSX.Element {
+    return props.browseType !== BrowseType.MainContent ? (
+        <>{props.children}</>
+    ) : (
+        <Grid gridGap={"8px"}>
+            {props.children}
+        </Grid>
+    );
+}
 
 function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
     return props.embedded ? (
@@ -269,8 +279,8 @@ export const TextFilterWidget: React.FunctionComponent<{
         properties[props.propertyName] = newValue === "" ? undefined : newValue;
         props.onPropertiesUpdated(properties);
     }, [props.onPropertiesUpdated, props.propertyName]);
-    return <ExpandableFilterWidget expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
-        <Input autoFocus value={currentValue} onChange={onChange} />
+    return <ExpandableFilterWidget browseType={props.browseType} expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
+        <Input autoFocus value={currentValue} onChange={onChange} width={props.browseType === BrowseType.Embedded ? "calc(100% - 16px)" : undefined} />
     </ExpandableFilterWidget>;
 };
 
@@ -355,10 +365,10 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
     const yesterdayEnd = todayMs - 1;
     const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
-    const lastWeekEnd = getStartOfWeek(new Date(todayMs)).getTime() - 1;
-    const lastWeekStart = getStartOfWeek(new Date(lastWeekEnd)).getTime();
-    const lastMonthEnd = getStartOfMonth(new Date()).getTime() - 1;
-    const lastMonthStart = getStartOfMonth(new Date(lastMonthEnd)).getTime();
+    const pastWeekEnd = new Date(timestampUnixMs()).getTime();
+    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7*1000*60*60*24))).getTime();
+    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
+    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30*1000*60*60*24))).getTime();
 
     return <ExpandableDropdownFilterWidget
         expanded={props.expanded}
@@ -381,17 +391,17 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last week"}
-                    range={`${dateToStringNoTime(lastWeekStart)} - ${dateToStringNoTime(lastWeekEnd)}`}
+                    title={"Past week"}
+                    range={`${dateToStringNoTime(pastWeekStart)} - ${dateToStringNoTime(pastWeekEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastWeekStart), new Date(lastWeekEnd)]);
+                        updateDates([new Date(pastWeekStart), new Date(pastWeekEnd)]);
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last month"}
-                    range={`${dateToStringNoTime(lastMonthStart)} - ${dateToStringNoTime(lastMonthEnd)}`}
+                    title={"Past month"}
+                    range={`${dateToStringNoTime(pastMonthStart)} - ${dateToStringNoTime(pastMonthEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastMonthStart), new Date(lastMonthEnd)]);
+                        updateDates([new Date(pastMonthStart), new Date(pastMonthEnd)]);
                     }}
                 />
                 <DateRangeEntry

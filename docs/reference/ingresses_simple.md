@@ -99,6 +99,9 @@ Ingresses.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -111,8 +114,6 @@ Ingresses.retrieve.call(
 
 /*
 Ingress(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "5127", 
     owner = ResourceOwner(
@@ -242,7 +243,10 @@ await callAPI(IngressesApi.retrieve(
             "filterProductCategory": null,
             "filterProviderIds": null,
             "filterIds": null,
-            "filterState": null
+            "filterState": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "5127"
     }
@@ -273,10 +277,7 @@ await callAPI(IngressesApi.retrieve(
     },
     "updates": [
     ],
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -390,10 +391,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 #     },
 #     "updates": [
 #     ],
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```

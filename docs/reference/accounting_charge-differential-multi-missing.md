@@ -159,11 +159,11 @@ this state by applying a 400 GB charge on the node and another 50 GB on the leaf
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -319,11 +319,11 @@ for 0 units (GB). */
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-storage", 
             id = "example-storage", 
@@ -644,7 +644,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 110,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -832,7 +832,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 0,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-storage",
                     "category": "example-storage",
@@ -1151,7 +1151,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 110,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",
@@ -1307,7 +1307,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 0,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-storage",
                 "category": "example-storage",

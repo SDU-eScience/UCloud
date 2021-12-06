@@ -413,6 +413,7 @@ class RpcServer {
                     val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
                         CommonErrorMessage(ex.why, ex.errorCode)
                     } else {
+                        log.warn("${call.fullName} $request Internal server error:\n${ex.stackTraceToString()}")
                         CommonErrorMessage("Internal Server Error", ex.errorCode)
                     }
 

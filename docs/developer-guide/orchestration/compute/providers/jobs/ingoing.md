@@ -847,8 +847,6 @@ In this example:
 
 JobsProvider.create.call(
     bulkRequestOf(Job(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1633329776235, 
         id = "54112", 
         output = null, 
@@ -1079,6 +1077,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.RUNNING, 
             status = "The job is now running!", 
@@ -1103,6 +1102,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
             status = "The job has finished processing!", 
@@ -1399,10 +1399,7 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                 },
                 "createdAt": 1633329776235,
                 "output": null,
-                "permissions": null,
-                "acl": null,
-                "billing": {
-                }
+                "permissions": null
             }
         ]
     }
@@ -1438,6 +1435,7 @@ await callAPI(JobsControlApi.update(
                     "status": "The job is now running!",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -1466,6 +1464,7 @@ await callAPI(JobsControlApi.update(
                     "status": "The job has finished processing!",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -1763,10 +1762,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "createdAt": 1633329776235,
             "output": null,
-            "permissions": null,
-            "acl": null,
-            "billing": {
-            }
+            "permissions": null
         }
     ]
 }'
@@ -1798,6 +1794,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "The job is now running!",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }
@@ -1822,6 +1819,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "The job has finished processing!",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }
@@ -1886,15 +1884,15 @@ JobsControl.chargeCredits.call(
         chargeId = "51231-charge-04-oct-2021-12:30", 
         description = null, 
         id = "51231", 
-        numberOfProducts = 1, 
         performedBy = null, 
+        periods = 1, 
         units = 15, 
     ), ResourceChargeCredits(
         chargeId = "63489-charge-04-oct-2021-12:30", 
         description = null, 
         id = "63489", 
-        numberOfProducts = 23, 
         performedBy = null, 
+        periods = 23, 
         units = 15, 
     )),
     provider
@@ -1926,15 +1924,15 @@ JobsControl.chargeCredits.call(
         chargeId = "51231-charge-04-oct-2021-12:45", 
         description = null, 
         id = "51231", 
-        numberOfProducts = 1, 
         performedBy = null, 
+        periods = 1, 
         units = 15, 
     ), ResourceChargeCredits(
         chargeId = "63489-charge-04-oct-2021-12:45", 
         description = null, 
         id = "63489", 
-        numberOfProducts = 23, 
         performedBy = null, 
+        periods = 23, 
         units = 15, 
     )),
     provider
@@ -1962,6 +1960,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
             status = "The job was terminated (No credits)", 
@@ -2007,7 +2006,7 @@ await callAPI(JobsControlApi.chargeCredits(
                 "id": "51231",
                 "chargeId": "51231-charge-04-oct-2021-12:30",
                 "units": 15,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "performedBy": null,
                 "description": null
             },
@@ -2015,7 +2014,7 @@ await callAPI(JobsControlApi.chargeCredits(
                 "id": "63489",
                 "chargeId": "63489-charge-04-oct-2021-12:30",
                 "units": 15,
-                "numberOfProducts": 23,
+                "periods": 23,
                 "performedBy": null,
                 "description": null
             }
@@ -2053,7 +2052,7 @@ await callAPI(JobsControlApi.chargeCredits(
                 "id": "51231",
                 "chargeId": "51231-charge-04-oct-2021-12:45",
                 "units": 15,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "performedBy": null,
                 "description": null
             },
@@ -2061,7 +2060,7 @@ await callAPI(JobsControlApi.chargeCredits(
                 "id": "63489",
                 "chargeId": "63489-charge-04-oct-2021-12:45",
                 "units": 15,
-                "numberOfProducts": 23,
+                "periods": 23,
                 "performedBy": null,
                 "description": null
             }
@@ -2099,6 +2098,7 @@ await callAPI(JobsControlApi.update(
                     "status": "The job was terminated (No credits)",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -2144,7 +2144,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "id": "51231",
             "chargeId": "51231-charge-04-oct-2021-12:30",
             "units": 15,
-            "numberOfProducts": 1,
+            "periods": 1,
             "performedBy": null,
             "description": null
         },
@@ -2152,7 +2152,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "id": "63489",
             "chargeId": "63489-charge-04-oct-2021-12:30",
             "units": 15,
-            "numberOfProducts": 23,
+            "periods": 23,
             "performedBy": null,
             "description": null
         }
@@ -2185,7 +2185,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "id": "51231",
             "chargeId": "51231-charge-04-oct-2021-12:45",
             "units": 15,
-            "numberOfProducts": 1,
+            "periods": 1,
             "performedBy": null,
             "description": null
         },
@@ -2193,7 +2193,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "id": "63489",
             "chargeId": "63489-charge-04-oct-2021-12:45",
             "units": 15,
-            "numberOfProducts": 23,
+            "periods": 23,
             "performedBy": null,
             "description": null
         }
@@ -2227,6 +2227,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "The job was terminated (No credits)",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }
@@ -2283,8 +2284,6 @@ Job(s). */
 
 JobsProvider.verify.call(
     bulkRequestOf(Job(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1633329776235, 
         id = "54112", 
         output = null, 
@@ -2345,6 +2344,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.FAILURE, 
             status = "Your job is no longer available", 
@@ -2430,10 +2430,7 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                 },
                 "createdAt": 1633329776235,
                 "output": null,
-                "permissions": null,
-                "acl": null,
-                "billing": {
-                }
+                "permissions": null
             }
         ]
     }
@@ -2458,6 +2455,7 @@ await callAPI(JobsControlApi.update(
                     "status": "Your job is no longer available",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -2544,10 +2542,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "createdAt": 1633329776235,
             "output": null,
-            "permissions": null,
-            "acl": null,
-            "billing": {
-            }
+            "permissions": null
         }
     ]
 }'
@@ -2569,6 +2564,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "Your job is no longer available",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls.server
 
-import calls.server.RpcCoroutineContext
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable

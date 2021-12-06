@@ -93,6 +93,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
 
         val maxTime = job.maxTime
         if (maxTime != null) {
+            k8.updateTimeAllocation(jobId, maxTime + extendBy.toMillis())
             ops.add(
                 JsonObject(
                     mapOf(

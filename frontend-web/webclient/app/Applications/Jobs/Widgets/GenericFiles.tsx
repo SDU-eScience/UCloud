@@ -52,11 +52,19 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
-            <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
-                const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                dialogStore.success();
-            }} />,
+            <FilesBrowse
+                browseType={BrowseType.Embedded}
+                pathRef={pathRef}
+                onSelectRestriction={file =>
+                    (isDirectoryInput && file.status.type === "DIRECTORY") ||
+                    (!isDirectoryInput && file.status.type === "FILE")
+                }
+                onSelect={async (res) => {
+                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                    FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                    dialogStore.success();
+                }}
+            />,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle

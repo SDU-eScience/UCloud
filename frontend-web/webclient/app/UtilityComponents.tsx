@@ -93,34 +93,35 @@ export async function addStandardInputDialog({
     width = "300px",
 }: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
-        <div>
+        <form onSubmit={
+            e => {
+                stopPropagationAndPreventDefault(e);
+                const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                if (validator(elem.value)) {
+                    dialogStore.success();
+                    return resolve({result: elem.value});
+                } else snackbarStore.addFailure(validationFailureMessage, false);
+            }
+        }>
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                {help ? help : null}
+                {help ?? null}
                 <Input
                     id={"dialog-input"}
                     as={type}
                     width={width}
                     placeholder={placeholder}
+                    autoFocus
                 />
             </div>
             <Flex mt="20px">
-                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
-                <Button
-                    onClick={() => {
-                        const elem = document.querySelector("#dialog-input") as HTMLInputElement;
-                        if (validator(elem.value)) {
-                            dialogStore.success();
-                            resolve({result: elem.value});
-                        } else snackbarStore.addFailure(validationFailureMessage, false);
-                    }}
-                    color="green"
-                >
+                <Button type={"button"} onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
+                <Button type={"submit"} color="green">
                     {confirmText}
                 </Button>
             </Flex>
-        </div>, () => reject({cancelled: true}), addToFront));
+        </form>, () => reject({cancelled: true}), addToFront));
 }
 
 interface ConfirmCancelButtonsProps {
@@ -160,6 +161,11 @@ export const NamingField: React.FunctionComponent<{
 }> = props => {
     const submit = React.useCallback((e) => {
         e.preventDefault();
+        const value = props.inputRef.current?.value ?? "";
+        if (!value.trim()) {
+            snackbarStore.addFailure("Title can't be empty or blank", false);
+            return;
+        }
         props.onSubmit(e);
     }, [props.onSubmit]);
 
@@ -180,7 +186,7 @@ export const NamingField: React.FunctionComponent<{
                         onCancel={props.onCancel}
                     />
                 </div>
-                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
+                {props.prefix ? <Text pl="10px" mt="4px" color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -198,7 +204,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
+                {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );

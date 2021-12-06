@@ -239,7 +239,7 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    {primaryContent}
+                    <Box mt="6px">{primaryContent}</Box>
                     <Box mr={"10px"}/>
                     {content.length === 0 ? <Box ml={"30px"}/> :
                         <Flex alignItems={"center"} justifyContent={"center"}>

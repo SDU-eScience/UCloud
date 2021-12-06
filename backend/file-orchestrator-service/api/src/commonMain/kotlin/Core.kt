@@ -4,12 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -374,8 +369,24 @@ Note: This mode is not supported for all operations.
     MERGE_RENAME
 }
 
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("""
+    Filter for member files. 
+    
+    A member files collection must use the following format to be recognized: "Member Files: ${"$"}username"
+""")
+enum class MemberFilesFilter {
+    @UCloudApiDoc("Shows only the requesting user's personal member file along with all other collections")
+    SHOW_ONLY_MINE,
+    @UCloudApiDoc("Shows only the member file collections and hides all others")
+    SHOW_ONLY_MEMBER_FILES,
+    @UCloudApiDoc("Applies no filter and shows both normal collections and member files")
+    DONT_FILTER_COLLECTIONS,
+}
+
 @Serializable
 data class FileCollectionIncludeFlags(
+    val filterMemberFiles: MemberFilesFilter? = null,
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
@@ -416,7 +427,7 @@ data class FileCollection(
         override val product: ProductReference,
     ) : ResourceSpecification {
         init {
-            require(title.isNotEmpty())
+            checkSingleLine(::title, title)
         }
     }
 

@@ -35,6 +35,7 @@ const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
 const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
+const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
@@ -96,11 +97,11 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
                     <Route exact path={"/debugger"} component={Debugger} />
 
-                    <Route path={"/drives"}><FileCollectionsRouter /></Route>
+                    <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
                     <Route path={"/files"} component={requireAuth(FilesRouter)} />
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
                     <Route path={"/shares"}>
-                        <ShareRouter />
+                        <ShareRouter/>
                         <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
                     </Route>
 
@@ -135,14 +136,16 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
                     <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
+                    <Route exact path="/admin/scripts" component={requireAuth(Scripts)} />
 
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
                     <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
 
-                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
+                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
                     <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
+                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />
@@ -190,8 +193,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
                     <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
-
-                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
 
                     <Route
                         exact

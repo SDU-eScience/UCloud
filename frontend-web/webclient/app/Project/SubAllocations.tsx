@@ -145,7 +145,7 @@ function parseDateFromInput(value: string): number | null {
     // invalid values also.
     if (date < 1 || date > 31) return null;
 
-    return Math.floor(new Date(year, month, date).getTime());
+    return Math.floor(new Date(year, month - 1, date).getTime());
 }
 
 const colRecipientType: 0 = 0 as const;

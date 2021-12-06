@@ -81,10 +81,14 @@ class JobMonitoringService(
                                 set last_scan = to_timestamp(cast(:now as bigint))
                                 where
                                     resource in (
-                                        select resource from jobs
+                                        select resource
+                                        from
+                                            app_orchestrator.jobs j join
+                                            provider.resource r on r.id = j.resource
                                         where
                                             current_state in (select unnest(:nonFinalStates::text[])) and
-                                            last_scan <= to_timestamp(cast(:before as bigint))
+                                            last_scan <= to_timestamp(cast(:before as bigint)) and
+                                            r.confirmed_by_provider = true
                                         limit 100
                                     )
                                 returning resource;
@@ -180,7 +184,7 @@ class JobMonitoringService(
         val networkIPs = job.networks.map { it.id }
         val licenses = job.licences.map { it.id }
 
-        run {
+        if (ingress.isNotEmpty()) {
             val available = ingressService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 ingress,
@@ -198,11 +202,13 @@ class JobMonitoringService(
             }
 
         }
-        run {
+
+        if (networkIPs.isNotEmpty()) {
             val available = networkIPService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 networkIPs,
                 listOf(Permission.READ),
+                requireAll = false,
                 ctx = session
             )
             if (available.size != ingress.size) {
@@ -211,16 +217,16 @@ class JobMonitoringService(
 
                 val lostNetworkIPs =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
-                NetworkIP
                 return HasResource(false, lostNetworkIPs)
             }
         }
 
-        run {
+        if (licenses.isNotEmpty()) {
             val available = licenseService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 licenses,
                 listOf(Permission.READ),
+                requireAll = false,
                 ctx = session
             )
             if (available.size != licenses.size) {
@@ -229,7 +235,6 @@ class JobMonitoringService(
 
                 val lostLicenses =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
-                NetworkIP
                 return HasResource(false, lostLicenses)
             }
         }

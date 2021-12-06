@@ -72,14 +72,14 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
     const info = useCallback(async () => {
 
         const emailSettings = await invokeCommand(
-            retrieveEmailSettings({})
-        )
+            retrieveEmailSettings({}),
+            { defaultErrorHandler: false }
+        );
 
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
             payload: {
-                settings: emailSettings.settings ?? defaultEmailSettings
-
+                settings: emailSettings?.settings ?? defaultEmailSettings
             }
         });
     }, []);

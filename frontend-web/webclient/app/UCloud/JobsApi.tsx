@@ -219,7 +219,9 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             if (resource == null || browseType !== BrowseType.Card) return null;
             return (
                 <ListRowStat>
-                    {resource.specification.application.name} v{resource.specification.application.version}
+                    {resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
+                    {" "}
+                    v{resource.specification.application.version}
                 </ListRowStat>
             )
         },
@@ -240,7 +242,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         }
     };
 
-    Properties = View;
+    Properties = props => <View embedded={props.embedded} id={props?.resource?.id} />;
 
     constructor() {
         super("jobs");

@@ -19,8 +19,8 @@ interface SpacerProps extends
     FlexWrapProps,
     FlexDirectionProps,
     HeightProps {
-    left: React.ReactChild | null;
-    right: React.ReactChild | null;
+    left: React.ReactNode;
+    right: React.ReactNode;
 }
 
 export const Spacer = ({left, right, ...props}: SpacerProps) => (

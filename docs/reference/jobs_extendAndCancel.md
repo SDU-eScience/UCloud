@@ -72,6 +72,9 @@ Jobs.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeApplication = null, 
             includeOthers = false, 
             includeParameters = null, 
@@ -86,8 +89,6 @@ Jobs.retrieve.call(
 
 /*
 Job(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633329776235, 
     id = "62348", 
     output = null, 
@@ -129,6 +130,7 @@ Job(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
@@ -136,6 +138,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
@@ -180,6 +183,9 @@ Jobs.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeApplication = null, 
             includeOthers = false, 
             includeParameters = null, 
@@ -194,8 +200,6 @@ Jobs.retrieve.call(
 
 /*
 Job(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633329776235, 
     id = "62348", 
     output = null, 
@@ -237,6 +241,7 @@ Job(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
@@ -244,6 +249,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
@@ -283,6 +289,9 @@ Jobs.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeApplication = null, 
             includeOthers = false, 
             includeParameters = null, 
@@ -297,8 +306,6 @@ Jobs.retrieve.call(
 
 /*
 Job(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633329776235, 
     id = "62348", 
     output = null, 
@@ -340,6 +347,7 @@ Job(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
@@ -347,6 +355,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
@@ -354,6 +363,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "Your job has been cancelled!", 
@@ -436,7 +446,10 @@ await callAPI(JobsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "62348"
     }
@@ -456,6 +469,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now waiting in the queue!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329776235
         },
         {
@@ -464,6 +478,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now running!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329781235
         }
     ],
@@ -499,10 +514,7 @@ await callAPI(JobsApi.retrieve(
     },
     "createdAt": 1633329776235,
     "output": null,
-    "permissions": null,
-    "acl": null,
-    "billing": {
-    }
+    "permissions": null
 }
 */
 
@@ -552,7 +564,10 @@ await callAPI(JobsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "62348"
     }
@@ -572,6 +587,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now waiting in the queue!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329776235
         },
         {
@@ -580,6 +596,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now running!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329781235
         }
     ],
@@ -615,10 +632,7 @@ await callAPI(JobsApi.retrieve(
     },
     "createdAt": 1633329776235,
     "output": null,
-    "permissions": null,
-    "acl": null,
-    "billing": {
-    }
+    "permissions": null
 }
 */
 
@@ -663,7 +677,10 @@ await callAPI(JobsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "62348"
     }
@@ -683,6 +700,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now waiting in the queue!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329776235
         },
         {
@@ -691,6 +709,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now running!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633329781235
         },
         {
@@ -699,6 +718,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job has been cancelled!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633336981235
         }
     ],
@@ -734,10 +754,7 @@ await callAPI(JobsApi.retrieve(
     },
     "createdAt": 1633329776235,
     "output": null,
-    "permissions": null,
-    "acl": null,
-    "billing": {
-    }
+    "permissions": null
 }
 */
 ```
@@ -812,6 +829,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now waiting in the queue!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -820,6 +838,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now running!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -855,10 +874,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
-#     "permissions": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "permissions": null
 # }
 
 # We can extend the duration quite easily
@@ -901,6 +917,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now waiting in the queue!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -909,6 +926,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now running!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -944,10 +962,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
-#     "permissions": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "permissions": null
 # }
 
 # If the user decides that they are done with the Job early, then they can simply terminate it
@@ -985,6 +1000,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now waiting in the queue!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -993,6 +1009,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now running!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633329781235
 #         },
 #         {
@@ -1001,6 +1018,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job has been cancelled!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633336981235
 #         }
 #     ],
@@ -1036,10 +1054,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
-#     "permissions": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "permissions": null
 # }
 
 ```

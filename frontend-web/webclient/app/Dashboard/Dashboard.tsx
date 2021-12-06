@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@/DefaultObjects";
 import {History} from "history";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -58,6 +58,8 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
+    const history = useHistory();
+    useSearch(defaultSearch);
     const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -170,7 +172,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
     const history = useHistory();
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite)//.slice(0, 7);
+    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
 
     return (
         <HighlightedCard
@@ -208,7 +210,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
+                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
                             history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
@@ -365,7 +367,7 @@ function DashboardRuns({runs}: {
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
-        title="Recent Runs"
+        title={<Link to={"/jobs"}><Heading.h3>Recent Runs</Heading.h3></Link>}
         icon="results"
         isLoading={runs.loading}
         error={runs.error?.why}
@@ -380,7 +382,8 @@ function DashboardRuns({runs}: {
             </NoResultsCardBody>
         ) :
             <List>
-                {runs.data.items.map(job =>
+                {runs.data.items.map((job, idx) =>
+                    idx >= 7 ? null :
                     <ItemRow
                         key={job.id}
                         item={job}
@@ -425,7 +428,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resources</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}

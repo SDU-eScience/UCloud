@@ -30,6 +30,31 @@ interface PreparedStatement {
     fun close()
 }
 
+fun PreparedStatement.bindIntNullable(param: String, value: Int?) {
+    if (value == null) bindNull(param)
+    else bindInt(param, value)
+}
+
+fun PreparedStatement.bindLongNullable(param: String, value: Long?) {
+    if (value == null) bindNull(param)
+    else bindLong(param, value)
+}
+
+fun PreparedStatement.bindStringNullable(param: String, value: String?) {
+    if (value == null) bindNull(param)
+    else bindString(param, value)
+}
+
+fun PreparedStatement.bindBooleanNullable(param: String, value: Boolean?) {
+    if (value == null) bindNull(param)
+    else bindBoolean(param, value)
+}
+
+fun PreparedStatement.bindDoubleNullable(param: String, value: Double?) {
+    if (value == null) bindNull(param)
+    else bindDouble(param, value)
+}
+
 inline fun PreparedStatement.use(block: (statement: PreparedStatement) -> Unit) {
     try {
         block(this)

@@ -3,6 +3,7 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.ScriptManager
 import dk.sdu.cloud.service.isRunning
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
@@ -59,13 +60,14 @@ class ServiceRegistry(
             install(DevelopmentOverrides)
             install(LogFeature)
             install(KtorServerProviderFeature)
-            install(ClientFeature)
             install(RedisFeature)
+            install(ClientFeature)
             install(TokenValidationFeature)
             install(ServerFeature)
             install(HealthCheckFeature)
             install(BackgroundScopeFeature)
             install(DebugSystem)
+            install(ScriptManager)
             //install(DatabaseConfigurationFeature)
             //install(FlywayFeature)
         }

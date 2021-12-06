@@ -199,7 +199,8 @@ fun startProcessAndCollectToMemory(
 
     var status: ProcessStatus = ProcessStatus(-1)
 
-    while ((isStdoutOpen || isStderrOpen) && status.isRunning) {
+    var breakOnNextIteration = false
+    while (breakOnNextIteration || ((isStdoutOpen || isStderrOpen) && status.isRunning)) {
         if (process.stdout != null) {
             val bytesToRead = stdoutMaxSizeInBytes - stdoutPtr
             // TODO Close the process
@@ -233,8 +234,13 @@ fun startProcessAndCollectToMemory(
             }
         }
 
+        if (breakOnNextIteration) break
         status = process.retrieveStatus(waitForExit = false)
-        if (!status.isRunning) usleep(1000U)
+        if (status.isRunning) {
+            usleep(1000U)
+        } else {
+            breakOnNextIteration = true
+        }
     }
 
     if (status.isRunning) {

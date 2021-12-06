@@ -1,12 +1,12 @@
 import * as React from "react";
-import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import {useCallback, useEffect, useMemo, useState} from "react";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
@@ -15,14 +15,17 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {Flex, Icon, List} from "@/ui-components";
+import {Box, Flex, Icon, List} from "@/ui-components";
 import {PageV2} from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
+    additionalFilters?: UFileIncludeFlags;
     onSelectRestriction?: (res: UFile) => boolean;
     isSearch?: boolean;
     browseType?: BrowseType;
@@ -37,19 +40,31 @@ export const FilesBrowse: React.FunctionComponent<{
         browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
     );
     const path = browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
-    const additionalFilters = useMemo((() => ({path, includeMetadata: "true"})), [path]);
+    const additionalFilters = useMemo((() => {
+        const base = {
+            path, includeMetadata: "true",
+        };
+
+        if (props.additionalFilters != null) {
+            Object.keys(props.additionalFilters).forEach(it => {
+                base[it] = props.additionalFilters![it].toString();
+            });
+        }
+
+        return base;
+    }), [path, props.additionalFilters]);
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
 
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
-        FileCollectionsApi.browse({itemsPerPage: 250}),
+        FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any),
         emptyPageV2
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-        browseType === BrowseType.Embedded &&
-        props.forceNavigationToPage !== true,
+            browseType === BrowseType.Embedded &&
+            props.forceNavigationToPage !== true,
         []
     );
 
@@ -94,7 +109,7 @@ export const FilesBrowse: React.FunctionComponent<{
         fetchDirectory(FilesApi.retrieve({id: path}))
     }, [path]);
 
-    const breadcrumbsComponent = useMemo((): JSX.Element => {
+    const headerComponent = useMemo((): JSX.Element => {
         const components = pathComponents(path);
         let breadcrumbs: string[] = [];
         if (components.length >= 1) {
@@ -108,48 +123,53 @@ export const FilesBrowse: React.FunctionComponent<{
             breadcrumbs = components;
         }
 
-        return <Flex>
-            <DriveDropdown>
-                <ListV2
-                    loading={drives.loading}
-                    onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
-                        itemsPerPage: drives.data.itemsPerPage,
-                        next: drives.data.next
-                    }))}
-                    page={drives.data}
-                    pageRenderer={items => (
-                        <>
-                            <List childPadding={"8px"} bordered={false}>
-                                {items.map(drive => (
-                                    <DriveInDropdown
-                                        key={drive.id}
-                                        className="expandable-row-child"
-                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
-                                    >
-                                        {drive.specification?.title}
-                                    </DriveInDropdown>
-                                ))}
-                            </List>
-                        </>
-                    )
-                    }
-                />
-            </DriveDropdown>
-            <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}>
-                {breadcrumbs.map((it, idx) => (
-                    <span key={it} test-tag={it} title={it}
-                        onClick={() => {
-                            navigateToPath(
-                                history,
-                                "/" + joinToString(components.slice(0, idx + 1), "/")
-                            );
-                        }}
-                    >
+        return <Box backgroundColor={getCssVar("white")}>
+            {props.isSearch !== true || browseType != BrowseType.MainContent ? null : <FilesSearchTabs active={"FILES"} />}
+            <Flex>
+                <DriveDropdown>
+                    <ListV2
+                        loading={drives.loading}
+                        onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
+                            itemsPerPage: drives.data.itemsPerPage,
+                            next: drives.data.next,
+                            filterMemberFiles: "all"
+                        } as any))}
+                        page={drives.data}
+                        pageRenderer={items => (
+                            <>
+                                <List childPadding={"8px"} bordered={false}>
+                                    {items.map(drive => (
+                                        <DriveInDropdown
+                                            key={drive.id}
+                                            className="expandable-row-child"
+                                            onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                        >
+                                            {drive.specification?.title}
+                                        </DriveInDropdown>
+                                    ))}
+                                </List>
+                            </>
+                        )
+                        }
+                    />
+                </DriveDropdown>
+                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
+                                 className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                    {breadcrumbs.map((it, idx) => (
+                        <span key={it} test-tag={it} title={it}
+                              onClick={() => {
+                                  navigateToPath(
+                                      history,
+                                      "/" + joinToString(components.slice(0, idx + 1), "/")
+                                  );
+                              }}
+                        >
                         {it}
                     </span>
-                ))}
-            </BreadCrumbsBase>
-        </Flex>;
+                    ))}
+                </BreadCrumbsBase>
+            </Flex>
+        </Box>;
     }, [path, browseType, collection.data, drives.data]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
@@ -185,7 +205,7 @@ export const FilesBrowse: React.FunctionComponent<{
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
-        header={breadcrumbsComponent}
+        header={headerComponent}
         headerSize={48}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
@@ -209,7 +229,7 @@ const DriveDropdown: React.FunctionComponent = props => {
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
-                <Icon mt="8px" mr="6px" name="hdd" size="24px" />
+                <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
                 <Icon
                     size="12px"
                     mr="8px"
@@ -224,13 +244,13 @@ const DriveDropdown: React.FunctionComponent = props => {
 }
 
 const DriveInDropdown = styled.div`
-    padding: 0 17px;
-    width: 450px;
-    overflow-x: hidden;
+  padding: 0 17px;
+  width: 450px;
+  overflow-x: hidden;
 
-    &:hover {
-        background-color: var(--lightBlue);
-    }
+  &:hover {
+    background-color: var(--lightBlue);
+  }
 `;
 
 export default Router;

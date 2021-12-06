@@ -65,7 +65,7 @@ private class OurArgBuilder(private val licenseService: LicenseService) : Argume
                 if (components.isEmpty()) {
                     return ArgumentBuilder.Default.build(parameter, value)
                 }
-                joinPath("/work", components[components.lastIndex])
+                joinPath("/work", components[components.lastIndex]).removeSuffix("/")
             }
 
             is ApplicationParameter.LicenseServer -> {

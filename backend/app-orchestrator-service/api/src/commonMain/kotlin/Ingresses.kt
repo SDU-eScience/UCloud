@@ -30,9 +30,7 @@ data class IngressSpecification(
     override val product: ProductReference
 ) : ResourceSpecification {
     init {
-        if (domain.length > 2000) {
-            throw RPCException("domain size cannot exceed 2000 characters", HttpStatusCode.BadRequest)
-        }
+        checkSingleLine(::domain, domain, maximumSize = 2000)
     }
 }
 

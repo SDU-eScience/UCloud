@@ -672,7 +672,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                             "63489",
                             "63489-charge-04-oct-2021-12:30",
                             15,
-                            numberOfProducts = 23
+                            periods = 23
                         )
                     ),
                     ResourceChargeCreditsResponse(
@@ -717,7 +717,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
                             "63489",
                             "63489-charge-04-oct-2021-12:45",
                             15,
-                            numberOfProducts = 23
+                            periods = 23
                         )
                     ),
                     ResourceChargeCreditsResponse(

@@ -39,6 +39,7 @@ class HeaderParsing(
                         }
                         lastReadIdx = elementIndex
                     }
+                    else -> {}
                 }
             }
             return lastRead

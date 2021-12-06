@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls.server
 
-import calls.server.RpcCoroutineContext
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription

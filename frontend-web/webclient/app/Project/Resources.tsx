@@ -66,13 +66,13 @@ filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
 
 const ResourcesGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-gap: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-gap: 16px;
 `;
 
 const Resources: React.FunctionComponent = () => {
-    useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
@@ -153,20 +153,22 @@ const Resources: React.FunctionComponent = () => {
                                 )}
                             </VisualizationSection>
                             <VisualizationSection>
-                                {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it} />
-                                )}
-                            </VisualizationSection>
-                            <VisualizationSection>
                                 {breakdowns.data.charts.map((it, idx) =>
                                     <DonutChart key={idx} chart={it} />
                                 )}
                             </VisualizationSection>
+                            <VisualizationSection>
+                                {wallets.data.items.map((it, idx) =>
+                                    <WalletViewer key={idx} wallet={it} />
+                                )}
+                            </VisualizationSection>
 
-                            <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                loadMore={loadMoreAllocations} filterByAllocation={filterByAllocation}
-                                filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                onQuery={onSubAllocationQuery} />
+                            {managementStatus.allowManagement ?
+                                <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                    loadMore={loadMoreAllocations}
+                                    filterByAllocation={filterByAllocation}
+                                    filterByWorkspace={filterByWorkspace} wallets={wallets}
+                                    onQuery={onSubAllocationQuery} /> : null}
                         </>
                     }
                 </Grid>
@@ -327,11 +329,12 @@ interface BreakdownChart {
 }
 
 function toPercentageString(value: number) {
-    return `${Math.round(value * 10_000) / 100} %`
+    return `${Math.round(value * 10_000) / 100} %`;
 }
 
 const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
     const totalUsage = props.chart.chart.points.reduce((prev, current) => prev + current.value, 0);
+    if (totalUsage === 0) return null;
     return (
         <HighlightedCard
             height="400px"
@@ -385,9 +388,9 @@ function ChartPointName({name}: {name: string}): JSX.Element {
 }
 
 const SubText = styled.div`
-    color: var(--gray);
-    text-decoration: none;
-    font-size: 10px;
+  color: var(--gray);
+  text-decoration: none;
+  font-size: 10px;
 `;
 
 export default Resources;

@@ -10,21 +10,36 @@ export const LicenseBrowse: React.FunctionComponent<{
     onSelect?: (selection: License) => void;
     isSearch?: boolean;
     browseType?: BrowseType;
+    additionalFilters?: Record<string, string>;
+    onSelectRestriction?: (res: License) => boolean;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
         api={LicenseApi}
         onSelect={props.onSelect}
         browseType={props.browseType ?? BrowseType.MainContent}
         header={
-            <ResourceTab active={ResourceTabOptions.LICENSES} />
+            browseType === BrowseType.MainContent ? (
+                <ResourceTab active={ResourceTabOptions.LICENSES} />) : undefined
         }
         headerSize={48}
+        onSelectRestriction={props.onSelectRestriction}
+        additionalFilters={props.additionalFilters}
         onInlineCreation={(text, product) => ({
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
             domain: text
         })}
         inlineCreationMode={"NONE"}
         isSearch={props.isSearch}
+        emptyPage={
+            <>
+                No licenses match your current search/filter criteria.
+                <br/>
+                You might not have activated any licenses yet. If you have already applied or received a license,
+                then you must first activate it, before you can use it. Click the &quot;Activate license&quot;
+                button to continue.
+            </>
+        }
     />;
 };
 

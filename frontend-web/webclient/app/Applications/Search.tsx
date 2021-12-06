@@ -13,6 +13,7 @@ import {GridCardGroup} from "@/ui-components/Grid";
 import {ApplicationCard} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {SmallScreenSearchField} from "@/Navigation/Header";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
 interface SearchQuery {
     tags: string[];
@@ -201,6 +202,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     }, [queryParams, entriesPerPage]);
 
     return <>
+        <FilesSearchTabs active={"APPLICATIONS"} />
         <SmallScreenSearchField />
         <Pagination.List
             loading={results.loading}
@@ -223,7 +225,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                     tags: joinToString(parsedQuery.tags),
                     showAllVersions: parsedQuery.showAllVersions.toString(),
                     page: newPage.toString(),
-                    itemsPerPage: parsedQuery.itemsPerPage.toString()
+                    itemsPerPage: parsedQuery.itemsPerPage.toString(),
                 }));
             }}
         />

@@ -1953,7 +1953,7 @@ export interface JobsExtendRequestItem {
     requestedTime: SimpleDuration,
 }
 export interface JobsOpenInteractiveSessionResponse {
-    sessions: OpenSessionWithProvider[],
+    responses: OpenSessionWithProvider[],
 }
 export interface OpenSessionWithProvider {
     providerDomain: string,

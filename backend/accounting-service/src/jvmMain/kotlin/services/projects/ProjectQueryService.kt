@@ -980,7 +980,7 @@ class ProjectQueryService(
                 )
             },
             mapper = { _, rows -> rows.map { row ->
-                val role = row.getField(ProjectMemberTable.role) as String?
+                val role = row.getFieldNullable(ProjectMemberTable.role)
                 MemberInProject(if (role == null) null else ProjectRole.valueOf(role), row.toProject()) }
             }
         )

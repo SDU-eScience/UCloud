@@ -129,7 +129,13 @@ class Server(
                 configuration.useSmallReservation && micro.developmentModeEnabled
             ))
             register(ParameterPlugin(licenseService))
-            val fileMountPlugin = FileMountPlugin(fs, memberFiles, pathConverter, LimitChecker(db), cephConfig)
+            val fileMountPlugin = FileMountPlugin(
+                fs,
+                memberFiles,
+                pathConverter,
+                LimitChecker(db, pathConverter),
+                cephConfig
+            )
             register(fileMountPlugin)
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)

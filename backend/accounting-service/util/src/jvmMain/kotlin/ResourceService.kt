@@ -97,7 +97,7 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        val browseQuery = browseQuery(request.flags)
+        val browseQuery = browseQuery(actorAndProject, request.flags)
         return paginatedQuery(
             browseQuery,
             actorAndProject,
@@ -110,7 +110,11 @@ abstract class ResourceService<
         )
     }
 
-    protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
+    protected open suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: Flags?,
+        query: String? = null
+    ): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery(
             {},
@@ -131,7 +135,7 @@ abstract class ResourceService<
         asProvider: Boolean,
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -190,7 +194,7 @@ abstract class ResourceService<
     ): List<Res> {
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -222,12 +226,13 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
+                    debug = true,
                 )
                 .rows
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER) {
+                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
                         // Admin isn't enough if we are looking for Provider
                         if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
@@ -811,7 +816,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession { session ->
+        return BulkResponse(db.withSession(remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {
@@ -937,7 +942,7 @@ abstract class ResourceService<
 
             Payment(
                 reqItem.chargeId,
-                reqItem.numberOfProducts,
+                reqItem.periods,
                 reqItem.units,
                 resource.status.resolvedSupport!!.product.pricePerUnit,
                 reqItem.id,
@@ -972,7 +977,7 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(request.flags, request.query)
+        val search = browseQuery(actorAndProject, request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx
@@ -1105,7 +1110,7 @@ abstract class ResourceService<
                                 (gm.username is not null) or
                                 (r.public_read = true)
                           ) and
-                          (:filter_created_by::text is null or :filter_created_by = r.created_by) and
+                          (:filter_created_by::text is null or r.created_by like '%' || :filter_created_by || '%') and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and

@@ -218,6 +218,9 @@ FileMetadataTemplateNamespaces.browse.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -235,8 +238,6 @@ FileMetadataTemplateNamespaces.browse.call(
 /*
 PageV2(
     items = listOf(FileMetadataTemplateNamespace(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "15123", 
         owner = ResourceOwner(
@@ -464,7 +465,10 @@ await callAPI(FilesMetadataTemplatesApi.browse(
             "filterProductCategory": null,
             "filterProviderIds": null,
             "filterIds": null,
-            "filterName": null
+            "filterName": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -508,10 +512,7 @@ await callAPI(FilesMetadataTemplatesApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -721,10 +722,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/metadataTemp
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null

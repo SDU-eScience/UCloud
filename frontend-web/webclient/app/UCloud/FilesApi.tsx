@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, FindById, PERMISSIONS_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, FtIcon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -45,8 +45,10 @@ import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {InvokeCommand} from "@/Authentication/DataHook";
-import metadataApi from "@/UCloud/MetadataDocumentApi";
+import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
+import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -295,7 +297,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Use this folder",
                 primary: true,
                 canAppearInLocation: (loc) => loc === "TOPBAR",
-                enabled: (selected, cb) => selected.length === 0 && cb.onSelect !== undefined,
+                enabled: (selected, cb) => {
+                    return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
+                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory));
+                },
                 onClick: (selected, cb) => {
                     cb.onSelect?.({
                         id: "",
@@ -380,7 +385,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 1;
+                    return selected.length === 1 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
@@ -482,10 +488,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) {return false}
-                    return selected.length > 0 && selected.every(it => {
-                        return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
-                    });
+                    if (Client.hasActiveProject) {return false;}
+                    if (selected.length === 0) return false;
+                    const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
+                    const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
+
+                    if (isMissingPermissions) {
+                        return "You lack permissions to share this file. Only the owner of the file can share it!";
+                    }
+
+                    if (hasNonDirectories) {
+                        return "You can only share a directory. To share a file put it in a directory and share the " +
+                            "directory.";
+                    }
+
+                    return true;
                 },
                 onClick: async (selected, cb) => {
                     const username = await addStandardInputDialog({
@@ -493,9 +510,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         help: <>The username of the user you wish to share this file with</>,
                         addToFront: true,
                         confirmText: "Share",
+                        width: "100%"
                     });
 
-                    await cb.invokeCommand(
+                    await cb.invokeCommand<BulkResponse<FindById>>(
                         SharesApi.create(
                             bulkRequestOf(
                                 ...selected.map(file => ({
@@ -506,7 +524,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }))
                             )
                         )
-                    );
+                    ).then(it => {
+                        if (it?.responses) {
+                            cb.history.push(`/shares/outgoing`);
+                        }
+                    });
                 }
             },
             {
@@ -539,7 +561,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
-                    return selected.length === 1 && selected.every(it => it.status.icon == null)
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return false;
+                    }
+                    return selected.length === 1;
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
@@ -549,6 +574,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Empty Trash",
                 icon: "trash",
                 color: "red",
+                confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -679,6 +705,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
+async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
+    const result = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(metadataNamespaceApi.browse({
+        itemsPerPage: 100,
+        next
+    }));
+
+    const id = result?.items.find(it => it.specification.name === name)?.id;
+    if (!id) {
+        if (!result?.next) return "";
+        return queryTemplateName(name, invokeCommand, result?.next ?? null);
+    }
+
+    return id;
+}
+
 function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
     // Note(Jonas): It should be initialized at this point, but let's make sure.
     if (!sensitivityTemplateId) {
@@ -702,9 +743,8 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     it => ["approved", "not_required"].includes(it.status.approval.type)
                 );
                 if (!entryToDelete) return;
-
                 await invokeCommand(
-                    metadataApi.delete(
+                    metadataDocumentApi.delete(
                         bulkRequestOf({
                             changeLog: reasonText,
                             id: entryToDelete.id
@@ -713,8 +753,16 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     {defaultErrorHandler: false}
                 );
             } else {
+                if (!sensitivityTemplateId) {
+                    sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);
+                    if (!sensitivityTemplateId) {
+                        snackbarStore.addFailure("Failed to change sensitivity.", false);
+                        return;
+                    }
+                }
+
                 await invokeCommand(
-                    metadataApi.create(bulkRequestOf({
+                    metadataDocumentApi.create(bulkRequestOf({
                         fileId: file.id,
                         metadata: {
                             changeLog: reasonText,
@@ -753,6 +801,10 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
 }
 
 function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {
+    if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+        return;
+    }
+
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
 }
 

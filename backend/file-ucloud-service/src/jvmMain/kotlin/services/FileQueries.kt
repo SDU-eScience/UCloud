@@ -29,12 +29,20 @@ class FileQueries(
     private val cephStats: CephFsFastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
-        val internalFile = pathConverter.ucloudToInternal(file)
-        val nativeStat = nativeFs.stat(internalFile)
-        val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
-        val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
-            .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
-        return convertNativeStatToUFile(internalFile, nativeStat, sensitivity = sensitivity)
+        try {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            val nativeStat = nativeFs.stat(internalFile)
+            val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
+            val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
+                .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
+            val forcedPrefix = file.parent()
+            return convertNativeStatToUFile(internalFile, nativeStat, forcedPrefix.path, sensitivity)
+        } catch (ex: RPCException) {
+            if (ex.errorCode == PathConverter.INVALID_FILE_ERROR_CODE) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            throw ex
+        }
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
@@ -49,6 +57,16 @@ class FileQueries(
             FileIconHint.DIRECTORY_JOBS
         } else {
             null
+        }
+    }
+
+    suspend fun fileExists(file: UCloudFile): Boolean {
+        return try {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            nativeFs.stat(internalFile)
+            true
+        } catch (ex: RPCException) {
+            false
         }
     }
 
@@ -106,7 +124,14 @@ class FileQueries(
             foundFiles = initialState.get()?.map { InternalFile(it) }
         }
 
-        val internalFile = pathConverter.ucloudToInternal(file)
+        val internalFile = try {
+            pathConverter.ucloudToInternal(file)
+        } catch (ex: RPCException) {
+            if (ex.errorCode == PathConverter.INVALID_FILE_ERROR_CODE) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            throw ex
+        }
         if (foundFiles == null) {
             foundFiles = nativeFs.listFiles(internalFile)
                 .mapNotNull {

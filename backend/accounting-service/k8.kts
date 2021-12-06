@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting"
-    version = "2021.3.0-alpha5"
+    version = "2021.3.0-alpha11"
 
     withAmbassador("/api/accounting") {
         addSimpleMapping("/api/products")
@@ -18,7 +18,4 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-
-    withAdHocJob(deployment, "instant-check-wallets", { listOf("--low-funds-check")}) {}
-    withCronJob(deployment, "0 */12 * * *", listOf("--low-funds-check"), name="check-wallets") {}
 }

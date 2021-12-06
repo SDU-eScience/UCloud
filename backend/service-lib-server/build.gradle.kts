@@ -7,11 +7,13 @@ plugins {
 repositories {
     jcenter()
     mavenCentral()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.5.2"
+    val ktorVersion = "1.6.2-native-mm-eap-196"
     val jasyncVersion = "1.1.3"
 
     jvm {

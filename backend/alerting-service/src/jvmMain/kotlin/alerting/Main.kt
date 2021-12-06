@@ -1,16 +1,12 @@
 package dk.sdu.cloud.alerting
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.alerting.api.AlertingServiceDescription
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 
-data class Configuration (
+data class Configuration(
     val limits: Limits? = null,
     val omissions: Omission? = null
 )
@@ -30,17 +26,16 @@ data class Omission(
     val whiteListedIPs: List<String>?
 )
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(AlertingServiceDescription, args)
-        install(AuthenticatorFeature)
-        install(ElasticFeature)
-        install(HealthCheckFeature)
+object AlertingService : Service {
+    override val description: ServiceDescription = AlertingServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(AuthenticatorFeature)
+        val config = micro.configuration.requestChunkAtOrNull("alerting") ?: Configuration()
+        return Server(config, micro)
     }
+}
 
-    if (micro.runScriptHandler()) return
-
-    val config = micro.configuration.requestChunkAt<Configuration>("alerting")
-
-    Server(config, micro).start()
+fun main(args: Array<String>) {
+    AlertingService.runAsStandalone(args)
 }

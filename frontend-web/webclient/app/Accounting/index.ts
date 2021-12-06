@@ -486,7 +486,8 @@ export function normalizeBalanceForFrontend(
     chargeType: ChargeType,
     unit: ProductPriceUnit,
     isPrice: boolean,
-    precisionOverride?: number
+    precisionOverride?: number,
+    multiplier?: number
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -505,23 +506,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "NETWORK_IP": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "LICENSE": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "STORAGE": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "COMPUTE": {
-                    const factor = HOUR / inputIs;
+                    const factor = (HOUR / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
             }
@@ -630,13 +631,14 @@ function addThousandSeparators(numberOrString: string | number): string {
 
 export function priceExplainer(product: Product): string {
     const amount = normalizeBalanceForFrontend(product.pricePerUnit, product.productType, product.chargeType,
-        product.unitOfPrice, true);
+        product.unitOfPrice, true, undefined, product.productType === "COMPUTE" ? (product["cpu"] ?? 1) : undefined);
     const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
     return `${amount} ${suffix}`
 }
 
 export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
     let unitsToBuy: number;
+    const cpuFactor = product.productType === "COMPUTE" ? product["cpu"] as number : 1;
     switch (product.unitOfPrice) {
         case "PER_UNIT":
             unitsToBuy = 1;
@@ -655,7 +657,7 @@ export function costOfDuration(minutes: number, numberOfProducts: number, produc
             break;
     }
 
-    return unitsToBuy * product.pricePerUnit * numberOfProducts;
+    return unitsToBuy * product.pricePerUnit * numberOfProducts * cpuFactor;
 }
 
 export function usageExplainer(

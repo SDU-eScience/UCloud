@@ -115,11 +115,11 @@ PageV2(
 Accounting.charge.call(
     bulkRequestOf(ChargeWalletRequestItem(
         description = "A charge for compute usage", 
-        numberOfProducts = 1, 
         payer = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         performedBy = "user", 
+        periods = 1, 
         product = ProductReference(
             category = "example-slim", 
             id = "example-slim-1", 
@@ -357,7 +357,7 @@ await callAPI(AccountingApi.charge(
                     "projectId": "leaf-project"
                 },
                 "units": 1,
-                "numberOfProducts": 1,
+                "periods": 1,
                 "product": {
                     "id": "example-slim-1",
                     "category": "example-slim",
@@ -595,7 +595,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "projectId": "leaf-project"
             },
             "units": 1,
-            "numberOfProducts": 1,
+            "periods": 1,
             "product": {
                 "id": "example-slim-1",
                 "category": "example-slim",
