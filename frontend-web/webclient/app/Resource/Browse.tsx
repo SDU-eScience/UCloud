@@ -31,7 +31,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {EnumOption, ResourceFilter} from "@/Resource/Filter";
+import {EnumOption, ResourceFilter, StaticPill, ValuePill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
@@ -90,7 +90,6 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
-
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
         {noop: true},
         {productsByProvider: {}}
@@ -467,6 +466,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
+    const allPills = useMemo(() => {
+        const result = [...api.filterPills];
+        if (props.isSearch) {
+            result.push(p => <StaticPill icon={"search"} title={"Query"} value={"Query: " + query} {...p} />)
+        }
+        return result;
+    }, [api.filterPills, query, props.isSearch]);
+
     if (isEmbedded) {
         return <Box minWidth="700px" ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
@@ -478,7 +485,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             extra={callbacks} operations={operations} />
                         {props.header}
                         <ResourceFilter
-                            pills={api.filterPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
+                            pills={allPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
                             readOnlyProperties={props.additionalFilters} />
@@ -499,7 +506,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             entityNameSingular={api.title} entityNamePlural={api.titlePlural}
                             extra={callbacks} operations={operations} />
 
-                        <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
+                        <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
                             browseType={props.browseType}
