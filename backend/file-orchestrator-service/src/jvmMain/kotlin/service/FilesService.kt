@@ -313,7 +313,6 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
-        println("delete")
         return bulkProxyEdit(
             actorAndProject,
             request,
@@ -438,17 +437,19 @@ class FilesService(
             }
 
             // Verify that users are allowed to read results produced by provider
-            val collections = fileCollections.retrieveBulk(actorAndProject, collectionIds, listOf(Permission.READ), ctx = session)
+            val collections = fileCollections.retrieveBulk(actorAndProject, collectionIds, listOf(Permission.READ), requireAll = false, ctx = session)
 
             val results = partialsByParent.flatMap { (parent, files) ->
-                val collection = collections.find { it.id == parent.components()[0] } ?: error("No collection!")
-                val metadata = if (request.flags.includeMetadata == true) {
-                    metadataCache.get(Pair(actorAndProject, parent))
-                } else {
-                    null
-                }
+                val collection = collections.find { it.id == parent.components()[0] }
+                if (collection != null ) {
+                    val metadata = if (request.flags.includeMetadata == true) {
+                        metadataCache.get(Pair(actorAndProject, parent))
+                    } else {
+                        null
+                    }
 
-                files.map { it.toUFile(collection, metadata) }
+                    files.map { it.toUFile(collection, metadata) }
+                } else emptyList()
             }
 
             PageV2(
@@ -727,7 +728,6 @@ class FilesService(
         actorAndProject: ActorAndProject,
         request: FilesTrashRequest
     ): FilesTrashResponse {
-        println("trash")
         return bulkProxyEdit(
             actorAndProject,
             request,

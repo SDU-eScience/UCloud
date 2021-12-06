@@ -64,6 +64,7 @@ data class UFileIncludeFlags(
     override val filterProductId: String? = null,
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
+    val filterByFileExtension: String? = null,
     @UCloudApiDoc("Path filter")
     @JsonNames("filterPath")
     val path: String? = null,

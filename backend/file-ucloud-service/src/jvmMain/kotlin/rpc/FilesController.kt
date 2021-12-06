@@ -16,6 +16,7 @@ import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.actorAndProject
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -41,6 +42,7 @@ class FilesController(
     private val chunkedUploadService: ChunkedUploadService,
     private val downloadService: DownloadService,
     private val limitChecker: LimitChecker,
+    private val elasticQueryService: ElasticQueryService
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
@@ -69,19 +71,8 @@ class FilesController(
         }
 
         implement(UCloudFiles.search) {
-            // TODO(Dan): Obviously needs to be replaced by an actual implementation
             ok(
-                PageV2(
-                    50,
-                    (0 until 50).map {
-                        PartialUFile(
-                            "/19/${request.query}_$it",
-                            UFileStatus(),
-                            Time.now()
-                        )
-                    },
-                    "fie"
-                )
+                elasticQueryService.query(request)
             )
         }
 
@@ -127,6 +118,15 @@ class FilesController(
         implement(UCloudFiles.move) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedNewCollection)
+            }
+
+            for (reqItem in request.items) {
+                if (reqItem.oldId.substringBeforeLast('/') == reqItem.newId.substringBeforeLast('/')) {
+                    if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                        fileQueries.fileExists(UCloudFile.create(reqItem.newId))) {
+                        throw RPCException("File or folder already exists", HttpStatusCode.Conflict)
+                    }
+                }
             }
 
             ok(
@@ -191,6 +191,13 @@ class FilesController(
         implement(UCloudFiles.createFolder) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedCollection)
+            }
+
+            for (reqItem in request.items) {
+                if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                    fileQueries.fileExists(UCloudFile.create(reqItem.id))) {
+                    throw RPCException("Folder already exists", HttpStatusCode.Conflict)
+                }
             }
 
             ok(
