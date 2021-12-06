@@ -95,12 +95,7 @@ function createResumeable(
 ) {
     return async () => {
         while (!reader.isEof() && !upload.terminationRequested) {
-            try {
-                await sendChunk(await reader.readChunk(maxChunkSize));
-            } catch (e) {
-                upload.error = errorMessageOrDefault(e, "An error ocurred uploading the file.");
-                return;
-            }
+            await sendChunk(await reader.readChunk(maxChunkSize));
 
             const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
             localStorage.setItem(
@@ -125,8 +120,8 @@ function createResumeable(
         return new Promise(((resolve, reject) => {
             const progressStart = upload.progressInBytes;
             const request = new XMLHttpRequest();
-            console.log(strategy.endpoint);
-            request.open("POST", "https://dev.cloud.sdu.dk:443/ucloud/chunked");
+
+            request.open("POST", strategy!.endpoint);
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
             request.setRequestHeader("Content-Type", "application/octet-stream");
@@ -168,7 +163,6 @@ const Uploader: React.FunctionComponent = () => {
     const toggleSet = useToggleSet(uploads);
     const startUploads = useCallback(async (batch: Upload[]) => {
         let activeUploads = 0;
-        console.log(batch);
         for (const u of uploads) {
             if (u.state === UploadState.UPLOADING) activeUploads++;
         }
