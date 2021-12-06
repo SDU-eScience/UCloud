@@ -1,7 +1,12 @@
-FROM ubuntu:20.04 AS BASE
+FROM ubuntu:20.04 AS base
 
 # Dependencies
 RUN apt-get update
+RUN apt-get -y install locales
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_TYPE en_US.UTF-8
+ENV LC_MESSAGES en_US.UTF-8
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN apt-get -qq -y install curl wget unzip zip sudo libjansson-dev libcurl4 libtinfo5 libssl-dev libuv1-dev libcurl4-openssl-dev
 RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
@@ -19,7 +24,7 @@ RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
 
-FROM BASE AS DEVELOPMENT
+FROM base AS development
 
 RUN useradd --user-group testuser 
 RUN apt-get update && apt-get install -y vim
@@ -30,18 +35,16 @@ RUN chmod +x /opt/ucloud-default-config/config_installer.sh
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 WORKDIR /opt/ucloud
 
-
-FROM DEVELOPMENT AS ucloud-im
+FROM development AS ucloud-im
 RUN apt-get -qq -y install munge slurm-client ssh
 RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
 WORKDIR /opt/ucloud
-
 
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
 RUN useradd --user-group testuser
 
 
-FROM SLURM-BASE as slurm-base-ssh
+FROM slurm-base as slurm-base-ssh
 #install sshd server
 RUN yum -y install openssh-server
 #appends public keys

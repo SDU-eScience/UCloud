@@ -5,4 +5,4 @@ RUN mv /tmp/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 USER 11042
 COPY build/service /opt/service
-cmd ["/opt/service/bin/service"]
+CMD ["/opt/service/bin/service"]

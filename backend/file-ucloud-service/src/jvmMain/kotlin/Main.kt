@@ -24,6 +24,7 @@ object FileUcloudService : Service {
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
         micro.install(BackgroundScopeFeature)
+        micro.install(ElasticFeature)
 
         val configuration = micro.configuration.requestChunkAtOrNull("files", "ucloud") ?: Configuration()
         val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()

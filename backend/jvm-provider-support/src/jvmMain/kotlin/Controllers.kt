@@ -2,7 +2,7 @@
 package dk.sdu.cloud.providers
 
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Nov 16 13:40:42 CET 2021 */
+/* Generated at: Mon Dec 06 10:49:27 CET 2021 */
 
 
 import dk.sdu.cloud.providers.UCloudRpcDispatcher
@@ -40,7 +40,7 @@ abstract class JobsController(
      */
     abstract fun extend(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -53,7 +53,7 @@ abstract class JobsController(
      */
     abstract fun terminate(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -67,7 +67,7 @@ abstract class JobsController(
      */
     abstract fun suspend(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>
+    ): kotlin.Unit
     
     
     /**
@@ -101,7 +101,7 @@ abstract class JobsController(
      */
     abstract fun openInteractiveSession(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.OpenSession>
     
     
     /**
@@ -116,7 +116,7 @@ abstract class JobsController(
      */
     abstract fun retrieveUtilization(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.app.orchestrator.api.JobsRetrieveUtilizationResponse
     
     
     /**
@@ -129,12 +129,12 @@ abstract class JobsController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.ComputeSupport>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -147,7 +147,7 @@ abstract class JobsController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>
+    ): kotlin.Unit
     
     
     /**
@@ -160,7 +160,7 @@ abstract class JobsController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Job>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Job>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     @Suppress("UNCHECKED_CAST")
@@ -214,17 +214,17 @@ abstract class NetworkIPController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider(providerId), wsDispatcher) {
     abstract fun updateFirewall(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndIP>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndIP>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -237,7 +237,7 @@ abstract class NetworkIPController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>
     
     
     /**
@@ -250,7 +250,7 @@ abstract class NetworkIPController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.NetworkIP>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.NetworkIP>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -263,7 +263,7 @@ abstract class NetworkIPController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -311,12 +311,12 @@ abstract class IngressController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.IngressProvider(providerId), wsDispatcher) {
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -329,7 +329,7 @@ abstract class IngressController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.IngressSupport>
     
     
     /**
@@ -342,7 +342,7 @@ abstract class IngressController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Ingress>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Ingress>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -355,7 +355,7 @@ abstract class IngressController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -443,12 +443,12 @@ abstract class LicenseController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.LicenseProvider(providerId), wsDispatcher) {
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -461,7 +461,7 @@ abstract class LicenseController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.LicenseSupport>
     
     
     /**
@@ -474,7 +474,7 @@ abstract class LicenseController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.License>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.License>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -487,7 +487,7 @@ abstract class LicenseController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -535,17 +535,17 @@ abstract class FileCollectionsController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider(providerId), wsDispatcher) {
     abstract fun rename(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollectionsProviderRenameRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollectionsProviderRenameRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -558,7 +558,7 @@ abstract class FileCollectionsController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FSSupport>
     
     
     /**
@@ -571,7 +571,7 @@ abstract class FileCollectionsController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.FileCollection>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.FileCollection>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -584,7 +584,7 @@ abstract class FileCollectionsController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -634,6 +634,7 @@ abstract class FileCollectionsController(
     "/ucloud/*/files/upload",
     "/ucloud/*/files/move",
     "/ucloud/*/files/copy",
+    "/ucloud/*/files/search",
 )
 abstract class FilesController(
     private val providerId: String,
@@ -641,57 +642,62 @@ abstract class FilesController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.FilesProvider(providerId), wsDispatcher) {
     abstract fun browse(
         request: dk.sdu.cloud.file.orchestrator.api.FilesProviderBrowseRequest,
-    ): dk.sdu.cloud.file.orchestrator.api.FilesProviderBrowseRequest
+    ): dk.sdu.cloud.PageV2<dk.sdu.cloud.file.orchestrator.api.PartialUFile>
     
     
     abstract fun retrieve(
         request: dk.sdu.cloud.file.orchestrator.api.FilesProviderRetrieveRequest,
-    ): dk.sdu.cloud.file.orchestrator.api.FilesProviderRetrieveRequest
+    ): dk.sdu.cloud.file.orchestrator.api.PartialUFile
     
     
     abstract fun move(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderMoveRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderMoveRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
     
     
     abstract fun copy(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCopyRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCopyRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
     
     
     abstract fun createFolder(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateFolderRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateFolderRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
     
     
     abstract fun trash(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderTrashRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderTrashRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
     
     
     abstract fun emptyTrash(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderEmptyTrashRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderEmptyTrashRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
     
     
     abstract fun createUpload(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateUploadRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateUploadRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FilesCreateUploadResponseItem>
     
     
     abstract fun createDownload(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FilesCreateDownloadResponseItem>
+    
+    
+    abstract fun search(
+        request: dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest,
+    ): dk.sdu.cloud.PageV2<dk.sdu.cloud.file.orchestrator.api.PartialUFile>
     
     
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -704,7 +710,7 @@ abstract class FilesController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FSSupport>
     
     
     /**
@@ -717,7 +723,7 @@ abstract class FilesController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.UFile>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.UFile>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -730,7 +736,7 @@ abstract class FilesController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -750,6 +756,7 @@ abstract class FilesController(
             "files.provider.*.emptyTrash" -> emptyTrash(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderEmptyTrashRequestItem>) as S
             "files.provider.*.createUpload" -> createUpload(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateUploadRequestItem>) as S
             "files.provider.*.createDownload" -> createDownload(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem>) as S
+            "files.provider.*.search" -> search(request as dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest) as S
             "files.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>) as S
             "files.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>) as S
             "files.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
@@ -823,7 +830,7 @@ abstract class ChunkedUploadProtocolController(
      */
     abstract fun uploadChunk(
         request: dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocolUploadChunkRequest,
-    ): dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocolUploadChunkRequest
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")
@@ -866,12 +873,12 @@ abstract class SharesController(
 ): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.SharesProvider(providerId), wsDispatcher) {
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     abstract fun create(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
     
     
     /**
@@ -884,7 +891,7 @@ abstract class SharesController(
      */
     abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.ShareSupport>
     
     
     /**
@@ -897,7 +904,7 @@ abstract class SharesController(
      */
     abstract fun updateAcl(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.Share>>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.Share>>
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     /**
@@ -910,7 +917,7 @@ abstract class SharesController(
      */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
-    ): dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>
+    ): kotlin.Unit
     
     
     @Suppress("UNCHECKED_CAST")

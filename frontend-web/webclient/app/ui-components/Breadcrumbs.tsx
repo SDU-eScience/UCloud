@@ -37,7 +37,7 @@ export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
         text-decoration: none;
     }
 
-    & > span:last-child:hover {
+    &.isMain > span:last-child:hover {
         color: var(--text, #f00);
         cursor: default;
     }

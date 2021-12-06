@@ -153,7 +153,8 @@ export const FilesBrowse: React.FunctionComponent<{
                         }
                     />
                 </DriveDropdown>
-                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}>
+                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
+                                 className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
                     {breadcrumbs.map((it, idx) => (
                         <span key={it} test-tag={it} title={it}
                               onClick={() => {
